@@ -1232,8 +1232,13 @@
     }
 
     const utilChart = new Chart(document.getElementById('utilChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts() });
+    utilChart.options.scales.y.min = 0;
+    utilChart.options.scales.y.max = 100;
     const bwChart = new Chart(document.getElementById('bwChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts(true) });
+    bwChart.options.scales.y.min = 0;
+    bwChart.options.scales.y1.min = 0;
     const ioChart = new Chart(document.getElementById('ioChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts() });
+    ioChart.options.scales.y.min = 0;
     const sparkChart = new Chart(document.getElementById('sparkChart'), {
       type: 'line',
       data: { labels: [], datasets: [] },
@@ -1351,13 +1356,35 @@
       const rollLabel = ROLL_LABELS[rollup] || rollup + 's';
       metaEl.textContent = `${spanSec / 60}m window · ${rollLabel} rollup · ${labels.length} points`;
       const getVal = rollup <= 1 ? (p, fn) => fn(p) : (p, fn) => avg(p, fn);
-      chart.data.labels = labels;
-      chart.data.datasets = defs.filter(d => enabled[group][d.key]).map(d => ({
-        label: d.label, data: points.map(p => getVal(p, d.pick)),
-        borderColor: d.color, backgroundColor: d.color + '20',
-        yAxisID: dualAxis ? (d.yAxis || 'y') : 'y',
-        fill: group !== 'io', tension: .3, pointRadius: 0, borderWidth: 3,
-      }));
+      const activeDefs = defs.filter(d => enabled[group][d.key]);
+      const enabledKey = activeDefs.map(d => d.key).join(',');
+      const structKey = `${group}|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}|${rollup}|${enabledKey}`;
+      const newDatasets = activeDefs.map(d => {
+        const raw = points.map(p => getVal(p, d.pick));
+        const data = smoothChartSeries(`${group}:${d.key}:${structKey}`, raw);
+        return {
+          label: d.label, data,
+          borderColor: d.color, backgroundColor: d.color + '20',
+          yAxisID: dualAxis ? (d.yAxis || 'y') : 'y',
+          fill: group !== 'io', tension: .3, pointRadius: 0, borderWidth: 3,
+        };
+      });
+      if (group === 'bw') {
+        const yVals = newDatasets.filter(d => d.yAxisID === 'y').flatMap(d => d.data);
+        const y1Vals = newDatasets.filter(d => d.yAxisID === 'y1').flatMap(d => d.data);
+        if (yVals.length) stableAxisMax(chart, 'y', Math.max(...yVals));
+        if (y1Vals.length) stableAxisMax(chart, 'y1', Math.max(...y1Vals), 50);
+      } else if (group === 'io') {
+        const vals = newDatasets.flatMap(d => d.data);
+        if (vals.length) stableAxisMax(chart, 'y', Math.max(...vals), 5);
+      }
+      if (structKey === chart._pulseStructKey && chart.data.datasets.length === newDatasets.length) {
+        newDatasets.forEach((ds, i) => { chart.data.datasets[i].data = ds.data; });
+      } else {
+        chart._pulseStructKey = structKey;
+        chart.data.labels = labels;
+        chart.data.datasets = newDatasets;
+      }
       chart.update('none');
     }
 
@@ -1376,9 +1403,18 @@
 
     function updateRankRow(tr, r) {
       if (!tr) return;
-      setMeterWidth(tr.querySelector('[data-live-fill]'), r.liveBar);
+      const liveBar = smoothDisplayPct(`rank-live-${r.part}`, r.liveBar);
+      setMeterWidth(tr.querySelector('[data-live-fill]'), liveBar);
       const liveText = tr.querySelector('[data-live-text]');
-      if (liveText) liveText.textContent = r.live;
+      if (liveText) {
+        if (r.part === 'CPU') {
+          liveText.textContent = `${liveBar}% load · ${smoothDisplayPct(`rank-head-${r.part}`, r.headroom_pct)}% headroom`;
+        } else if (r.part === 'GPU') {
+          liveText.textContent = `${liveBar}% GPU · ${r.vram_gbps_live} GB/s VRAM (${r.vram_bw_busy_pct}% BW)`;
+        } else {
+          liveText.textContent = `${r.live_gbps_est} GB/s est. · ${liveBar}% pressure`;
+        }
+      }
       const vsAvg = tr.querySelector('[data-vs-avg]');
       const vsEnth = tr.querySelector('[data-vs-enth]');
       if (vsAvg) vsAvg.innerHTML = vsFmt(r.vs_avg_pct);
@@ -1387,8 +1423,9 @@
 
     function renderComparison(c, mem, pulseRoot = '') {
       if (!c) return;
-      document.getElementById('sessionIndex').textContent = `${c.session_index}/100`;
-      document.getElementById('compositeRank').innerHTML = tierBadge(c.composite_rank);
+      const sessionIdx = smoothDisplayPct('session-index', c.session_index);
+      document.getElementById('sessionIndex').textContent = `${sessionIdx}/100`;
+      setTierBadge(document.getElementById('compositeRank'), c.composite_rank);
       document.getElementById('compositeSub').textContent =
         `Composite tier ${c.composite_tier}/100 · CPU+GPU+RAM blend`;
 
@@ -1549,7 +1586,11 @@
     let panelScrollState = {};
     let lastRankStructKey = '';
     const meterSmooth = new Map();
+    const displaySmooth = new Map();
+    const chartSeriesSmooth = new Map();
     const METER_SMOOTH_ALPHA = 0.22;
+    const DISPLAY_SMOOTH_ALPHA = 0.18;
+    const CHART_SMOOTH_ALPHA = 0.28;
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function clampPct(p) {
@@ -1564,6 +1605,45 @@
       const next = prev + METER_SMOOTH_ALPHA * (v - prev);
       meterSmooth.set(key, next);
       return next;
+    }
+
+    function smoothDisplay(key, raw) {
+      const v = Number(raw);
+      if (raw == null || isNaN(v)) return raw;
+      if (prefersReducedMotion) return v;
+      const prev = displaySmooth.has(key) ? displaySmooth.get(key) : v;
+      const next = prev + DISPLAY_SMOOTH_ALPHA * (v - prev);
+      displaySmooth.set(key, next);
+      return next;
+    }
+
+    function smoothDisplayPct(key, raw) {
+      return Math.round(smoothDisplay(key, raw));
+    }
+
+    function smoothChartSeries(key, data) {
+      if (prefersReducedMotion) return data;
+      const prev = chartSeriesSmooth.get(key);
+      if (!prev || prev.length !== data.length) {
+        chartSeriesSmooth.set(key, data.slice());
+        return data;
+      }
+      const out = data.map((v, i) => {
+        const p = prev[i];
+        const n = p + CHART_SMOOTH_ALPHA * (v - p);
+        return +n.toFixed(2);
+      });
+      chartSeriesSmooth.set(key, out);
+      return out;
+    }
+
+    function stableAxisMax(chart, axisId, dataMax, min = 8) {
+      const scale = chart.options.scales[axisId];
+      if (!scale) return;
+      const target = Math.max(min, Math.ceil(dataMax * 1.12));
+      const prev = scale._pulseMax ?? target;
+      scale._pulseMax = target > prev ? target : prev + (target - prev) * 0.08;
+      scale.max = scale._pulseMax;
     }
 
     function setMeterWidth(el, pct) {
@@ -1869,7 +1949,8 @@
       setMeterWidth(document.getElementById('sumMemMeter'), m.pct);
       setMeterWidth(document.getElementById('sumGpuMeter'), g.busy_pct ?? 0);
       setMeterWidth(document.getElementById('sumGameMeter'), gt?.running ? gt.cpu_pct : 0);
-      setMeterWidth(document.getElementById('sumLeagueMeter'), comparison?.session_index ?? 0);
+      const leagueIdx = comparison ? smoothDisplayPct('session-index', comparison.session_index) : 0;
+      setMeterWidth(document.getElementById('sumLeagueMeter'), leagueIdx);
 
       document.getElementById('sumCpuVal').textContent = `${c.overall_pct}%`;
       document.getElementById('sumCpuSub').textContent = `${c.temps.package ?? '—'}°C · load ${c.load?.[0] ?? '—'}`;
@@ -1887,11 +1968,8 @@
         ? `${gt.primary_name || gt.game_name} · ${(gt.rss_mb / 1024).toFixed(1)} GB`
         : 'No game running';
 
-      document.getElementById('sumLeagueVal').textContent = `${comparison?.session_index ?? '—'}/100`;
-      const badgeEl = document.getElementById('sumLeagueBadge');
-      if (badgeEl) {
-        badgeEl.innerHTML = comparison?.composite_rank ? tierBadge(comparison.composite_rank) : '';
-      }
+      document.getElementById('sumLeagueVal').textContent = comparison ? `${leagueIdx}/100` : '—/100';
+      setTierBadge(document.getElementById('sumLeagueBadge'), comparison?.composite_rank);
       document.getElementById('sumLeagueSub').textContent =
         comparison?.composite_tier != null
           ? `Tier ${comparison.composite_tier}/100 · session load`
@@ -1913,7 +1991,7 @@
         `CPU ${c.overall_pct}% · GPU ${g.busy_pct ?? '—'}% · VRAM ${g.vram_used_mb ?? '—'}/${g.vram_total_mb ?? '—'} MB`;
 
       document.getElementById('drillLeagueSum').textContent =
-        `Score ${comparison?.session_index ?? '—'}/100 · ${comparison?.composite_rank ?? '—'} · CPU ${comparison?.cpu?.tier_rank ?? '—'}`;
+        `Score ${comparison ? leagueIdx : '—'}/100 · ${comparison?.composite_rank ?? '—'} · CPU ${comparison?.cpu?.tier_rank ?? '—'}`;
 
       document.getElementById('drillGameSum').textContent = gt?.running
         ? `${gt.primary_name || gt.game_name} · ${gt.proc_count} procs · ${gt.cpu_pct}% CPU`
@@ -2005,10 +2083,12 @@
       const last = rawHistory.at(-1)?.ts ?? 0;
       const cut = rawHistory.filter(h => h.ts >= last - 300);
       const { labels, points } = bucketize(cut, 5);
-      const stutterLine = points.map(p => {
+      const structKey = `spark|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}`;
+      const stutterRaw = points.map(p => {
         const slice = Array.isArray(p) ? p : [p];
         return avg(slice, h => h.stutter?.score ?? 0);
       });
+      const stutterLine = smoothChartSeries(`${structKey}:stutter`, stutterRaw);
       const eventPoints = [];
       points.forEach((p, i) => {
         const slice = Array.isArray(p) ? p : [p];
@@ -2016,14 +2096,20 @@
           eventPoints.push({ x: labels[i], y: stutterLine[i] });
         }
       });
-      sparkChart.data.labels = labels;
-      sparkChart.data.datasets = [
-        { label: 'CPU', data: points.map(p => avg(p, h => h.cpu.overall_pct)), borderColor: CHART.cpu, backgroundColor: CHART.cpu + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
-        { label: 'GPU', data: points.map(p => avg(p, h => h.gpu.discrete.busy_pct ?? 0)), borderColor: CHART.gpu, backgroundColor: CHART.gpu + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
-        { label: 'RAM', data: points.map(p => avg(p, h => h.memory.pct)), borderColor: CHART.ram, backgroundColor: CHART.ram + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+      const newDatasets = [
+        { label: 'CPU', data: smoothChartSeries(`${structKey}:cpu`, points.map(p => avg(p, h => h.cpu.overall_pct))), borderColor: CHART.cpu, backgroundColor: CHART.cpu + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+        { label: 'GPU', data: smoothChartSeries(`${structKey}:gpu`, points.map(p => avg(p, h => h.gpu.discrete.busy_pct ?? 0))), borderColor: CHART.gpu, backgroundColor: CHART.gpu + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+        { label: 'RAM', data: smoothChartSeries(`${structKey}:ram`, points.map(p => avg(p, h => h.memory.pct))), borderColor: CHART.ram, backgroundColor: CHART.ram + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
         { label: 'Hitch score', data: stutterLine, borderColor: '#b48ead', backgroundColor: 'rgba(180,142,173,.12)', fill: false, tension: .35, pointRadius: 0, borderWidth: 2.5, borderDash: [5, 4], yAxisID: 'y' },
         { type: 'scatter', label: 'Hitch event', data: eventPoints, borderColor: '#ed6a5a', backgroundColor: '#ed6a5a', pointRadius: 5, pointStyle: 'triangle', yAxisID: 'y', showLine: false },
       ];
+      if (structKey === sparkChart._pulseStructKey && sparkChart.data.datasets.length === newDatasets.length) {
+        newDatasets.forEach((ds, i) => { sparkChart.data.datasets[i].data = ds.data; });
+      } else {
+        sparkChart._pulseStructKey = structKey;
+        sparkChart.data.labels = labels;
+        sparkChart.data.datasets = newDatasets;
+      }
       sparkChart.update('none');
     }
 
@@ -2104,10 +2190,11 @@
           <div class="league-parts" id="leagueParts"></div>`;
         el.dataset.init = '1';
       }
-      document.getElementById('leagueBig').textContent = `${c.session_index}/100`;
-      document.getElementById('leagueBadge').innerHTML = tierBadge(c.composite_rank);
-      document.getElementById('leagueSessionVal').textContent = `${c.session_index}%`;
-      setMeterWidth(document.getElementById('leagueSessionBar'), c.session_index);
+      const sessionIdx = smoothDisplayPct('session-index', c.session_index);
+      document.getElementById('leagueBig').textContent = `${sessionIdx}/100`;
+      setTierBadge(document.getElementById('leagueBadge'), c.composite_rank);
+      document.getElementById('leagueSessionVal').textContent = `${sessionIdx}%`;
+      setMeterWidth(document.getElementById('leagueSessionBar'), sessionIdx);
       const parts = [
         { label: 'CPU', icon: 'cpu', track: 'cpu', tier: c.cpu?.tier_rank, score: c.cpu?.tier_score, live: c.cpu?.live_pct },
         { label: 'GPU', icon: 'gpu', track: 'gpu', tier: c.gpu?.tier_rank, score: c.gpu?.tier_score, live: c.gpu?.live_pct },
@@ -2118,7 +2205,7 @@
         partsEl.innerHTML = parts.map(p => `
           <div class="metric-bar" data-lpart="${p.label}">
             <div class="metric-bar-head">
-              <span class="metric-bar-label hw-row" data-lpart-label>${hwIcon(p.icon, 'hw-part-glyph')}${p.label}</span>
+              <span class="metric-bar-label hw-row">${hwIcon(p.icon, 'hw-part-glyph')}${p.label} · <span data-lpart-tier></span></span>
               <span class="metric-bar-val" data-lpart-live>—</span>
             </div>
             <div class="metric-bar-track ${p.track}" data-lpart-track><span data-lpart-fill style="width:0%"></span></div>
@@ -2129,9 +2216,9 @@
       parts.forEach(p => {
         const row = partsEl.querySelector(`[data-lpart="${p.label}"]`);
         if (!row) return;
-        row.querySelector('[data-lpart-label]').innerHTML =
-          `${hwIcon(p.icon, 'hw-part-glyph')}${p.label} · ${tierBadge(p.tier ?? '—', false)}`;
-        row.querySelector('[data-lpart-live]').textContent = `${p.live ?? '—'}% live`;
+        setTierBadge(row.querySelector('[data-lpart-tier]'), p.tier ?? '—', false);
+        const livePct = smoothDisplayPct(`league-live-${p.label}`, p.live ?? 0);
+        row.querySelector('[data-lpart-live]').textContent = `${livePct}% live`;
         row.querySelector('[data-lpart-sub]').textContent = `Tier score ${p.score ?? '—'}/100`;
         setMeterWidth(row.querySelector('[data-lpart-fill]'), p.score ?? 0);
       });
@@ -2318,6 +2405,15 @@
       const label = esc(rank ?? '—');
       const cls = tierBadgeClass(rank);
       return `<span class="rank-badge ${cls}">${showTrophy ? hwIcon('league', 'hw-badge-glyph') : ''}${label}</span>`;
+    }
+
+    function setTierBadge(el, rank, showTrophy = true) {
+      if (!el) return;
+      const r = String(rank ?? '');
+      const key = `${r}|${showTrophy ? 1 : 0}`;
+      if (el.dataset.tierKey === key) return;
+      el.dataset.tierKey = key;
+      el.innerHTML = r ? tierBadge(rank, showTrophy) : '';
     }
 
     function sevBadge(lv, label) {

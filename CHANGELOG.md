@@ -7,6 +7,9 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Fixed
+- **Display stability** — EMA smoothing for session load index, league live bars, and chart series; tier badges only re-render when rank changes; util chart locked to 0–100% y-axis; bandwidth/I/O charts use slowly-adjusting axis max to prevent vertical jump.
+
 ### Changed
 - **Renamed to Cosmic Pulse** — UI title, header, docs, fix scripts, and service messages.
 
