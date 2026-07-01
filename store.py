@@ -16,9 +16,6 @@ from pulse_config import (
     RETENTION_MIN_DAYS,
     RETENTION_PRESETS,
     estimate_max_mb,
-    FIX_CLOSE_APP_IDS,
-    FIX_CLOSE_APP_LABELS,
-    get_fix_close_apps,
     get_retention_days,
     save_config,
     save_retention_days,
@@ -299,9 +296,6 @@ def stats() -> dict:
         "est_max_mb": estimate_max_mb(days),
         "games": {r["game_id"]: r["n"] for r in games},
         "metrics": METRICS,
-        "fix_close_apps": get_fix_close_apps(),
-        "fix_close_app_ids": list(FIX_CLOSE_APP_IDS),
-        "fix_close_app_labels": dict(FIX_CLOSE_APP_LABELS),
     }
 
 
@@ -319,8 +313,6 @@ def update_settings(body: dict) -> dict:
     updates: dict = {}
     if "retention_days" in body:
         updates["retention_days"] = body["retention_days"]
-    if "fix_close_apps" in body:
-        updates["fix_close_apps"] = body["fix_close_apps"]
     if not updates:
         out = stats()
         out["ok"] = False

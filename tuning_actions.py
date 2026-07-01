@@ -242,9 +242,9 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             [
                 _cmd("List top memory users", "ps aux --sort=-%mem | head -20"),
                 _cmd(
-                    "Close background apps",
-                    "Use Fixes → Fix on memory insights (respects app toggles; Brave is off by default)",
-                    note="Enable Brave under Fixes if you want it closed too",
+                    "Close background apps manually",
+                    "Quit browsers, Discord, and other RAM-heavy apps before gaming",
+                    note="Pulse will not close apps for you",
                 ),
                 _cmd("Disable unnecessary autostart", "systemctl --user list-unit-files --state=enabled | head -30", kind="cmd"),
             ],

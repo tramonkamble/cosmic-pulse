@@ -6,10 +6,9 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-from collections.abc import Callable
+from pathlib import Path
 
 from fix_scripts import CS2_DIR
-from pulse_config import FIX_CLOSE_APP_LABELS, get_fix_close_apps
 
 FIX_REQUIRES_ROOT: dict[str, bool] = {
     "cpu-governor-powersave": True,
@@ -64,88 +63,6 @@ def _launch_corectrl() -> bool:
     return True
 
 
-def _flatpak_kill(*app_ids: str) -> bool:
-    if not shutil.which("flatpak"):
-        return False
-    for app_id in app_ids:
-        try:
-            r = subprocess.run(
-                ["flatpak", "kill", app_id],
-                capture_output=True,
-                timeout=8,
-            )
-            if r.returncode == 0:
-                return True
-        except (subprocess.SubprocessError, OSError):
-            pass
-    return False
-
-
-def _pkill_patterns(*patterns: str) -> bool:
-    for pattern in patterns:
-        try:
-            r = subprocess.run(
-                ["pkill", "-f", pattern],
-                capture_output=True,
-                timeout=5,
-            )
-            if r.returncode == 0:
-                return True
-        except (subprocess.SubprocessError, OSError):
-            pass
-    return False
-
-
-def _close_brave() -> bool:
-    if _flatpak_kill("com.brave.Browser"):
-        return True
-    return _pkill_patterns(
-        r"/app/brave/brave --disable-features",
-        r"/usr/bin/brave-browser",
-        r"/opt/brave.com/brave/brave-browser",
-    )
-
-
-def _close_firefox() -> bool:
-    if _flatpak_kill("org.mozilla.firefox"):
-        return True
-    return _pkill_patterns(r"/firefox/firefox ", r"/usr/bin/firefox")
-
-
-def _close_discord() -> bool:
-    if _flatpak_kill("com.discordapp.Discord"):
-        return True
-    return _pkill_patterns(r"/usr/share/discord/Discord", r"/app/discord/Discord")
-
-
-_CLOSE_STRATEGIES: dict[str, Callable[[], bool]] = {
-    "firefox": _close_firefox,
-    "brave": _close_brave,
-    "discord": _close_discord,
-}
-
-
-def _close_background_apps() -> list[str]:
-    enabled = get_fix_close_apps()
-    closed: list[str] = []
-    for app_id, label in FIX_CLOSE_APP_LABELS.items():
-        if not enabled.get(app_id):
-            continue
-        closer = _CLOSE_STRATEGIES.get(app_id)
-        if closer and closer():
-            closed.append(label)
-    return closed
-
-
-def _close_apps_note() -> str:
-    enabled = [FIX_CLOSE_APP_LABELS[k] for k, on in get_fix_close_apps().items() if on]
-    if not enabled:
-        return "No apps enabled to close — turn on toggles above."
-    if len(enabled) == len(FIX_CLOSE_APP_LABELS):
-        return "No matching background apps were running."
-    return f"No matching apps were running ({', '.join(enabled)} enabled)."
-
-
 def _apply_gpu_cool() -> dict:
     steps: list[str] = []
     if _launch_corectrl():
@@ -184,19 +101,6 @@ def _apply_vram_bandwidth() -> dict:
     }
 
 
-def _apply_dram_stall() -> dict:
-    closed = _close_background_apps()
-    if closed:
-        return {
-            "ok": True,
-            "message": f"Closed {', '.join(closed)}. Re-check memory stall on the dashboard.",
-        }
-    return {
-        "ok": True,
-        "message": _close_apps_note(),
-    }
-
-
 def _apply_page_faults() -> dict:
     saves = CS2_DIR / "Saves"
     if _xdg_open(saves):
@@ -207,28 +111,13 @@ def _apply_page_faults() -> dict:
     return {"ok": False, "message": "Save folder not found."}
 
 
-def _apply_stutter() -> dict:
-    closed = _close_background_apps()
-    parts: list[str] = []
-    if closed:
-        parts.append(f"closed {', '.join(closed)}")
-    parts.append("stay paused ~30s after load before unpausing")
-    return {
-        "ok": True,
-        "message": " · ".join(parts).capitalize() + ".",
-        "detail": "Swappiness changes still need root — see script if swap is active.",
-    }
-
-
 _APPLY_HANDLERS: dict[str, callable] = {
     "gpu-thermal-ceiling": _apply_gpu_cool,
     "gpu-thermal-warm": _apply_gpu_cool,
     "gpu-vram-bandwidth": _apply_vram_bandwidth,
     "gpu-vram-full": _apply_open_cs2,
     "gpu-gtt-churn": _apply_vram_bandwidth,
-    "memory-dram-stall": _apply_dram_stall,
     "memory-page-faults": _apply_page_faults,
-    "stutter-proxy": _apply_stutter,
     "gpu-shader-bound": _apply_open_cs2,
 }
 
