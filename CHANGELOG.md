@@ -8,9 +8,12 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
-- *(none yet)*
+- **Publish prep** — `README.md`, MIT `LICENSE`, `requirements.txt`, dashboard screenshot, `docs/REVIEW.md` (code review guide), `docs/PUBLISH_CHECKLIST.md`.
 
 ### Changed
+- **Portable paths** — `pulse_root` in static API; probe script paths no longer hardcode `/home/tkep`.
+
+### Changed (earlier this week)
 - **Git workflow** — `CONTRIBUTING.md` documents Conventional Commits, changelog sync, and local `main` practices.
 
 ## [2026-06-30] — local git

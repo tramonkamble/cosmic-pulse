@@ -23,7 +23,7 @@ Pulse uses standard local git practices. Remote (GitHub/GitLab) can be added lat
 ## Typical flow
 
 ```bash
-cd /home/tkep/perf-dashboard
+cd pulse   # your clone directory
 
 # edit files …
 # update CHANGELOG.md [Unreleased] …
