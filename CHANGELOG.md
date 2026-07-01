@@ -1,11 +1,14 @@
 # Changelog
 
-All notable changes to **Pulse** (perf-dashboard) are documented here.
+All notable changes to **Cosmic Pulse** (perf-dashboard) are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
+
+### Changed
+- **Renamed to Cosmic Pulse** — UI title, header, docs, fix scripts, and service messages.
 
 ### Added
 - **COSMIC theme sync** — reads `~/.config/cosmic` accent, palette, surfaces, radii, and frost setting; applies live CSS variables and chart colors.
@@ -97,7 +100,7 @@ When shipping a user-visible change:
 1. Add bullets under **`[Unreleased]`** in the right category (`Added`, `Changed`, `Fixed`, `Removed`).
 2. On a meaningful batch (or end of session), rename `[Unreleased]` to a dated section (`## [YYYY-MM-DD]`) and open a fresh `[Unreleased]` section.
 3. Commit in git with a short message that matches the changelog entry (e.g. `feat: smoother meter easing`).
-4. Restart Pulse after UI/backend changes: `systemctl --user restart pulse`.
+4. Restart Cosmic Pulse after UI/backend changes: `systemctl --user restart pulse`.
 
 ### Local git (current)
 

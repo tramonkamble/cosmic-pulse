@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#2b2e34" />
-  <title>Pulse · Cities II</title>
+  <title>Cosmic Pulse · Cities II</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
@@ -85,11 +85,13 @@
     h1 {
       margin: 0; font-size: 1.6rem; font-weight: 500; letter-spacing: 0.02em; color: var(--text);
     }
-    h1 .pop-dot {
+    h1 .cosmic-dot {
       display: inline-block; width: 10px; height: 10px; border-radius: 50%;
       background: var(--accent); margin-right: .55rem; vertical-align: middle;
       box-shadow: 0 0 0 3px var(--accent-soft);
     }
+    h1 .cosmic-word { color: var(--text-secondary); font-weight: 400; }
+    h1 .pulse-word { color: var(--text); font-weight: 600; }
     .sub { color: var(--muted); font-size: 1.02rem; font-weight: 400; margin-top: .4rem; line-height: 1.55; letter-spacing: 0.018em; }
     .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: .75rem; }
     .nav-tabs { display: flex; gap: 4px; background: var(--panel-solid); padding: 5px; border-radius: var(--radius); border: 1px solid var(--line); }
@@ -804,7 +806,7 @@
 <body>
   <header>
     <div>
-      <h1><span class="pop-dot"></span>Pulse</h1>
+      <h1><span class="cosmic-dot"></span><span class="cosmic-word">Cosmic</span> <span class="pulse-word">Pulse</span></h1>
       <div class="sub" id="meta">Connecting…</div>
     </div>
     <div class="header-right">
@@ -1111,7 +1113,7 @@
           <h2 style="margin:0 0 1rem;font-size:1.1rem">Backlog</h2>
           <div class="backlog" id="backlogList"></div>
           <h2 style="margin:1.5rem 0 1rem;font-size:1.1rem">Profiling tools</h2>
-          <p class="section-lead">Optional packages that improve what Pulse can see.</p>
+          <p class="section-lead">Optional packages that improve what Cosmic Pulse can see.</p>
           <div class="backlog" id="toolsList"></div>
         </div>
       </details>

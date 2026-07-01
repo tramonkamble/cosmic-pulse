@@ -1036,12 +1036,12 @@ def main():
     init_db()
     pruned = prune_old()
     if pruned:
-        print(f"Pulse DB: pruned {pruned} old samples")
+        print(f"Cosmic Pulse DB: pruned {pruned} old samples")
     t = threading.Thread(target=sampler, daemon=True)
     t.start()
     time.sleep(1.2)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"Pulse: http://localhost:{PORT}")
+    print(f"Cosmic Pulse: http://localhost:{PORT}")
     try:
         ip = subprocess.check_output(["hostname", "-I"], text=True).split()[0]
         print(f"              http://{ip}:{PORT}")

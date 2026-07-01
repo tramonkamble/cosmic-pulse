@@ -28,7 +28,7 @@ log "  sudo apt install corectrl   (then run CoreCtrl)"
 def _header(insight_id: str, title: str, risk: str = "low") -> str:
     return f"""#!/usr/bin/env bash
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Pulse · {insight_id}
+# Cosmic Pulse · {insight_id}
 # {title}
 # Risk: {risk} · Review before running · Generated for {HOME}
 # Usage:  chmod +x fix.sh && sudo ./fix.sh
@@ -250,7 +250,7 @@ def script_stutter(score: float, est_ms: float, causes: list[str]) -> str:
         f"Reduce hitches (score {score}, ~{est_ms}ms est.)",
         "low",
     ) + f"""
-log "Pulse stutter proxy — likely causes: {cause_txt}"
+log "Cosmic Pulse stutter proxy — likely causes: {cause_txt}"
 log "=== Memory / swap ==="
 free -h
 cat /proc/sys/vm/swappiness
@@ -266,7 +266,7 @@ cat <<'PLAYBOOK'
     4. Large Cities saves: drop sim speed to 1× until stable
     5. Reboot if swap stayed high from a prior session
 
-  Re-check Pulse → Stutter panel (aim score under 30, 1% proxy under 25ms).
+  Re-check Cosmic Pulse → Stutter panel (aim score under 30, 1% proxy under 25ms).
 
 PLAYBOOK
 

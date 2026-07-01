@@ -5,7 +5,7 @@
 #         systemctl --user enable --now pulse
 
 [Unit]
-Description=Pulse gaming performance dashboard
+Description=Cosmic Pulse gaming performance dashboard
 Documentation=file:///home/USER/perf-dashboard/server.py
 After=network-online.target
 Wants=network-online.target

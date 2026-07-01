@@ -1,6 +1,6 @@
 # Contributing / git workflow
 
-Pulse uses standard local git practices. Remote (GitHub/GitLab) can be added later; the habits are the same.
+Cosmic Pulse uses standard local git practices. Remote (GitHub/GitLab) can be added later; the habits are the same.
 
 ## Principles
 
@@ -18,7 +18,7 @@ Pulse uses standard local git practices. Remote (GitHub/GitLab) can be added lat
 
 4. **Changelog stays in sync** — user-visible work gets a bullet under `CHANGELOG.md` → `[Unreleased]` before or with the commit.
 5. **Clean working tree** — finish a task with `git status` clean (or WIP on a branch, not half-applied on `main`).
-6. **`main` is always runnable** — each commit should leave Pulse in a working state.
+6. **`main` is always runnable** — each commit should leave Cosmic Pulse in a working state.
 
 ## Typical flow
 
@@ -32,7 +32,7 @@ git add <files>
 git commit -m "feat: describe the change"
 
 # if UI or server changed:
-systemctl --user restart pulse
+systemctl --user restart pulse   # service name unchanged
 ```
 
 ## Branches

@@ -1,10 +1,10 @@
-# Pulse
+# Cosmic Pulse
 
 **A second-monitor performance coach for Linux gaming.**
 
-Pulse is a local web dashboard that helps you understand *why* a game stutters — not just CPU/GPU graphs. It ties together hardware context, bandwidth pressure, kernel stall signals, and actionable fix scripts. Built for [Pop!_OS](https://pop.system76.com/) / COSMIC, tested on an AMD Ryzen + RX 7900 XTX rig.
+Cosmic Pulse is a local web dashboard that helps you understand *why* a game stutters — not just CPU/GPU graphs. It ties together hardware context, bandwidth pressure, kernel stall signals, and actionable fix scripts. Built for [Pop!_OS](https://pop.system76.com/) / COSMIC, tested on an AMD Ryzen + RX 7900 XTX rig.
 
-![Pulse dashboard](docs/screenshots/dashboard.png)
+![Cosmic Pulse dashboard](docs/screenshots/dashboard.png)
 
 > **Status:** Pre-release — polishing for code review before publishing to GitHub/GitLab.
 
