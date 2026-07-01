@@ -5,30 +5,38 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2b2e34" />
   <title>Pulse · Cities II</title>
-  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
-      --bg: #0d0e12;
-      --panel: rgba(38, 41, 52, 0.92);
-      --panel-solid: #252830;
-      --panel-elevated: #2e323d;
-      --text: #f4f6fa;
-      --text-secondary: #c8d0dc;
-      --muted: #9aa3b2;
-      --accent: #e95420;
-      --accent-soft: rgba(233, 84, 32, 0.14);
-      --blue: #62a0ea;
-      --purple: #b48ead;
-      --green: #6ac98d;
-      --amber: #e9b872;
-      --hot: #ed6a5a;
-      --ok: #6ac98d;
-      --line: rgba(255, 255, 255, 0.09);
-      --glass: rgba(18, 20, 26, 0.72);
-      --shadow: 0 10px 40px rgba(0, 0, 0, 0.32);
-      --radius: 12px;
+      /* Fallbacks — overridden by COSMIC theme when available */
+      --bg: #1b1b1b;
+      --panel: rgba(64, 67, 73, 0.94);
+      --panel-solid: #404349;
+      --panel-elevated: #5a5d63;
+      --panel-hover: #53565c;
+      --text: #cedbee;
+      --text-secondary: #b8c4d8;
+      --muted: #ababab;
+      --accent: #e69bfd;
+      --accent-hover: #cc90df;
+      --accent-soft: rgba(230, 155, 253, 0.14);
+      --accent-on: #000000;
+      --blue: #63d0de;
+      --purple: #e79bfd;
+      --green: #92ce9b;
+      --orange: #ffad00;
+      --amber: #f6e062;
+      --hot: #fca1a0;
+      --ok: #92ce9b;
+      --line: rgba(206, 219, 238, 0.16);
+      --glass: rgba(43, 46, 52, 0.94);
+      --shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+      --glow-accent: rgba(230, 155, 253, 0.12);
+      --glow-blue: rgba(99, 208, 222, 0.1);
+      --radius: 8px;
       --radius-lg: 16px;
       --ui-scale: 1.5;
       --bar-h: 200px;
@@ -45,7 +53,7 @@
     button { font-family: inherit; color: inherit; }
     body {
       margin: 0; color: var(--text); min-height: 100vh; font-size: calc(18px * var(--ui-scale)); line-height: 1.62;
-      font-family: "Sora", system-ui, -apple-system, sans-serif;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
       font-weight: 400;
       letter-spacing: 0.012em;
       font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
@@ -54,14 +62,24 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       background:
-        radial-gradient(ellipse 90% 55% at 0% -15%, rgba(233, 84, 32, 0.09), transparent),
-        radial-gradient(ellipse 70% 45% at 100% 0%, rgba(98, 160, 234, 0.07), transparent),
+        radial-gradient(ellipse 85% 50% at 0% -10%, var(--glow-accent), transparent),
+        radial-gradient(ellipse 65% 40% at 100% 0%, var(--glow-blue), transparent),
         var(--bg);
+    }
+    body.cosmic-frosted .card,
+    body.cosmic-frosted header,
+    body.cosmic-frosted details.drill {
+      backdrop-filter: blur(22px) saturate(1.18);
+    }
+    body:not(.cosmic-frosted) .card,
+    body:not(.cosmic-frosted) details.drill {
+      backdrop-filter: none;
     }
     header {
       display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;
       padding: 1rem 1.5rem; border-bottom: 1px solid var(--line);
-      background: var(--glass); backdrop-filter: blur(20px) saturate(1.15);
+      background: var(--glass);
+      backdrop-filter: blur(20px) saturate(1.12);
       position: sticky; top: 0; z-index: 20;
     }
     h1 {
@@ -81,7 +99,7 @@
       background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s;
     }
     .tab-btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
-    .tab-btn.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .tab-btn.active { color: var(--accent-on); background: var(--accent); border-color: var(--accent); }
     .chart-controls-bar { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
     .controls { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
     .ctrl-group { display: flex; gap: 4px; background: var(--panel-solid); padding: 5px; border-radius: var(--radius); border: 1px solid var(--line); }
@@ -92,8 +110,8 @@
       background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s;
     }
     .btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
-    .btn.active { color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 500; }
-    .btn.mag.active { background: #d14d1a; border-color: #d14d1a; color: #fff; }
+    .btn.active { color: var(--accent-on); background: var(--accent); border-color: var(--accent); font-weight: 500; }
+    .btn.mag.active { background: var(--orange); border-color: var(--orange); color: #000; }
     .btn.vio.active { background: var(--blue); border-color: var(--blue); color: #fff; }
     .pill {
       display: inline-flex; align-items: center; gap: .5rem; padding: .55rem .9rem;
@@ -114,10 +132,11 @@
     .g-charts-3 { grid-template-columns: 1fr 1fr 1fr; }
     @media (max-width: 1200px) { .g-bw, .g-mid, .g-charts, .g-charts-3 { grid-template-columns: 1fr; } }
     .card {
-      background: var(--panel); backdrop-filter: blur(16px) saturate(1.1);
+      background: var(--panel-solid);
       border: 1px solid var(--line); border-radius: var(--radius-lg);
       padding: 1.4rem 1.5rem; position: relative; box-shadow: var(--shadow);
     }
+    body.cosmic-frosted .card { background: var(--panel); }
     .card h2 {
       margin: 0 0 1.1rem; font-size: 1.2rem; color: var(--text);
       font-weight: 500; letter-spacing: 0.04em;
@@ -146,7 +165,7 @@
       display: block; height: 100%; border-radius: 99px;
       transition: width var(--meter-ease);
     }
-    .meter.gpu > span { background: linear-gradient(90deg, #d14d1a, var(--accent)); }
+    .meter.gpu > span { background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 70%, #000), var(--orange)); }
     .meter.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); }
     .meter-label { display: flex; justify-content: space-between; font-size: 1.05rem; color: var(--muted); margin-bottom: .5rem; font-weight: 500; }
     /* Recommendations — clear hierarchy, generous spacing (Cosmic / HIG inspired) */
@@ -335,7 +354,7 @@
     .sum-league-badge { min-height: 1.6rem; display: flex; align-items: center; }
     .sum-league-badge .rank-badge { font-size: .82rem; padding: .3rem .6rem; }
 
-    .sum-cell:hover { background: #353a46; border-color: rgba(98,160,234,.45); box-shadow: 0 4px 20px rgba(0,0,0,.25); }
+    .sum-cell:hover { background: var(--panel-hover); border-color: var(--accent); box-shadow: 0 6px 22px rgba(0,0,0,.22); }
     .sum-cell.hot { border-left: 4px solid var(--hot); }
     .sum-cell.warn { border-left: 4px solid var(--amber); }
     .sum-cell.info { border-left: 4px solid var(--blue); }
@@ -347,7 +366,7 @@
     .sum-cell.info .sum-value { color: #8ec0ff; }
     .sum-cell.cpu .sum-value { color: var(--blue); }
     .sum-cell.mem .sum-value { color: var(--green); }
-    .sum-cell.gpu .sum-value { color: #ff7a45; }
+    .sum-cell.gpu .sum-value { color: var(--orange); }
     .sum-cell.game .sum-value { color: var(--accent); }
     .sum-cell.league .sum-value { color: var(--purple); }
     .sum-detail { font-size: .88rem; color: var(--text-secondary); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -358,12 +377,12 @@
     }
     .sum-meter.cpu > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.5); }
     .sum-meter.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 10px rgba(106,201,141,.45); }
-    .sum-meter.gpu > span { background: linear-gradient(90deg, #c44a18, var(--accent)); box-shadow: 0 0 10px rgba(233,84,32,.5); }
+    .sum-meter.gpu > span { background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 70%, #000), var(--orange)); box-shadow: 0 0 10px color-mix(in srgb, var(--orange) 45%, transparent); }
     .sum-meter.health > span { background: linear-gradient(90deg, var(--green), var(--blue)); }
     .sum-meter.health.hot > span { background: linear-gradient(90deg, #c43d32, var(--hot)); box-shadow: 0 0 10px rgba(237,106,90,.5); }
     .sum-meter.health.warn > span { background: linear-gradient(90deg, #b8863a, var(--amber)); }
     .sum-meter.league > span { background: linear-gradient(90deg, var(--purple), var(--blue)); box-shadow: 0 0 10px rgba(180,142,173,.4); }
-    .sum-meter.game > span { background: linear-gradient(90deg, #d14d1a, var(--accent)); }
+    .sum-meter.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 75%, #000), var(--accent)); }
     .viz-panel h2 { margin-bottom: .85rem; }
     .viz-grid {
       display: grid;
@@ -421,7 +440,7 @@
     .metric-bar-val { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
     .metric-bar-val.cpu { color: var(--blue); }
     .metric-bar-val.mem { color: var(--green); }
-    .metric-bar-val.gpu { color: #ff7a45; }
+    .metric-bar-val.gpu { color: var(--orange); }
     .metric-bar-val.temp { color: var(--purple); }
     .metric-bar-val.temp.warn { color: var(--amber); }
     .metric-bar-val.temp.hot { color: #ff8a7a; }
@@ -435,10 +454,10 @@
     }
     .metric-bar-track.cpu > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 14px rgba(98,160,234,.45); }
     .metric-bar-track.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 14px rgba(106,201,141,.4); }
-    .metric-bar-track.gpu > span { background: linear-gradient(90deg, #c44a18, var(--accent)); box-shadow: 0 0 14px rgba(233,84,32,.45); }
-    .metric-bar-track.swap > span { background: linear-gradient(90deg, #7a5c9e, var(--purple)); }
-    .metric-bar-track.game > span { background: linear-gradient(90deg, #d14d1a, #ff6b35); }
-    .metric-bar-track.vram > span { background: linear-gradient(90deg, #e95420, #ffb347); }
+    .metric-bar-track.gpu > span { background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 65%, #000), var(--orange)); box-shadow: 0 0 14px color-mix(in srgb, var(--orange) 40%, transparent); }
+    .metric-bar-track.swap > span { background: linear-gradient(90deg, color-mix(in srgb, var(--purple) 55%, #000), var(--purple)); }
+    .metric-bar-track.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #000), var(--accent)); }
+    .metric-bar-track.vram > span { background: linear-gradient(90deg, var(--orange), color-mix(in srgb, var(--orange) 55%, #fff)); }
     .metric-bar-track.bw-gpu > span { background: linear-gradient(90deg, var(--accent), #ff9f6b); }
     .metric-bar-track.bw-mem > span { background: linear-gradient(90deg, #2d7a52, var(--green)); }
     .metric-bar-track.league > span { background: linear-gradient(90deg, var(--purple), var(--blue)); box-shadow: 0 0 12px rgba(180,142,173,.4); }
@@ -490,7 +509,7 @@
       height: 0%; min-height: 3px;
       transition: height var(--meter-ease);
     }
-    .glance-cell.gpu { --glance-accent: #ff7a45; }
+    .glance-cell.gpu { --glance-accent: var(--orange); }
     .glance-cell.cpu { --glance-accent: var(--blue); }
     .glance-cell.temp.hot { --glance-accent: var(--hot); }
     .glance-cell.temp.warn { --glance-accent: var(--amber); }
@@ -563,9 +582,10 @@
     .metric-bar-track.stutter > span { background: linear-gradient(90deg, #7a5c9e, #ed6a5a); box-shadow: 0 0 12px rgba(180,142,173,.45); }
     .drill-stack { display: flex; flex-direction: column; gap: .65rem; }
     details.drill {
-      border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel);
+      border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel-solid);
       overflow: hidden; box-shadow: var(--shadow);
     }
+    body.cosmic-frosted details.drill { background: var(--panel); }
     details.drill summary {
       list-style: none; cursor: pointer; padding: 1rem 1.25rem;
       display: grid; grid-template-columns: auto 1fr auto; gap: .75rem 1rem; align-items: center;
@@ -1112,10 +1132,68 @@
 
   <script>
     const CHART = {
-      cpu: '#62a0ea', gpu: '#e95420', ram: '#6ac98d', swap: '#b48ead',
-      vramBw: '#e95420', dramBw: '#6ac98d', gtt: '#e9b872',
-      netDn: '#62a0ea', netUp: '#e9b872', diskR: '#6ac98d', diskW: '#ed6a5a', gameCpu: '#d14d1a',
+      cpu: '#63d0de', gpu: '#ffad00', ram: '#92ce9b', swap: '#e79bfd',
+      vramBw: '#ffad00', dramBw: '#92ce9b', gtt: '#f6e062',
+      netDn: '#63d0de', netUp: '#f6e062', diskR: '#92ce9b', diskW: '#fca1a0', gameCpu: '#e69bfd',
     };
+    let lastCosmicKey = '';
+
+    function applyCosmicTheme(t) {
+      if (!t?.available) {
+        document.body.classList.remove('cosmic-frosted');
+        return false;
+      }
+      const key = JSON.stringify([
+        t.palette, t.accent, t.bg, t.is_frosted, t.panel, t.panel_elevated, t.panel_hover,
+      ]);
+      if (key === lastCosmicKey) return false;
+      lastCosmicKey = key;
+
+      const root = document.documentElement.style;
+      const set = (k, v) => { if (v != null) root.setProperty(k, v); };
+      set('--bg', t.bg);
+      set('--panel', t.is_frosted ? t.glass : t.panel);
+      set('--panel-solid', t.panel_solid);
+      set('--panel-elevated', t.panel_elevated);
+      set('--panel-hover', t.panel_hover);
+      set('--text', t.text);
+      set('--text-secondary', t.text_secondary);
+      set('--muted', t.muted);
+      set('--accent', t.accent);
+      set('--accent-hover', t.accent_hover);
+      set('--accent-soft', t.accent_soft);
+      set('--accent-on', t.accent_on);
+      set('--blue', t.blue);
+      set('--purple', t.purple);
+      set('--green', t.green);
+      set('--orange', t.orange);
+      set('--amber', t.amber);
+      set('--hot', t.hot);
+      set('--ok', t.ok);
+      set('--line', t.line);
+      set('--glass', t.glass);
+      set('--radius', `${t.radius}px`);
+      set('--radius-lg', `${t.radius_lg}px`);
+      set('--glow-accent', t.accent_soft);
+
+      document.body.classList.toggle('cosmic-frosted', !!t.is_frosted);
+      const themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) themeMeta.content = t.bg;
+
+      if (t.chart) {
+        Object.assign(CHART, {
+          cpu: t.chart.cpu,
+          gpu: t.chart.gpu,
+          ram: t.chart.ram,
+          vramBw: t.chart.gpu,
+          dramBw: t.chart.ram,
+          gameCpu: t.chart.accent,
+          diskW: t.chart.hot,
+          swap: t.purple,
+        });
+      }
+      return true;
+    }
     const ROLL_LABELS = { 1: 'Live', 60: '1m', 300: '5m', 600: '10m' };
     const SENSOR_GROUPS = {
       Temps: s => s.kind === 'temp',
@@ -1145,7 +1223,7 @@
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
-          tooltip: { backgroundColor: '#1c1e26', titleFont: { family: 'Sora', weight: '500' }, bodyFont: { family: 'Sora', weight: '400' }, padding: 12, cornerRadius: 10 },
+          tooltip: { backgroundColor: '#2b2e34', titleFont: { family: 'Inter', weight: '500' }, bodyFont: { family: 'Inter', weight: '400' }, padding: 12, cornerRadius: 10 },
         },
         scales,
       };
@@ -1163,9 +1241,9 @@
         plugins: {
           legend: {
             display: true, position: 'bottom',
-            labels: { color: tickColor, font: { family: 'Sora', size: 11 }, boxWidth: 12, padding: 14 },
+            labels: { color: tickColor, font: { family: 'Inter', size: 11 }, boxWidth: 12, padding: 14 },
           },
-          tooltip: { backgroundColor: '#2e323d', titleFont: { family: 'Sora' }, bodyFont: { family: 'Sora' }, padding: 10 },
+          tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
         },
         scales: {
           x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 10 } }, grid: { color: gridColor } },
@@ -2695,6 +2773,7 @@
         const data = await (await fetch('/api/metrics')).json();
         rawHistory = data.history;
         const l = data.latest, s = data.static;
+        const themeChanged = applyCosmicTheme(s.cosmic_theme);
         const mem = s.memory || {};
         const rig = s.rig || {};
         const gpuTag = rig.gpu?.maker ? `${rig.gpu.maker} ${s.gpu_model}` : s.gpu_model;
@@ -2726,6 +2805,7 @@
           `${g.gfx_mhz ?? '—'} MHz · Fan ${g.fan_rpm ?? '—'} rpm · VRAM ${g.mem_temp_c ?? '—'}°C · PCIe ${g.pcie_active || g.pcie_link || '—'}`;
         renderSensorGroups(l.sensors || []);
         renderCharts();
+        if (themeChanged) renderSparkChart();
         renderProcs(l.game_procs, l.game_totals);
         if (++storeTick % 30 === 0) fetchStore();
         if (storeTick % 90 === 0) fetchDiagnostics();

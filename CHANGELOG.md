@@ -7,6 +7,12 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Added
+- **COSMIC theme sync** — reads `~/.config/cosmic` accent, palette, surfaces, radii, and frost setting; applies live CSS variables and chart colors.
+
+### Changed
+- **Visual polish** — Inter type, Cosmic surface hierarchy, accent-driven tabs/buttons, frosted mode when enabled in Cosmic settings.
+
 ### Fixed
 - **UI stability** — fix cards no longer rebuild every second (`last_seen` excluded from struct key); expanded script/steps panels stay open with scroll position preserved; scroll-wheel no longer collapses expansions or scrolls the page through nested script panes.
 
