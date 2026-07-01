@@ -153,7 +153,7 @@
     .rec-status { margin: -.35rem 0 1rem; font-size: 1rem; color: var(--muted); font-weight: 400; }
     .rec-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.25rem; }
     .stable-toolbar { min-height: 2.75rem; align-items: center; }
-    .stable-scroll { overflow-y: auto; overflow-x: hidden; }
+    .stable-scroll { overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 
     .rec-list { display: flex; flex-direction: column; gap: 1rem; }
     .rec-card {
@@ -227,14 +227,20 @@
       background: #12141a; border: 1px solid var(--line); border-radius: 10px;
       padding: .65rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
       font-family: ui-monospace, monospace; margin: .35rem 0 0;
+      overscroll-behavior: contain;
     }
     details.rec-more { margin: 0; }
     details.rec-more summary {
       font-size: .92rem; color: var(--blue); cursor: pointer; padding: .35rem 0;
-      font-weight: 500; list-style: none;
+      font-weight: 500; list-style: none; user-select: none;
     }
     details.rec-more summary::-webkit-details-marker { display: none; }
-    .rec-steps { display: flex; flex-direction: column; gap: .5rem; margin-top: .35rem; }
+    details.rec-more .script-pre,
+    details.rec-more .rec-steps { pointer-events: auto; }
+    .rec-steps {
+      display: flex; flex-direction: column; gap: .5rem; margin-top: .35rem;
+      max-height: 280px; overflow: auto; overscroll-behavior: contain;
+    }
     .rec-step {
       display: grid; grid-template-columns: 1fr auto; gap: .5rem .75rem; align-items: start;
       padding: .65rem .75rem; border-radius: 10px; background: rgba(0,0,0,.18); border: 1px solid var(--line);
@@ -552,6 +558,7 @@
       background: #12141a; border: 1px solid var(--line); border-radius: 8px;
       padding: .55rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
       font-family: ui-monospace, monospace; margin-top: .4rem;
+      overscroll-behavior: contain;
     }
     .metric-bar-track.stutter > span { background: linear-gradient(90deg, #7a5c9e, #ed6a5a); box-shadow: 0 0 12px rgba(180,142,173,.45); }
     .drill-stack { display: flex; flex-direction: column; gap: .65rem; }
@@ -562,7 +569,7 @@
     details.drill summary {
       list-style: none; cursor: pointer; padding: 1rem 1.25rem;
       display: grid; grid-template-columns: auto 1fr auto; gap: .75rem 1rem; align-items: center;
-      font-weight: 500; margin: 0;
+      font-weight: 500; margin: 0; min-height: 3.25rem; box-sizing: border-box;
     }
     details.drill summary::-webkit-details-marker { display: none; }
     details.drill summary::after {
@@ -571,8 +578,12 @@
     details.drill[open] summary::after { content: "▴"; color: var(--accent); }
     details.drill[open] summary { border-bottom: 1px solid var(--line); }
     .drill-title { font-size: 1.05rem; color: var(--text); white-space: nowrap; font-weight: 500; }
-    .drill-rollup { font-size: .95rem; color: var(--text-secondary); font-weight: 400; text-align: right; }
-    .drill-body { padding: 1.25rem 1.5rem; }
+    .drill-rollup {
+      font-size: .95rem; color: var(--text-secondary); font-weight: 400; text-align: right;
+      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .drill-body { padding: 1.25rem 1.5rem; overflow-anchor: none; }
+    main { overflow-anchor: auto; }
     .drill-body .card { box-shadow: none; }
     .drill-body .grid { margin: 0; }
     .chart-controls-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: 1rem; }
@@ -1267,7 +1278,7 @@
         yAxisID: dualAxis ? (d.yAxis || 'y') : 'y',
         fill: group !== 'io', tension: .3, pointRadius: 0, borderWidth: 3,
       }));
-      chart.update();
+      chart.update('none');
     }
 
     function renderCharts() {
@@ -1343,17 +1354,21 @@
 
       const conf = mem?.confidence || 'unknown';
       const note = mem?.note || '';
-      document.getElementById('memProbeNote').innerHTML = conf === 'exact'
-        ? `RAM spec: <strong>${mem.label}</strong> (probed via DMI)`
-        : `RAM spec: <strong>${mem?.label || 'unknown'}</strong> (${conf}) — ${note}
-           <button type="button" id="probeBtn">Probe exact speed</button>`;
-      const btn = document.getElementById('probeBtn');
-      if (btn) btn.onclick = async () => {
-        btn.textContent = 'Need sudo in terminal…';
-        btn.disabled = true;
-        const probe = pulseRoot ? `${pulseRoot}/probe_memory.py` : 'probe_memory.py';
-        alert(`Run in terminal for exact RAM speed:\\n\\nsudo python3 '${probe}'\\n\\nThen refresh this page.`);
-      };
+      const probeKey = `${conf}|${mem?.label || ''}|${note}|${pulseRoot}`;
+      if (probeKey !== lastMemProbeKey) {
+        lastMemProbeKey = probeKey;
+        document.getElementById('memProbeNote').innerHTML = conf === 'exact'
+          ? `RAM spec: <strong>${mem.label}</strong> (probed via DMI)`
+          : `RAM spec: <strong>${mem?.label || 'unknown'}</strong> (${conf}) — ${note}
+             <button type="button" id="probeBtn">Probe exact speed</button>`;
+        const btn = document.getElementById('probeBtn');
+        if (btn) btn.onclick = async () => {
+          btn.textContent = 'Need sudo in terminal…';
+          btn.disabled = true;
+          const probe = pulseRoot ? `${pulseRoot}/probe_memory.py` : 'probe_memory.py';
+          alert(`Run in terminal for exact RAM speed:\\n\\nsudo python3 '${probe}'\\n\\nThen refresh this page.`);
+        };
+      }
     }
 
     function ensureBwPanels() {
@@ -1450,6 +1465,8 @@
     const KIND_LABEL = { cmd: 'Terminal', game: 'In-game', steam: 'Steam', bios: 'BIOS', file: 'File' };
     const openPanels = new Set();
     let lastWarningsKey = '', lastFixesKey = '', lastGameIssuesKey = '', lastSensorKey = '';
+    let lastWarningsPillsKey = '', lastMemProbeKey = '', lastProcKey = '', lastSensorStripKey = '';
+    let panelScrollState = {};
     let lastRankStructKey = '';
     const meterSmooth = new Map();
     const METER_SMOOTH_ALPHA = 0.22;
@@ -1501,6 +1518,52 @@
       });
     }
 
+    function capturePanelState() {
+      captureOpenPanels();
+      panelScrollState = {};
+      document.querySelectorAll('details[data-open-key]').forEach(d => {
+        if (!d.open) return;
+        const k = d.dataset.openKey;
+        const pre = d.querySelector('.script-pre');
+        const steps = d.querySelector('.rec-steps');
+        if (pre) panelScrollState[`${k}:pre`] = pre.scrollTop;
+        if (steps) panelScrollState[`${k}:steps`] = steps.scrollTop;
+      });
+      document.querySelectorAll('.warn-list.stable-scroll, .diag-list.stable-scroll').forEach(el => {
+        if (el.id) panelScrollState[`scroll:${el.id}`] = el.scrollTop;
+      });
+    }
+
+    function restorePanelState() {
+      restoreOpenPanels();
+      document.querySelectorAll('details[data-open-key]').forEach(d => {
+        if (!d.open) return;
+        const k = d.dataset.openKey;
+        const pre = d.querySelector('.script-pre');
+        const steps = d.querySelector('.rec-steps');
+        if (pre && panelScrollState[`${k}:pre`] != null) pre.scrollTop = panelScrollState[`${k}:pre`];
+        if (steps && panelScrollState[`${k}:steps`] != null) steps.scrollTop = panelScrollState[`${k}:steps`];
+      });
+      document.querySelectorAll('.warn-list.stable-scroll, .diag-list.stable-scroll').forEach(el => {
+        if (el.id && panelScrollState[`scroll:${el.id}`] != null) el.scrollTop = panelScrollState[`scroll:${el.id}`];
+      });
+    }
+
+    function bindScrollContainment() {
+      document.addEventListener('wheel', e => {
+        const el = e.target.closest('.script-pre, .rec-steps, .diag-pre, .warn-list, .diag-list, .stable-scroll');
+        if (!el) return;
+        const max = el.scrollHeight - el.clientHeight;
+        if (max <= 0) return;
+        const top = el.scrollTop;
+        const dy = e.deltaY;
+        const atTop = top <= 0;
+        const atBottom = top >= max - 1;
+        if ((dy < 0 && atTop) || (dy > 0 && atBottom)) e.preventDefault();
+        e.stopPropagation();
+      }, { passive: false, capture: true });
+    }
+
     function stablePillsHtml(items) {
       return items
         .filter(([, , n]) => n > 0)
@@ -1508,11 +1571,34 @@
         .join('');
     }
 
-    function hintsKey(hints) {
+    function hintsStructKey(hints) {
       return JSON.stringify((hints || []).map(h => [
-        h.insight_id, h.active, h.level, h.title, h.text, h.last_seen,
-        h.games_affected, h.multi_game, !!(h.fix_script), (h.actions || []).length,
+        h.insight_id, h.active, h.level, h.title, h.text,
+        h.games_affected, h.multi_game, !!(h.fix_script),
+        (h.actions || []).map(a => [a.label, a.cmd, a.note, a.kind || '']),
       ]));
+    }
+
+    function updateRecMetas(hints) {
+      (hints || []).forEach(h => {
+        const sid = h.insight_id || 'insight';
+        const when = h.last_seen ? `Last seen ${fmtAgo(h.last_seen)}` : '';
+        document.querySelectorAll(`article.rec-card[data-iid="${CSS.escape(sid)}"]`).forEach(card => {
+          let meta = card.querySelector('[data-rec-meta]');
+          if (!when) {
+            if (meta) meta.remove();
+            return;
+          }
+          if (!meta) {
+            meta = document.createElement('p');
+            meta.className = 'rec-meta';
+            meta.dataset.recMeta = '1';
+            const anchor = card.querySelector('.rec-body');
+            anchor?.insertAdjacentElement('afterend', meta);
+          }
+          meta.textContent = when;
+        });
+      });
     }
 
     function openDrill(id) {
@@ -1611,7 +1697,7 @@
         ['ok', 'OK', c.ok || 0],
       ]);
       const listEl = document.getElementById('diagList');
-      const scrollTop = listEl.scrollTop;
+      capturePanelState();
       listEl.innerHTML = (d.findings || []).map(f => `
         <article class="diag-item ${f.severity}" id="diag-${esc(f.id)}">
           <div class="diag-head">
@@ -1623,10 +1709,10 @@
           ${f.detail ? `<details class="diag-detail"><summary>Log excerpt</summary><pre class="diag-pre">${esc(f.detail)}</pre></details>` : ''}
           ${f.fix ? `<div class="diag-fix"><code>${esc(f.fix)}</code><button class="copy-btn" type="button" data-copy="${esc(f.fix)}">Copy</button></div>` : ''}
         </article>`).join('');
-      listEl.scrollTop = scrollTop;
       document.querySelectorAll('.diag-fix .copy-btn').forEach(btn => {
         btn.onclick = () => copyText(btn.dataset.copy, btn);
       });
+      restorePanelState();
     }
 
     document.getElementById('diagRefresh').onclick = () => fetchDiagnostics(true);
@@ -1858,7 +1944,7 @@
         { label: 'Hitch score', data: stutterLine, borderColor: '#b48ead', backgroundColor: 'rgba(180,142,173,.12)', fill: false, tension: .35, pointRadius: 0, borderWidth: 2.5, borderDash: [5, 4], yAxisID: 'y' },
         { type: 'scatter', label: 'Hitch event', data: eventPoints, borderColor: '#ed6a5a', backgroundColor: '#ed6a5a', pointRadius: 5, pointStyle: 'triangle', yAxisID: 'y', showLine: false },
       ];
-      sparkChart.update();
+      sparkChart.update('none');
     }
 
     function renderStutterViz(l) {
@@ -2012,13 +2098,34 @@
       const picks = (sensors || [])
         .filter(s => s.kind === 'temp' || /load|psi|fan/i.test(s.label))
         .slice(0, 10);
-      document.getElementById('sensorStrip').innerHTML = picks.length
-        ? picks.map(s => {
-            const cls = s.kind === 'temp' ? tempClass(s.value) : '';
-            const short = s.label.replace(/^k10temp-[^ ]+ /i, '').replace(/^amdgpu-[^ ]+ /i, '');
-            return `<span class="sensor-chip ${cls}">${hwIcon(sensorKindIcon(s), 'hw-chip-glyph')}${short} <span class="chip-val">${s.value ?? '—'}${s.unit || ''}</span></span>`;
-          }).join('')
-        : `<span class="sensor-chip placeholder">${hwIcon('temp', 'hw-chip-glyph')}No live sensors</span>`;
+      const sig = JSON.stringify(picks.map(s => [s.id, s.value, s.unit, s.kind]));
+      const el = document.getElementById('sensorStrip');
+      if (!picks.length) {
+        if (el.dataset.mode !== 'empty') {
+          el.innerHTML = `<span class="sensor-chip placeholder">${hwIcon('temp', 'hw-chip-glyph')}No live sensors</span>`;
+          el.dataset.mode = 'empty';
+          delete el.dataset.init;
+        }
+        return;
+      }
+      if (!el.dataset.init || el.dataset.mode === 'empty' || picks.length !== el.querySelectorAll('[data-sid]').length) {
+        el.innerHTML = picks.map(s => {
+          const short = s.label.replace(/^k10temp-[^ ]+ /i, '').replace(/^amdgpu-[^ ]+ /i, '');
+          return `<span class="sensor-chip" data-sid="${esc(s.id)}">${hwIcon(sensorKindIcon(s), 'hw-chip-glyph')}<span data-slabel>${short}</span> <span class="chip-val" data-sval>—</span></span>`;
+        }).join('');
+        el.dataset.init = '1';
+        el.dataset.mode = 'live';
+        lastSensorStripKey = '';
+      }
+      if (sig === lastSensorStripKey) return;
+      lastSensorStripKey = sig;
+      picks.forEach(s => {
+        const chip = el.querySelector(`[data-sid="${CSS.escape(s.id)}"]`);
+        if (!chip) return;
+        const cls = s.kind === 'temp' ? tempClass(s.value) : '';
+        chip.className = `sensor-chip ${cls}`.trim();
+        chip.querySelector('[data-sval]').textContent = `${s.value ?? '—'}${s.unit || ''}`;
+      });
     }
 
     function renderVisualDashboard(l, comparison) {
@@ -2190,6 +2297,8 @@
     }
 
     function renderRigStrip(s) {
+      const el = document.getElementById('rigStrip');
+      if (el.dataset.init) return;
       const r = s.rig || {};
       const chips = [];
       if (r.chassis?.label) {
@@ -2210,7 +2319,8 @@
           : (r.memory.label || 'RAM');
         chips.push(rigChip(r.memory.brand || 'RAM', memTitle, r.memory.label));
       }
-      document.getElementById('rigStrip').innerHTML = chips.join('') || '';
+      el.innerHTML = chips.join('') || '';
+      el.dataset.init = '1';
     }
 
     function hwIdentityCell(row) {
@@ -2284,14 +2394,14 @@
           <summary>${(h.actions || []).length} steps</summary>
           <div class="rec-steps">${steps}</div>
         </details>` : '';
-      return `<article class="rec-card rec-${lv}${stale ? ' rec-stale' : ''}" data-level="${lv}" id="${domId}">
+      return `<article class="rec-card rec-${lv}${stale ? ' rec-stale' : ''}" data-level="${lv}" data-iid="${esc(sid)}" id="${domId}">
         <header class="rec-head">
           ${sevBadge(lv, SEV_LABEL[lv] || lv)}
           ${gameTag(h)}
           <h3 class="rec-title">${esc(h.title)}${stale ? ' <span style="font-weight:400;color:var(--muted)">(cleared)</span>' : ''}</h3>
         </header>
         <p class="rec-body">${esc(h.text)}</p>
-        ${when ? `<p class="rec-meta">${when}</p>` : ''}
+        ${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}
         ${scriptBlock}
         ${stepsBlock}
       </article>`;
@@ -2341,7 +2451,7 @@
     function renderWarnings(hints) {
       const list = hints || [];
       const active = list.filter(h => h.active !== false);
-      const key = hintsKey(active);
+      const structKey = hintsStructKey(active);
       const multi = active.filter(h => h.multi_game).length;
 
       document.getElementById('tuningMeta').textContent = active.length
@@ -2350,32 +2460,39 @@
 
       const counts = { hot: 0, warn: 0, info: 0, ok: 0 };
       active.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
-      document.getElementById('tuningSummary').innerHTML = stablePillsHtml([
-        ['hot', 'Critical', counts.hot],
-        ['warn', 'Important', counts.warn],
-        ['info', 'Moderate', counts.info],
-        ['ok', 'Healthy', counts.ok],
-      ]);
+      const pillsKey = JSON.stringify(counts);
+      if (pillsKey !== lastWarningsPillsKey) {
+        lastWarningsPillsKey = pillsKey;
+        document.getElementById('tuningSummary').innerHTML = stablePillsHtml([
+          ['hot', 'Critical', counts.hot],
+          ['warn', 'Important', counts.warn],
+          ['info', 'Moderate', counts.info],
+          ['ok', 'Healthy', counts.ok],
+        ]);
+      }
 
       const listEl = document.getElementById('warningList');
-      if (key === lastWarningsKey) return;
-      lastWarningsKey = key;
-      const scrollTop = listEl.scrollTop;
+      if (structKey === lastWarningsKey) return;
+      lastWarningsKey = structKey;
+      capturePanelState();
       listEl.innerHTML = active.length
         ? active.map(h => warningRowHtml(h)).join('')
         : '<p class="warn-empty">Nothing needs attention. Open <strong>Fixes</strong> for scripts and step-by-step guidance.</p>';
-      listEl.scrollTop = scrollTop;
       bindWarningActions(active);
+      restorePanelState();
     }
 
     function renderFixes(hints) {
       const list = hints || [];
       const active = list.filter(h => h.active !== false);
       const cleared = list.filter(h => h.active === false);
-      const key = hintsKey(list);
-      if (key === lastFixesKey) return;
-      lastFixesKey = key;
-      captureOpenPanels();
+      const structKey = hintsStructKey(list);
+      if (structKey === lastFixesKey) {
+        updateRecMetas(list);
+        return;
+      }
+      lastFixesKey = structKey;
+      capturePanelState();
 
       const el = document.getElementById('tuningHints');
       el.innerHTML = active.length
@@ -2390,20 +2507,25 @@
         : '';
       if (cleared.length) bindHintActions(clearedEl, cleared);
 
-      restoreOpenPanels();
+      restorePanelState();
     }
 
     function renderGameIssues(byGame) {
       const blocks = Object.values(byGame || {}).filter(g => g.issue_count > 0 || g.running);
-      const key = JSON.stringify(blocks.map(g => [g.id, g.running, g.issue_count, hintsKey(g.issues)]));
-      if (key === lastGameIssuesKey) return;
-      lastGameIssuesKey = key;
+      const structKey = JSON.stringify(blocks.map(g => [g.id, g.running, g.issue_count, hintsStructKey(g.issues)]));
+      if (structKey === lastGameIssuesKey) {
+        blocks.forEach(g => updateRecMetas(g.issues));
+        return;
+      }
+      lastGameIssuesKey = structKey;
+      capturePanelState();
 
       const el = document.getElementById('gameIssues');
       const heading = document.getElementById('gameIssuesHeading');
       if (!blocks.length) {
         if (heading) heading.hidden = true;
         el.innerHTML = '';
+        restorePanelState();
         return;
       }
       if (heading) heading.hidden = false;
@@ -2420,6 +2542,7 @@
         const body = el.querySelector(`#game-issues-${g.id} .game-issues-body`);
         if (body && g.issues.length) bindHintActions(body, g.issues);
       });
+      restorePanelState();
     }
 
     function renderSensorGroups(sensors) {
@@ -2460,9 +2583,21 @@
           ? `${totals.primary_name} (PID ${totals.primary_pid}) · ${totals.proc_count} related process${totals.proc_count === 1 ? '' : 'es'} · ${(totals.tree_rss_mb / 1024).toFixed(1)} GB tree total`
           : 'Cities II is not running — start the game and this table will populate.';
       }
+      const structKey = JSON.stringify(procs.map(p => [p.pid, p.name, p.tier]));
+      if (structKey === lastProcKey && body.dataset.init) {
+        procs.forEach(p => {
+          const row = body.querySelector(`tr[data-pid="${p.pid}"]`);
+          if (!row) return;
+          row.children[3].textContent = p.cpu_pct;
+          row.children[4].textContent = p.rss_mb;
+        });
+        return;
+      }
+      lastProcKey = structKey;
       body.innerHTML = procs.length
-        ? procs.map(p => `<tr><td>${p.pid}</td><td>${p.name}</td><td>${p.tier === 'main' ? 'Game' : 'Child'}</td><td>${p.cpu_pct}</td><td>${p.rss_mb}</td></tr>`).join('')
+        ? procs.map(p => `<tr data-pid="${p.pid}"><td>${p.pid}</td><td>${p.name}</td><td>${p.tier === 'main' ? 'Game' : 'Child'}</td><td>${p.cpu_pct}</td><td>${p.rss_mb}</td></tr>`).join('')
         : '<tr><td colspan="5" style="color:var(--muted)">No Cities II processes detected</td></tr>';
+      body.dataset.init = '1';
     }
 
     let storeCache = null;
@@ -2602,6 +2737,7 @@
       }
     }
 
+    bindScrollContainment();
     initStaticGlyphs();
     tick();
     setInterval(tick, 1000);
