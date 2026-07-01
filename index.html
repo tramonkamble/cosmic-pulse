@@ -1792,6 +1792,27 @@
 
     const fmtTime = ts => new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const tempClass = v => v == null ? '' : v >= 90 ? 'hot' : v >= 75 ? 'warn' : '';
+    function gpuThermalProf() {
+      return lastStatic?.gpu_thermal || lastLatest?.gpu?.discrete?.thermal_profile || {};
+    }
+    function gpuJuncUiClass(junc) {
+      const tp = gpuThermalProf();
+      const hot = tp.hot_c ?? 100;
+      const warm = tp.warm_c;
+      if (junc == null) return '';
+      if (junc >= hot) return ' hot';
+      if (warm != null && junc >= warm) return ' warn';
+      return '';
+    }
+    function gpuJuncValCls(junc) {
+      const ui = gpuJuncUiClass(junc);
+      return ui === ' hot' ? 'temp hot' : ui === ' warn' ? 'temp warn' : 'temp';
+    }
+    function gpuJuncTrackCls(junc) { return gpuJuncValCls(junc); }
+    function gpuTempPct(junc) {
+      const throttle = gpuThermalProf().throttle_c ?? 110;
+      return junc == null ? 0 : Math.min(100, (junc / throttle) * 100);
+    }
     const pct = (v, max) => Math.min(100, Math.round((v / max) * 100));
 
     function bucketize(cut, bucket) {
@@ -2956,7 +2977,7 @@
       const items = [
         { icon: 'gpu', label: 'GPU', hw: 'gpu', val: `${g.power_w ?? '—'}W`, sub: `${g.gfx_mhz ?? '—'} MHz`, pct: Math.min(100, ((g.power_w || 0) / 355) * 100), cls: 'gpu' },
         { icon: 'fan', label: 'Fan', hw: 'gpu', val: `${g.fan_rpm ?? '—'}`, sub: 'rpm', pct: Math.min(100, ((g.fan_rpm || 0) / 2800) * 100), cls: 'gpu' },
-        { icon: 'temp', label: 'Junction', hw: 'gpu', val: junc != null ? `${junc}°` : '—', sub: 'GPU', pct: tempPct(junc), cls: `temp${junc >= 90 ? ' hot' : junc >= 75 ? ' warn' : ''}` },
+        { icon: 'temp', label: 'Junction', hw: 'gpu', val: junc != null ? `${junc}°` : '—', sub: gpuThermalProf().label || 'GPU', pct: gpuTempPct(junc), cls: `temp${gpuJuncUiClass(junc)}` },
         { icon: 'cpu', label: 'CPU', hw: 'cpu', val: pkg != null ? `${pkg}°` : '—', sub: 'package', pct: tempPct(pkg), cls: 'cpu' },
       ];
       const boxCls = { gpu: 'gpu', fan: 'gpu', temp: 'temp', cpu: 'cpu' };
@@ -3023,7 +3044,8 @@
         if (!chip) return;
         chip.classList.remove('hot', 'warn');
         if (s.kind === 'temp') {
-          const tc = tempClass(s.value);
+          const isGpuJunc = /junction/i.test(s.label || '') || s.id === 'gpu_junc';
+          const tc = isGpuJunc ? gpuJuncUiClass(s.value).trim() : tempClass(s.value);
           if (tc) chip.classList.add(tc);
         }
         chip.querySelector('[data-sval]').textContent = `${s.value ?? '—'}${s.unit || ''}`;
@@ -3060,7 +3082,15 @@
       };
       TEMP_SPECS.forEach(s => {
         const v = tempVals[s.id];
-        setMetricBar('tempMeters', s.id, tempPct(v), v != null ? `${v}°C` : '—', s.label, tempValCls(v), tempTrackCls(v));
+        const gpuJunc = s.id === 'gpu-junc';
+        setMetricBar(
+          'tempMeters', s.id,
+          gpuJunc ? gpuTempPct(v) : tempPct(v),
+          v != null ? `${v}°C` : '—',
+          s.label,
+          gpuJunc ? gpuJuncValCls(v) : tempValCls(v),
+          gpuJunc ? gpuJuncTrackCls(v) : tempTrackCls(v),
+        );
       });
 
       const vramPeak = bw.gpu?.vram_peak_gbps || 1;
@@ -3269,7 +3299,9 @@
       if (hwFocus === 'cpu') {
         metaEl.textContent = `${rig.cpu?.model || 'CPU'} · ${c.overall_pct ?? '—'}% load · ${c.temps?.package ?? '—'}°C package`;
       } else if (hwFocus === 'gpu') {
-        metaEl.textContent = `${rig.gpu?.model || s.gpu_model} · ${g.busy_pct ?? '—'}% · ${g.junction_c ?? '—'}°C · ${g.power_w ?? '—'} W`;
+        const tp = s.gpu_thermal || g.thermal_profile || {};
+        const arch = tp.label ? ` (${tp.label})` : '';
+        metaEl.textContent = `${rig.gpu?.model || s.gpu_model}${arch} · ${g.busy_pct ?? '—'}% · ${g.junction_c ?? '—'}°C junction · ${g.power_w ?? '—'} W`;
       } else if (hwFocus === 'memory') {
         metaEl.textContent = `${rig.memory?.kit || mem.label || 'RAM'} · ${l?.memory?.pct ?? '—'}% used · swap ${l?.memory?.swap_pct ?? '—'}%`;
       }
@@ -3573,15 +3605,18 @@
         });
       }
       if (r.gpu?.model) {
+        const tp = s.gpu_thermal || g.thermal_profile || {};
         const gpuName = r.gpu.board
           ? `${r.gpu.model} · ${r.gpu.board.replace(/^.*RX /i, 'RX ').slice(0, 36)}`
           : r.gpu.model;
+        const rdna3Note = tp.arch === 'rdna3' ? ' · junction 95–108°C normal for RDNA3' : '';
         tiles.push({
           filter: 'gpu', kind: 'gpu', slug: brandSlug(r.gpu.maker || r.gpu.brand || 'GPU'),
           type: 'Graphics', name: gpuName,
           stat: `${g.busy_pct ?? '—'}% · ${g.junction_c ?? '—'}°C · ${g.power_w ?? '—'} W`,
           hint: 'Filter GPU metrics',
-          tooltip: r.gpu.board || r.gpu.label, active: hwFocus === 'gpu',
+          tooltip: (r.gpu.board || r.gpu.label || r.gpu.model) + rdna3Note,
+          active: hwFocus === 'gpu',
         });
       }
       if (r.memory?.kit || r.memory?.label) {

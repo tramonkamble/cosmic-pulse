@@ -23,6 +23,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from fix_scripts import CS2_DIR
+from gpu_thermal import infer_gpu_model, profile_for_model
 
 # UI hint: insight scripts/steps that need sudo — shown as "Requires root", no Fix button.
 FIX_REQUIRES_ROOT: dict[str, bool] = {
@@ -75,8 +76,9 @@ def _launch_corectrl() -> bool:
 
 
 def _apply_gpu_cool() -> dict:
+    prof = profile_for_model(infer_gpu_model())
     steps: list[str] = []
-    if _launch_corectrl():
+    if prof.get("fan_curve_helpful") and _launch_corectrl():
         steps.append("CoreCtrl opened — adjust fan curve")
     if _xdg_open(CS2_DIR):
         steps.append("game settings folder opened")
@@ -85,10 +87,12 @@ def _apply_gpu_cool() -> dict:
             "ok": False,
             "message": "Could not open tools — lower graphics in-game manually.",
         }
-    return {
-        "ok": True,
-        "message": " · ".join(steps) + ". Cap FPS and LOD in-game.",
-    }
+    tail = (
+        "Cap FPS and LOD in-game."
+        if prof.get("arch") == "rdna3"
+        else "Cap FPS and LOD in-game; fan curves help most on RDNA2 and NVIDIA."
+    )
+    return {"ok": True, "message": " · ".join(steps) + ". " + tail}
 
 
 def _apply_open_cs2() -> dict:

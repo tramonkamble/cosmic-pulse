@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 
 from apply_fix import fix_available, requires_root
+from gpu_thermal import profile_for_model
 from fix_scripts import (
     script_balanced,
     script_ccd_spread,
@@ -65,6 +66,92 @@ def _cmd(label: str, cmd: str, note: str = "", kind: str = "cmd") -> dict:
     return {"label": label, "kind": kind, "cmd": cmd, "note": note}
 
 
+def _append_gpu_thermal_hints(
+    hints: list[dict],
+    g: dict,
+    profile: dict,
+) -> None:
+    junc = g.get("junction_c")
+    if junc is None:
+        return
+
+    arch = profile.get("label", "GPU")
+    model = profile.get("model") or "GPU"
+    throttle = profile.get("throttle_c", 110)
+    hot_c = profile.get("hot_c", 100)
+    warm_c = profile.get("warm_c")
+    fan_help = profile.get("fan_curve_helpful", True)
+    fan_note = profile.get("fan_curve_note", "")
+
+    if junc >= hot_c:
+        actions = [
+            _cmd("Open game settings folder", f"xdg-open '{CS2_DIR}'", note="Graphics live in-game"),
+            _cmd(
+                "In-game: lower shadow / LOD / draw distance",
+                "Lower Level of Detail, Shadow quality, and cap FPS 60–90",
+                kind="game",
+            ),
+        ]
+        if fan_help and shutil.which("corectrl"):
+            actions.append(
+                _cmd("Open CoreCtrl", "corectrl", note="Fan curve — helpful on RDNA2 and NVIDIA, rarely needed on RDNA3"),
+            )
+        elif fan_help:
+            actions.append(
+                _cmd(
+                    "Raise GPU fan (amdgpu)",
+                    "echo manual | sudo tee /sys/class/drm/card1/device/pp_power_profile_mode 2>/dev/null; "
+                    "echo 1 | sudo tee /sys/class/drm/card1/device/hwmon/hwmon*/pwm1_enable 2>/dev/null",
+                    note="Or install CoreCtrl: sudo apt install corectrl",
+                ),
+            )
+        if profile.get("arch") == "rdna3":
+            text = (
+                f"Junction is {junc}°C — at the {arch} throttle point (~{throttle}°C). "
+                f"If clocks drop, lower graphics settings. Below ~{hot_c}°C is normal for {model}; "
+                "RDNA3 is designed to run near this limit."
+            )
+            title = "GPU at throttle limit"
+        else:
+            text = (
+                f"Junction is {junc}°C. Near the {arch} throttle (~{throttle}°C) — "
+                "lower graphics settings or improve cooling."
+            )
+            title = "GPU overheating"
+        hints.append(_hint(
+            "hot",
+            title,
+            text,
+            actions,
+            insight_id="gpu-thermal-ceiling",
+            fix_script=script_gpu_thermal(junc, profile=profile),
+        ))
+    elif warm_c is not None and junc >= warm_c:
+        warm_actions = [
+            _cmd("Cap FPS in-game", "Graphics → Frame rate limit → 90", kind="game"),
+            _cmd(
+                "Check GPU power",
+                "cat /sys/class/drm/card1/device/hwmon/hwmon*/power1_cap 2>/dev/null; "
+                "sensors amdgpu-pci-0300 | grep -i ppt",
+            ),
+        ]
+        if fan_help and shutil.which("corectrl"):
+            warm_actions.append(
+                _cmd("Open CoreCtrl", "corectrl", note="A fan curve often helps on RDNA2 and NVIDIA"),
+            )
+        warm_text = f"Junction is {junc}°C. {profile.get('design_note', '')}"
+        if fan_help and fan_note:
+            warm_text = f"Junction is {junc}°C. {fan_note}"
+        hints.append(_hint(
+            "warn",
+            "GPU getting warm",
+            warm_text,
+            warm_actions,
+            insight_id="gpu-thermal-warm",
+            fix_script=script_gpu_warm(junc, profile=profile),
+        ))
+
+
 def system_context() -> dict:
     ctx: dict = {}
     try:
@@ -86,6 +173,8 @@ def system_context() -> dict:
 def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> list[dict]:
     ctx = ctx or system_context()
     g = snap["gpu"]["discrete"]
+    if not ctx.get("gpu_model"):
+        ctx["gpu_model"] = (g.get("thermal_profile") or {}).get("model") or ""
     mem = snap["memory"]
     bw = snap.get("bandwidth", {})
     dram = bw.get("memory", {})
@@ -138,44 +227,8 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             fix_script=script_expo_verify(),
         ))
 
-    if g.get("junction_c") is not None and g["junction_c"] >= 100:
-        gpu_cool_actions = [
-            _cmd("Open CS2 settings folder", f"xdg-open '{CS2_DIR}'", note="Graphics live in-game; Settings.coc is binary"),
-            _cmd("In-game: lower shadow / LOD / draw distance", "Cities 2 → Options → Graphics → lower Level of Detail, Shadow quality, and enable FPS cap 60–90", kind="game"),
-        ]
-        if shutil.which("corectrl"):
-            gpu_cool_actions.append(
-                _cmd("Open CoreCtrl", "corectrl", note="Fan curve, power limit, and per-app profiles"),
-            )
-        else:
-            gpu_cool_actions.append(
-                _cmd("Raise GPU fan (amdgpu)", "echo manual | sudo tee /sys/class/drm/card1/device/pp_power_profile_mode 2>/dev/null; echo 1 | sudo tee /sys/class/drm/card1/device/hwmon/hwmon*/pwm1_enable 2>/dev/null", note="Or install CoreCtrl: sudo apt install corectrl"),
-            )
-        hints.append(_hint(
-            "hot",
-            "GPU overheating",
-            f"Junction is {g['junction_c']}°C. Above ~110°C the RX 7900 XT throttles — lower graphics settings or improve cooling.",
-            gpu_cool_actions,
-            insight_id="gpu-thermal-ceiling",
-            fix_script=script_gpu_thermal(g["junction_c"]),
-        ))
-    elif g.get("junction_c") is not None and g["junction_c"] >= 90:
-        gpu_warm_actions = [
-            _cmd("Cap FPS in-game", "Cities 2 → Options → Graphics → Frame rate limit → 90", kind="game"),
-            _cmd("Check GPU power cap", "cat /sys/class/drm/card1/device/hwmon/hwmon*/power1_cap 2>/dev/null; sensors amdgpu-pci-0300 | grep -i ppt"),
-        ]
-        if shutil.which("corectrl"):
-            gpu_warm_actions.append(
-                _cmd("Open CoreCtrl", "corectrl", note="Nudge fan curve before junction climbs further"),
-            )
-        hints.append(_hint(
-            "warn",
-            "GPU getting warm",
-            f"Junction is {g['junction_c']}°C. Fine for now, but clocks may drop if it stays high.",
-            gpu_warm_actions,
-            insight_id="gpu-thermal-warm",
-            fix_script=script_gpu_warm(g["junction_c"]),
-        ))
+    thermal_profile = g.get("thermal_profile") or profile_for_model(ctx.get("gpu_model", ""))
+    _append_gpu_thermal_hints(hints, g, thermal_profile)
 
     if (g.get("mem_busy_pct") or 0) >= 65:
         est = g.get("vram_est_gbps", "?")

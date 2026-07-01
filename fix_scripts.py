@@ -108,9 +108,23 @@ log "  3. Re-run this script"
 """
 
 
-def script_gpu_thermal(junction: float) -> str:
+def script_gpu_thermal(junction: float, *, profile: dict | None = None) -> str:
+    prof = profile or {}
+    arch = prof.get("label", "GPU")
+    throttle = prof.get("throttle_c", 110)
+    fan_help = prof.get("fan_curve_helpful", True)
+    if prof.get("arch") == "rdna3":
+        target_line = (
+            f"log \"RDNA3 runs junction near {throttle}°C by design — only worry if clocks drop\"\n"
+        )
+        corectrl = _corectrl_hint() if fan_help else (
+            'log "RDNA3 rarely needs a fan curve — lower in-game settings if throttling"\n'
+        )
+    else:
+        target_line = f'log "Re-check junction on dashboard — target well below {throttle}°C sustained"\n'
+        corectrl = _corectrl_hint() if fan_help else ""
     return (
-        _header("gpu-thermal-ceiling", f"Cool-down playbook (junction was {junction}°C)", "medium")
+        _header("gpu-thermal-ceiling", f"Cool-down playbook ({arch}, junction was {junction}°C)", "medium")
         + f"""
 log "=== GPU telemetry ==="
 sensors amdgpu-pci-0300 2>/dev/null | grep -E 'edge|junction|mem|fan|PPT' || true
@@ -131,15 +145,21 @@ log "Opening CS2 settings folder..."
 xdg-open '{CS2_DIR}' 2>/dev/null || true
 
 """
-        + _corectrl_hint()
-        + 'log "Re-check junction on dashboard — target under 95°C sustained"\n'
+        + corectrl
+        + target_line
     )
 
 
-def script_gpu_warm(junction: float) -> str:
-    return script_gpu_thermal(junction).replace("gpu-thermal-ceiling", "gpu-thermal-warm").replace(
-        "Cool-down playbook", "Warm GPU playbook"
+def script_gpu_warm(junction: float, *, profile: dict | None = None) -> str:
+    prof = profile or {}
+    arch = prof.get("label", "GPU")
+    body = script_gpu_thermal(junction, profile=profile)
+    body = body.replace("gpu-thermal-ceiling", "gpu-thermal-warm").replace(
+        "Cool-down playbook", f"Warm GPU playbook ({arch})"
     )
+    if prof.get("fan_curve_note"):
+        body += f'\nlog "Note: {prof["fan_curve_note"]}"\n'
+    return body
 
 
 def script_vram_bandwidth(pct: int, est: str) -> str:

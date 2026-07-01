@@ -33,6 +33,7 @@ from store import (
     update_settings,
 )
 from apply_fix import apply_fix
+from gpu_thermal import profile_for_model
 from tuning_actions import build_tuning_hints, system_context
 
 PORT = 8765
@@ -760,7 +761,9 @@ def update_tuning_history(active: list[dict], running_ids: list[str]) -> list[di
 
 
 def tuning_hints(snap: dict) -> list[dict]:
-    return build_tuning_hints(snap, _mem_spec, system_context())
+    ctx = system_context()
+    ctx["gpu_model"] = _gpu_spec.get("model", "")
+    return build_tuning_hints(snap, _mem_spec, ctx)
 
 
 def collect_metrics() -> dict:
@@ -792,6 +795,7 @@ def collect_metrics() -> dict:
         "game_name": (primary_game or {}).get("name"),
     }
     dgpu = gpu_stats(GPU_DISCRETE, _gpu_spec.get("label") or _gpu_spec.get("model", "GPU"), "0300")
+    dgpu["thermal_profile"] = profile_for_model(_gpu_spec.get("model", ""))
     igpu = gpu_stats(GPU_IGPU, "Raphael iGPU", "1a00")
     overall_cpu = round(sum(cpu_pct) / len(cpu_pct), 1) if cpu_pct else 0.0
     game_cpu = (primary_game or {}).get("cpu_pct", 0.0) if primary_game and primary_game.get("running") else 0.0
@@ -893,6 +897,7 @@ def sampler():
         "threads": psutil.cpu_count(logical=True),
         "history_max_sec": HISTORY_LEN,
         "gpu_model": _gpu_spec.get("model", "RX 7900 XT"),
+        "gpu_thermal": profile_for_model(_gpu_spec.get("model", "")),
         "gpu": _gpu_spec,
         "vram_peak_gbps": _gpu_spec.get("vram_peak_gbps", VRAM_PEAK_GBPS),
         "dram_peak_gbps": _mem_spec.get("peak_gbps", 89.6),
