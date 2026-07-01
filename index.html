@@ -960,12 +960,54 @@
       color: var(--text); cursor: pointer; white-space: nowrap;
     }
     .rig-focus-clear:hover { border-color: var(--accent); color: var(--accent); }
-    body[data-hw-focus="cpu"] #summaryBar [data-hw]:not([data-hw-keep]):not([data-hw~="cpu"]),
-    body[data-hw-focus="cpu"] #vizPanel [data-hw]:not([data-hw-keep]):not([data-hw~="cpu"]) { display: none !important; }
-    body[data-hw-focus="gpu"] #summaryBar [data-hw]:not([data-hw-keep]):not([data-hw~="gpu"]),
-    body[data-hw-focus="gpu"] #vizPanel [data-hw]:not([data-hw-keep]):not([data-hw~="gpu"]) { display: none !important; }
-    body[data-hw-focus="memory"] #summaryBar [data-hw]:not([data-hw-keep]):not([data-hw~="memory"]),
-    body[data-hw-focus="memory"] #vizPanel [data-hw]:not([data-hw-keep]):not([data-hw~="memory"]) { display: none !important; }
+    .sum-cell.hw-focus-hero {
+      --hw-hero-accent: var(--accent);
+      position: relative; z-index: 1;
+      border-color: color-mix(in srgb, var(--hw-hero-accent) 52%, var(--line));
+      background: color-mix(in srgb, var(--panel-elevated) 86%, color-mix(in srgb, var(--hw-hero-accent) 14%, transparent));
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--hw-hero-accent) 32%, transparent),
+        0 10px 30px color-mix(in srgb, var(--hw-hero-accent) 16%, transparent);
+    }
+    .sum-cell.hw-focus-hero.cpu { --hw-hero-accent: var(--blue); }
+    .sum-cell.hw-focus-hero.mem { --hw-hero-accent: var(--green); }
+    .sum-cell.hw-focus-hero.gpu { --hw-hero-accent: var(--orange); }
+    .sum-cell.hw-focus-hero .sum-value { font-size: 1.62rem; }
+    #summaryBar [data-hw]:not([data-hw-keep]),
+    #vizPanel [data-hw]:not([data-hw-keep]),
+    #warningList .warn-row[data-hw] {
+      overflow: hidden;
+      transition:
+        opacity .26s ease,
+        max-height .3s ease,
+        margin .26s ease,
+        padding .26s ease,
+        visibility .26s ease;
+    }
+    #summaryBar .sum-cell[data-hw] { max-height: 9rem; }
+    #vizPanel .metric-bar[data-hw] { max-height: 6.5rem; }
+    #vizPanel .glance-cell[data-hw] { max-height: 5rem; }
+    #vizPanel .core-strip[data-hw] { max-height: 5.5rem; }
+    #vizPanel .league-parts .metric-bar[data-hw] { max-height: 5.5rem; }
+    #summaryBar .sensor-chip[data-hw] { max-height: 3.5rem; }
+    #warningList .warn-row[data-hw] { max-height: 8rem; }
+    .hw-filtered-out {
+      opacity: 0 !important;
+      max-height: 0 !important;
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+      border-width: 0 !important;
+    }
+    .hw-filtered-hidden { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      #summaryBar [data-hw]:not([data-hw-keep]),
+      #vizPanel [data-hw]:not([data-hw-keep]),
+      #warningList .warn-row[data-hw] { transition: none; }
+    }
     .viz-empty-note {
       display: none; align-items: center; justify-content: center; flex: 1; min-height: 3.5rem;
       font-size: .82rem; color: var(--muted); font-style: italic; text-align: center; padding: .5rem;
@@ -1433,6 +1475,40 @@
     let hwFocus = sessionStorage.getItem('pulse-hw-focus') || null;
     if (!['cpu', 'gpu', 'memory'].includes(hwFocus)) hwFocus = null;
     const HW_FOCUS_LABELS = { cpu: 'CPU', gpu: 'GPU', memory: 'Memory' };
+    const HW_FOCUS_SUM_CELLS = { cpu: 'sumCpuCell', gpu: 'sumGpuCell', memory: 'sumMemCell' };
+    const VIZ_BLOCK_TITLES = {
+      'viz-area-util': { default: 'Utilization', cpu: 'CPU utilization', gpu: 'GPU utilization', memory: 'Memory utilization' },
+      'viz-area-temp': { default: 'Temperatures', cpu: 'CPU temperatures', gpu: 'GPU temperatures' },
+      'viz-area-bw': { default: 'Bandwidth', gpu: 'GPU bandwidth', memory: 'Memory bandwidth' },
+      'viz-area-league': { default: 'Hardware league', cpu: 'CPU league', gpu: 'GPU league', memory: 'Memory league' },
+      'viz-area-spark': { default: 'Trend · last 5 minutes', cpu: 'Trend · CPU & memory', gpu: 'Trend · GPU', memory: 'Trend · memory' },
+      'viz-area-cores': { default: 'CPU cores' },
+      'viz-area-glance': { default: 'Power & cooling', cpu: 'CPU thermals', gpu: 'GPU power' },
+      'viz-area-stutter': {
+        default: 'Stutter proxy · 1% low estimate',
+        cpu: 'Stutter proxy · CPU & memory',
+        memory: 'Stutter proxy · memory drivers',
+      },
+    };
+    const HINT_HW_MAP = {
+      'cpu-governor-powersave': ['cpu'],
+      'vm-swappiness-high': ['memory'],
+      'ram-expo-verify': ['memory'],
+      'gpu-thermal-ceiling': ['gpu'],
+      'gpu-thermal-warm': ['gpu'],
+      'gpu-vram-bandwidth': ['gpu'],
+      'gpu-vram-full': ['gpu'],
+      'gpu-gtt-churn': ['gpu'],
+      'memory-swap-thrash': ['memory'],
+      'memory-dram-stall': ['memory'],
+      'memory-page-faults': ['memory'],
+      'stutter-proxy': ['cpu', 'memory'],
+      'cpu-bound': ['cpu'],
+      'gpu-shader-bound': ['gpu'],
+      'cpu-ccd-spread': ['cpu'],
+      'system-balanced': ['cpu', 'gpu', 'memory'],
+    };
+    let lastWarningsHints = [];
 
     const gridColor = 'rgba(255,255,255,.06)';
     const tickColor = '#9aa3b2';
@@ -2294,6 +2370,15 @@
       return `<span class="metric-bar-label hw-row">${icon}${esc(s.label)}</span>`;
     }
 
+    function syncMetricHwTags(containerId, specs) {
+      specs.forEach(s => {
+        const row = document.querySelector(`#${containerId} [data-mid="${s.id}"]`);
+        if (!row) return;
+        if (s.hw) row.setAttribute('data-hw', s.hw);
+        else row.removeAttribute('data-hw');
+      });
+    }
+
     function ensureMetricList(containerId, specs, trackKey = 'cls') {
       const el = document.getElementById(containerId);
       if (el.dataset.hwVer !== '3') {
@@ -2553,6 +2638,7 @@
       if (eventsSub) eventsSub.textContent = `${sess.hitch_rate_per_min ?? 0}/min rate`;
 
       ensureMetricList('stutterComponents', STUTTER_COMP_SPECS);
+      syncMetricHwTags('stutterComponents', STUTTER_COMP_SPECS);
       const comp = st.components || {};
       const dram = l.bandwidth?.memory || {};
       STUTTER_COMP_SPECS.forEach(s => {
@@ -2606,6 +2692,11 @@
       if (!c) {
         el.innerHTML = '<div class="sub">League data unavailable</div>';
         return;
+      }
+      if (el.dataset.hwVer !== '3') {
+        el.innerHTML = '';
+        delete el.dataset.init;
+        el.dataset.hwVer = '3';
       }
       if (!el.dataset.init) {
         el.innerHTML = `
@@ -2729,7 +2820,9 @@
       if (!el.dataset.init || el.dataset.mode === 'empty' || picks.length !== el.querySelectorAll('[data-sid]').length) {
         el.innerHTML = picks.map(s => {
           const short = s.label.replace(/^k10temp-[^ ]+ /i, '').replace(/^amdgpu-[^ ]+ /i, '');
-          return `<span class="sensor-chip" data-sid="${esc(s.id)}" data-hw="${sensorHwFocus(s)}">${hwIcon(sensorKindIcon(s), 'hw-chip-glyph')}<span data-slabel>${short}</span> <span class="chip-val" data-sval>—</span></span>`;
+          const hw = sensorHwFocus(s);
+          const hwAttr = hw ? ` data-hw="${hw}"` : ' data-hw-keep';
+          return `<span class="sensor-chip" data-sid="${esc(s.id)}"${hwAttr}>${hwIcon(sensorKindIcon(s), 'hw-chip-glyph')}<span data-slabel>${short}</span> <span class="chip-val" data-sval>—</span></span>`;
         }).join('');
         el.dataset.init = '1';
         el.dataset.mode = 'live';
@@ -2748,8 +2841,12 @@
 
     function renderVisualDashboard(l, comparison) {
       ensureMetricList('utilMeters', UTIL_SPECS);
-      ensureMetricList('tempMeters', TEMP_SPECS.map(s => ({ ...s, cls: 'temp' })), 'cls');
+      syncMetricHwTags('utilMeters', UTIL_SPECS);
+      const tempSpecs = TEMP_SPECS.map(s => ({ ...s, cls: 'temp' }));
+      ensureMetricList('tempMeters', tempSpecs, 'cls');
+      syncMetricHwTags('tempMeters', tempSpecs);
       ensureMetricList('bwMeters', BW_SPECS);
+      syncMetricHwTags('bwMeters', BW_SPECS);
 
       const c = l.cpu, m = l.memory, g = l.gpu.discrete, gt = l.game_totals;
       const bw = l.bandwidth || {};
@@ -2792,6 +2889,8 @@
       renderSensorStrip(l.sensors || []);
       renderStutterViz(l);
       renderSparkChart();
+      updateVizTitles();
+      applyHwFilterClasses();
     }
 
     function downloadScript(name, body) {
@@ -2991,11 +3090,115 @@
       return hw.split(/\s+/).filter(Boolean).includes(hwFocus);
     }
 
+    function prefersReducedMotion() {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
+    function setHwFilterVisible(el, visible) {
+      if (!el || el.hasAttribute('data-hw-keep')) return;
+      if (visible) {
+        el.classList.remove('hw-filtered-hidden');
+        if (el.classList.contains('hw-filtered-out')) {
+          requestAnimationFrame(() => el.classList.remove('hw-filtered-out'));
+        }
+        return;
+      }
+      if (el.classList.contains('hw-filtered-hidden')) return;
+      if (prefersReducedMotion()) {
+        el.classList.add('hw-filtered-out', 'hw-filtered-hidden');
+        return;
+      }
+      el.classList.add('hw-filtered-out');
+      const onEnd = (e) => {
+        if (e.target !== el || (e.propertyName !== 'opacity' && e.propertyName !== 'max-height')) return;
+        el.classList.add('hw-filtered-hidden');
+        el.removeEventListener('transitionend', onEnd);
+      };
+      el.addEventListener('transitionend', onEnd);
+    }
+
+    function applyHwFilterClasses() {
+      document.querySelectorAll('#summaryBar [data-hw], #vizPanel [data-hw]').forEach(el => {
+        setHwFilterVisible(el, hwItemVisible(el));
+      });
+    }
+
+    function applyWarningFilterClasses() {
+      document.querySelectorAll('#warningList .warn-row[data-hw]').forEach(el => {
+        setHwFilterVisible(el, hwItemVisible(el));
+      });
+    }
+
+    function updateVizTitles() {
+      document.querySelectorAll('#vizPanel .viz-block').forEach(block => {
+        const areaClass = [...block.classList].find(c => c.startsWith('viz-area-'));
+        if (!areaClass) return;
+        const map = VIZ_BLOCK_TITLES[areaClass];
+        if (!map) return;
+        const h3 = block.querySelector('.viz-block-head h3');
+        if (!h3) return;
+        const title = hwFocus && map[hwFocus] ? map[hwFocus] : map.default;
+        if (h3.textContent !== title) h3.textContent = title;
+      });
+    }
+
+    function hintHwFocus(hint) {
+      const id = hint?.insight_id || '';
+      if (HINT_HW_MAP[id]) return HINT_HW_MAP[id];
+      const blob = `${id} ${hint?.title || ''} ${hint?.text || ''}`.toLowerCase();
+      const tags = new Set();
+      if (/cpu|governor|ccd|core|ryzen|package|powersave/.test(blob)) tags.add('cpu');
+      if (/gpu|vram|gtt|junction|shader|radeon|geforce|thermal|amdgpu/.test(blob)) tags.add('gpu');
+      if (/memory|ram|swap|dram|expo|page.?fault|swappiness/.test(blob)) tags.add('memory');
+      if (/stutter|hitch/.test(blob)) {
+        tags.add('cpu');
+        tags.add('memory');
+      }
+      if (/balanced|looking good|no major/.test(blob)) return ['cpu', 'gpu', 'memory'];
+      return tags.size ? [...tags] : ['cpu', 'gpu', 'memory'];
+    }
+
+    function hintVisibleForFocus(hint) {
+      if (!hwFocus) return true;
+      return hintHwFocus(hint).includes(hwFocus);
+    }
+
+    function updateWarningsFocusUI() {
+      const active = (lastWarningsHints || []).filter(h => h.active !== false);
+      const visible = active.filter(h => hintVisibleForFocus(h));
+      const multi = visible.filter(h => h.multi_game).length;
+      const metaEl = document.getElementById('tuningMeta');
+      if (metaEl) {
+        metaEl.textContent = visible.length
+          ? `${visible.length} to address${hwFocus ? ` · ${HW_FOCUS_LABELS[hwFocus]} focus` : ''}${multi ? ` · ${multi} affect multiple games` : ''}`
+          : hwFocus
+            ? `No ${HW_FOCUS_LABELS[hwFocus]} warnings`
+            : 'Nothing needs attention right now';
+      }
+      const counts = { hot: 0, warn: 0, info: 0, ok: 0 };
+      visible.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
+      const pillsKey = JSON.stringify({ counts, hwFocus });
+      if (pillsKey !== lastWarningsPillsKey) {
+        lastWarningsPillsKey = pillsKey;
+        const summaryEl = document.getElementById('tuningSummary');
+        if (summaryEl) {
+          summaryEl.innerHTML = stablePillsHtml([
+            ['hot', 'Critical', counts.hot],
+            ['warn', 'Important', counts.warn],
+            ['info', 'Moderate', counts.info],
+            ['ok', 'Healthy', counts.ok],
+          ]);
+        }
+      }
+      applyWarningFilterClasses();
+    }
+
     function updateNocEmptyStates() {
       const label = hwFocus ? HW_FOCUS_LABELS[hwFocus] : '';
       document.querySelectorAll('#vizPanel .viz-block').forEach(block => {
         const note = block.querySelector('.viz-empty-note');
-        const filterable = [...block.querySelectorAll('[data-hw]')].filter(el => !el.classList.contains('viz-empty-note'));
+        const filterable = [...block.querySelectorAll('[data-hw]')].filter(el =>
+          !el.classList.contains('viz-empty-note') && !el.hasAttribute('data-hw-keep'));
         if (!hwFocus || !filterable.length) {
           block.classList.remove('noc-hw-empty');
           if (note) note.hidden = true;
@@ -3019,6 +3222,10 @@
         btn.classList.toggle('active', active);
         btn.setAttribute('aria-pressed', active ? 'true' : 'false');
       });
+      Object.entries(HW_FOCUS_SUM_CELLS).forEach(([focus, id]) => {
+        const cell = document.getElementById(id);
+        if (cell) cell.classList.toggle('hw-focus-hero', hwFocus === focus);
+      });
       const banner = document.getElementById('rigFocusBanner');
       const text = document.getElementById('rigFocusText');
       if (banner && text) {
@@ -3031,7 +3238,10 @@
           text.textContent = `NOC filtered to ${HW_FOCUS_LABELS[hwFocus]} · ${name}`;
         }
       }
+      updateVizTitles();
       applyChartFocus();
+      applyHwFilterClasses();
+      updateWarningsFocusUI();
       requestAnimationFrame(updateNocEmptyStates);
     }
 
@@ -3251,7 +3461,8 @@
       const lv = h.level || 'info';
       const sid = h.insight_id || 'insight';
       const domId = `insight-${sid}`;
-      return `<div class="warn-row rec-${lv}" data-iid="${esc(sid)}" id="warn-${domId}">
+      const hwTags = hintHwFocus(h).join(' ');
+      return `<div class="warn-row rec-${lv}" data-iid="${esc(sid)}" data-hw="${esc(hwTags)}" id="warn-${domId}">
         ${sevBadge(lv, SEV_LABEL[lv] || lv)}
         ${gameTag(h)}
         <span class="warn-title">${esc(h.title)}</span>
@@ -3271,36 +3482,21 @@
 
     function renderWarnings(hints) {
       const list = hints || [];
+      lastWarningsHints = list;
       const active = list.filter(h => h.active !== false);
       const structKey = hintsStructKey(active);
-      const multi = active.filter(h => h.multi_game).length;
-
-      document.getElementById('tuningMeta').textContent = active.length
-        ? `${active.length} to address${multi ? ` · ${multi} affect multiple games` : ''}`
-        : 'Nothing needs attention right now';
-
-      const counts = { hot: 0, warn: 0, info: 0, ok: 0 };
-      active.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
-      const pillsKey = JSON.stringify(counts);
-      if (pillsKey !== lastWarningsPillsKey) {
-        lastWarningsPillsKey = pillsKey;
-        document.getElementById('tuningSummary').innerHTML = stablePillsHtml([
-          ['hot', 'Critical', counts.hot],
-          ['warn', 'Important', counts.warn],
-          ['info', 'Moderate', counts.info],
-          ['ok', 'Healthy', counts.ok],
-        ]);
-      }
 
       const listEl = document.getElementById('warningList');
-      if (structKey === lastWarningsKey) return;
-      lastWarningsKey = structKey;
-      capturePanelState();
-      listEl.innerHTML = active.length
-        ? active.map(h => warningRowHtml(h)).join('')
-        : '<p class="warn-empty">Nothing needs attention. Open <strong>Fixes</strong> for scripts and step-by-step guidance.</p>';
-      bindWarningActions(active);
-      restorePanelState();
+      if (structKey !== lastWarningsKey) {
+        lastWarningsKey = structKey;
+        capturePanelState();
+        listEl.innerHTML = active.length
+          ? active.map(h => warningRowHtml(h)).join('')
+          : '<p class="warn-empty">Nothing needs attention. Open <strong>Fixes</strong> for scripts and step-by-step guidance.</p>';
+        bindWarningActions(active);
+        restorePanelState();
+      }
+      updateWarningsFocusUI();
     }
 
     function renderFixes(hints) {
