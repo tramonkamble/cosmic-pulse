@@ -443,19 +443,14 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       grid-template-areas:
-        "util temp bw ."
-        "spark spark cores glance"
+        "rig rig rig rig"
         "index index index index"
         "stutter stutter stutter stutter";
       gap: .85rem;
       align-items: stretch;
     }
-    .viz-area-util { grid-area: util; }
-    .viz-area-temp { grid-area: temp; }
-    .viz-area-bw { grid-area: bw; }
-    .viz-area-spark { grid-area: spark; }
-    .viz-area-cores { grid-area: cores; }
-    .viz-area-glance { grid-area: glance; }
+    .viz-area-rig { grid-area: rig; }
+    .viz-area-rig .viz-block { min-height: 32rem; }
     .viz-area-index {
       grid-area: index;
       cursor: pointer;
@@ -468,10 +463,7 @@
       .viz-grid {
         grid-template-columns: repeat(2, 1fr);
         grid-template-areas:
-          "util temp"
-          "bw ."
-          "spark spark"
-          "cores glance"
+          "rig rig"
           "index index"
           "stutter stutter";
       }
@@ -479,8 +471,7 @@
     @media (max-width: 600px) {
       .viz-grid {
         grid-template-columns: 1fr;
-        grid-template-areas:
-          "util" "temp" "bw" "spark" "cores" "glance" "index" "stutter";
+        grid-template-areas: "rig" "index" "stutter";
       }
     }
     .viz-block {
@@ -530,7 +521,28 @@
     .metric-bar-track.temp.hot > span { background: linear-gradient(90deg, #c43d32, var(--hot)); box-shadow: 0 0 14px rgba(237,106,90,.5); }
     .metric-bar-track.temp.info > span { background: linear-gradient(90deg, #4a6fa8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.25); }
     .metric-bar-sub { display: block; margin-top: .3rem; font-size: .8rem; color: var(--muted); }
-    .spark-box { height: 140px; position: relative; }
+    .stutter-layout.rig-layout {
+      grid-template-columns: minmax(13rem, 1.15fr) minmax(13rem, 1.45fr) minmax(11rem, 1fr);
+    }
+    .rig-layout .stutter-drivers {
+      gap: .35rem;
+      overflow-y: auto;
+      padding-right: .2rem;
+    }
+    .rig-layout .stutter-side-label { margin: .08rem 0 .1rem; flex-shrink: 0; }
+    .rig-layout .stutter-side-label:first-child { margin-top: 0; }
+    .rig-layout .rig-driver-group { flex-shrink: 0; }
+    .rig-layout .stutter-summary { gap: .48rem; }
+    .rig-layout .glance-grid { margin-top: .1rem; }
+    .rig-layout .core-strip { height: 64px; flex-shrink: 0; }
+    .rig-layout .core-strip-cell { height: 64px; }
+    .rig-status {
+      font-size: .72rem; font-weight: 500; color: var(--text-secondary); line-height: 1.35;
+      padding: .1rem 0 .05rem;
+    }
+    .rig-status.hot { color: #ff8a7a; }
+    .rig-status.warn { color: #f5c882; }
+    .rig-status.ok { color: var(--green); }
     .core-strip {
       display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; align-items: end; height: 72px;
     }
@@ -1427,29 +1439,55 @@
     <section class="card viz-panel section-target" id="vizPanel">
       <h2>Live overview</h2>
       <div class="viz-grid">
-        <div class="viz-block viz-area-util">
-          <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><h3>Utilization</h3></div>
-          <div class="viz-block-body"><div class="metric-list" id="utilMeters"></div><div class="viz-empty-note" hidden></div></div>
-        </div>
-        <div class="viz-block viz-area-temp">
-          <div class="viz-block-head"><span class="hw-icon-box temp" data-glyph="temp"></span><h3>Temperatures</h3></div>
-          <div class="viz-block-body"><div class="metric-list" id="tempMeters"></div><div class="viz-empty-note" hidden></div></div>
-        </div>
-        <div class="viz-block viz-area-bw">
-          <div class="viz-block-head"><span class="hw-icon-box mem" data-glyph="storage"></span><h3>Bandwidth</h3></div>
-          <div class="viz-block-body"><div class="metric-list" id="bwMeters"></div><div class="viz-empty-note" hidden></div></div>
-        </div>
-        <div class="viz-block viz-area-spark">
-          <div class="viz-block-head"><span class="hw-icon-box game" data-glyph="activity"></span><h3>Trend · last 5 minutes</h3></div>
-          <div class="viz-block-body"><div class="spark-box" data-hw-keep><canvas id="sparkChart"></canvas></div></div>
-        </div>
-        <div class="viz-block viz-area-cores">
-          <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><h3>CPU cores</h3></div>
-          <div class="viz-block-body"><div class="core-strip" id="coreStrip" data-hw="cpu"></div><div class="viz-empty-note" hidden></div></div>
-        </div>
-        <div class="viz-block viz-area-glance">
-          <div class="viz-block-head"><span class="hw-icon-box gpu" data-glyph="fan"></span><h3>Power &amp; cooling</h3></div>
-          <div class="viz-block-body"><div class="glance-grid" id="glanceGrid"></div><div class="viz-empty-note" hidden></div></div>
+        <div class="viz-block viz-area-rig" id="rigSnapshotBlock">
+          <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="activity"></span><h3>Rig snapshot</h3></div>
+          <div class="viz-block-body">
+            <div class="stutter-layout rig-layout">
+              <div class="stutter-col stutter-drivers">
+                <div class="rig-driver-group">
+                  <div class="stutter-side-label">Utilization</div>
+                  <div class="metric-list metric-list-compact stutter-driver-bars" id="utilMeters"></div>
+                </div>
+                <div class="rig-driver-group">
+                  <div class="stutter-side-label">Temperatures</div>
+                  <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
+                </div>
+                <div class="rig-driver-group">
+                  <div class="stutter-side-label">Bandwidth</div>
+                  <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
+                </div>
+              </div>
+              <div class="stutter-col stutter-chart-col" data-hw-keep>
+                <div class="stutter-side-label" id="sparkChartLabel">Trend · last 5 min</div>
+                <div class="stutter-chart-box"><canvas id="sparkChart"></canvas></div>
+              </div>
+              <div class="stutter-col stutter-summary" data-hw-keep>
+                <div class="stutter-kpis">
+                  <div class="stutter-kpi">
+                    <span class="k">Peak core</span>
+                    <span class="v" id="rigPeakCore">—</span>
+                    <span class="s" id="rigPeakCoreSub">hottest thread</span>
+                  </div>
+                  <div class="stutter-kpi">
+                    <span class="k">Hottest</span>
+                    <span class="v" id="rigHottest">—</span>
+                    <span class="s" id="rigHottestSub">sensor</span>
+                  </div>
+                  <div class="stutter-kpi">
+                    <span class="k">Game</span>
+                    <span class="v" id="rigGameKpi">—</span>
+                    <span class="s" id="rigGameSub">foreground</span>
+                  </div>
+                </div>
+                <div class="rig-status ok" id="rigStatus">—</div>
+                <div class="stutter-side-label">Power &amp; cooling</div>
+                <div class="glance-grid" id="glanceGrid"></div>
+                <div class="stutter-side-label" data-hw="cpu">CPU cores</div>
+                <div class="core-strip" id="coreStrip" data-hw="cpu"></div>
+              </div>
+            </div>
+            <div class="viz-empty-note" hidden></div>
+          </div>
         </div>
         <div class="viz-block viz-area-index" id="pulseIndexBlock" data-hw-keep title="Click for full build comparison">
           <div class="viz-block-head"><span class="hw-icon-box league" data-glyph="league"></span><h3>Pulse Index</h3></div>
@@ -1909,12 +1947,12 @@
 
     const HW_FOCUS_SUM_CELLS = { cpu: 'sumCpuCell', gpu: 'sumGpuCell', memory: 'sumMemCell' };
     const VIZ_BLOCK_TITLES = {
-      'viz-area-util': { default: 'Utilization', cpu: 'CPU utilization', gpu: 'GPU utilization', memory: 'Memory utilization' },
-      'viz-area-temp': { default: 'Temperatures', cpu: 'CPU temperatures', gpu: 'GPU temperatures', memory: 'Memory temperatures' },
-      'viz-area-bw': { default: 'Bandwidth', cpu: 'CPU bandwidth', gpu: 'GPU bandwidth', memory: 'Memory bandwidth' },
-      'viz-area-spark': { default: 'Trend · last 5 minutes', cpu: 'Trend · CPU & memory', gpu: 'Trend · GPU', memory: 'Trend · memory' },
-      'viz-area-cores': { default: 'CPU cores', cpu: 'CPU cores', gpu: 'CPU cores', memory: 'CPU cores' },
-      'viz-area-glance': { default: 'Power & cooling', cpu: 'CPU thermals', gpu: 'GPU power', memory: 'Power & cooling' },
+      'viz-area-rig': {
+        default: 'Rig snapshot',
+        cpu: 'Rig snapshot · CPU focus',
+        gpu: 'Rig snapshot · GPU focus',
+        memory: 'Rig snapshot · memory focus',
+      },
       'viz-area-index': {
         default: 'Pulse Index · session load',
         cpu: 'Pulse Index · CPU load',
@@ -1929,12 +1967,7 @@
       },
     };
     const VIZ_BLOCK_ICONS = {
-      'viz-area-util': { default: 'cpu', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
-      'viz-area-temp': { default: 'temp', cpu: 'cpu', gpu: 'gpu', memory: 'temp' },
-      'viz-area-bw': { default: 'storage', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
-      'viz-area-spark': { default: 'activity', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
-      'viz-area-cores': { default: 'cpu' },
-      'viz-area-glance': { default: 'fan', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
+      'viz-area-rig': { default: 'activity', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
       'viz-area-index': { default: 'league', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
       'viz-area-stutter': { default: 'stutter', cpu: 'stutter', gpu: 'stutter', memory: 'stutter' },
     };
@@ -3106,7 +3139,75 @@
         sparkChart.data.labels = labels;
         sparkChart.data.datasets = newDatasets;
       }
+      const chartLabel = document.getElementById('sparkChartLabel');
+      if (chartLabel) {
+        chartLabel.textContent = hwFocus
+          ? `${HW_FOCUS_LABELS[hwFocus]} trend · last 5 min`
+          : 'Trend · last 5 min';
+      }
       sparkChart.update('none');
+    }
+
+    function renderRigInsight(l) {
+      const c = l.cpu || {}, m = l.memory || {}, g = l.gpu?.discrete || {}, gt = l.game_totals || {};
+      const cores = c.per_core || [];
+      const peakCore = cores.length ? cores.reduce((a, b) => (b.pct > a.pct ? b : a), cores[0]) : null;
+      const peakPct = peakCore ? smoothDisplayPct('rig-peak-core', peakCore.pct) : 0;
+
+      const peakEl = document.getElementById('rigPeakCore');
+      if (peakEl) {
+        peakEl.textContent = peakCore ? `${peakPct}%` : '—';
+        peakEl.className = `v ${peakPct >= 90 ? 'severe' : peakPct >= 75 ? 'moderate' : peakPct >= 50 ? 'mild' : 'ok'}`;
+      }
+      const peakSub = document.getElementById('rigPeakCoreSub');
+      if (peakSub) peakSub.textContent = peakCore ? `core ${peakCore.id}` : 'no data';
+
+      const tempCandidates = [
+        { label: 'CPU pkg', v: c.temps?.package, hw: 'cpu' },
+        { label: 'CCD 1', v: c.temps?.ccd?.[0], hw: 'cpu' },
+        { label: 'CCD 2', v: c.temps?.ccd?.[1], hw: 'cpu' },
+        { label: 'GPU junc', v: g.junction_c, hw: 'gpu' },
+        { label: 'VRAM', v: g.mem_temp_c, hw: 'gpu' },
+      ].filter(t => t.v != null && !isNaN(t.v));
+      if (hwFocus) tempCandidates.sort((a, b) => (a.hw === hwFocus ? -1 : b.hw === hwFocus ? 1 : 0));
+      const hottest = tempCandidates.length
+        ? tempCandidates.reduce((a, b) => (b.v > a.v ? b : a), tempCandidates[0])
+        : null;
+
+      const hotEl = document.getElementById('rigHottest');
+      if (hotEl) {
+        hotEl.textContent = hottest ? `${hottest.v}°` : '—';
+        const tc = hottest?.label?.includes('GPU junc') ? gpuJuncUiClass(hottest.v).trim() : tempClass(hottest?.v);
+        hotEl.className = `v ${tc === 'hot' ? 'severe' : tc === 'warn' ? 'moderate' : ''}`;
+      }
+      const hotSub = document.getElementById('rigHottestSub');
+      if (hotSub) hotSub.textContent = hottest?.label || 'sensor';
+
+      const gameEl = document.getElementById('rigGameKpi');
+      if (gameEl) {
+        gameEl.textContent = gt?.running ? `${gt.cpu_pct}%` : 'Idle';
+        gameEl.className = `v ${gt?.running ? 'ok' : ''}`;
+      }
+      const gameSub = document.getElementById('rigGameSub');
+      if (gameSub) {
+        gameSub.textContent = gt?.running
+          ? (gt.primary_name || gt.game_name || 'running').slice(0, 28)
+          : 'no foreground game';
+      }
+
+      const statusEl = document.getElementById('rigStatus');
+      if (statusEl) {
+        const bits = [
+          `CPU ${c.overall_pct ?? '—'}%`,
+          `GPU ${g.busy_pct ?? '—'}%`,
+          `RAM ${m.pct ?? '—'}%`,
+          m.swap_pct > 5 ? `swap ${m.swap_pct}%` : null,
+        ].filter(Boolean);
+        const loadMax = Math.max(c.overall_pct ?? 0, g.busy_pct ?? 0, m.pct ?? 0);
+        const cls = loadMax >= 90 ? 'hot' : loadMax >= 75 ? 'warn' : 'ok';
+        statusEl.textContent = bits.join(' · ');
+        statusEl.className = `rig-status ${cls}`;
+      }
     }
 
     function renderStutterChart() {
@@ -3874,8 +3975,9 @@
         `${bw.memory?.psi_avg10 ?? 0}% PSI`, `Page faults ${(bw.memory?.pgfault_per_s ?? 0).toLocaleString()}/s`, 'mem');
 
       renderCoreStrip(l.cpu.per_core || []);
-      renderPulseIndexViz(comparison);
+      renderRigInsight(l);
       renderQuickGlance(l);
+      renderPulseIndexViz(comparison);
       renderSensorStrip(l.sensors || []);
       renderStutterViz(l);
       renderSparkChart();
@@ -4327,6 +4429,7 @@
       if (lastStatic) updateMetaLine(lastStatic, lastLatest);
       if (lastLatest) {
         renderSummaryBar(lastLatest, lastWarningsHints, lastComparison);
+        renderRigInsight(lastLatest);
         renderPulseIndexViz(lastComparison);
       }
       renderCharts();
