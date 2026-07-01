@@ -905,6 +905,7 @@ def sampler():
         },
         "tools": tools_status(),
         "backlog": json.loads(BACKLOG_FILE.read_text()) if BACKLOG_FILE.exists() else [],
+        "pulse_root": str(ROOT),
     }
     net_rates()
     disk_rates()

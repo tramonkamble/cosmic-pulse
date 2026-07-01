@@ -1292,7 +1292,7 @@
       if (vsEnth) vsEnth.innerHTML = vsFmt(r.vs_enthusiast_pct);
     }
 
-    function renderComparison(c, mem) {
+    function renderComparison(c, mem, pulseRoot = '') {
       if (!c) return;
       document.getElementById('sessionIndex').textContent = `${c.session_index}/100`;
       document.getElementById('compositeRank').innerHTML = tierBadge(c.composite_rank);
@@ -1349,7 +1349,8 @@
       if (btn) btn.onclick = async () => {
         btn.textContent = 'Need sudo in terminal…';
         btn.disabled = true;
-        alert('Run in terminal for exact RAM speed:\\n\\nsudo python3 /home/tkep/perf-dashboard/probe_memory.py\\n\\nThen refresh this page.');
+        const probe = pulseRoot ? `${pulseRoot}/probe_memory.py` : 'probe_memory.py';
+        alert(`Run in terminal for exact RAM speed:\\n\\nsudo python3 '${probe}'\\n\\nThen refresh this page.`);
       };
     }
 
@@ -2567,7 +2568,7 @@
         renderSummaryBar(l, l.tuning, l.comparison);
         renderVisualDashboard(l, l.comparison);
         renderBandwidth(l);
-        renderComparison(l.comparison, mem);
+        renderComparison(l.comparison, mem, s.pulse_root);
         renderWarnings(l.tuning);
         renderFixes(l.tuning);
         renderGameIssues(l.issues_by_game);

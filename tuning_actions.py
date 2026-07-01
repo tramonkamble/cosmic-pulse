@@ -25,11 +25,12 @@ from fix_scripts import (
 )
 
 HOME = Path.home()
+PULSE_ROOT = Path(__file__).resolve().parent
+PROBE_SCRIPT = PULSE_ROOT / "probe_memory.py"
 CS2_DIR = (
     HOME
     / ".local/share/Steam/steamapps/compatdata/949230/pfx/drive_c/users/steamuser/AppData/LocalLow/Colossal Order/Cities Skylines II"
 )
-STEAM_USERDATA = HOME / ".local/share/Steam/userdata/16885038/config/localconfig.vdf"
 
 
 def _hint(
@@ -124,7 +125,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             f"Your {mem_spec.get('part')} kit needs AMD EXPO for {cfg} MT/s. Without it you get {spd} MT/s (~{spd * 2 * 64 / 8 / 1000:.1f} GB/s instead of 96 GB/s).",
             [
                 _cmd("Read configured RAM speed", "sudo dmidecode -t memory | grep -E 'Speed|Configured|Part Number'"),
-                _cmd("Re-probe dashboard RAM cache", "sudo python3 /home/tkep/perf-dashboard/probe_memory.py"),
+                _cmd("Re-probe dashboard RAM cache", f"sudo python3 '{PROBE_SCRIPT}'"),
             ],
             insight_id="ram-expo-verify",
             fix_script=script_expo_verify(),
