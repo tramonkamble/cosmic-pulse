@@ -585,11 +585,52 @@
     .index-tick.sev-hot { background: rgba(155,126,200,.75); }
     .index-tick.sev-warn { background: rgba(98,160,234,.55); }
     .index-tick.sev-ok { background: rgba(106,201,141,.45); }
-    .index-tier {
-      font-size: .8rem; font-weight: 500; padding: .35rem .65rem; border-radius: 999px;
-      border: 1px solid var(--line); background: rgba(180,142,173,.12); color: var(--purple);
+    .index-build-strip {
+      display: flex; align-items: center; gap: .55rem; flex-wrap: wrap;
+      padding: .5rem .62rem; margin-bottom: .1rem;
+      background: rgba(180,142,173,.08); border: 1px solid rgba(180,142,173,.22); border-radius: 10px;
     }
-    .index-tier.placeholder { opacity: .5; border-style: dashed; background: transparent; color: var(--muted); }
+    .index-build-strip .meta {
+      font-size: .72rem; color: var(--text-secondary); line-height: 1.35; flex: 1; min-width: 0;
+    }
+    .index-build-strip .rank-badge { font-size: .82rem; padding: .32rem .62rem; }
+    .index-rank-list { display: flex; flex-direction: column; gap: .5rem; flex: 1; min-height: 0; }
+    .index-rank-card {
+      display: flex; flex-direction: column; gap: .32rem;
+      padding: .52rem .6rem; border-radius: 10px;
+      background: rgba(0,0,0,.22); border: 1px solid var(--line); min-width: 0;
+    }
+    .index-rank-head {
+      display: flex; align-items: center; justify-content: space-between; gap: .45rem; min-width: 0;
+    }
+    .index-rank-head .part {
+      display: inline-flex; align-items: center; gap: .4rem;
+      font-size: .8rem; font-weight: 600; color: var(--text); min-width: 0;
+    }
+    .index-rank-head .part .hw-icon-box { width: 1.55rem; height: 1.55rem; border-radius: 7px; flex-shrink: 0; }
+    .index-rank-head .rank-badge { font-size: .78rem; padding: .26rem .52rem; flex-shrink: 0; }
+    .index-rank-name {
+      font-size: .66rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .index-rank-bars { display: flex; flex-direction: column; gap: .24rem; }
+    .index-rank-bar-row {
+      display: grid; grid-template-columns: 2.35rem 1fr 2rem; gap: .3rem; align-items: center;
+    }
+    .index-rank-bar-row .lbl {
+      font-size: .56rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+    }
+    .index-rank-bar-row .val {
+      font-size: .68rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-secondary);
+      text-align: right;
+    }
+    .index-rank-bar-row .rank-bar { min-width: 0; height: 7px; }
+    .index-rank-bar-row .rank-bar.live.cpu > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); }
+    .index-rank-bar-row .rank-bar.live.gpu > span { background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 65%, #000), var(--orange)); }
+    .index-rank-bar-row .rank-bar.live.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); }
+    .index-rank-foot {
+      font-size: .64rem; color: var(--text-secondary); line-height: 1.35;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .sensor-strip {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
       gap: .45rem; margin-top: .85rem;
@@ -1238,6 +1279,7 @@
     #vizPanel .glance-cell[data-hw] { max-height: 5rem; }
     #vizPanel .core-strip[data-hw] { max-height: 5.5rem; }
     #pulseIndexBlock .metric-bar[data-hw] { max-height: 6.5rem; }
+    #pulseIndexBlock .index-rank-card[data-hw] { max-height: 8.5rem; }
     #summaryBar .sensor-chip[data-hw] { max-height: 3.5rem; }
     #warningList .warn-row[data-hw] { max-height: 20rem; }
     .hw-filtered-out {
@@ -1388,7 +1430,13 @@
           <div class="viz-block-body">
             <div class="stutter-layout index-layout">
               <div class="stutter-col stutter-drivers">
-                <div class="stutter-side-label">Load drivers</div>
+                <div class="index-build-strip" id="indexBuildStrip" data-hw-keep>
+                  <span id="indexBuildBadge"></span>
+                  <span class="meta" id="indexBuildMeta">—</span>
+                </div>
+                <div class="stutter-side-label">Component rankings</div>
+                <div class="index-rank-list" id="indexRankList"></div>
+                <div class="stutter-side-label">Live pressure</div>
                 <div class="metric-list metric-list-compact stutter-driver-bars" id="indexComponents"></div>
               </div>
               <div class="stutter-col stutter-chart-col" data-hw-keep>
@@ -1410,14 +1458,14 @@
                       <span class="s" id="indexHeadroomSub">spare capacity</span>
                     </div>
                     <div class="stutter-kpi">
-                      <span class="k">Build</span>
-                      <span class="v" id="indexBuildTier">—</span>
-                      <span class="s" id="indexBuildSub">composite tier</span>
+                      <span class="k">Session</span>
+                      <span class="v" id="indexSessionKpi">—</span>
+                      <span class="s" id="indexSessionSub">pulse index</span>
                     </div>
                     <div class="stutter-kpi">
-                      <span class="k">vs enth</span>
-                      <span class="v" id="indexVsEnth">—</span>
-                      <span class="s" id="indexVsEnthSub">reference PC</span>
+                      <span class="k">vs avg</span>
+                      <span class="v" id="indexVsAvg">—</span>
+                      <span class="s" id="indexVsAvgSub">reference PC</span>
                     </div>
                   </div>
                 </div>
@@ -1436,7 +1484,6 @@
                     <span>now</span>
                   </div>
                 </div>
-                <div class="stutter-causes" id="indexTiers"></div>
               </div>
             </div>
             <div class="viz-empty-note" id="indexEmpty" hidden>Pulse Index unavailable</div>
@@ -3309,6 +3356,11 @@
       { id: 'index-gpu', label: 'GPU load', cls: 'gpu', hw: 'gpu' },
       { id: 'index-ram', label: 'RAM pressure', cls: 'mem', hw: 'memory' },
     ];
+    const INDEX_RANK_SPECS = [
+      { id: 'cpu', part: 'CPU', hw: 'cpu', icon: 'cpu', cls: 'cpu' },
+      { id: 'gpu', part: 'GPU', hw: 'gpu', icon: 'gpu', cls: 'gpu' },
+      { id: 'ram', part: 'RAM', hw: 'memory', icon: 'ram', cls: 'mem' },
+    ];
     const INDEX_MIX_SPECS = [
       { id: 'cpu', label: 'CPU', weight: 0.35 },
       { id: 'gpu', label: 'GPU', weight: 0.45 },
@@ -3392,6 +3444,89 @@
         indexChart.data.datasets = newDatasets;
       }
       indexChart.update('none');
+    }
+
+    function indexRankFoot(spec, part) {
+      if (!part) return '—';
+      const vs = part.vs_enthusiast_pct != null ? `vs enth ${vsFmt(part.vs_enthusiast_pct)}` : null;
+      if (spec.id === 'cpu') {
+        const head = part.headroom_pct != null ? `${Math.round(part.headroom_pct)}% headroom` : null;
+        return [vs, head].filter(Boolean).join(' · ') || '—';
+      }
+      if (spec.id === 'gpu') {
+        const vram = part.vram_gbps_live != null ? `${part.vram_gbps_live} GB/s VRAM` : null;
+        const bw = part.vram_bw_busy_pct != null ? `${part.vram_bw_busy_pct}% BW` : null;
+        return [vs, vram, bw].filter(Boolean).join(' · ') || '—';
+      }
+      const gbps = part.live_gbps_est != null ? `${part.live_gbps_est} GB/s est.` : null;
+      const peak = part.peak_gbps != null ? `${part.peak_gbps} peak` : null;
+      return [vs, gbps, peak].filter(Boolean).join(' · ') || '—';
+    }
+
+    function renderIndexRankings(c) {
+      const listEl = document.getElementById('indexRankList');
+      if (!listEl || !c) return;
+
+      const structKey = INDEX_RANK_SPECS.map(s => {
+        const p = s.hw === 'memory' ? c.memory : c[s.hw];
+        return `${s.id}:${p?.tier_rank}:${p?.tier_score}:${p?.name}`;
+      }).join('|');
+
+      if (listEl.dataset.structKey !== structKey) {
+        listEl.dataset.structKey = structKey;
+        listEl.innerHTML = INDEX_RANK_SPECS.map(spec => `
+          <div class="index-rank-card" data-rank-id="${spec.id}" data-hw="${spec.hw}">
+            <div class="index-rank-head">
+              <span class="part">
+                <span class="hw-icon-box ${spec.cls === 'mem' ? 'mem' : spec.cls}" data-rank-icon></span>
+                <span>${spec.part}</span>
+              </span>
+              <span data-rank-badge></span>
+            </div>
+            <div class="index-rank-name" data-rank-name>—</div>
+            <div class="index-rank-bars">
+              <div class="index-rank-bar-row">
+                <span class="lbl">Tier</span>
+                <div class="rank-bar tier"><span data-tier-fill style="width:0%"></span></div>
+                <span class="val" data-tier-val>—</span>
+              </div>
+              <div class="index-rank-bar-row">
+                <span class="lbl">Live</span>
+                <div class="rank-bar live ${spec.cls}"><span data-live-fill style="width:0%"></span></div>
+                <span class="val" data-live-val>—</span>
+              </div>
+            </div>
+            <div class="index-rank-foot" data-rank-foot>—</div>
+          </div>`).join('');
+        INDEX_RANK_SPECS.forEach(spec => {
+          const card = listEl.querySelector(`[data-rank-id="${spec.id}"]`);
+          const iconEl = card?.querySelector('[data-rank-icon]');
+          if (iconEl) iconEl.innerHTML = hwIcon(spec.icon);
+        });
+      }
+
+      INDEX_RANK_SPECS.forEach(spec => {
+        const part = spec.hw === 'memory' ? c.memory : c[spec.hw];
+        const card = listEl.querySelector(`[data-rank-id="${spec.id}"]`);
+        if (!card || !part) return;
+        const livePct = smoothDisplayPct(
+          `index-rank-live-${spec.id}`,
+          spec.hw === 'memory' ? part.live_pressure_pct : part.live_pct,
+        );
+        const tierScore = part.tier_score ?? 0;
+        const badgeSlot = card.querySelector('[data-rank-badge]');
+        if (badgeSlot) setTierBadge(badgeSlot, part.tier_rank, false);
+        const nameEl = card.querySelector('[data-rank-name]');
+        if (nameEl) nameEl.textContent = part.label || part.name || '—';
+        setMeterWidth(card.querySelector('[data-tier-fill]'), tierScore);
+        setMeterWidth(card.querySelector('[data-live-fill]'), livePct);
+        const tierVal = card.querySelector('[data-tier-val]');
+        if (tierVal) tierVal.textContent = Math.round(tierScore);
+        const liveVal = card.querySelector('[data-live-val]');
+        if (liveVal) liveVal.textContent = `${Math.round(livePct)}%`;
+        const footEl = card.querySelector('[data-rank-foot]');
+        if (footEl) footEl.innerHTML = indexRankFoot(spec, part);
+      });
     }
 
     function renderIndexMix(c) {
@@ -3486,8 +3621,6 @@
       let gaugePct = sessionIdx;
       let headroom = leagueHeadroomPct(sessionIdx);
       let status = indexLoadSev(sessionIdx);
-      let buildTier = c.composite_rank || '—';
-      let buildSub = `tier ${c.composite_tier ?? '—'}/100`;
       let vsEnthVal = vsEnth;
       let statusExtra = INDEX_STATUS_SUBS[hwFocus || 'default'] || INDEX_STATUS_SUBS.default;
 
@@ -3497,10 +3630,19 @@
         gaugePct = smoothDisplayPct(`index-head-${hwFocus}`, live ?? 0);
         headroom = leagueHeadroomPct(gaugePct, hwFocus === 'cpu' ? part.headroom_pct : null);
         status = indexLoadSev(gaugePct);
-        buildTier = part.tier_rank || '—';
-        buildSub = `${HW_FOCUS_LABELS[hwFocus]} grade`;
         vsEnthVal = part.vs_enthusiast_pct;
         statusExtra = INDEX_STATUS_SUBS[hwFocus];
+      }
+
+      setTierBadge(document.getElementById('indexBuildBadge'), c.composite_rank);
+      const buildMeta = document.getElementById('indexBuildMeta');
+      if (buildMeta) {
+        const bits = [
+          c.composite_tier != null ? `Composite ${Math.round(c.composite_tier)}/100` : null,
+          vsAvg != null ? `vs avg ${vsFmt(vsAvg)}` : null,
+          vsEnth != null ? `vs enth ${vsFmt(vsEnth)}` : null,
+        ].filter(Boolean);
+        buildMeta.innerHTML = bits.join(' · ') || '—';
       }
 
       const scoreEl = document.getElementById('indexScoreVal');
@@ -3542,21 +3684,23 @@
       const headSub = document.getElementById('indexHeadroomSub');
       if (headSub) headSub.textContent = gaugePct >= 86 ? 'near maxed' : 'spare capacity';
 
-      const tierEl = document.getElementById('indexBuildTier');
-      if (tierEl) {
-        tierEl.textContent = buildTier;
-        tierEl.className = 'v';
+      const sessEl = document.getElementById('indexSessionKpi');
+      if (sessEl) {
+        sessEl.textContent = `${Math.round(sessionIdx)}/100`;
+        sessEl.className = `v ${status.cls}`;
       }
-      const tierSub = document.getElementById('indexBuildSub');
-      if (tierSub) tierSub.textContent = buildSub;
+      const sessSub = document.getElementById('indexSessionSub');
+      if (sessSub) sessSub.textContent = hwFocus ? `${HW_FOCUS_LABELS[hwFocus]} focus` : 'session index';
 
-      const enthEl = document.getElementById('indexVsEnth');
-      if (enthEl) {
-        enthEl.innerHTML = vsEnthVal != null ? vsFmt(vsEnthVal) : '—';
-        enthEl.className = `v ${vsEnthVal > 5 ? 'ok' : vsEnthVal < -5 ? 'severe' : ''}`;
+      const avgEl = document.getElementById('indexVsAvg');
+      if (avgEl) {
+        avgEl.innerHTML = vsAvg != null ? vsFmt(vsAvg) : '—';
+        avgEl.className = `v ${vsAvg > 5 ? 'ok' : vsAvg < -5 ? 'severe' : ''}`;
       }
-      const enthSub = document.getElementById('indexVsEnthSub');
-      if (enthSub) enthSub.textContent = 'vs enthusiast build';
+      const avgSub = document.getElementById('indexVsAvgSub');
+      if (avgSub) avgSub.textContent = 'vs average build';
+
+      renderIndexRankings(c);
 
       ensureMetricList('indexComponents', INDEX_COMP_SPECS);
       syncMetricHwTags('indexComponents', INDEX_COMP_SPECS);
@@ -3567,7 +3711,8 @@
           `index-live-${spec.id}`,
           spec.hw === 'memory' ? part.live_pressure_pct : part.live_pct,
         );
-        const sub = `${part.tier_rank}-tier · score ${part.tier_score ?? '—'}`;
+        const enth = part.vs_enthusiast_pct != null ? ` · vs enth ${vsFmt(part.vs_enthusiast_pct)}` : '';
+        const sub = `${part.tier_rank}-tier · score ${part.tier_score ?? '—'}${enth}`;
         setMetricBar(
           'indexComponents', spec.id, livePct, `${Math.round(livePct)}%`, sub,
           spec.cls === 'cpu' ? 'cpu' : spec.cls === 'gpu' ? 'gpu' : 'mem', spec.cls,
@@ -3577,21 +3722,6 @@
       renderIndexChart();
       renderIndexMix(c);
       renderIndexTimeline(sessionIdx);
-
-      const tiersEl = document.getElementById('indexTiers');
-      const tiersKey = `${c.composite_rank}|${c.cpu?.tier_rank}|${c.gpu?.tier_rank}|${c.memory?.tier_rank}`;
-      if (tiersEl && tiersEl.dataset.key !== tiersKey) {
-        tiersEl.dataset.key = tiersKey;
-        const chips = [
-          c.composite_rank ? `Build · ${c.composite_rank}` : null,
-          c.cpu?.tier_rank ? `CPU · ${c.cpu.tier_rank}` : null,
-          c.gpu?.tier_rank ? `GPU · ${c.gpu.tier_rank}` : null,
-          c.memory?.tier_rank ? `RAM · ${c.memory.tier_rank}` : null,
-        ].filter(Boolean);
-        tiersEl.innerHTML = chips.length
-          ? chips.map(t => `<span class="index-tier">${t}</span>`).join('')
-          : '<span class="index-tier placeholder">Tier data unavailable</span>';
-      }
     }
 
     function renderQuickGlance(l) {
