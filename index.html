@@ -188,7 +188,63 @@
     .rec-card.rec-info { border-left-color: var(--blue); }
     .rec-card.rec-ok { border-left-color: var(--ok); }
     .rec-card.rec-stale { opacity: .5; border-left-color: var(--muted); }
-    .rec-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .65rem; }
+    .rec-head { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; }
+    .rec-rank {
+      font-size: .72rem; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums;
+      padding: .22rem .45rem; border-radius: 6px; border: 1px solid var(--line); background: rgba(255,255,255,.03);
+    }
+    .rec-action-bar {
+      display: flex; flex-direction: column; gap: .45rem;
+      padding: .75rem .85rem; border-radius: 10px;
+      border: 1px solid var(--line); background: rgba(0,0,0,.1);
+    }
+    .rec-action-label {
+      font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .guidance-page { display: flex; flex-direction: column; gap: 0; }
+    .guidance-head { margin-bottom: .25rem; }
+    .guidance-head h2 { margin: 0 0 .45rem; }
+    .guidance-summary {
+      display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+      margin-bottom: 1.35rem; padding-bottom: 1.15rem; border-bottom: 1px solid var(--line);
+    }
+    .guidance-summary:empty { display: none; margin: 0; padding: 0; border: 0; }
+    .guidance-stat { font-size: .95rem; color: var(--muted); margin-right: .15rem; }
+    .guidance-section { margin-bottom: 1.35rem; }
+    .guidance-section:last-child { margin-bottom: 0; }
+    .guidance-section-title {
+      margin: 0 0 .35rem; font-size: 1rem; font-weight: 500;
+      color: var(--text); letter-spacing: 0.03em;
+    }
+    .guidance-section-lead {
+      margin: 0 0 1rem; font-size: .92rem; color: var(--muted); line-height: 1.45;
+    }
+    details.guidance-games-panel {
+      margin-top: .5rem; border: 1px solid var(--line); border-radius: var(--radius);
+      background: rgba(0,0,0,.08);
+    }
+    details.guidance-games-panel summary {
+      padding: .9rem 1.1rem; font-size: .98rem; font-weight: 500; color: var(--text);
+      cursor: pointer; list-style: none;
+    }
+    details.guidance-games-panel summary::-webkit-details-marker { display: none; }
+    details.guidance-games-panel .game-issues-static {
+      padding: 0 1rem 1rem; display: flex; flex-direction: column; gap: 1rem;
+    }
+    .game-issues-head {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .65rem;
+      padding: .75rem 0 .5rem; font-weight: 500; font-size: 1rem; color: var(--text);
+      border-bottom: 1px solid var(--line); margin-bottom: .85rem;
+    }
+    .game-issues-name { font-weight: 500; }
+    .game-issues-live {
+      font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      color: var(--accent); padding: .18rem .45rem; border-radius: 6px;
+      border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+    .game-issues-count { font-size: .88rem; color: var(--muted); margin-left: auto; }
     .rec-sev {
       font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
       padding: .28rem .55rem; border-radius: 6px; line-height: 1.2; white-space: nowrap;
@@ -203,9 +259,10 @@
       border: 1px solid var(--line); white-space: nowrap;
     }
     .rec-title {
-      margin: 0; flex: 1 1 100%; font-size: 1.12rem; font-weight: 500;
+      margin: 0; flex: 1 1 10rem; min-width: 0; font-size: 1.08rem; font-weight: 500;
       line-height: 1.35; letter-spacing: 0.01em; color: var(--text);
     }
+    @media (max-width: 720px) { .rec-title { flex-basis: 100%; } }
     .rec-card.rec-hot .rec-title { color: var(--hot); }
     .rec-card.rec-warn .rec-title { color: var(--amber); }
     .rec-body {
@@ -815,10 +872,6 @@
     #warningList .warn-row.hw-filtered-hidden { display: none !important; }
     .sum-cell.game-live { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
     .game-issues-static { display: flex; flex-direction: column; gap: 1rem; }
-    .game-issues-head {
-      padding: .85rem 0 .35rem; font-weight: 500; font-size: 1.05rem; color: var(--text);
-      border-bottom: 1px solid var(--line);
-    }
     .sensor {
       padding: .9rem .75rem; border-radius: 12px; border: 1px solid var(--line);
       background: var(--panel-solid); text-align: center;
@@ -1104,7 +1157,7 @@
     <div class="header-right">
       <nav class="nav-tabs" aria-label="Pages">
         <button type="button" class="tab-btn active" data-tab="dashboard">Dashboard</button>
-        <button type="button" class="tab-btn" data-tab="fixes">Fixes</button>
+        <button type="button" class="tab-btn" data-tab="fixes">Guidance</button>
       </nav>
       <div class="chart-controls-bar">
         <span class="pill"><span class="dot" id="liveDot"></span><span id="liveLabel">Online</span></span>
@@ -1270,7 +1323,7 @@
       <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
       <div class="warn-list stable-scroll" id="warningList"></div>
       <div class="warn-more" id="warnMoreFixes" hidden>
-        <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Fixes</button>
+        <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Guidance</button>
       </div>
     </section>
 
@@ -1454,13 +1507,25 @@
     </div>
 
     <div id="pageFixes" class="page">
-    <section class="card section-target" id="insightsSection">
-      <h2>Fixes</h2>
-      <p class="section-lead" id="tuningLead">Highest impact first. <strong>Fix</strong> opens game folders or tools you already have — no sudo, no killing apps, no system file changes. Root or manual steps use the script below; you run those yourself.</p>
-      <div class="rec-list" id="tuningHints"></div>
-      <div id="tuningCleared"></div>
-      <h3 class="rec-subheading" id="gameIssuesHeading" hidden>By game</h3>
-      <div class="game-issues-static" id="gameIssues"></div>
+    <section class="card guidance-page section-target" id="insightsSection">
+      <div class="guidance-head">
+        <h2>Guidance</h2>
+        <p class="section-lead" id="tuningLead" style="margin-bottom:0">What to check and how to fix it. <strong>Fix</strong> opens folders or tools — no sudo, no killing apps. Root steps are labeled; you run those yourself.</p>
+      </div>
+      <div class="guidance-summary stable-toolbar" id="guidanceSummary"></div>
+      <div class="guidance-section">
+        <h3 class="guidance-section-title">Priority issues</h3>
+        <p class="guidance-section-lead" id="guidanceMeta">Sorted by impact — cross-game issues rank highest.</p>
+        <div class="rec-list" id="tuningHints"></div>
+      </div>
+      <details class="rec-cleared" id="guidanceClearedWrap" hidden data-open-key="guidance-cleared">
+        <summary id="guidanceClearedSum">Cleared issues</summary>
+        <div class="rec-list" id="tuningCleared"></div>
+      </details>
+      <details class="guidance-games-panel" id="guidanceGamesPanel" hidden data-open-key="guidance-games">
+        <summary id="guidanceGamesSum">By game</summary>
+        <div class="game-issues-static" id="gameIssues"></div>
+      </details>
     </section>
     </div>
   </main>
@@ -3667,11 +3732,12 @@
       return (list || []).find(h => h.insight_id === iid);
     }
 
-    function recCardHtml(h, idPrefix = '') {
+    function recCardHtml(h, idPrefix = '', rank = 0) {
       const lv = h.level || 'info';
       const stale = h.active === false;
       const sid = h.insight_id || 'insight';
       const domId = `${idPrefix}insight-${sid}`;
+      const rankBadge = rank ? `<span class="rec-rank">#${rank}</span>` : '';
       const when = h.last_seen ? `Last seen ${fmtAgo(h.last_seen)}` : '';
       const steps = (h.actions || []).map((a, ai) => `
         <div class="rec-step">
@@ -3690,15 +3756,18 @@
           <button class="script-btn sec" type="button" data-script-iid="${esc(sid)}">Copy script</button>
           <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>` : '';
       const scriptBlock = (fixPrimary || script) ? `
-        <div class="rec-actions" data-fix-row="${esc(sid)}">
-          ${fixPrimary}
-          ${scriptTools}
-          <p class="fix-result" data-fix-result hidden></p>
-        </div>
-        ${script ? `<details class="rec-more" data-open-key="hint-${domId}-script">
-          <summary>Show script</summary>
-          <pre class="script-pre">${esc(script)}</pre>
-        </details>` : ''}` : '';
+        <div class="rec-action-bar">
+          <span class="rec-action-label">Actions</span>
+          <div class="rec-actions" data-fix-row="${esc(sid)}">
+            ${fixPrimary}
+            ${scriptTools}
+            <p class="fix-result" data-fix-result hidden></p>
+          </div>
+          ${script ? `<details class="rec-more" data-open-key="hint-${domId}-script">
+            <summary>View script</summary>
+            <pre class="script-pre">${esc(script)}</pre>
+          </details>` : ''}
+        </div>` : '';
       const stepsBlock = steps ? `
         <details class="rec-more" data-open-key="hint-${domId}-steps">
           <summary>${(h.actions || []).length} steps</summary>
@@ -3706,6 +3775,7 @@
         </details>` : '';
       return `<article class="rec-card rec-${lv}${stale ? ' rec-stale' : ''}" data-level="${lv}" data-iid="${esc(sid)}" id="${domId}">
         <header class="rec-head">
+          ${rankBadge}
           ${sevBadge(lv, SEV_LABEL[lv] || lv)}
           ${gameTag(h)}
           <h3 class="rec-title">${esc(h.title)}${stale ? ' <span style="font-weight:400;color:var(--muted)">(cleared)</span>' : ''}</h3>
@@ -3809,8 +3879,8 @@
       wrap.hidden = false;
       const extra = total - WARN_WIDGET_MAX;
       btn.textContent = extra > 0
-        ? `View all ${total} issues in Fixes →`
-        : 'Open Fixes for scripts and step-by-step guidance →';
+        ? `View all ${total} issues in Guidance →`
+        : 'Open Guidance for scripts and step-by-step help →';
     }
 
     function renderWarnings(hints) {
@@ -3825,7 +3895,7 @@
         capturePanelState();
         listEl.innerHTML = shown.length
           ? shown.map(h => warningRowHtml(h)).join('')
-          : '<p class="warn-empty">Nothing needs attention. Open <strong>Fixes</strong> for scripts and step-by-step guidance.</p>';
+          : '<p class="warn-empty">Nothing needs attention. Open <strong>Guidance</strong> for scripts and step-by-step help.</p>';
         bindWarningActions(shown);
         restorePanelState();
       }
@@ -3833,30 +3903,63 @@
       updateWarningsFocusUI();
     }
 
+    function updateGuidanceSummary(issues) {
+      const summaryEl = document.getElementById('guidanceSummary');
+      const metaEl = document.getElementById('guidanceMeta');
+      const counts = { hot: 0, warn: 0, info: 0 };
+      issues.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
+      const pills = [
+        ['hot', 'Critical', counts.hot],
+        ['warn', 'Important', counts.warn],
+        ['info', 'Moderate', counts.info],
+      ].filter(([, , n]) => n > 0);
+      if (summaryEl) {
+        summaryEl.innerHTML = issues.length
+          ? `<span class="guidance-stat">${issues.length} active issue${issues.length === 1 ? '' : 's'}</span>${stablePillsHtml(pills)}`
+          : '<span class="guidance-stat">All clear right now</span>';
+      }
+      if (metaEl) {
+        metaEl.textContent = issues.length
+          ? 'Sorted by impact — cross-game issues rank highest.'
+          : 'Play a session and issues will appear here with scripts and steps.';
+      }
+    }
+
     function renderFixes(hints) {
       const list = hints || [];
       const active = list.filter(h => h.active !== false);
+      const priority = sortWarningsByPriority(active.filter(h => h.level !== 'ok'));
+      const okOnly = active.filter(h => h.level === 'ok');
+      const display = priority.length ? priority : okOnly;
       const cleared = list.filter(h => h.active === false);
       const structKey = hintsStructKey(list);
       if (structKey === lastFixesKey) {
         updateRecMetas(list);
+        updateGuidanceSummary(priority);
         return;
       }
       lastFixesKey = structKey;
       capturePanelState();
+      updateGuidanceSummary(priority);
 
       const el = document.getElementById('tuningHints');
-      el.innerHTML = active.length
-        ? active.map(h => recCardHtml(h)).join('')
+      el.innerHTML = display.length
+        ? display.map((h, i) => recCardHtml(h, '', priority.length ? i + 1 : 0)).join('')
         : '<p class="sub" style="margin:0">Play a session — issues show up here when something needs attention.</p>';
-      bindHintActions(el, active);
+      bindHintActions(el, display);
 
+      const clearedWrap = document.getElementById('guidanceClearedWrap');
+      const clearedSum = document.getElementById('guidanceClearedSum');
       const clearedEl = document.getElementById('tuningCleared');
-      clearedEl.innerHTML = cleared.length
-        ? `<h3 class="rec-subheading">${cleared.length} cleared issue${cleared.length === 1 ? '' : 's'}</h3>
-           <div class="rec-list">${cleared.map(h => recCardHtml(h)).join('')}</div>`
-        : '';
-      if (cleared.length) bindHintActions(clearedEl, cleared);
+      if (cleared.length) {
+        if (clearedWrap) clearedWrap.hidden = false;
+        if (clearedSum) clearedSum.textContent = `${cleared.length} cleared issue${cleared.length === 1 ? '' : 's'}`;
+        clearedEl.innerHTML = cleared.map(h => recCardHtml(h)).join('');
+        bindHintActions(clearedEl, cleared);
+      } else {
+        if (clearedWrap) clearedWrap.hidden = true;
+        clearedEl.innerHTML = '';
+      }
 
       restorePanelState();
     }
@@ -3872,24 +3975,33 @@
       capturePanelState();
 
       const el = document.getElementById('gameIssues');
-      const heading = document.getElementById('gameIssuesHeading');
-      if (!blocks.length) {
-        if (heading) heading.hidden = true;
-        el.innerHTML = '';
+      const panel = document.getElementById('guidanceGamesPanel');
+      const panelSum = document.getElementById('guidanceGamesSum');
+      const withIssues = blocks.filter(g => g.issue_count > 0);
+      if (!withIssues.length) {
+        if (panel) panel.hidden = true;
+        if (el) el.innerHTML = '';
         restorePanelState();
         return;
       }
-      if (heading) heading.hidden = false;
-      el.innerHTML = blocks.map(g => `
+      if (panel) panel.hidden = false;
+      if (panelSum) {
+        panelSum.textContent = `By game · ${withIssues.length} title${withIssues.length === 1 ? '' : 's'}`;
+      }
+      el.innerHTML = withIssues.map(g => `
         <div class="game-issues-block" id="game-issues-${g.id}">
-          <div class="game-issues-head">${esc(g.name)}${g.running ? ' · live' : ''} — ${g.issue_count} issue${g.issue_count === 1 ? '' : 's'}</div>
+          <div class="game-issues-head">
+            <span class="game-issues-name">${esc(g.name)}</span>
+            ${g.running ? '<span class="game-issues-live">live</span>' : ''}
+            <span class="game-issues-count">${g.issue_count} issue${g.issue_count === 1 ? '' : 's'}</span>
+          </div>
           <div class="game-issues-body">
             ${g.issues.length
               ? g.issues.map(h => recCardHtml(h, `g-${g.id}-`)).join('')
               : '<p class="sub" style="margin:0">No issues logged yet for this game.</p>'}
           </div>
         </div>`).join('');
-      blocks.forEach(g => {
+      withIssues.forEach(g => {
         const body = el.querySelector(`#game-issues-${g.id} .game-issues-body`);
         if (body && g.issues.length) bindHintActions(body, g.issues);
       });
