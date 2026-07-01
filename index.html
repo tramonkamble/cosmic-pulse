@@ -4142,7 +4142,7 @@
       }
 
       document.getElementById('sumGameCell')?.classList.toggle('game-live', !!gid);
-      lastActiveGameId = gid;
+      if (gid) lastActiveGameId = gid;
     }
 
     function gameTag(h) {
@@ -4613,20 +4613,24 @@
 
     function renderGamePerfLiveTrend(history, gp, gt) {
       const gid = gp.game_id || gt?.game_id || gp.last_session?.game_id || lastActiveGameId;
-      if (gp.recording && gid && gp.started_ts) {
-        const slice = (history || []).filter(h =>
-          h.game_totals?.game_id === gid && (h.ts || 0) >= gp.started_ts
-        );
-        const trend = slice.map(h => ({
-          ts: h.ts,
-          smoothness: h.stutter?.smoothness,
-          stutter_score: h.stutter?.score,
-          game_cpu: h.game_totals?.cpu_pct,
-        }));
-        const title = slice.length
-          ? `This session — ${slice.length} samples since recording started`
+      if (gp.recording && gid) {
+        let trend = (gp.trend && gp.trend.length) ? gp.trend : null;
+        if (!trend && gp.started_ts) {
+          const slice = (history || []).filter(h =>
+            h.game_totals?.game_id === gid && (h.ts || 0) >= gp.started_ts
+          );
+          trend = slice.map(h => ({
+            ts: h.ts,
+            smoothness: h.stutter?.smoothness,
+            stutter_score: h.stutter?.score,
+            game_cpu: h.game_totals?.cpu_pct,
+          }));
+        }
+        const n = trend?.length || 0;
+        const title = n
+          ? `This session — ${n} samples since recording started`
           : 'This session — collecting first samples…';
-        applyGamePerfTrendChart(trend, title);
+        applyGamePerfTrendChart(trend || [], title);
         return;
       }
       if (gp.active && !gp.recording) {

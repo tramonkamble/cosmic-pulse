@@ -31,11 +31,22 @@ def _open_dir_cmd(ctx: dict, key: str = "open_dir") -> str:
     return 'log "Game folder not found — change settings in-game"'
 
 
+def _game_base(ctx: dict) -> Path | None:
+    for key in ("userdata", "open_dir", "install", "compat"):
+        path = ctx.get(key)
+        if path and Path(path).is_dir():
+            return Path(path)
+    return None
+
+
 def _open_subdir_cmd(ctx: dict, sub: str) -> str:
-    base = ctx.get("userdata") or ctx.get("open_dir")
-    if base:
-        return f"xdg-open '{Path(base) / sub}' 2>/dev/null || true"
-    return 'log "Game folder not found"'
+    base = _game_base(ctx)
+    if not base:
+        return 'log "Game folder not found — change settings in-game"'
+    subpath = base / sub
+    if subpath.is_dir():
+        return f"xdg-open '{subpath}' 2>/dev/null || true"
+    return f"xdg-open '{base}' 2>/dev/null || true"
 
 
 def _gpu_sysfs() -> str:

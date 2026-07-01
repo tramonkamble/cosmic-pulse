@@ -928,8 +928,8 @@ def sampler():
                 _history.pop(0)
         try:
             record_sample_maybe_prune(snap)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
         time.sleep(1)
 
 

@@ -284,7 +284,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             f"Memory controller at {g['mem_busy_pct']}% (~{est} GB/s). Textures are pushing the GDDR6 hard.",
             [
                 _cmd("In-game: reduce texture / asset quality", f"{gname} → graphics → lower texture and asset quality", kind="game"),
-                *([_cmd("Disable heavy mods temporarily", f"xdg-open '{gctx['userdata'] / '.cache/Mods'}'", note="Test without asset-replacement mods")] if gctx.get("userdata") else []),
+                *([_open_game_action(gctx)] if _open_game_action(gctx) else []),
             ],
             insight_id="gpu-vram-bandwidth",
             fix_script=script_vram_bandwidth(g["mem_busy_pct"], str(est), **gk),

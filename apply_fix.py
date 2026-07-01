@@ -64,6 +64,28 @@ def _xdg_open(path: Path) -> bool:
     return True
 
 
+def _game_base(ctx: dict) -> Path | None:
+    for key in ("userdata", "open_dir", "install", "compat"):
+        path = ctx.get(key)
+        if path and Path(path).exists():
+            return Path(path)
+    return None
+
+
+def _open_game_path(ctx: dict, *candidates: str) -> bool:
+    """Open the first existing subfolder under the game base, else the base itself."""
+    base = _game_base(ctx)
+    if not base:
+        return False
+    for sub in candidates:
+        if not sub:
+            continue
+        target = base / sub
+        if target.exists():
+            return _xdg_open(target)
+    return _xdg_open(base)
+
+
 def _paths(game_id: str | None) -> dict:
     return game_data_paths(game_id)
 
@@ -104,31 +126,22 @@ def _apply_open_game(ctx: dict) -> dict:
 
 def _apply_vram_bandwidth(ctx: dict) -> dict:
     gname = ctx.get("name") or "game"
-    steps: list[str] = []
-    userdata = ctx.get("userdata") or ctx.get("open_dir")
-    if userdata:
-        mods = Path(userdata) / ".cache" / "Mods"
-        if _xdg_open(mods):
-            steps.append("mod cache opened")
-    if ctx.get("open_dir") and _xdg_open(ctx["open_dir"]):
-        steps.append("game folder opened")
-    if not steps:
-        return {"ok": False, "message": "Could not open game folders."}
-    return {
-        "ok": True,
-        "message": " · ".join(steps) + f". Lower texture and asset quality in {gname}.",
-    }
+    if _open_game_path(ctx, ".cache/Mods", "Mods", "mod"):
+        return {
+            "ok": True,
+            "message": f"Opened {gname} data folder — lower texture and asset quality in-game.",
+        }
+    return {"ok": False, "message": "Game folder not found — change settings in-game."}
 
 
 def _apply_page_faults(ctx: dict) -> dict:
-    userdata = ctx.get("userdata") or ctx.get("open_dir")
-    saves = Path(userdata) / "Saves" if userdata else None
-    if saves and _xdg_open(saves):
+    gname = ctx.get("name") or "game"
+    if _open_game_path(ctx, "Saves", "save", "Save Games", "saved"):
         return {
             "ok": True,
-            "message": "Opened save folder — let loading finish before unpausing.",
+            "message": f"Opened {gname} data folder — let loading finish before unpausing.",
         }
-    return {"ok": False, "message": "Save folder not found."}
+    return {"ok": False, "message": "Game folder not found — wait for load to finish in-game."}
 
 
 def apply_fix(

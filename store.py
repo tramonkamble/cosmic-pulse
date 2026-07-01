@@ -153,7 +153,13 @@ def init_db() -> None:
         )
         _ensure_columns(c, "samples", _SAMPLE_EXTRA_COLS)
         _ensure_columns(c, "game_sessions", _SESSION_EXTRA_COLS)
+        _migrate_legacy_game_ids(c)
         c.commit()
+
+
+def _migrate_legacy_game_ids(c: sqlite3.Connection) -> None:
+    """Normalize pre-dynamic-detection game_id values in samples."""
+    c.execute("UPDATE samples SET game_id = '949230' WHERE game_id = 'cities2'")
 
 
 def prune_old() -> int:
@@ -394,8 +400,8 @@ def list_game_sessions(game_id: str | None = None, days: float = 30) -> list[dic
         rows = _get_conn().execute(
             f"""
             SELECT * FROM game_sessions
-            WHERE started_ts >= ? {clause}
-            ORDER BY started_ts DESC
+            WHERE ended_ts >= ? {clause}
+            ORDER BY ended_ts DESC
             LIMIT 200
             """,
             params,
