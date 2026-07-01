@@ -1297,7 +1297,7 @@
           <span class="sum-detail" id="sumGameSub">—</span>
         </button>
         <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="leagueHeroRow" data-hw-keep>
-          <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">League</span></div>
+          <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">Index</span></div>
           <div class="sum-body">
             <span class="sum-value" id="sumLeagueVal">—</span>
             <div class="sum-foot">
@@ -1313,17 +1313,17 @@
     </section>
 
     <section class="card viz-panel league-panel section-target" id="leagueHeroRow" data-hw-keep title="Click for full build comparison">
-      <h2 id="leagueHeroTitle">Rig league</h2>
+      <h2 id="leagueHeroTitle">Pulse Index</h2>
       <p class="league-panel-meta" id="leagueHeroSub">Are you maxing out your rig?</p>
       <div class="league-viz-grid" id="leagueViz">
         <div class="viz-block league-area-load" data-hw-keep>
           <div class="viz-block-head">
             <span class="hw-icon-box league" data-glyph="league"></span>
-            <h3>Rig load</h3>
+            <h3>Session load</h3>
           </div>
           <div class="viz-block-body">
             <div class="metric-list" id="leagueLoadList"></div>
-            <div class="viz-empty-note league-hero-empty" id="leagueHeroEmpty" hidden>League data unavailable</div>
+            <div class="viz-empty-note league-hero-empty" id="leagueHeroEmpty" hidden>Pulse Index unavailable</div>
           </div>
         </div>
         <div class="viz-block league-area-parts" data-hw-keep>
@@ -1533,7 +1533,7 @@
       </details>
 
       <details class="drill" id="drill-league" data-open-key="drill-league" data-hw="all">
-        <summary><span class="drill-title">Hardware league</span><span class="drill-rollup" id="drillLeagueSum">—</span></summary>
+        <summary><span class="drill-title">Pulse Index</span><span class="drill-rollup" id="drillLeagueSum">—</span></summary>
         <div class="drill-body section-target" id="leagueSection">
           <div class="rank-head">
             <div>
@@ -1753,10 +1753,10 @@
     if (!['cpu', 'gpu', 'memory'].includes(hwFocus)) hwFocus = null;
     const HW_FOCUS_LABELS = { cpu: 'CPU', gpu: 'GPU', memory: 'Memory' };
     const LEAGUE_HERO_TITLES = {
-      default: 'Rig league',
-      cpu: 'CPU league',
-      gpu: 'GPU league',
-      memory: 'Memory league',
+      default: 'Pulse Index',
+      cpu: 'CPU index',
+      gpu: 'GPU index',
+      memory: 'Memory index',
     };
     const LEAGUE_HERO_SUBS = {
       default: 'Are you maxing out your rig?',
@@ -2787,7 +2787,7 @@
         `CPU ${c.overall_pct}% · GPU ${g.busy_pct ?? '—'}% · VRAM ${g.vram_used_mb ?? '—'}/${g.vram_total_mb ?? '—'} MB`;
 
       document.getElementById('drillLeagueSum').textContent =
-        `Score ${comparison ? leagueIdx : '—'}/100 · ${comparison?.composite_rank ?? '—'} · CPU ${comparison?.cpu?.tier_rank ?? '—'}`;
+        `Index ${comparison ? leagueIdx : '—'}/100 · ${comparison?.composite_rank ?? '—'} · CPU ${comparison?.cpu?.tier_rank ?? '—'}`;
 
       const gp = l.game_performance;
       let ratingTxt = null;
@@ -3222,7 +3222,7 @@
     }
 
     const LEAGUE_LOAD_SPECS = [
-      { id: 'rig-load', label: 'Rig load', icon: 'league', cls: 'league' },
+      { id: 'rig-load', label: 'Session load', icon: 'league', cls: 'league' },
     ];
     const LEAGUE_PART_SPECS = [
       { id: 'league-cpu', label: 'CPU', icon: 'cpu', cls: 'cpu', hw: 'cpu' },
@@ -3295,7 +3295,7 @@
       const vsAvg = compositeVs(c, 'vs_avg_pct');
       const vsEnth = compositeVs(c, 'vs_enthusiast_pct');
       let loadPct = sessionIdx;
-      let loadLabel = 'Rig load';
+      let loadLabel = 'Session load';
       let loadSub = '';
       let loadTrack = 'league';
       let loadValCls = leagueValCls(sessionIdx);
@@ -4046,7 +4046,7 @@
       if (row.label && row.label !== name && (maker || row.kit || row.brand)) {
         return `<div class="hw-identity">
           <span class="hw-id-primary hw-id-row">${mfrMark(slug, 'sm')}<span>${esc(row.label)}</span></span>
-          <span class="hw-id-sub">League tier · ${esc(name)}</span>
+          <span class="hw-id-sub">Build tier · ${esc(name)}</span>
         </div>`;
       }
       if (maker && maker !== name) {
