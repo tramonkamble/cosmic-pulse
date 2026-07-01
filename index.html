@@ -751,24 +751,59 @@
     .g-sensors { grid-template-columns: repeat(6, 1fr); }
     @media (max-width: 1200px) { .g-sensors { grid-template-columns: repeat(4, 1fr); } }
     @media (max-width: 700px) { .g-sensors { grid-template-columns: repeat(2, 1fr); } }
-    .warn-list { display: flex; flex-direction: column; gap: .65rem; min-height: 5.5rem; max-height: 14rem; }
-    .warn-empty { margin: 0; padding: .65rem 0; font-size: 1rem; color: var(--muted); line-height: 1.45; }
+    .warn-panel-head {
+      display: flex; align-items: baseline; flex-wrap: wrap; gap: .55rem .85rem; margin-bottom: .4rem;
+    }
+    .warn-panel-head h2 { margin: 0; }
+    .warn-session {
+      font-size: .8rem; font-weight: 500; color: var(--accent);
+      padding: .22rem .55rem; border-radius: 6px;
+      border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+    .warn-session.warn-session-switch {
+      color: var(--amber);
+      border-color: color-mix(in srgb, var(--amber) 40%, var(--line));
+      background: color-mix(in srgb, var(--amber) 12%, transparent);
+    }
+    .warn-meta { margin: 0 0 .7rem; font-size: .92rem; color: var(--muted); line-height: 1.4; }
+    .warn-counts { min-height: 0; margin-bottom: .75rem; }
+    .warn-counts:empty { display: none; margin: 0; }
+    .warn-list {
+      display: flex; flex-direction: column; gap: .55rem;
+      min-height: 3rem; max-height: min(26rem, 42vh);
+    }
+    .warn-empty { margin: 0; padding: .5rem 0; font-size: .95rem; color: var(--muted); line-height: 1.45; }
     .warn-row {
-      display: grid; grid-template-columns: auto auto 1fr auto; gap: .5rem .75rem; align-items: center;
-      padding: .85rem 1rem; border-radius: var(--radius); border: 1px solid var(--line);
+      display: flex; flex-direction: column; gap: .4rem;
+      padding: .75rem .95rem; border-radius: var(--radius); border: 1px solid var(--line);
       background: var(--panel-solid); border-left: 4px solid var(--blue);
     }
     .warn-row.rec-hot { border-left-color: var(--hot); }
     .warn-row.rec-warn { border-left-color: var(--amber); }
     .warn-row.rec-info { border-left-color: var(--blue); }
-    .warn-row .warn-title { font-weight: 500; font-size: 1.05rem; grid-column: 3; }
+    .warn-row.warn-row-session {
+      border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+      background: color-mix(in srgb, var(--panel-solid) 92%, color-mix(in srgb, var(--accent) 8%, transparent));
+    }
+    .warn-row-top { display: flex; align-items: flex-start; gap: .5rem; }
+    .warn-row-badges { display: flex; flex-wrap: wrap; gap: .35rem; flex-shrink: 0; max-width: 42%; }
+    .warn-title {
+      flex: 1; min-width: 0; margin: 0; font-weight: 500; font-size: .98rem; line-height: 1.35;
+    }
     .warn-row.rec-hot .warn-title { color: var(--hot); }
     .warn-row.rec-warn .warn-title { color: var(--amber); }
-    .warn-row .warn-text { grid-column: 3; font-size: .92rem; color: var(--text-secondary); line-height: 1.45; }
-    .warn-row .rec-sev, .warn-row .rec-game { grid-row: 1; }
-    .warn-row .warn-title { grid-row: 1; }
-    .warn-row .warn-text { grid-row: 2; }
-    .warn-row .warn-go { grid-row: 1 / span 2; grid-column: 4; align-self: center; white-space: nowrap; }
+    .warn-text {
+      margin: 0; font-size: .86rem; color: var(--muted); line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .warn-go {
+      flex-shrink: 0; align-self: flex-start; font-size: .82rem; padding: .35rem .65rem;
+      white-space: nowrap;
+    }
+    #warningList .warn-row[data-hw] { max-height: none !important; transition: none; overflow: visible; }
+    #warningList .warn-row.hw-filtered-hidden { display: none !important; }
+    .sum-cell.game-live { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
     .game-issues-static { display: flex; flex-direction: column; gap: 1rem; }
     .game-issues-head {
       padding: .85rem 0 .35rem; font-weight: 500; font-size: 1.05rem; color: var(--text);
@@ -1108,7 +1143,7 @@
           <span class="sum-detail" id="sumGpuSub">—</span>
         </button>
         <button type="button" class="sum-cell game" id="sumGameCell" data-drill="drill-game" data-hw="cpu gpu">
-          <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label">Game</span></div>
+          <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label" id="sumGameLabel">Game</span></div>
           <span class="sum-value" id="sumGameVal">—</span>
           <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
           <span class="sum-detail" id="sumGameSub">—</span>
@@ -1217,9 +1252,12 @@
     </section>
 
     <section class="card section-target" id="warningsSection">
-      <h2>Warnings</h2>
-      <p class="rec-status" id="tuningMeta">Checking…</p>
-      <div class="rec-toolbar stable-toolbar" id="tuningSummary"></div>
+      <div class="warn-panel-head">
+        <h2>Warnings</h2>
+        <span class="warn-session" id="warnGameCtx" hidden></span>
+      </div>
+      <p class="warn-meta" id="tuningMeta">Checking…</p>
+      <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
       <div class="warn-list stable-scroll" id="warningList"></div>
     </section>
 
@@ -1609,7 +1647,7 @@
       { key: 'gpu', label: 'GPU %', color: CHART.gpu, pick: h => h.gpu.discrete.busy_pct ?? 0 },
       { key: 'ram', label: 'RAM %', color: CHART.ram, pick: h => h.memory.pct },
       { key: 'swap', label: 'Swap %', color: CHART.swap, pick: h => h.memory.swap_pct },
-      { key: 'gameCpu', label: 'Cities II', color: CHART.gameCpu, pick: h => h.game_totals?.cpu_pct ?? 0 },
+      { key: 'gameCpu', label: 'Game CPU', color: CHART.gameCpu, pick: h => h.game_totals?.cpu_pct ?? 0 },
     ];
     const bwDefs = [
       { key: 'vramBw', label: 'VRAM GB/s', color: CHART.vramBw, yAxis: 'y', pick: h => h.bandwidth?.gpu?.vram_est_gbps ?? 0 },
@@ -1928,6 +1966,7 @@
     const KIND_LABEL = { cmd: 'Terminal', game: 'In-game', steam: 'Steam', bios: 'BIOS', file: 'File' };
     const openPanels = new Set();
     let lastWarningsKey = '', lastFixesKey = '', lastGameIssuesKey = '', lastSensorKey = '';
+    let lastActiveGameId = null;
     let lastWarningsPillsKey = '', lastMemProbeKey = '', lastProcKey = '', lastSensorStripKey = '';
     let panelScrollState = {};
     let lastRankStructKey = '';
@@ -3123,8 +3162,12 @@
       const metaEl = document.getElementById('meta');
       if (!hwFocus) {
         const gpuTag = rig.gpu?.maker ? `${rig.gpu.maker} ${s.gpu_model}` : s.gpu_model;
+        const gt = l?.game_totals;
+        const playing = gt?.running
+          ? ` · ${activeGameName(gt, s.games_catalog) || gameLabel(gt.game_id)}`
+          : '';
         metaEl.textContent =
-          `${rig.chassis?.model || s.machine || s.hostname} · ${rig.cpu?.model || 'CPU'} · ${gpuTag} · ${mem.label || 'RAM'}`;
+          `${rig.chassis?.model || s.machine || s.hostname} · ${rig.cpu?.model || 'CPU'} · ${gpuTag} · ${mem.label || 'RAM'}${playing}`;
         return;
       }
       if (hwFocus === 'cpu') {
@@ -3159,6 +3202,13 @@
 
     function setHwFilterVisible(el, visible) {
       if (!el || el.hasAttribute('data-hw-keep')) return;
+      if (el.matches('#warningList .warn-row[data-hw]')) {
+        clearHwFilterHide(el);
+        el.classList.remove('hw-filtered-out');
+        el.style.maxHeight = '';
+        el.classList.toggle('hw-filtered-hidden', !visible);
+        return;
+      }
       if (visible) {
         clearHwFilterHide(el);
         el.classList.remove('hw-filtered-hidden');
@@ -3246,30 +3296,39 @@
     }
 
     function updateWarningsFocusUI() {
-      const active = (lastWarningsHints || []).filter(h => h.active !== false);
+      const active = warningsForDisplay(lastWarningsHints);
       const visible = active.filter(h => hintVisibleForFocus(h));
-      const multi = visible.filter(h => h.multi_game).length;
+      const sessionHits = lastActiveGameId
+        ? visible.filter(h => hintForActiveGame(h, lastActiveGameId)).length
+        : 0;
       const metaEl = document.getElementById('tuningMeta');
       if (metaEl) {
-        metaEl.textContent = visible.length
-          ? `${visible.length} to address${hwFocus ? ` · ${HW_FOCUS_LABELS[hwFocus]} focus` : ''}${multi ? ` · ${multi} affect multiple games` : ''}`
-          : hwFocus
-            ? `No ${HW_FOCUS_LABELS[hwFocus]} warnings`
-            : 'Nothing needs attention right now';
+        if (!visible.length) {
+          metaEl.textContent = hwFocus
+            ? `No ${HW_FOCUS_LABELS[hwFocus]} warnings for this rig focus`
+            : 'All clear — nothing needs attention';
+        } else {
+          const parts = [`${visible.length} need${visible.length === 1 ? 's' : ''} attention`];
+          if (hwFocus) parts.push(`${HW_FOCUS_LABELS[hwFocus]} focus`);
+          if (sessionHits && lastActiveGameId) {
+            parts.push(`${sessionHits} for ${gameLabel(lastActiveGameId)}`);
+          }
+          metaEl.textContent = parts.join(' · ');
+        }
       }
-      const counts = { hot: 0, warn: 0, info: 0, ok: 0 };
+      const counts = { hot: 0, warn: 0, info: 0 };
       visible.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
       const pillsKey = JSON.stringify({ counts, hwFocus });
       if (pillsKey !== lastWarningsPillsKey) {
         lastWarningsPillsKey = pillsKey;
         const summaryEl = document.getElementById('tuningSummary');
         if (summaryEl) {
-          summaryEl.innerHTML = stablePillsHtml([
+          const pills = [
             ['hot', 'Critical', counts.hot],
             ['warn', 'Important', counts.warn],
             ['info', 'Moderate', counts.info],
-            ['ok', 'Healthy', counts.ok],
-          ]);
+          ].filter(([, , n]) => n > 0);
+          summaryEl.innerHTML = pills.length ? stablePillsHtml(pills) : '';
         }
       }
       applyWarningFilterClasses();
@@ -3487,7 +3546,70 @@
     }
 
     function gameLabel(id) {
-      return id === 'cities2' ? 'Cities II' : id === 'counterstrike2' ? 'CS2' : id;
+      const cat = lastStatic?.games_catalog?.[id];
+      if (cat?.short) return cat.short;
+      return id === 'cities2' ? 'Cities II' : id === 'counterstrike2' ? 'CS2' : id || 'Game';
+    }
+
+    function warningsForDisplay(hints) {
+      return (hints || []).filter(h => h.active !== false && h.level !== 'ok');
+    }
+
+    function hintForActiveGame(h, gameId) {
+      if (!gameId) return false;
+      if ((h.games_affected || []).includes(gameId)) return true;
+      const scope = h.games || ['all'];
+      return scope.includes('all') || scope.includes(gameId);
+    }
+
+    function sortWarnings(hints, gameId) {
+      const order = { hot: 0, warn: 1, info: 2 };
+      return [...hints].sort((a, b) => {
+        const ag = gameId && hintForActiveGame(a, gameId) ? 0 : 1;
+        const bg = gameId && hintForActiveGame(b, gameId) ? 0 : 1;
+        if (ag !== bg) return ag - bg;
+        return (order[a.level] ?? 9) - (order[b.level] ?? 9);
+      });
+    }
+
+    function activeGameName(gt, catalog) {
+      if (!gt?.running) return null;
+      return gt.primary_name || gt.game_name || catalog?.[gt.game_id]?.name || null;
+    }
+
+    function updateGameContext(s, l) {
+      const gt = l?.game_totals || {};
+      const catalog = s?.games_catalog || {};
+      const gid = gt.running ? gt.game_id : null;
+      const short = gid ? gameLabel(gid) : 'Game';
+
+      const sumLbl = document.getElementById('sumGameLabel');
+      if (sumLbl) sumLbl.textContent = gt.running ? short : 'Game';
+
+      const gameDef = utilDefs.find(d => d.key === 'gameCpu');
+      if (gameDef) {
+        gameDef.label = gt.running ? `${short} CPU` : 'Game CPU';
+        const chip = document.querySelector('.chip[data-g="util"][data-k="gameCpu"]');
+        if (chip) chip.textContent = gameDef.label;
+      }
+
+      const ctx = document.getElementById('warnGameCtx');
+      if (ctx) {
+        if (gid) {
+          const name = activeGameName(gt, catalog) || short;
+          const switched = lastActiveGameId && lastActiveGameId !== gid;
+          ctx.hidden = false;
+          ctx.textContent = switched ? `Now monitoring ${name}` : `Monitoring ${name}`;
+          ctx.classList.toggle('warn-session-switch', switched);
+        } else {
+          ctx.hidden = true;
+          ctx.textContent = '';
+          ctx.classList.remove('warn-session-switch');
+        }
+      }
+
+      document.getElementById('sumGameCell')?.classList.toggle('game-live', !!gid);
+      lastActiveGameId = gid;
     }
 
     function gameTag(h) {
@@ -3614,12 +3736,15 @@
       const sid = h.insight_id || 'insight';
       const domId = `insight-${sid}`;
       const hwTags = hintHwFocus(h).join(' ');
-      return `<div class="warn-row rec-${lv}" data-iid="${esc(sid)}" data-hw="${esc(hwTags)}" id="warn-${domId}">
-        ${sevBadge(lv, SEV_LABEL[lv] || lv)}
-        ${gameTag(h)}
-        <span class="warn-title">${esc(h.title)}</span>
-        <span class="warn-text">${esc(h.text)}</span>
-        <button class="btn warn-go" type="button" data-goto-fix="${esc(sid)}">Fix →</button>
+      const sessionCls = lastActiveGameId && hintForActiveGame(h, lastActiveGameId) ? ' warn-row-session' : '';
+      const game = gameTag(h);
+      return `<div class="warn-row rec-${lv}${sessionCls}" data-iid="${esc(sid)}" data-hw="${esc(hwTags)}" id="warn-${domId}">
+        <div class="warn-row-top">
+          <div class="warn-row-badges">${sevBadge(lv, SEV_LABEL[lv] || lv)}${game}</div>
+          <h4 class="warn-title">${esc(h.title)}</h4>
+          <button class="btn warn-go" type="button" data-goto-fix="${esc(sid)}">Fix →</button>
+        </div>
+        <p class="warn-text">${esc(h.text)}</p>
       </div>`;
     }
 
@@ -3635,7 +3760,8 @@
     function renderWarnings(hints) {
       const list = hints || [];
       lastWarningsHints = list;
-      const active = list.filter(h => h.active !== false);
+      const gameId = lastLatest?.game_totals?.game_id;
+      const active = sortWarnings(warningsForDisplay(list), gameId);
       const structKey = hintsStructKey(active);
 
       const listEl = document.getElementById('warningList');
@@ -3748,9 +3874,10 @@
       const body = document.getElementById('procBody');
       const lead = document.getElementById('gameProcLead');
       if (lead) {
+        const gname = totals?.primary_name || totals?.game_name || 'Game';
         lead.textContent = totals?.running
-          ? `${totals.primary_name} (PID ${totals.primary_pid}) · ${totals.proc_count} related process${totals.proc_count === 1 ? '' : 'es'} · ${(totals.tree_rss_mb / 1024).toFixed(1)} GB tree total`
-          : 'Cities II is not running — start the game and this table will populate.';
+          ? `${gname} (PID ${totals.primary_pid}) · ${totals.proc_count} related process${totals.proc_count === 1 ? '' : 'es'} · ${(totals.tree_rss_mb / 1024).toFixed(1)} GB tree total`
+          : 'No supported game running — launch Cities II or CS2 and this table will populate.';
       }
       const structKey = JSON.stringify(procs.map(p => [p.pid, p.name, p.tier]));
       if (structKey === lastProcKey && body.dataset.init) {
@@ -3765,7 +3892,7 @@
       lastProcKey = structKey;
       body.innerHTML = procs.length
         ? procs.map(p => `<tr data-pid="${p.pid}"><td>${p.pid}</td><td>${p.name}</td><td>${p.tier === 'main' ? 'Game' : 'Child'}</td><td>${p.cpu_pct}</td><td>${p.rss_mb}</td></tr>`).join('')
-        : '<tr><td colspan="5" style="color:var(--muted)">No Cities II processes detected</td></tr>';
+        : '<tr><td colspan="5" style="color:var(--muted)">No game processes detected</td></tr>';
       body.dataset.init = '1';
     }
 
@@ -3872,6 +3999,7 @@
         document.getElementById('clock').textContent = fmtTime(l.ts);
         renderRigStrip(s, l);
         updateMetaLine(s, l);
+        updateGameContext(s, l);
         renderSummaryBar(l, l.tuning, l.comparison);
         renderVisualDashboard(l, l.comparison);
         renderBandwidth(l);

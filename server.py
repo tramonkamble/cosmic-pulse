@@ -19,7 +19,7 @@ import psutil
 from benchmarks import chassis_identity, cpu_identity, hardware_comparison, memory_identity
 from cosmic_theme import get_cosmic_theme
 from diagnostics import get_diagnostics
-from games import detect_games, primary_active_game, prime_game_cpu, running_game_ids
+from games import GAMES, detect_games, primary_active_game, prime_game_cpu, running_game_ids
 from issue_aggregate import _games_for_active, build_issue_views, merge_games_seen
 from probe_memory import infer_fallback
 from stutter import attach_stutter
@@ -913,6 +913,9 @@ def sampler():
         "backlog": json.loads(BACKLOG_FILE.read_text()) if BACKLOG_FILE.exists() else [],
         "pulse_root": str(ROOT),
         "cosmic_theme": get_cosmic_theme(),
+        "games_catalog": {
+            gid: {"name": m["name"], "short": m["short"]} for gid, m in GAMES.items()
+        },
     }
     net_rates()
     disk_rates()

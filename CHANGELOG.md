@@ -9,6 +9,8 @@ Dates use the machine local timezone (EDT unless noted).
 
 ### Added
 - **Remediation policy** — Pulse never runs kill commands, sudo, or external apps. Fixes are copy-paste suggestions; **Fix** only applies safe user-owned config writes (none destructive today). Root scripts are labeled **Requires root**.
+- **Warnings panel** — cleaner card layout, hides healthy “ok” hints, instant hardware-focus filter (no collapse glitch), session-aware sorting.
+- **Game context** — active game name in header/meta, warnings “Monitoring …” chip, dynamic Game CPU chart label, CS2/Cities II proc table text.
 - **Hardware focus filter** — redesigned rig strip with live stats; click chassis (Thelio) to view full rig, or click CPU/GPU/RAM to filter NOC widgets in place (same layout, unrelated metrics hidden).
 - **Hardware focus polish** — viz widget titles react to CPU/GPU/Memory filter; focused summary cell gets subtle hero treatment; filtered metrics fade/collapse (respects reduced motion); warnings hide when not relevant to the active filter.
 
