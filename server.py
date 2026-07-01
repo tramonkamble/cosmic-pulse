@@ -17,6 +17,17 @@ from urllib.parse import parse_qs, urlparse
 import psutil
 
 from benchmarks import chassis_identity, cpu_identity, hardware_comparison, memory_identity
+from hardware_probe import (
+    discover_drm_cards,
+    enrich_memory_spec,
+    gpu_device_path,
+    gpu_sensor_prefix,
+    igpu_device_path,
+    igpu_label,
+    igpu_sensor_prefix,
+    nvme_sensor_tiles,
+    probe_storage,
+)
 from cosmic_theme import get_cosmic_theme
 from diagnostics import get_diagnostics
 from games import GAMES, detect_games, primary_active_game, prime_game_cpu, running_game_ids
@@ -38,8 +49,6 @@ from tuning_actions import build_tuning_hints, system_context
 
 PORT = 8765
 HISTORY_LEN = 600  # 10 minutes at 1 Hz
-GPU_DISCRETE = Path("/sys/class/drm/card1/device")
-GPU_IGPU = Path("/sys/class/drm/card0/device")
 ROOT = Path(__file__).resolve().parent
 
 
@@ -69,17 +78,19 @@ MEMORY_CACHE = ROOT / ".memory_cache.json"
 
 
 def load_memory_spec() -> dict:
+    spec = None
     if MEMORY_CACHE.exists():
         try:
-            return json.loads(MEMORY_CACHE.read_text())
+            spec = json.loads(MEMORY_CACHE.read_text())
         except (json.JSONDecodeError, OSError):
+            spec = None
+    if not spec:
+        spec = infer_fallback()
+        try:
+            MEMORY_CACHE.write_text(json.dumps(spec, indent=2))
+        except OSError:
             pass
-    spec = infer_fallback()
-    try:
-        MEMORY_CACHE.write_text(json.dumps(spec, indent=2))
-    except OSError:
-        pass
-    return spec
+    return enrich_memory_spec(spec)
 
 
 _mem_spec: dict = {}
@@ -433,7 +444,7 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
                 break
     link_speed = read_str(base / "current_link_speed")
     link_width = read_int(base / "current_link_width")
-    gtt = gtt_rates(base) if track_gtt and base == GPU_DISCRETE else {}
+    gtt = gtt_rates(base) if track_gtt and base.resolve() == gpu_device_path().resolve() else {}
     peak = vram_peak_gbps()
     vram_est_gbps = round((mem_busy or 0) * peak / 100, 1) if mem_busy is not None else None
     pcie_est_gbps = round(min(gtt.get("rate_mbps", 0) / 1024, PCIE_PEAK_GBPS), 2) if gtt else None
@@ -511,19 +522,32 @@ def sensor_wall(dgpu: dict | None = None, igpu: dict | None = None) -> list[dict
 
     vm = psutil.virtual_memory()
     load1, _, _ = os.getloadavg()
-    dgpu = dgpu or gpu_stats(GPU_DISCRETE, _gpu_spec.get("label") or _gpu_spec.get("model", "GPU"), "0300", track_gtt=False)
-    igpu = igpu or gpu_stats(GPU_IGPU, "Raphael iGPU", "1a00", track_gtt=False)
+    dgpu_prefix = gpu_sensor_prefix()
+    igpu_prefix = igpu_sensor_prefix()
+    cpu_model = _static.get("cpu_model", "")
+    dgpu = dgpu or gpu_stats(
+        gpu_device_path(),
+        _gpu_spec.get("label") or _gpu_spec.get("model", "GPU"),
+        dgpu_prefix,
+        track_gtt=False,
+    )
+    igpu = igpu or gpu_stats(
+        igpu_device_path(),
+        igpu_label(cpu_model),
+        igpu_prefix,
+        track_gtt=False,
+    )
 
+    nvme_tiles = nvme_sensor_tiles(sens, _static.get("storage"))
     tiles = [
-        {"id": "nvme0", "label": "NVMe #1", "value": pick("nvme-pci-0400", "Composite"), "unit": "°C", "kind": "temp"},
-        {"id": "nvme1", "label": "NVMe #2", "value": pick("nvme-pci-1900", "Composite"), "unit": "°C", "kind": "temp"},
+        *nvme_tiles,
         {"id": "nic_phy", "label": "NIC PHY", "value": pick("PHY"), "unit": "°C", "kind": "temp"},
         {"id": "nic_mac", "label": "NIC MAC", "value": pick("MAC"), "unit": "°C", "kind": "temp"},
         {"id": "wifi", "label": "WiFi Radio", "value": pick("iwlwifi"), "unit": "°C", "kind": "temp"},
-        {"id": "gpu_edge", "label": "GPU Edge", "value": dgpu.get("temp_c") or pick("0300", "edge", match_all=True), "unit": "°C", "kind": "temp"},
-        {"id": "gpu_junc", "label": "GPU Junction", "value": dgpu.get("junction_c") or pick("0300", "junction", match_all=True), "unit": "°C", "kind": "temp"},
-        {"id": "gpu_memt", "label": "VRAM Temp", "value": dgpu.get("mem_temp_c") or pick("0300", "mem", match_all=True), "unit": "°C", "kind": "temp"},
-        {"id": "igpu_edge", "label": "iGPU Edge", "value": pick("1a00", "edge", match_all=True), "unit": "°C", "kind": "temp"},
+        {"id": "gpu_edge", "label": "GPU Edge", "value": dgpu.get("temp_c") or pick(dgpu_prefix, "edge", match_all=True), "unit": "°C", "kind": "temp"},
+        {"id": "gpu_junc", "label": "GPU Junction", "value": dgpu.get("junction_c") or pick(dgpu_prefix, "junction", match_all=True), "unit": "°C", "kind": "temp"},
+        {"id": "gpu_memt", "label": "VRAM Temp", "value": dgpu.get("mem_temp_c") or pick(dgpu_prefix, "mem", match_all=True), "unit": "°C", "kind": "temp"},
+        {"id": "igpu_edge", "label": "iGPU Edge", "value": pick(igpu_prefix, "edge", match_all=True), "unit": "°C", "kind": "temp"},
         {"id": "cpu_pkg", "label": "CPU Package", "value": pick("k10temp", "Tctl"), "unit": "°C", "kind": "temp"},
         {"id": "ccd1", "label": "CCD1 Die", "value": pick("k10temp", "Tccd1"), "unit": "°C", "kind": "temp"},
         {"id": "ccd2", "label": "CCD2 Die", "value": pick("k10temp", "Tccd2"), "unit": "°C", "kind": "temp"},
@@ -763,6 +787,11 @@ def update_tuning_history(active: list[dict], running_ids: list[str]) -> list[di
 def tuning_hints(snap: dict) -> list[dict]:
     ctx = system_context()
     ctx["gpu_model"] = _gpu_spec.get("model", "")
+    drm = discover_drm_cards()
+    dpath = drm["discrete"]["device_path"]
+    ctx["gpu_card"] = drm["discrete"].get("card", "card1")
+    ctx["gpu_sysfs"] = str(dpath)
+    ctx["gpu_sensor"] = f"amdgpu-pci-{gpu_sensor_prefix()}"
     return build_tuning_hints(snap, _mem_spec, ctx)
 
 
@@ -794,9 +823,17 @@ def collect_metrics() -> dict:
         "game_id": (primary_game or {}).get("id"),
         "game_name": (primary_game or {}).get("name"),
     }
-    dgpu = gpu_stats(GPU_DISCRETE, _gpu_spec.get("label") or _gpu_spec.get("model", "GPU"), "0300")
+    dgpu = gpu_stats(
+        gpu_device_path(),
+        _gpu_spec.get("label") or _gpu_spec.get("model", "GPU"),
+        gpu_sensor_prefix(),
+    )
     dgpu["thermal_profile"] = profile_for_model(_gpu_spec.get("model", ""))
-    igpu = gpu_stats(GPU_IGPU, "Raphael iGPU", "1a00")
+    igpu = gpu_stats(
+        igpu_device_path(),
+        igpu_label(_static.get("cpu_model", "")),
+        igpu_sensor_prefix(),
+    )
     overall_cpu = round(sum(cpu_pct) / len(cpu_pct), 1) if cpu_pct else 0.0
     game_cpu = (primary_game or {}).get("cpu_pct", 0.0) if primary_game and primary_game.get("running") else 0.0
     mem_bw = memory_bandwidth(overall_cpu, game_cpu)
@@ -884,16 +921,29 @@ def cpu_temps() -> dict:
 
 def sampler():
     global _history, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS
+    from hardware_probe import _drm_cache, _storage_cache
+    _drm_cache = None
+    _storage_cache = None
+
     _mem_spec = load_memory_spec()
     _gpu_spec = detect_gpu_spec()
     VRAM_PEAK_GBPS = _gpu_spec["vram_peak_gbps"]
     load_tuning_log()
+    discover_drm_cards()
+    storage_drives = probe_storage()
     product = read_str(Path("/sys/class/dmi/id/product_name")) or "Unknown"
     product_ver = read_str(Path("/sys/class/dmi/id/product_version")) or ""
+    board_vendor = read_str(Path("/sys/class/dmi/id/board_vendor")) or ""
+    board_name = read_str(Path("/sys/class/dmi/id/board_name")) or ""
+    cpu_model = open("/proc/cpuinfo").read().split("model name\t: ", 1)[-1].split("\n", 1)[0]
+    machine = f"{product} ({product_ver})" if product_ver else product
     _static = {
         "hostname": os.uname().nodename,
-        "machine": f"{product} ({product_ver})" if product_ver else product,
-        "cpu_model": open("/proc/cpuinfo").read().split("model name\t: ", 1)[-1].split("\n", 1)[0],
+        "machine": machine,
+        "board_vendor": board_vendor,
+        "board_name": board_name,
+        "cpu_model": cpu_model,
+        "storage": storage_drives,
         "threads": psutil.cpu_count(logical=True),
         "history_max_sec": HISTORY_LEN,
         "gpu_model": _gpu_spec.get("model", "RX 7900 XT"),
@@ -904,15 +954,11 @@ def sampler():
         "pcie_peak_gbps": PCIE_PEAK_GBPS,
         "memory": _mem_spec,
         "rig": {
-            "chassis": chassis_identity(
-                f"{product} ({product_ver})" if product_ver else product,
-                os.uname().nodename,
-            ),
-            "cpu": cpu_identity(
-                open("/proc/cpuinfo").read().split("model name\t: ", 1)[-1].split("\n", 1)[0]
-            ),
+            "chassis": chassis_identity(machine, os.uname().nodename, board_vendor),
+            "cpu": cpu_identity(cpu_model),
             "gpu": _gpu_spec,
             "memory": memory_identity(_mem_spec),
+            "storage": storage_drives,
         },
         "tools": tools_status(),
         "backlog": json.loads(BACKLOG_FILE.read_text()) if BACKLOG_FILE.exists() else [],
@@ -926,7 +972,7 @@ def sampler():
     disk_rates()
     swap_rates()
     ctx_rates()
-    gtt_rates(GPU_DISCRETE)
+    gtt_rates(gpu_device_path())
     vmstat_rates()
     prime_game_cpu()
     while True:

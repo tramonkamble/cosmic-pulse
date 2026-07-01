@@ -385,13 +385,13 @@ def _check_vulkan(findings: list[dict]) -> None:
             fix="sudo apt install mesa-vulkan-drivers libvulkan1 · reboot",
             source="vulkaninfo",
         ))
-    elif "AMD Radeon" not in out and "7900" not in out:
+    elif "deviceName" not in out and "deviceType" not in out and "GPU" not in out:
         findings.append(_finding(
             "vulkan-device-mismatch",
             "driver",
             "warn",
-            "Vulkan GPU not detected as expected",
-            "vulkaninfo ran but RX 7900 XT may not be the active device.",
+            "Vulkan GPU not detected",
+            "vulkaninfo ran but no discrete GPU device was reported.",
             detail=out[:800],
             fix="DRI_PRIME=1 vulkaninfo --summary",
             source="vulkaninfo",

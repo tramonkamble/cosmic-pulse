@@ -67,6 +67,15 @@ def parse_dmidecode(text: str) -> dict:
     peak = round(mts * channels * 64 / 8 / 1000, 1) if mts else 0
     label = f"DDR5-{mts} {channels}×{populated[0]['size_gb']}GB" if populated else "Unknown"
 
+    mfrs = sorted({s.get("manufacturer", "").strip() for s in populated if s.get("manufacturer")})
+    parts = [s.get("part", "").strip() for s in populated if s.get("part")]
+    manufacturer = mfrs[0] if len(mfrs) == 1 else (mfrs[0] if mfrs else None)
+    part = parts[0] if parts else None
+    per = populated[0]["size_gb"] if populated else 0
+    rich_label = label
+    if manufacturer and mts and per:
+        rich_label = f"{manufacturer} {part or 'DDR5'} · DDR5-{mts} · {channels}×{per}GB"
+
     return {
         "source": "dmidecode",
         "confidence": "exact",
@@ -76,8 +85,11 @@ def parse_dmidecode(text: str) -> dict:
         "configured_mts": mts,
         "speed_mts": mts,
         "peak_gbps": peak,
-        "label": label,
-        "type": "DDR5",
+        "label": rich_label,
+        "type": populated[0].get("type", "DDR5") if populated else "DDR5",
+        "manufacturer": manufacturer,
+        "part": part,
+        "kit": part,
     }
 
 
@@ -88,7 +100,7 @@ def infer_fallback() -> dict:
     total_gb = min(common, key=lambda x: abs(x - total_raw))
     product = Path("/sys/class/dmi/id/product_version")
     model = product.read_text().strip() if product.exists() else ""
-    # System76 Thelio Major R3: DDR5 dual-channel; kits often 4800 JEDEC or 5200/5600 XMP.
+    # Generic desktop: DDR5 dual-channel estimate when dmidecode is unavailable.
     mts = 5600
     channels = 2
     sticks = 2 if total_gb <= 64 else 4

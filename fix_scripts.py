@@ -8,11 +8,28 @@ import shutil
 from pathlib import Path
 
 HOME = Path.home()
+ROOT = Path(__file__).resolve().parent
 CS2_DIR = (
     HOME
     / ".local/share/Steam/steamapps/compatdata/949230/pfx/drive_c/users/steamuser/AppData/LocalLow/Colossal Order/Cities Skylines II"
 )
-PROBE = HOME / "perf-dashboard/probe_memory.py"
+PROBE = ROOT / "probe_memory.py"
+
+
+def _gpu_sysfs() -> str:
+    try:
+        from hardware_probe import gpu_device_path
+        return str(gpu_device_path())
+    except Exception:
+        return "/sys/class/drm/card1/device"
+
+
+def _gpu_sensor_chip() -> str:
+    try:
+        from hardware_probe import gpu_sensor_prefix
+        return f"amdgpu-pci-{gpu_sensor_prefix()}"
+    except Exception:
+        return "amdgpu-pci-0300"
 
 
 def _corectrl_hint() -> str:
@@ -127,8 +144,8 @@ def script_gpu_thermal(junction: float, *, profile: dict | None = None) -> str:
         _header("gpu-thermal-ceiling", f"Cool-down playbook ({arch}, junction was {junction}°C)", "medium")
         + f"""
 log "=== GPU telemetry ==="
-sensors amdgpu-pci-0300 2>/dev/null | grep -E 'edge|junction|mem|fan|PPT' || true
-cat /sys/class/drm/card1/device/gpu_busy_percent 2>/dev/null && echo "% GPU busy" || true
+sensors {_gpu_sensor_chip()} 2>/dev/null | grep -E 'edge|junction|mem|fan|PPT' || true
+cat {_gpu_sysfs()}/gpu_busy_percent 2>/dev/null && echo "% GPU busy" || true
 
 log "=== In-game (manual) ==="
 cat <<'PLAYBOOK'
@@ -199,7 +216,7 @@ PLAYBOOK
 def script_gtt(rate: float) -> str:
     return _header("gpu-gtt-churn", f"Reduce shared GPU memory traffic ({rate} MB/s GTT)", "low") + f"""
 log "GTT churn: {rate} MB/s"
-cat /sys/class/drm/card1/device/mem_info_gtt_used /sys/class/drm/card1/device/mem_info_gtt_total 2>/dev/null || true
+cat {_gpu_sysfs()}/mem_info_gtt_used {_gpu_sysfs()}/mem_info_gtt_total 2>/dev/null || true
 xdg-open '{CS2_DIR}/.cache/Mods' 2>/dev/null || true
 cat <<'PLAYBOOK'
 

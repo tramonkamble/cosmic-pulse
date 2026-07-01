@@ -936,6 +936,20 @@
     }
     .storage-note { margin: 0; font-size: .9rem; color: var(--muted); line-height: 1.5; }
     .storage-msg { font-size: .9rem; color: var(--green); min-height: 1.2em; }
+    .drive-list { display: grid; gap: .65rem; margin: 0 0 1.25rem; }
+    .drive-card {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: .35rem .75rem;
+      padding: .8rem .95rem; border-radius: var(--radius); border: 1px solid var(--line);
+      background: var(--panel-solid);
+    }
+    .drive-brand {
+      font-size: .72rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+      color: var(--muted); padding: .18rem .45rem; border-radius: 6px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.03);
+    }
+    .drive-name { font-weight: 500; color: var(--text); flex: 1 1 12rem; min-width: 0; }
+    .drive-meta { font-size: .88rem; color: var(--muted); }
+    .rig-tile.storage { border-color: color-mix(in srgb, var(--blue) 22%, var(--line)); }
 
     /* Icons & manufacturer marks */
     .hw-glyph {
@@ -1391,7 +1405,7 @@
         <div class="drill-body section-target" id="bandwidthSection">
           <div class="grid g-bw">
             <div class="card" data-hw="gpu all">
-              <h2>GPU Bandwidth — RX 7900 XT</h2>
+              <h2 id="gpuBwTitle">GPU Bandwidth</h2>
               <div class="bw-card" id="gpuBw"></div>
             </div>
             <div class="card" data-hw="memory all">
@@ -1457,9 +1471,12 @@
       </details>
 
       <details class="drill" id="drill-storage" data-open-key="drill-storage">
-        <summary><span class="drill-title">History & storage</span><span class="drill-rollup" id="drillStorageSum">—</span></summary>
+        <summary><span class="drill-title">Drives & history</span><span class="drill-rollup" id="drillStorageSum">—</span></summary>
         <div class="drill-body section-target" id="storageSection">
           <div class="storage-panel">
+            <h3 class="guidance-section-title" style="margin-top:0">NVMe drives</h3>
+            <div class="drive-list" id="driveList"></div>
+            <h3 class="guidance-section-title">Pulse history</h3>
             <p class="section-lead" style="margin:0">SQLite time-series for trends and correlation. Live charts use the last 10 minutes in memory.</p>
             <div class="storage-stats" id="storeStats">Loading…</div>
             <div class="storage-row">
@@ -2005,6 +2022,53 @@
           </div>`;
         mem.dataset.init = '1';
       }
+    }
+
+    function updateGpuBwTitle(s) {
+      const el = document.getElementById('gpuBwTitle');
+      if (!el || !s) return;
+      const gpu = s.gpu_model || s.rig?.gpu?.model || 'GPU';
+      const maker = s.rig?.gpu?.maker;
+      el.textContent = maker ? `GPU Bandwidth — ${maker} ${gpu}` : `GPU Bandwidth — ${gpu}`;
+    }
+
+    function renderStorageDrives(s, l) {
+      const el = document.getElementById('driveList');
+      if (!el) return;
+      const drives = s?.rig?.storage || s?.storage || [];
+      const sensors = l?.sensors || [];
+      const tempById = {};
+      sensors.filter(t => t.id?.startsWith('nvme_')).forEach(t => {
+        const name = t.drive?.name || t.id.replace(/^nvme_/, '');
+        tempById[name] = t.value;
+      });
+      if (!drives.length) {
+        el.innerHTML = '<p class="storage-note">No NVMe drives detected on this system.</p>';
+        return;
+      }
+      const key = drives.map(d => `${d.id}:${d.label}:${d.size}`).join('|');
+      if (el.dataset.key === key) {
+        el.querySelectorAll('.drive-card').forEach((card, i) => {
+          const temp = tempById[drives[i]?.name];
+          const meta = card.querySelector('.drive-meta');
+          if (meta) {
+            const pci = drives[i]?.pci_bdf ? ` · ${drives[i].pci_bdf}` : '';
+            meta.textContent = `${drives[i]?.size || '—'}${temp != null ? ` · ${temp}°C` : ''}${pci}`;
+          }
+        });
+        return;
+      }
+      el.dataset.key = key;
+      el.innerHTML = drives.map(d => {
+        const temp = tempById[d.name];
+        const pci = d.pci_bdf ? ` · ${d.pci_bdf}` : '';
+        const tempStr = temp != null ? ` · ${temp}°C` : '';
+        return `<div class="drive-card" data-drive="${esc(d.name)}">
+          <span class="drive-brand">${esc(d.brand || 'NVMe')}</span>
+          <span class="drive-name">${esc(d.label || d.model || d.name)}</span>
+          <span class="drive-meta">${esc(d.size || '—')}${tempStr}${esc(pci)}</span>
+        </div>`;
+      }).join('');
     }
 
     function renderBandwidth(l) {
@@ -3629,6 +3693,18 @@
           tooltip: r.memory.label, active: hwFocus === 'memory',
         });
       }
+      const drives = r.storage || s.storage || [];
+      if (drives.length) {
+        const labels = drives.map(d => d.label || d.model).filter(Boolean);
+        tiles.push({
+          filter: 'chassis', kind: 'storage', slug: brandSlug(drives[0].brand || 'NVMe'),
+          type: 'Storage', name: drives.length === 1 ? (labels[0] || 'NVMe') : `${drives.length} NVMe drives`,
+          stat: drives.map(d => d.size || '—').join(' · '),
+          hint: labels.join(' · '),
+          tooltip: drives.map(d => `${d.brand} ${d.model} (${d.size})`).join('\n'),
+          active: false,
+        });
+      }
       return tiles;
     }
 
@@ -4201,6 +4277,8 @@
         const rig = s.rig || {};
         document.getElementById('clock').textContent = fmtTime(l.ts);
         renderRigStrip(s, l);
+        updateGpuBwTitle(s);
+        renderStorageDrives(s, l);
         updateMetaLine(s, l);
         updateGameContext(s, l);
         renderSummaryBar(l, l.tuning, l.comparison);

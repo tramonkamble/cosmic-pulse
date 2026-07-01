@@ -123,17 +123,32 @@ def memory_identity(mem_spec: dict) -> dict:
     }
 
 
-def chassis_identity(machine: str, hostname: str = "") -> dict:
+_S76_PRODUCTS = (
+    "thelio", "meerkat", "lemp", "lemur", "galago", "oryx", "darter",
+    "pangolin", "bonobo", "serval", "addax", "kudu", "slimbook",
+)
+
+
+def chassis_identity(machine: str, hostname: str = "", board_vendor: str = "") -> dict:
     raw = (machine or hostname or "").strip()
     brand = None
     model = raw
-    if raw.lower().startswith("thelio"):
+    low = raw.lower()
+    vendor = (board_vendor or "").strip()
+
+    if vendor.lower() == "system76" or "system76" in low:
         brand = "System76"
-        model = raw.split("(")[0].strip()
-    elif "system76" in raw.lower():
-        brand = "System76"
+    for name in _S76_PRODUCTS:
+        if low.startswith(name) or f" {name}" in low or name in low:
+            brand = "System76"
+            model = raw.split("(")[0].strip()
+            break
+
+    if brand == "System76" and not model:
+        model = raw or "System76"
+
     label = f"{brand} · {model}" if brand else raw
-    return {"brand": brand, "model": model, "label": label, "raw": raw}
+    return {"brand": brand, "model": model, "label": label, "raw": raw, "vendor": vendor or None}
 
 
 def rank_label(score: int) -> str:

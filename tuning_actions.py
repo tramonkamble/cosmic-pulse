@@ -66,11 +66,19 @@ def _cmd(label: str, cmd: str, note: str = "", kind: str = "cmd") -> dict:
     return {"label": label, "kind": kind, "cmd": cmd, "note": note}
 
 
+def _gpu_cmd_paths(ctx: dict) -> dict[str, str]:
+    sysfs = ctx.get("gpu_sysfs") or "/sys/class/drm/card1/device"
+    sensor = ctx.get("gpu_sensor") or "amdgpu-pci-0300"
+    return {"sysfs": sysfs, "sensor": sensor}
+
+
 def _append_gpu_thermal_hints(
     hints: list[dict],
     g: dict,
     profile: dict,
+    ctx: dict,
 ) -> None:
+    paths = _gpu_cmd_paths(ctx)
     junc = g.get("junction_c")
     if junc is None:
         return
@@ -100,8 +108,8 @@ def _append_gpu_thermal_hints(
             actions.append(
                 _cmd(
                     "Raise GPU fan (amdgpu)",
-                    "echo manual | sudo tee /sys/class/drm/card1/device/pp_power_profile_mode 2>/dev/null; "
-                    "echo 1 | sudo tee /sys/class/drm/card1/device/hwmon/hwmon*/pwm1_enable 2>/dev/null",
+                    f"echo manual | sudo tee {paths['sysfs']}/pp_power_profile_mode 2>/dev/null; "
+                    f"echo 1 | sudo tee {paths['sysfs']}/hwmon/hwmon*/pwm1_enable 2>/dev/null",
                     note="Or install CoreCtrl: sudo apt install corectrl",
                 ),
             )
@@ -131,8 +139,8 @@ def _append_gpu_thermal_hints(
             _cmd("Cap FPS in-game", "Graphics → Frame rate limit → 90", kind="game"),
             _cmd(
                 "Check GPU power",
-                "cat /sys/class/drm/card1/device/hwmon/hwmon*/power1_cap 2>/dev/null; "
-                "sensors amdgpu-pci-0300 | grep -i ppt",
+                f"cat {paths['sysfs']}/hwmon/hwmon*/power1_cap 2>/dev/null; "
+                f"sensors {paths['sensor']} | grep -i ppt",
             ),
         ]
         if fan_help and shutil.which("corectrl"):
@@ -228,7 +236,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
         ))
 
     thermal_profile = g.get("thermal_profile") or profile_for_model(ctx.get("gpu_model", ""))
-    _append_gpu_thermal_hints(hints, g, thermal_profile)
+    _append_gpu_thermal_hints(hints, g, thermal_profile, ctx)
 
     if (g.get("mem_busy_pct") or 0) >= 65:
         est = g.get("vram_est_gbps", "?")
@@ -266,7 +274,11 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             f"Shared memory traffic at {gtt['rate_mbps']} MB/s. Keep VRAM under ~80% to avoid this.",
             [
                 _cmd("In-game: drop texture / asset mods", "Cities 2 → Content Manager → disable high-res asset mods", kind="game"),
-                _cmd("Check VRAM use", "cat /sys/class/drm/card1/device/mem_info_vram_used /sys/class/drm/card1/device/mem_info_vram_total"),
+                _cmd(
+                    "Check VRAM use",
+                    f"cat {_gpu_cmd_paths(ctx)['sysfs']}/mem_info_vram_used "
+                    f"{_gpu_cmd_paths(ctx)['sysfs']}/mem_info_vram_total",
+                ),
             ],
             insight_id="gpu-gtt-churn",
             fix_script=script_gtt(gtt["rate_mbps"]),
@@ -383,7 +395,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
         hints.append(_hint(
             "info",
             "Uneven CPU die temps",
-            f"CCD1 {ccds[0]}°C vs CCD2 {ccds[1]}°C — normal on Ryzen 7900X, nothing to fix.",
+            f"CCD1 {ccds[0]}°C vs CCD2 {ccds[1]}°C — normal on multi-CCD Ryzen, nothing to fix.",
             [
                 _cmd("Optional: prefer one CCD (advanced)", "sudo apt install -y linux-tools-common && sudo turbostat --show Core,CPU,Busy,MHz -- interval 5", note="Observe which cores stay hot; manual affinity rarely needed"),
             ],
