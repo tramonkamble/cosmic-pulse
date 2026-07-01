@@ -32,6 +32,7 @@ from store import (
     set_retention,
     stats as store_stats,
 )
+from apply_fix import apply_fix
 from tuning_actions import build_tuning_hints, system_context
 
 PORT = 8765
@@ -724,6 +725,8 @@ def update_tuning_history(active: list[dict], running_ids: list[str]) -> list[di
                 "actions": h.get("actions", []),
                 "insight_id": iid,
                 "fix_script": h.get("fix_script"),
+                "requires_root": h.get("requires_root"),
+                "fixable": h.get("fixable"),
                 "games": h.get("games", ["all"]),
                 "last_seen": now,
                 "count": hit.get("count", 1) + 1,
@@ -1018,18 +1021,30 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path != "/api/store":
-            self.send_response(404)
-            self.end_headers()
-            return
+        path = parsed.path
         try:
             length = int(self.headers.get("Content-Length", 0))
             raw = self.rfile.read(length).decode("utf-8") if length else "{}"
             body = json.loads(raw or "{}")
-            days = int(body["retention_days"])
-            self._json(set_retention(days))
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
-            self._json({"ok": False, "error": "retention_days required (integer)"}, status=400)
+        except json.JSONDecodeError:
+            self._json({"ok": False, "error": "invalid JSON"}, status=400)
+            return
+        if path == "/api/apply-fix":
+            insight_id = body.get("insight_id")
+            if not insight_id or not isinstance(insight_id, str):
+                self._json({"ok": False, "error": "insight_id required"}, status=400)
+                return
+            self._json(apply_fix(insight_id.strip()))
+            return
+        if path == "/api/store":
+            try:
+                days = int(body["retention_days"])
+                self._json(set_retention(days))
+            except (KeyError, TypeError, ValueError):
+                self._json({"ok": False, "error": "retention_days required (integer)"}, status=400)
+            return
+        self.send_response(404)
+        self.end_headers()
 
 
 def main():

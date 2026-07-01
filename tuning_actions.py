@@ -7,6 +7,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from apply_fix import fix_available, requires_root
 from fix_scripts import (
     script_balanced,
     script_ccd_spread,
@@ -44,7 +45,9 @@ def _hint(
     insight_id: str,
     fix_script: str,
     games: list[str] | None = None,
+    needs_root: bool | None = None,
 ) -> dict:
+    root = requires_root(insight_id) if needs_root is None else needs_root
     return {
         "level": level,
         "title": title,
@@ -53,6 +56,8 @@ def _hint(
         "insight_id": insight_id,
         "fix_script": fix_script.strip(),
         "games": games or ["all"],
+        "requires_root": root,
+        "fixable": fix_available(insight_id) and not root,
     }
 
 

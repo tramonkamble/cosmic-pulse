@@ -243,6 +243,24 @@
     .script-btn:hover { filter: brightness(1.08); }
     .script-btn.sec { background: transparent; color: var(--text); border: 1px solid var(--line); }
     .script-btn.sec:hover { background: rgba(255,255,255,.05); }
+    .fix-btn {
+      font-family: inherit; font-size: .95rem; font-weight: 600;
+      padding: .6rem 1.1rem; border-radius: 10px; border: none; cursor: pointer;
+      background: var(--green); color: #0d1117; transition: filter .15s;
+    }
+    .fix-btn:hover:not(:disabled) { filter: brightness(1.08); }
+    .fix-btn:disabled { opacity: .55; cursor: wait; }
+    .fix-root-note {
+      font-size: .88rem; font-weight: 500; color: var(--amber);
+      padding: .45rem .75rem; border-radius: 8px;
+      border: 1px solid rgba(233,184,114,.35);
+      background: rgba(233,184,114,.08);
+    }
+    .fix-result {
+      flex: 1 1 100%; margin: 0; font-size: .88rem; line-height: 1.45; color: var(--muted);
+    }
+    .fix-result.ok { color: var(--ok); }
+    .fix-result.err { color: var(--hot); }
     .script-pre {
       font-size: .85rem; line-height: 1.5; max-height: 240px; overflow: auto;
       background: #12141a; border: 1px solid var(--line); border-radius: 10px;
@@ -1386,7 +1404,7 @@
     <div id="pageFixes" class="page">
     <section class="card section-target" id="insightsSection">
       <h2>Fixes</h2>
-      <p class="section-lead" id="tuningLead">Highest impact first. Issues seen in more games rank higher. Copy scripts or follow steps below.</p>
+      <p class="section-lead" id="tuningLead">Highest impact first. One-click <strong>Fix</strong> when it is safe without sudo; root-only changes are labeled — use the script there.</p>
       <div class="rec-list" id="tuningHints"></div>
       <div id="tuningCleared"></div>
       <h3 class="rec-subheading" id="gameIssuesHeading" hidden>By game</h3>
@@ -2061,7 +2079,7 @@
     function hintsStructKey(hints) {
       return JSON.stringify((hints || []).map(h => [
         h.insight_id, h.active, h.level, h.title, h.text,
-        h.games_affected, h.multi_game, !!(h.fix_script),
+        h.games_affected, h.multi_game, !!(h.fix_script), !!h.requires_root, !!h.fixable,
         (h.actions || []).map(a => [a.label, a.cmd, a.note, a.kind || '']),
       ]));
     }
@@ -3499,15 +3517,24 @@
           ${a.cmd ? `<button class="copy-btn" type="button" data-iid="${esc(sid)}" data-a="${ai}">Copy</button>` : ''}
         </div>`).join('');
       const script = h.fix_script || '';
-      const scriptBlock = script ? `
-        <div class="rec-actions">
-          <button class="script-btn" type="button" data-script-iid="${esc(sid)}">Copy fix script</button>
-          <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>
+      const fixPrimary = h.fixable
+        ? `<button class="fix-btn" type="button" data-apply-iid="${esc(sid)}">Fix</button>`
+        : (h.requires_root && script)
+          ? `<span class="fix-root-note">Requires root</span>`
+          : '';
+      const scriptTools = script ? `
+          <button class="script-btn sec" type="button" data-script-iid="${esc(sid)}">Copy script</button>
+          <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>` : '';
+      const scriptBlock = (fixPrimary || script) ? `
+        <div class="rec-actions" data-fix-row="${esc(sid)}">
+          ${fixPrimary}
+          ${scriptTools}
+          <p class="fix-result" data-fix-result hidden></p>
         </div>
-        <details class="rec-more" data-open-key="hint-${domId}-script">
+        ${script ? `<details class="rec-more" data-open-key="hint-${domId}-script">
           <summary>Show script</summary>
           <pre class="script-pre">${esc(script)}</pre>
-        </details>` : '';
+        </details>` : ''}` : '';
       const stepsBlock = steps ? `
         <details class="rec-more" data-open-key="hint-${domId}-steps">
           <summary>${(h.actions || []).length} steps</summary>
@@ -3526,11 +3553,47 @@
       </article>`;
     }
 
+    function showFixResult(row, message, ok) {
+      if (!row) return;
+      const el = row.querySelector('[data-fix-result]');
+      if (!el) return;
+      el.textContent = message || '';
+      el.classList.remove('ok', 'err');
+      el.classList.add(ok ? 'ok' : 'err');
+      el.hidden = !message;
+    }
+
+    async function runApplyFix(insightId, btn) {
+      const row = btn.closest('[data-fix-row]');
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Applying…';
+      showFixResult(row, '', true);
+      try {
+        const res = await fetch('/api/apply-fix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ insight_id: insightId }),
+        });
+        const data = await res.json();
+        const msg = [data.message, data.detail].filter(Boolean).join(' ');
+        showFixResult(row, msg || (data.ok ? 'Done.' : 'Could not apply fix.'), !!data.ok);
+      } catch {
+        showFixResult(row, 'Could not reach the dashboard server.', false);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
     function bindHintActions(el, list) {
       el.querySelectorAll('.copy-btn[data-iid]').forEach(btn => {
         const h = hintById(list, btn.dataset.iid);
         const a = h?.actions?.[+btn.dataset.a];
         if (a?.cmd) btn.onclick = () => copyText(a.cmd, btn);
+      });
+      el.querySelectorAll('[data-apply-iid]').forEach(btn => {
+        btn.onclick = () => runApplyFix(btn.dataset.applyIid, btn);
       });
       el.querySelectorAll('[data-script-iid]').forEach(btn => {
         const h = hintById(list, btn.dataset.scriptIid);
@@ -3540,7 +3603,7 @@
         const h = hintById(list, btn.dataset.dlIid);
         if (h?.fix_script) btn.onclick = e => { e.stopPropagation(); downloadScript(h.insight_id || 'fix', h.fix_script); };
       });
-      el.querySelectorAll('.script-btn, .copy-btn').forEach(btn => {
+      el.querySelectorAll('.script-btn, .copy-btn, .fix-btn').forEach(btn => {
         btn.addEventListener('click', e => e.stopPropagation());
       });
     }

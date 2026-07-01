@@ -8,6 +8,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **One-click fixes** — Fixes page shows a green **Fix** button for remediation that does not need sudo (open folders, close memory hogs, launch CoreCtrl). Root-only issues show **Requires root** with no button; script copy/save remain for manual sudo runs.
 - **Hardware focus filter** — redesigned rig strip with live stats; click chassis (Thelio) to view full rig, or click CPU/GPU/RAM to filter NOC widgets in place (same layout, unrelated metrics hidden).
 - **Hardware focus polish** — viz widget titles react to CPU/GPU/Memory filter; focused summary cell gets subtle hero treatment; filtered metrics fade/collapse (respects reduced motion); warnings hide when not relevant to the active filter.
 
