@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Pulse contributors
+# SPDX-License-Identifier: GPL-3.0-only
 """Issue-specific tuning actions with copy-paste commands."""
 
 from __future__ import annotations

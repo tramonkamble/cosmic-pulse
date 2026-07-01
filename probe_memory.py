@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Pulse contributors
+# SPDX-License-Identifier: GPL-3.0-only
 """One-shot RAM probe — run with sudo to cache exact DIMM specs for the dashboard."""
 
 import json

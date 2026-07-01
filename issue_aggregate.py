@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Pulse contributors
+# SPDX-License-Identifier: GPL-3.0-only
 """Cross-game issue aggregation and priority scoring."""
 
 from __future__ import annotations

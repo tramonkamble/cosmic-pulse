@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Pulse contributors
+# SPDX-License-Identifier: GPL-3.0-only
 """Frametime / hitch proxy from page faults, PSI, swap, and disk spikes."""
 
 from __future__ import annotations

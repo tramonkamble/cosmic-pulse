@@ -5,7 +5,7 @@ Goal: **review-ready repo this week**, public GitHub/GitLab after brother's feed
 ## This week — review prep
 
 - [x] `README.md` with screenshot and quick start
-- [x] `LICENSE` (MIT)
+- [x] `LICENSE` (GPL-3.0-only, System76 / Pop!_OS app preference)
 - [x] `requirements.txt`
 - [x] `docs/REVIEW.md` for code reviewers
 - [x] `docs/screenshots/dashboard.png`

@@ -83,4 +83,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for git workflow and [CHANGELOG.md](CHANG
 
 ## License
 
-[MIT](LICENSE)
+**GPL-3.0-only** — aligned with [System76 / Pop!_OS application licensing](https://github.com/pop-os/pop/blob/master/LICENSING.md). See [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md).

@@ -7,8 +7,11 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Changed
+- **License** — MIT → **GPL-3.0-only** (System76 / Pop!_OS preferred license for applications); `LICENSING.md` and SPDX headers on source files.
+
 ### Added
-- **Publish prep** — `README.md`, MIT `LICENSE`, `requirements.txt`, dashboard screenshot, `docs/REVIEW.md` (code review guide), `docs/PUBLISH_CHECKLIST.md`.
+- **Publish prep** — `README.md`, `requirements.txt`, dashboard screenshot, `docs/REVIEW.md` (code review guide), `docs/PUBLISH_CHECKLIST.md`.
 
 ### Changed
 - **Portable paths** — `pulse_root` in static API; probe script paths no longer hardcode `/home/tkep`.

@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Pulse contributors
+# SPDX-License-Identifier: GPL-3.0-only
 """System & gaming troubleshooting — boot, Steam, libraries, logs."""
 
 from __future__ import annotations

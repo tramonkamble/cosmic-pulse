@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Pulse contributors
+# SPDX-License-Identifier: GPL-3.0-only
 """SQLite time-series store for Pulse trending and correlation."""
 
 from __future__ import annotations
