@@ -235,10 +235,10 @@ PLAYBOOK
 
 read -r -p "Kill common background apps? [y/N] " ans
 if [[ "${ans,,}" == "y" ]]; then
-  pkill -f firefox 2>/dev/null || true
-  pkill -f brave 2>/dev/null || true
-  pkill -f discord 2>/dev/null || true
-  log "Sent kill signals (ignore errors if not running)"
+  flatpak kill org.mozilla.firefox 2>/dev/null || pkill -f '/firefox/firefox ' 2>/dev/null || true
+  flatpak kill com.brave.Browser 2>/dev/null || pkill -f '/app/brave/brave --disable-features' 2>/dev/null || true
+  flatpak kill com.discordapp.Discord 2>/dev/null || pkill -f '/usr/share/discord/Discord' 2>/dev/null || true
+  log "Sent close signals (ignore errors if not running; Brave skipped unless you enable it in Pulse Fixes)"
 fi
 """
 

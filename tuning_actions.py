@@ -241,7 +241,11 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             f"Memory stall at {dram['psi_avg10']}% — the CPU is waiting on RAM. Close background apps.",
             [
                 _cmd("List top memory users", "ps aux --sort=-%mem | head -20"),
-                _cmd("Browser / Discord often culprits", "pkill -f firefox; pkill -f brave; pkill -f discord", note="Adjust to what you use"),
+                _cmd(
+                    "Close background apps",
+                    "Use Fixes → Fix on memory insights (respects app toggles; Brave is off by default)",
+                    note="Enable Brave under Fixes if you want it closed too",
+                ),
                 _cmd("Disable unnecessary autostart", "systemctl --user list-unit-files --state=enabled | head -30", kind="cmd"),
             ],
             insight_id="memory-dram-stall",

@@ -29,8 +29,8 @@ from store import (
     prune_old,
     record_sample_maybe_prune,
     series,
-    set_retention,
     stats as store_stats,
+    update_settings,
 )
 from apply_fix import apply_fix
 from tuning_actions import build_tuning_hints, system_context
@@ -1037,11 +1037,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(apply_fix(insight_id.strip()))
             return
         if path == "/api/store":
-            try:
-                days = int(body["retention_days"])
-                self._json(set_retention(days))
-            except (KeyError, TypeError, ValueError):
-                self._json({"ok": False, "error": "retention_days required (integer)"}, status=400)
+            if "retention_days" in body:
+                try:
+                    int(body["retention_days"])
+                except (TypeError, ValueError):
+                    self._json({"ok": False, "error": "retention_days must be an integer"}, status=400)
+                    return
+            self._json(update_settings(body))
             return
         self.send_response(404)
         self.end_headers()

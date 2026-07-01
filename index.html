@@ -261,6 +261,24 @@
     }
     .fix-result.ok { color: var(--ok); }
     .fix-result.err { color: var(--hot); }
+    .fix-close-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .65rem .85rem;
+      margin: 0 0 1.15rem; padding: .75rem 1rem;
+      border: 1px solid var(--line); border-radius: var(--radius);
+      background: rgba(0,0,0,.12);
+    }
+    .fix-close-label { font-size: .88rem; color: var(--muted); }
+    .fix-close-toggles { display: flex; flex-wrap: wrap; gap: .45rem; }
+    .fix-close-chip {
+      font-family: inherit; font-size: .86rem; font-weight: 500;
+      padding: .35rem .7rem; border-radius: 8px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.03);
+      color: var(--muted); cursor: pointer;
+    }
+    .fix-close-chip.on {
+      border-color: var(--accent); color: var(--accent); background: var(--accent-soft);
+    }
+    .fix-close-chip:disabled { opacity: .55; cursor: wait; }
     .script-pre {
       font-size: .85rem; line-height: 1.5; max-height: 240px; overflow: auto;
       background: #12141a; border: 1px solid var(--line); border-radius: 10px;
@@ -1405,6 +1423,10 @@
     <section class="card section-target" id="insightsSection">
       <h2>Fixes</h2>
       <p class="section-lead" id="tuningLead">Highest impact first. One-click <strong>Fix</strong> when it is safe without sudo; root-only changes are labeled — use the script there.</p>
+      <div class="fix-close-bar" id="fixCloseBar">
+        <span class="fix-close-label">Memory fixes may close</span>
+        <div class="fix-close-toggles" id="fixCloseToggles"></div>
+      </div>
       <div class="rec-list" id="tuningHints"></div>
       <div id="tuningCleared"></div>
       <h3 class="rec-subheading" id="gameIssuesHeading" hidden>By game</h3>
@@ -3777,9 +3799,44 @@
       return new Date(ts * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
+    function renderFixCloseApps(s) {
+      const el = document.getElementById('fixCloseToggles');
+      if (!el) return;
+      const ids = s.fix_close_app_ids || ['firefox', 'brave', 'discord'];
+      const labels = s.fix_close_app_labels || { firefox: 'Firefox', brave: 'Brave', discord: 'Discord' };
+      const apps = s.fix_close_apps || {};
+      el.innerHTML = ids.map(id =>
+        `<button type="button" class="fix-close-chip${apps[id] ? ' on' : ''}" data-close-app="${esc(id)}">${esc(labels[id] || id)}</button>`
+      ).join('');
+      el.querySelectorAll('[data-close-app]').forEach(btn => {
+        btn.onclick = () => toggleFixCloseApp(btn.dataset.closeApp, btn);
+      });
+    }
+
+    async function toggleFixCloseApp(appId, btn) {
+      if (!storeCache?.fix_close_apps) return;
+      const next = { ...storeCache.fix_close_apps, [appId]: !storeCache.fix_close_apps[appId] };
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fix_close_apps: next }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'failed');
+        renderStorage(data);
+      } catch {
+        showStoreMsg('Could not save fix settings', false);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     function renderStorage(s) {
       if (!s) return;
       storeCache = s;
+      renderFixCloseApps(s);
       const days = s.retention_days ?? 10;
       const est = s.est_max_mb ?? '—';
       const games = Object.entries(s.games || {}).map(([id, n]) => `${id === 'cities2' ? 'Cities II' : id === 'counterstrike2' ? 'CS2' : id}: ${n}`).join(' · ');
