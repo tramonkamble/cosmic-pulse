@@ -7,6 +7,9 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Changed
+- **Stutter proxy layout** — compact 50/50 split: driver bars on the left; hitch gauge, KPIs, weighted driver-mix bar, and 5-minute event timeline on the right.
+
 ### Fixed
 - **Display stability** — EMA smoothing for session load index, league live bars, and chart series; tier badges only re-render when rank changes; util chart locked to 0–100% y-axis; bandwidth/I/O charts use slowly-adjusting axis max to prevent vertical jump.
 

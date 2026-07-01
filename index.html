@@ -525,22 +525,114 @@
     .sensor-chip .chip-val { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
     .sensor-chip.hot .chip-val { color: #ff8a7a; }
     .sensor-chip.warn .chip-val { color: #f5c882; }
-    .stutter-head {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; margin-bottom: 1rem;
+    .stutter-layout {
+      display: grid; grid-template-columns: 1fr 1fr; gap: .85rem 1rem; flex: 1; min-height: 0; align-items: stretch;
     }
-    @media (max-width: 800px) { .stutter-head { grid-template-columns: repeat(2, 1fr); } }
-    .stutter-stat {
-      background: rgba(0,0,0,.28); border: 1px solid var(--line); border-radius: var(--radius);
-      padding: .75rem .9rem; text-align: center;
+    @media (max-width: 900px) { .stutter-layout { grid-template-columns: 1fr; } }
+    .stutter-bars { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .stutter-side-label {
+      font-size: .68rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: .45rem;
     }
-    .stutter-stat .k { display: block; font-size: .72rem; font-weight: 600; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--text-secondary); margin-bottom: .25rem; }
-    .stutter-stat .v { font-size: 1.55rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
-    .stutter-stat .v.severe { color: #ff8a7a; }
-    .stutter-stat .v.moderate { color: #f5c882; }
-    .stutter-stat .v.mild { color: #8ec0ff; }
-    .stutter-stat .v.ok { color: var(--green); }
-    .stutter-causes { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .75rem; min-height: 2.2rem; align-items: center; }
+    .metric-list-compact { gap: .42rem; }
+    .metric-list-compact .metric-bar-head { margin-bottom: .2rem; }
+    .metric-list-compact .metric-bar-label { font-size: .76rem; }
+    .metric-list-compact .metric-bar-val { font-size: .82rem; }
+    .metric-list-compact .metric-bar-track { height: 7px; }
+    .metric-list-compact .metric-bar-sub {
+      font-size: .68rem; margin-top: .15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .stutter-insight {
+      display: flex; flex-direction: column; gap: .55rem; min-width: 0; justify-content: center;
+    }
+    .stutter-insight-top {
+      display: grid; grid-template-columns: auto 1fr; gap: .65rem .75rem; align-items: center;
+    }
+    .stutter-gauge {
+      --stutter-score: 0; --stutter-color: var(--green);
+      width: 5.5rem; height: 5.5rem; border-radius: 50%; position: relative; flex-shrink: 0;
+      background: conic-gradient(var(--stutter-color) calc(var(--stutter-score) * 1%), rgba(255,255,255,.07) 0);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+    .stutter-gauge::after {
+      content: ""; position: absolute; inset: 18%; border-radius: 50%;
+      background: var(--panel-elevated); border: 1px solid var(--line);
+    }
+    .stutter-gauge-center {
+      position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; z-index: 1; line-height: 1.1;
+    }
+    .stutter-gauge-center .score {
+      font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
+    }
+    .stutter-gauge-center .score.severe { color: #ff8a7a; }
+    .stutter-gauge-center .score.moderate { color: #f5c882; }
+    .stutter-gauge-center .score.mild { color: #8ec0ff; }
+    .stutter-gauge-center .score.ok { color: var(--green); }
+    .stutter-gauge-center .smooth { font-size: .62rem; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+    .stutter-kpis {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; min-width: 0;
+    }
+    .stutter-kpi {
+      background: rgba(0,0,0,.22); border: 1px solid var(--line); border-radius: 8px;
+      padding: .4rem .45rem; text-align: center; min-width: 0;
+    }
+    .stutter-kpi .k {
+      display: block; font-size: .58rem; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: .1rem;
+    }
+    .stutter-kpi .v {
+      font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .stutter-kpi .v.severe { color: #ff8a7a; }
+    .stutter-kpi .v.moderate { color: #f5c882; }
+    .stutter-kpi .v.mild { color: #8ec0ff; }
+    .stutter-kpi .v.ok { color: var(--green); }
+    .stutter-mix { display: flex; flex-direction: column; gap: .28rem; }
+    .stutter-mix-head {
+      display: flex; justify-content: space-between; align-items: baseline; gap: .5rem;
+      font-size: .66rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+    }
+    .stutter-mix-bar {
+      display: flex; height: 10px; border-radius: 99px; overflow: hidden;
+      background: rgba(255,255,255,.06); border: 1px solid var(--line);
+    }
+    .stutter-mix-seg { min-width: 2px; transition: flex-grow var(--meter-ease); }
+    .stutter-mix-seg.major_faults { background: #9b7ec8; }
+    .stutter-mix-seg.mem_stall { background: var(--blue); }
+    .stutter-mix-seg.io_stall { background: #63d0de; }
+    .stutter-mix-seg.swap { background: var(--amber); }
+    .stutter-mix-seg.disk_spike { background: #ed6a5a; }
+    .stutter-mix-legend {
+      display: flex; flex-wrap: wrap; gap: .25rem .45rem; font-size: .64rem; color: var(--muted);
+    }
+    .stutter-mix-legend span { display: inline-flex; align-items: center; gap: .22rem; }
+    .stutter-mix-legend i {
+      width: .45rem; height: .45rem; border-radius: 2px; flex-shrink: 0;
+    }
+    .stutter-mix-legend i.major_faults { background: #9b7ec8; }
+    .stutter-mix-legend i.mem_stall { background: var(--blue); }
+    .stutter-mix-legend i.io_stall { background: #63d0de; }
+    .stutter-mix-legend i.swap { background: var(--amber); }
+    .stutter-mix-legend i.disk_spike { background: #ed6a5a; }
+    .stutter-timeline { display: flex; flex-direction: column; gap: .25rem; }
+    .stutter-timeline-head {
+      display: flex; justify-content: space-between; font-size: .64rem; font-weight: 600;
+      letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+    }
+    .stutter-timeline-track {
+      display: flex; gap: 2px; height: 22px; align-items: flex-end;
+    }
+    .stutter-tick {
+      flex: 1; min-width: 0; border-radius: 3px 3px 1px 1px; background: rgba(255,255,255,.07);
+      height: 18%; transition: height var(--meter-ease), background .2s;
+    }
+    .stutter-tick.event { box-shadow: 0 0 0 1px rgba(237,106,90,.55); }
+    .stutter-tick.sev-mild { background: rgba(142,192,255,.45); }
+    .stutter-tick.sev-moderate { background: rgba(245,200,130,.65); }
+    .stutter-tick.sev-severe { background: rgba(255,138,122,.85); }
+    .stutter-causes { display: flex; flex-wrap: wrap; gap: .35rem; min-height: 1.6rem; align-items: center; }
     .stutter-cause.placeholder { opacity: .5; border-style: dashed; background: transparent; color: var(--muted); }
     .stutter-cause {
       font-size: .8rem; font-weight: 500; padding: .35rem .65rem; border-radius: 999px;
@@ -909,26 +1001,46 @@
         <div class="viz-block viz-area-stutter" id="stutterBlock">
           <div class="viz-block-head"><span class="hw-icon-box stutter" data-glyph="stutter"></span><h3>Stutter proxy · 1% low estimate</h3></div>
           <div class="viz-block-body">
-            <div class="stutter-head">
-              <div class="stutter-stat">
-                <span class="k">Hitch score</span>
-                <span class="v ok" id="stutterScoreVal">—</span>
+            <div class="stutter-layout">
+              <div class="stutter-bars">
+                <div class="stutter-side-label">Hitch drivers</div>
+                <div class="metric-list metric-list-compact" id="stutterComponents"></div>
               </div>
-              <div class="stutter-stat">
-                <span class="k">Now (est.)</span>
-                <span class="v" id="stutterEstMs">—</span>
-              </div>
-              <div class="stutter-stat">
-                <span class="k">1% low proxy</span>
-                <span class="v" id="stutter1Pct">—</span>
-              </div>
-              <div class="stutter-stat">
-                <span class="k">Hitches · 5m</span>
-                <span class="v" id="stutterEvents">—</span>
+              <div class="stutter-insight">
+                <div class="stutter-insight-top">
+                  <div class="stutter-gauge" id="stutterGauge">
+                    <div class="stutter-gauge-center">
+                      <span class="score ok" id="stutterScoreVal">—</span>
+                      <span class="smooth" id="stutterSmoothVal">—% smooth</span>
+                    </div>
+                  </div>
+                  <div class="stutter-kpis">
+                    <div class="stutter-kpi">
+                      <span class="k">Now</span>
+                      <span class="v" id="stutterEstMs">—</span>
+                    </div>
+                    <div class="stutter-kpi">
+                      <span class="k">1% low</span>
+                      <span class="v" id="stutter1Pct">—</span>
+                    </div>
+                    <div class="stutter-kpi">
+                      <span class="k">5m</span>
+                      <span class="v" id="stutterEvents">—</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="stutter-mix" id="stutterMix">
+                  <div class="stutter-mix-head"><span>Driver mix</span><span id="stutterMixHint">—</span></div>
+                  <div class="stutter-mix-bar" id="stutterMixBar"></div>
+                  <div class="stutter-mix-legend" id="stutterMixLegend"></div>
+                </div>
+                <div class="stutter-timeline">
+                  <div class="stutter-timeline-head"><span>Last 5 min</span><span id="stutterTimelineMeta">—</span></div>
+                  <div class="stutter-timeline-track" id="stutterTimeline"></div>
+                </div>
+                <div class="stutter-causes" id="stutterCauses"></div>
               </div>
             </div>
-            <div class="metric-list" id="stutterComponents"></div>
-            <div class="stutter-causes" id="stutterCauses"></div>
           </div>
         </div>
       </div>
@@ -2020,11 +2132,11 @@
       { id: 'dram-psi', label: 'Memory stall', icon: 'cpu', cls: 'mem' },
     ];
     const STUTTER_COMP_SPECS = [
-      { id: 'major_faults', label: 'Major page faults', cls: 'stutter' },
-      { id: 'mem_stall', label: 'Memory stall (PSI)', cls: 'stutter' },
-      { id: 'io_stall', label: 'I/O stall (PSI)', cls: 'stutter' },
-      { id: 'swap', label: 'Swap churn', cls: 'stutter' },
-      { id: 'disk_spike', label: 'Disk write spike', cls: 'stutter' },
+      { id: 'major_faults', label: 'Page faults', cls: 'stutter' },
+      { id: 'mem_stall', label: 'Mem stall', cls: 'stutter' },
+      { id: 'io_stall', label: 'I/O stall', cls: 'stutter' },
+      { id: 'swap', label: 'Swap', cls: 'stutter' },
+      { id: 'disk_spike', label: 'Disk spike', cls: 'stutter' },
     ];
     const STUTTER_CAUSE_LABELS = {
       major_faults: 'Major page faults',
@@ -2032,6 +2144,26 @@
       io_stall: 'I/O stall',
       swap: 'Swap activity',
       disk_spike: 'Disk spike',
+    };
+    const STUTTER_MIX_WEIGHTS = {
+      major_faults: 0.38,
+      mem_stall: 0.32,
+      io_stall: 0.12,
+      swap: 0.13,
+      disk_spike: 0.05,
+    };
+    const STUTTER_MIX_SHORT = {
+      major_faults: 'Faults',
+      mem_stall: 'Mem PSI',
+      io_stall: 'I/O PSI',
+      swap: 'Swap',
+      disk_spike: 'Disk',
+    };
+    const STUTTER_GAUGE_COLORS = {
+      severe: '#ff8a7a',
+      moderate: '#f5c882',
+      mild: '#8ec0ff',
+      none: 'var(--green)',
     };
 
     function metricLabelHtml(s) {
@@ -2113,22 +2245,115 @@
       sparkChart.update('none');
     }
 
+    function stutterSevClass(score) {
+      if (score >= 70) return 'severe';
+      if (score >= 50) return 'moderate';
+      if (score >= 30) return 'mild';
+      return 'ok';
+    }
+
+    function renderStutterMix(components, causes) {
+      const barEl = document.getElementById('stutterMixBar');
+      const legendEl = document.getElementById('stutterMixLegend');
+      const hintEl = document.getElementById('stutterMixHint');
+      if (!barEl || !legendEl) return;
+      const segments = STUTTER_COMP_SPECS.map(s => ({
+        id: s.id,
+        weight: (components[s.id] ?? 0) * (STUTTER_MIX_WEIGHTS[s.id] ?? 0),
+      })).filter(s => s.weight > 0.4);
+      const total = segments.reduce((a, s) => a + s.weight, 0);
+      if (!segments.length || total <= 0) {
+        barEl.innerHTML = '<div class="stutter-mix-seg" style="flex-grow:1;opacity:.25"></div>';
+        legendEl.innerHTML = '<span>No active drivers</span>';
+        if (hintEl) hintEl.textContent = 'Idle';
+        return;
+      }
+      const top = segments.reduce((a, b) => (b.weight > a.weight ? b : a), segments[0]);
+      if (hintEl) hintEl.textContent = STUTTER_MIX_SHORT[top.id] || top.id;
+      const structKey = segments.map(s => `${s.id}:${s.weight.toFixed(1)}`).join('|');
+      if (structKey !== barEl.dataset.structKey) {
+        barEl.dataset.structKey = structKey;
+        barEl.innerHTML = segments.map(s =>
+          `<div class="stutter-mix-seg ${s.id}" data-mix="${s.id}" style="flex-grow:0" title="${STUTTER_CAUSE_LABELS[s.id] || s.id}"></div>`
+        ).join('');
+      }
+      barEl.querySelectorAll('[data-mix]').forEach(el => {
+        const seg = segments.find(s => s.id === el.dataset.mix);
+        el.style.flexGrow = seg ? (seg.weight / total).toFixed(4) : 0;
+      });
+      const active = causes?.length ? causes : segments.sort((a, b) => b.weight - a.weight).slice(0, 3).map(s => s.id);
+      legendEl.innerHTML = active.map(id =>
+        `<span><i class="${id}"></i>${STUTTER_MIX_SHORT[id] || id}</span>`
+      ).join('');
+    }
+
+    function renderStutterTimeline() {
+      const trackEl = document.getElementById('stutterTimeline');
+      const metaEl = document.getElementById('stutterTimelineMeta');
+      if (!trackEl) return;
+      const slots = 30;
+      const windowSec = 300;
+      const last = rawHistory.at(-1)?.ts ?? 0;
+      const t0 = last - windowSec;
+      if (!trackEl.dataset.init) {
+        trackEl.innerHTML = Array.from({ length: slots }, (_, i) =>
+          `<div class="stutter-tick" data-slot="${i}" title="—"></div>`
+        ).join('');
+        trackEl.dataset.init = '1';
+      }
+      let events = 0;
+      const slotSec = windowSec / slots;
+      for (let i = 0; i < slots; i++) {
+        const start = t0 + i * slotSec;
+        const slice = rawHistory.filter(h => h.ts >= start && h.ts < start + slotSec);
+        const tick = trackEl.querySelector(`[data-slot="${i}"]`);
+        if (!tick) continue;
+        if (!slice.length) {
+          tick.style.height = '18%';
+          tick.className = 'stutter-tick';
+          tick.title = `${fmtTime(start)} · no data`;
+          continue;
+        }
+        const maxScore = Math.max(...slice.map(h => h.stutter?.score ?? 0));
+        const hadEvent = slice.some(h => h.stutter?.event);
+        if (hadEvent) events += 1;
+        const sev = stutterSevClass(maxScore);
+        tick.className = `stutter-tick${hadEvent ? ' event' : ''}${maxScore >= 30 ? ` sev-${sev === 'ok' ? 'mild' : sev}` : ''}`;
+        tick.style.height = `${Math.max(18, Math.min(100, 18 + maxScore * 0.82))}%`;
+        tick.title = `${fmtTime(start)} · score ${Math.round(maxScore)}${hadEvent ? ' · hitch' : ''}`;
+      }
+      if (metaEl) metaEl.textContent = `${events} hitches`;
+    }
+
     function renderStutterViz(l) {
       const st = l.stutter || {};
       const sess = st.session || {};
       const sev = st.severity || 'none';
+      const score = Number(st.score);
+      const scoreDisplay = Number.isFinite(score) ? Math.round(smoothDisplayPct('stutter-score', score)) : null;
+      const smoothDisplayVal = scoreDisplay != null ? Math.max(0, 100 - scoreDisplay) : null;
+
       const scoreEl = document.getElementById('stutterScoreVal');
-      scoreEl.textContent = st.score ?? '—';
-      scoreEl.className = `v ${sev === 'none' ? 'ok' : sev}`;
+      scoreEl.textContent = scoreDisplay ?? '—';
+      scoreEl.className = `score ${sev === 'none' ? 'ok' : sev}`;
+
+      const gaugeEl = document.getElementById('stutterGauge');
+      if (gaugeEl) {
+        gaugeEl.style.setProperty('--stutter-score', scoreDisplay ?? 0);
+        gaugeEl.style.setProperty('--stutter-color', STUTTER_GAUGE_COLORS[sev] || STUTTER_GAUGE_COLORS.none);
+      }
+      const smoothEl = document.getElementById('stutterSmoothVal');
+      if (smoothEl) smoothEl.textContent = smoothDisplayVal != null ? `${smoothDisplayVal}% smooth` : '—% smooth';
+
       const estEl = document.getElementById('stutterEstMs');
       estEl.textContent = st.est_ms != null ? `${st.est_ms}ms` : '—';
       estEl.className = `v ${sev === 'none' ? 'ok' : sev}`;
       const pctEl = document.getElementById('stutter1Pct');
       pctEl.textContent = sess.hitch_ms_1pct != null ? `${sess.hitch_ms_1pct}ms` : '—';
       pctEl.className = `v ${(sess.hitch_ms_1pct || 0) >= 50 ? 'severe' : (sess.hitch_ms_1pct || 0) >= 28 ? 'moderate' : 'ok'}`;
-      document.getElementById('stutterEvents').textContent = sess.events ?? 0;
-      document.getElementById('stutterEvents').className =
-        `v ${(sess.events || 0) >= 8 ? 'severe' : (sess.events || 0) >= 3 ? 'moderate' : 'ok'}`;
+      const eventsEl = document.getElementById('stutterEvents');
+      eventsEl.textContent = sess.events ?? 0;
+      eventsEl.className = `v ${(sess.events || 0) >= 8 ? 'severe' : (sess.events || 0) >= 3 ? 'moderate' : 'ok'}`;
 
       ensureMetricList('stutterComponents', STUTTER_COMP_SPECS);
       const comp = st.components || {};
@@ -2136,18 +2361,26 @@
       STUTTER_COMP_SPECS.forEach(s => {
         const v = comp[s.id] ?? 0;
         let sub = '';
-        if (s.id === 'major_faults') sub = `${dram.pgmajfault_per_s ?? 0}/s major · ${dram.pgfault_per_s ?? 0}/s minor`;
-        else if (s.id === 'mem_stall') sub = `PSI memory ${dram.psi_avg10 ?? 0}%`;
-        else if (s.id === 'io_stall') sub = `PSI I/O ${dram.psi_io_avg10 ?? 0}%`;
-        else if (s.id === 'swap') sub = `↓${dram.swap_in_kbps ?? 0} ↑${dram.swap_out_kbps ?? 0} KB/s`;
-        else if (s.id === 'disk_spike') sub = `Disk write ${l.disk?.write_mbps ?? 0} MB/s`;
+        if (s.id === 'major_faults') sub = `${dram.pgmajfault_per_s ?? 0}/s maj`;
+        else if (s.id === 'mem_stall') sub = `PSI ${dram.psi_avg10 ?? 0}%`;
+        else if (s.id === 'io_stall') sub = `I/O ${dram.psi_io_avg10 ?? 0}%`;
+        else if (s.id === 'swap') sub = `↓${dram.swap_in_kbps ?? 0} ↑${dram.swap_out_kbps ?? 0}`;
+        else if (s.id === 'disk_spike') sub = `W ${l.disk?.write_mbps ?? 0} MB/s`;
         setMetricBar('stutterComponents', s.id, v, `${Math.round(v)}`, sub, '', 'stutter');
       });
 
+      renderStutterMix(comp, st.causes);
+      renderStutterTimeline();
+
       const causes = st.causes || [];
-      document.getElementById('stutterCauses').innerHTML = causes.length
-        ? causes.map(c => `<span class="stutter-cause">${STUTTER_CAUSE_LABELS[c] || c}</span>`).join('')
-        : '<span class="stutter-cause placeholder">No active hitch drivers</span>';
+      const causesEl = document.getElementById('stutterCauses');
+      const causesKey = causes.join(',') || 'none';
+      if (causesEl.dataset.key !== causesKey) {
+        causesEl.dataset.key = causesKey;
+        causesEl.innerHTML = causes.length
+          ? causes.map(c => `<span class="stutter-cause">${STUTTER_CAUSE_LABELS[c] || c}</span>`).join('')
+          : '<span class="stutter-cause placeholder">No active hitch drivers</span>';
+      }
 
       const gt = l.game_totals;
       if (gt?.running && (st.event || (st.score || 0) >= 35)) {
