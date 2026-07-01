@@ -960,9 +960,18 @@
       color: var(--text); cursor: pointer; white-space: nowrap;
     }
     .rig-focus-clear:hover { border-color: var(--accent); color: var(--accent); }
-    body[data-hw-focus="cpu"] [data-hw]:not([data-hw~="all"]):not([data-hw~="cpu"]) { display: none !important; }
-    body[data-hw-focus="gpu"] [data-hw]:not([data-hw~="all"]):not([data-hw~="gpu"]) { display: none !important; }
-    body[data-hw-focus="memory"] [data-hw]:not([data-hw~="all"]):not([data-hw~="memory"]) { display: none !important; }
+    body[data-hw-focus="cpu"] #summaryBar [data-hw]:not([data-hw~="all"]):not([data-hw~="cpu"]),
+    body[data-hw-focus="cpu"] #vizPanel [data-hw]:not([data-hw~="all"]):not([data-hw~="cpu"]) { display: none !important; }
+    body[data-hw-focus="gpu"] #summaryBar [data-hw]:not([data-hw~="all"]):not([data-hw~="gpu"]),
+    body[data-hw-focus="gpu"] #vizPanel [data-hw]:not([data-hw~="all"]):not([data-hw~="gpu"]) { display: none !important; }
+    body[data-hw-focus="memory"] #summaryBar [data-hw]:not([data-hw~="all"]):not([data-hw~="memory"]),
+    body[data-hw-focus="memory"] #vizPanel [data-hw]:not([data-hw~="all"]):not([data-hw~="memory"]) { display: none !important; }
+    .viz-empty-note {
+      display: none; align-items: center; justify-content: center; flex: 1; min-height: 3.5rem;
+      font-size: .82rem; color: var(--muted); font-style: italic; text-align: center; padding: .5rem;
+    }
+    .viz-block.noc-hw-empty .viz-empty-note { display: flex; }
+    .viz-block.noc-hw-empty .viz-block-body > :not(.viz-empty-note) { display: none !important; }
 
     .hw-id-row { display: inline-flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
     .hw-identity { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
@@ -1052,35 +1061,35 @@
     <section class="card viz-panel section-target" id="vizPanel">
       <h2>Live overview</h2>
       <div class="viz-grid">
-        <div class="viz-block viz-area-util" data-hw="all">
+        <div class="viz-block viz-area-util">
           <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><h3>Utilization</h3></div>
-          <div class="viz-block-body"><div class="metric-list" id="utilMeters"></div></div>
+          <div class="viz-block-body"><div class="metric-list" id="utilMeters"></div><div class="viz-empty-note" hidden></div></div>
         </div>
-        <div class="viz-block viz-area-temp" data-hw="cpu gpu all">
+        <div class="viz-block viz-area-temp">
           <div class="viz-block-head"><span class="hw-icon-box temp" data-glyph="temp"></span><h3>Temperatures</h3></div>
-          <div class="viz-block-body"><div class="metric-list" id="tempMeters"></div></div>
+          <div class="viz-block-body"><div class="metric-list" id="tempMeters"></div><div class="viz-empty-note" hidden></div></div>
         </div>
-        <div class="viz-block viz-area-bw" data-hw="memory gpu all">
+        <div class="viz-block viz-area-bw">
           <div class="viz-block-head"><span class="hw-icon-box mem" data-glyph="storage"></span><h3>Bandwidth</h3></div>
-          <div class="viz-block-body"><div class="metric-list" id="bwMeters"></div></div>
+          <div class="viz-block-body"><div class="metric-list" id="bwMeters"></div><div class="viz-empty-note" hidden></div></div>
         </div>
-        <div class="viz-block viz-area-league" data-hw="all">
+        <div class="viz-block viz-area-league">
           <div class="viz-block-head"><span class="hw-icon-box league" data-glyph="league"></span><h3>Hardware league</h3></div>
-          <div class="viz-block-body"><div class="league-viz" id="leagueViz"></div></div>
+          <div class="viz-block-body"><div class="league-viz" id="leagueViz"></div><div class="viz-empty-note" hidden></div></div>
         </div>
-        <div class="viz-block viz-area-spark" data-hw="all">
+        <div class="viz-block viz-area-spark">
           <div class="viz-block-head"><span class="hw-icon-box game" data-glyph="activity"></span><h3>Trend · last 5 minutes</h3></div>
-          <div class="viz-block-body"><div class="spark-box"><canvas id="sparkChart"></canvas></div></div>
+          <div class="viz-block-body"><div class="spark-box" data-hw="all"><canvas id="sparkChart"></canvas></div></div>
         </div>
-        <div class="viz-block viz-area-cores" data-hw="cpu all">
+        <div class="viz-block viz-area-cores">
           <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><h3>CPU cores</h3></div>
-          <div class="viz-block-body"><div class="core-strip" id="coreStrip"></div></div>
+          <div class="viz-block-body"><div class="core-strip" id="coreStrip" data-hw="cpu all"></div><div class="viz-empty-note" hidden></div></div>
         </div>
-        <div class="viz-block viz-area-glance" data-hw="gpu all">
+        <div class="viz-block viz-area-glance">
           <div class="viz-block-head"><span class="hw-icon-box gpu" data-glyph="fan"></span><h3>Power &amp; cooling</h3></div>
-          <div class="viz-block-body"><div class="glance-grid" id="glanceGrid"></div></div>
+          <div class="viz-block-body"><div class="glance-grid" id="glanceGrid"></div><div class="viz-empty-note" hidden></div></div>
         </div>
-        <div class="viz-block viz-area-stutter" id="stutterBlock" data-hw="memory cpu all">
+        <div class="viz-block viz-area-stutter" id="stutterBlock">
           <div class="viz-block-head"><span class="hw-icon-box stutter" data-glyph="stutter"></span><h3>Stutter proxy · 1% low estimate</h3></div>
           <div class="viz-block-body">
             <div class="stutter-layout">
@@ -1088,7 +1097,7 @@
                 <div class="stutter-side-label">Hitch drivers</div>
                 <div class="metric-list metric-list-compact" id="stutterComponents"></div>
               </div>
-              <div class="stutter-insight">
+              <div class="stutter-insight" data-hw="all">
                 <div class="stutter-insight-top">
                   <div class="stutter-gauge" id="stutterGauge">
                     <div class="stutter-gauge-center">
@@ -1137,7 +1146,7 @@
       </div>
     </section>
 
-    <section class="card section-target" id="warningsSection" data-hw="all">
+    <section class="card section-target" id="warningsSection">
       <h2>Warnings</h2>
       <p class="rec-status" id="tuningMeta">Checking…</p>
       <div class="rec-toolbar stable-toolbar" id="tuningSummary"></div>
@@ -2165,7 +2174,6 @@
       setMeterWidth(document.getElementById('sumGpuMeter'), g.busy_pct ?? 0);
       setMeterWidth(document.getElementById('sumGameMeter'), gt?.running ? gt.cpu_pct : 0);
       const leagueIdx = comparison ? smoothDisplayPct('session-index', comparison.session_index) : 0;
-      setMeterWidth(document.getElementById('sumLeagueMeter'), leagueIdx);
 
       document.getElementById('sumCpuVal').textContent = `${c.overall_pct}%`;
       document.getElementById('sumCpuSub').textContent = `${c.temps.package ?? '—'}°C · load ${c.load?.[0] ?? '—'}`;
@@ -2183,12 +2191,24 @@
         ? `${gt.primary_name || gt.game_name} · ${(gt.rss_mb / 1024).toFixed(1)} GB`
         : 'No game running';
 
-      document.getElementById('sumLeagueVal').textContent = comparison ? `${leagueIdx}/100` : '—/100';
-      setTierBadge(document.getElementById('sumLeagueBadge'), comparison?.composite_rank);
-      document.getElementById('sumLeagueSub').textContent =
-        comparison?.composite_tier != null
-          ? `Tier ${comparison.composite_tier}/100 · session load`
-          : '—';
+      if (hwFocus && comparison) {
+        const part = hwFocus === 'memory' ? comparison.memory : comparison[hwFocus];
+        const live = hwFocus === 'memory' ? part?.live_pressure_pct : part?.live_pct;
+        const liveSmooth = smoothDisplayPct(`sum-league-${hwFocus}`, live ?? 0);
+        document.getElementById('sumLeagueVal').textContent = `${liveSmooth}%`;
+        setTierBadge(document.getElementById('sumLeagueBadge'), part?.tier_rank);
+        document.getElementById('sumLeagueSub').textContent =
+          `Tier ${part?.tier_score ?? '—'}/100 · ${HW_FOCUS_LABELS[hwFocus]} live`;
+        setMeterWidth(document.getElementById('sumLeagueMeter'), liveSmooth);
+      } else {
+        document.getElementById('sumLeagueVal').textContent = comparison ? `${leagueIdx}/100` : '—/100';
+        setTierBadge(document.getElementById('sumLeagueBadge'), comparison?.composite_rank);
+        document.getElementById('sumLeagueSub').textContent =
+          comparison?.composite_tier != null
+            ? `Tier ${comparison.composite_tier}/100 · session load`
+            : '—';
+        setMeterWidth(document.getElementById('sumLeagueMeter'), leagueIdx);
+      }
 
       const sh = l.sensor_health;
       document.getElementById('drillSensorsSum').textContent = sh
@@ -2235,7 +2255,7 @@
       { id: 'dram-psi', label: 'Memory stall', icon: 'cpu', cls: 'mem', hw: 'memory all' },
     ];
     const STUTTER_COMP_SPECS = [
-      { id: 'major_faults', label: 'Page faults', cls: 'stutter', hw: 'memory all' },
+      { id: 'major_faults', label: 'Page faults', cls: 'stutter', hw: 'cpu memory all' },
       { id: 'mem_stall', label: 'Mem stall', cls: 'stutter', hw: 'memory all' },
       { id: 'io_stall', label: 'I/O stall', cls: 'stutter', hw: 'all' },
       { id: 'swap', label: 'Swap', cls: 'stutter', hw: 'memory all' },
@@ -2276,6 +2296,10 @@
 
     function ensureMetricList(containerId, specs, trackKey = 'cls') {
       const el = document.getElementById(containerId);
+      if (el.dataset.hwVer !== '2') {
+        delete el.dataset.init;
+        el.dataset.hwVer = '2';
+      }
       if (el.dataset.init) return;
       el.innerHTML = specs.map(s => `
         <div class="metric-bar" data-mid="${s.id}"${s.hw ? ` data-hw="${s.hw}"` : ''}>
@@ -2585,28 +2609,45 @@
       }
       if (!el.dataset.init) {
         el.innerHTML = `
-          <div class="league-score-row">
+          <div class="league-score-row" data-hw="all">
             <span class="league-big" id="leagueBig">—</span>
             <span class="rank-badge" id="leagueBadge">—</span>
           </div>
-          <div class="metric-bar">
-            <div class="metric-bar-head"><span class="metric-bar-label">Session load</span><span class="metric-bar-val" id="leagueSessionVal">—</span></div>
+          <div class="metric-bar" data-hw="all">
+            <div class="metric-bar-head"><span class="metric-bar-label" id="leagueSessionLabel">Session load</span><span class="metric-bar-val" id="leagueSessionVal">—</span></div>
             <div class="metric-bar-track league"><span id="leagueSessionBar" style="width:0%"></span></div>
           </div>
           <div class="league-parts" id="leagueParts"></div>`;
         el.dataset.init = '1';
       }
       const sessionIdx = smoothDisplayPct('session-index', c.session_index);
-      document.getElementById('leagueBig').textContent = `${sessionIdx}/100`;
-      setTierBadge(document.getElementById('leagueBadge'), c.composite_rank);
-      document.getElementById('leagueSessionVal').textContent = `${sessionIdx}%`;
-      setMeterWidth(document.getElementById('leagueSessionBar'), sessionIdx);
+      const sessionLabel = document.getElementById('leagueSessionLabel');
+      if (hwFocus && c[hwFocus === 'memory' ? 'memory' : hwFocus]) {
+        const part = c[hwFocus === 'memory' ? 'memory' : hwFocus];
+        const live = hwFocus === 'memory' ? part.live_pressure_pct : part.live_pct;
+        const liveS = smoothDisplayPct(`league-head-${hwFocus}`, live ?? 0);
+        document.getElementById('leagueBig').textContent = `${liveS}%`;
+        setTierBadge(document.getElementById('leagueBadge'), part.tier_rank);
+        if (sessionLabel) sessionLabel.textContent = `${HW_FOCUS_LABELS[hwFocus]} tier`;
+        document.getElementById('leagueSessionVal').textContent = `${part.tier_score ?? '—'}/100`;
+        setMeterWidth(document.getElementById('leagueSessionBar'), part.tier_score ?? 0);
+      } else {
+        document.getElementById('leagueBig').textContent = `${sessionIdx}/100`;
+        setTierBadge(document.getElementById('leagueBadge'), c.composite_rank);
+        if (sessionLabel) sessionLabel.textContent = 'Session load';
+        document.getElementById('leagueSessionVal').textContent = `${sessionIdx}%`;
+        setMeterWidth(document.getElementById('leagueSessionBar'), sessionIdx);
+      }
       const parts = [
         { label: 'CPU', icon: 'cpu', track: 'cpu', hw: 'cpu all', tier: c.cpu?.tier_rank, score: c.cpu?.tier_score, live: c.cpu?.live_pct },
         { label: 'GPU', icon: 'gpu', track: 'gpu', hw: 'gpu all', tier: c.gpu?.tier_rank, score: c.gpu?.tier_score, live: c.gpu?.live_pct },
         { label: 'RAM', icon: 'ram', track: 'mem', hw: 'memory all', tier: c.memory?.tier_rank, score: c.memory?.tier_score, live: c.memory?.live_pressure_pct },
       ];
       const partsEl = document.getElementById('leagueParts');
+      if (partsEl.dataset.hwVer !== '2') {
+        delete partsEl.dataset.init;
+        partsEl.dataset.hwVer = '2';
+      }
       if (!partsEl.dataset.init) {
         partsEl.innerHTML = parts.map(p => `
           <div class="metric-bar" data-lpart="${p.label}" data-hw="${p.hw}">
