@@ -241,11 +241,9 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             f"Memory stall at {dram['psi_avg10']}% — the CPU is waiting on RAM. Close background apps.",
             [
                 _cmd("List top memory users", "ps aux --sort=-%mem | head -20"),
-                _cmd(
-                    "Close background apps manually",
-                    "Quit browsers, Discord, and other RAM-heavy apps before gaming",
-                    note="Pulse will not close apps for you",
-                ),
+                _cmd("Close Brave — copy & run", "flatpak kill com.brave.Browser", note="You run this; Pulse never does"),
+                _cmd("Close Firefox — copy & run", "pkill -x firefox", note="You run this; Pulse never does"),
+                _cmd("Close Discord — copy & run", "pkill -x discord", note="You run this; Pulse never does"),
                 _cmd("Disable unnecessary autostart", "systemctl --user list-unit-files --state=enabled | head -30", kind="cmd"),
             ],
             insight_id="memory-dram-stall",
@@ -287,7 +285,8 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             ),
             [
                 _cmd("List memory hogs", "ps aux --sort=-%mem | head -20"),
-                _cmd("Lower swappiness", "sudo sysctl vm.swappiness=10"),
+                _cmd("Close Brave — copy & run", "flatpak kill com.brave.Browser", note="You run this; Pulse never does"),
+                _cmd("Lower swappiness — copy & run", "sudo sysctl vm.swappiness=10", note="Needs sudo; Pulse never does"),
                 _cmd("Let load finish", "Stay paused 30s after save load before unpausing", kind="game"),
                 _cmd("Cities: drop sim speed", "Cities 2 → reduce simulation speed on huge saves", kind="game"),
             ],

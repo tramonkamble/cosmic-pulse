@@ -233,7 +233,10 @@ cat <<'PLAYBOOK'
 
 PLAYBOOK
 
-log "Close apps manually from your desktop — this script does not kill processes."
+log "Optional — copy and run yourself (Pulse never executes these):"
+log "  flatpak kill com.brave.Browser"
+log "  pkill -x firefox"
+log "  pkill -x discord"
 """
 
 
