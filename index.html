@@ -380,43 +380,46 @@
     }
     .core-label { text-align: center; font-size: .85rem; color: var(--muted); margin-top: 6px; font-weight: 500; }
     .chart-box { height: 400px; }
+    .dash-top {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr);
+      gap: 1.25rem;
+      align-items: stretch;
+    }
+    @media (max-width: 1280px) {
+      .dash-top { grid-template-columns: 1fr; }
+    }
+    .dash-top .summary-bar,
+    .dash-top #warningsSection {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
+    }
+    .dash-top #warningsSection .warn-list {
+      flex: 1 1 auto;
+      min-height: 10rem;
+      max-height: min(36rem, 62vh);
+    }
+    @media (max-width: 1280px) {
+      .dash-top #warningsSection .warn-list {
+        max-height: min(42rem, 58vh);
+      }
+    }
     .summary-bar { padding: 1.15rem 1.3rem; }
+    .sum-grid-scroll {
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      margin: 0 -.15rem;
+      padding: 0 .15rem .1rem;
+    }
     .sum-grid {
       display: grid;
-      grid-template-columns: 1.15fr 1fr 1fr 1.05fr;
-      grid-template-rows: 1fr 1fr;
-      grid-template-areas:
-        "health cpu mem league"
-        "health gpu game league";
-      gap: .65rem;
-      min-height: 10.5rem;
-    }
-    #sumHealthCell { grid-area: health; }
-    #sumCpuCell { grid-area: cpu; }
-    #sumMemCell { grid-area: mem; }
-    #sumGpuCell { grid-area: gpu; }
-    #sumGameCell { grid-area: game; }
-    #sumLeagueCell { grid-area: league; }
-    @media (max-width: 1000px) {
-      .sum-grid {
-        grid-template-columns: repeat(3, 1fr);
-        grid-template-rows: auto;
-        grid-template-areas:
-          "health health league"
-          "cpu mem gpu"
-          "game game game";
-        min-height: 0;
-      }
-    }
-    @media (max-width: 560px) {
-      .sum-grid {
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-areas:
-          "health health"
-          "league league"
-          "cpu mem"
-          "gpu game";
-      }
+      grid-template-columns: repeat(6, minmax(9.5rem, 1fr));
+      grid-template-rows: 1fr;
+      gap: .55rem;
+      min-height: 7.75rem;
+      min-width: 100%;
     }
     .sum-cell {
       font-family: inherit; text-align: left; cursor: pointer; color: var(--text);
@@ -425,9 +428,9 @@
       justify-content: flex-start; min-height: 0; height: 100%;
       transition: border-color .15s, background .15s, box-shadow .15s;
     }
-    .sum-cell.tall { padding: 1rem 1.1rem; }
-    .sum-cell.tall .sum-value { font-size: 1.75rem; margin-top: auto; }
-    .sum-cell.tall .sum-body { display: flex; flex-direction: column; gap: .45rem; flex: 1; }
+    .sum-cell.tall { padding: .85rem 1rem; }
+    .sum-cell.tall .sum-value { font-size: 1.45rem; margin-top: 0; }
+    .sum-cell.tall .sum-body { display: flex; flex-direction: column; gap: .35rem; flex: 1; min-height: 0; }
     .sum-foot { margin-top: auto; display: flex; flex-direction: column; gap: .35rem; }
     .sum-league-badge { min-height: 1.6rem; display: flex; align-items: center; }
     .sum-league-badge .rank-badge { font-size: .82rem; padding: .3rem .6rem; }
@@ -1033,11 +1036,18 @@
       background: linear-gradient(145deg, rgba(0,0,0,.28), rgba(255,255,255,.02));
       border: 1px solid var(--line); border-radius: var(--radius-lg);
     }
-    .rig-strip {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem;
+    .rig-strip-scroll {
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      margin: 0 -.1rem;
+      padding: 0 .1rem .05rem;
     }
-    @media (max-width: 900px) { .rig-strip { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 480px) { .rig-strip { grid-template-columns: 1fr; } }
+    .rig-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(10.5rem, 1fr));
+      gap: .6rem;
+      min-width: 100%;
+    }
     .rig-tile {
       display: flex; flex-direction: column; align-items: flex-start; gap: .32rem;
       padding: .82rem .95rem; border-radius: var(--radius); min-width: 0; width: 100%;
@@ -1182,14 +1192,18 @@
 
   <main>
     <div id="pageDashboard" class="page active">
+    <div class="dash-top">
     <section class="card summary-bar section-target" id="summaryBar">
       <div class="rig-panel">
+        <div class="rig-strip-scroll">
         <div class="rig-strip" id="rigStrip" aria-label="Your hardware — click to filter"></div>
+        </div>
         <div class="rig-focus-banner" id="rigFocusBanner" hidden>
           <span id="rigFocusText">—</span>
           <button type="button" class="rig-focus-clear" id="rigFocusClear">View full rig</button>
         </div>
       </div>
+      <div class="sum-grid-scroll">
       <div class="sum-grid">
         <button type="button" class="sum-cell tall ok" id="sumHealthCell" data-drill="warningsSection" data-hw-keep>
           <div class="sum-head"><span class="hw-icon-box health" data-glyph="health"></span><span class="sum-label">Health</span></div>
@@ -1237,8 +1251,23 @@
           </div>
         </button>
       </div>
+      </div>
       <div class="sensor-strip" id="sensorStrip"></div>
     </section>
+
+    <section class="card section-target" id="warningsSection">
+      <div class="warn-panel-head">
+        <h2>Warnings</h2>
+        <span class="warn-session" id="warnGameCtx" hidden></span>
+      </div>
+      <p class="warn-meta" id="tuningMeta">Checking…</p>
+      <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
+      <div class="warn-list stable-scroll" id="warningList"></div>
+      <div class="warn-more" id="warnMoreFixes" hidden>
+        <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Guidance</button>
+      </div>
+    </section>
+    </div>
 
     <section class="card viz-panel section-target" id="vizPanel">
       <h2>Live overview</h2>
@@ -1325,19 +1354,6 @@
             </div>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section class="card section-target" id="warningsSection">
-      <div class="warn-panel-head">
-        <h2>Warnings</h2>
-        <span class="warn-session" id="warnGameCtx" hidden></span>
-      </div>
-      <p class="warn-meta" id="tuningMeta">Checking…</p>
-      <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
-      <div class="warn-list stable-scroll" id="warningList"></div>
-      <div class="warn-more" id="warnMoreFixes" hidden>
-        <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Guidance</button>
       </div>
     </section>
 
