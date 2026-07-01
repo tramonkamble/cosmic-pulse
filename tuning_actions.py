@@ -4,12 +4,13 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 from apply_fix import fix_available, requires_root
-from gpu_thermal import profile_for_model
+from games import active_game_context
+from gpu_thermal import gpu_thermal_state, profile_for_model
 from fix_scripts import (
+    fan_tool_actions,
     script_balanced,
     script_ccd_spread,
     script_cpu_bound,
@@ -28,13 +29,8 @@ from fix_scripts import (
     script_vram_low,
 )
 
-HOME = Path.home()
 PULSE_ROOT = Path(__file__).resolve().parent
 PROBE_SCRIPT = PULSE_ROOT / "probe_memory.py"
-CS2_DIR = (
-    HOME
-    / ".local/share/Steam/steamapps/compatdata/949230/pfx/drive_c/users/steamuser/AppData/LocalLow/Colossal Order/Cities Skylines II"
-)
 
 
 def _hint(
@@ -66,6 +62,17 @@ def _cmd(label: str, cmd: str, note: str = "", kind: str = "cmd") -> dict:
     return {"label": label, "kind": kind, "cmd": cmd, "note": note}
 
 
+def _game_kwargs(snap: dict) -> dict:
+    ctx = active_game_context(snap.get("game_totals"))
+    return {"game_id": ctx.get("appid"), "game_name": ctx.get("name")}
+
+
+def _open_game_action(ctx: dict) -> dict | None:
+    if ctx.get("open_dir"):
+        return _cmd(f"Open {ctx['name']} folder", f"xdg-open '{ctx['open_dir']}'")
+    return None
+
+
 def _gpu_cmd_paths(ctx: dict) -> dict[str, str]:
     sysfs = ctx.get("gpu_sysfs") or "/sys/class/drm/card1/device"
     sensor = ctx.get("gpu_sensor") or "amdgpu-pci-0300"
@@ -90,47 +97,74 @@ def _append_gpu_thermal_hints(
     warm_c = profile.get("warm_c")
     fan_help = profile.get("fan_curve_helpful", True)
     fan_note = profile.get("fan_curve_note", "")
+    thermal = g.get("thermal_state") or gpu_thermal_state(
+        g, profile, ctx.get("gpu_session_peak_mhz"),
+    )
+    gfx = g.get("gfx_mhz")
+    peak = thermal.get("session_peak_mhz")
+
+    cool_actions = [
+        _cmd(
+            "In-game: lower shadow / LOD / draw distance",
+            "Lower Level of Detail, Shadow quality, and cap FPS 60–90",
+            kind="game",
+        ),
+    ]
+    if fan_help:
+        for action in fan_tool_actions(profile, paths["sysfs"]):
+            cool_actions.append(_cmd(action["label"], action["cmd"], note=action.get("note", ""), kind=action.get("kind", "cmd")))
+
+    if not fan_help:
+        if thermal.get("throttling"):
+            text = (
+                f"Junction {junc}°C and clocks dropped to {gfx or '—'} MHz "
+                f"(session peak ~{peak or '—'} MHz). {arch} is throttling — lower graphics settings."
+            )
+            hints.append(_hint(
+                "warn",
+                "GPU throttling",
+                text,
+                cool_actions,
+                insight_id="gpu-thermal-ceiling",
+                fix_script=script_gpu_thermal(junc, profile=profile),
+            ))
+        elif thermal.get("by_design"):
+            hints.append(_hint(
+                "info",
+                "GPU running hot by design",
+                f"Junction {junc}°C — {profile.get('design_note', '')} "
+                f"Clocks at {gfx or '—'} MHz"
+                + (f" (peak ~{peak} MHz this session)." if peak else "."),
+                [
+                    _cmd(
+                        "Check clocks + temps",
+                        f"sensors {paths['sensor']} | grep -E 'junction|edge|fan|PPT'; "
+                        f"cat {paths['sysfs']}/pp_dpm_sclk 2>/dev/null | tail -1",
+                        note="Stable clocks under load = normal for this architecture",
+                    ),
+                ],
+                insight_id="gpu-thermal-by-design",
+                fix_script="",
+            ))
+        return
 
     if junc >= hot_c:
-        actions = [
-            _cmd("Open game settings folder", f"xdg-open '{CS2_DIR}'", note="Graphics live in-game"),
-            _cmd(
-                "In-game: lower shadow / LOD / draw distance",
-                "Lower Level of Detail, Shadow quality, and cap FPS 60–90",
-                kind="game",
-            ),
-        ]
-        if fan_help and shutil.which("corectrl"):
-            actions.append(
-                _cmd("Open CoreCtrl", "corectrl", note="Fan curve — helpful on RDNA2 and NVIDIA, rarely needed on RDNA3"),
-            )
-        elif fan_help:
-            actions.append(
-                _cmd(
-                    "Raise GPU fan (amdgpu)",
-                    f"echo manual | sudo tee {paths['sysfs']}/pp_power_profile_mode 2>/dev/null; "
-                    f"echo 1 | sudo tee {paths['sysfs']}/hwmon/hwmon*/pwm1_enable 2>/dev/null",
-                    note="Or install CoreCtrl: sudo apt install corectrl",
-                ),
-            )
-        if profile.get("arch") == "rdna3":
+        text = (
+            f"Junction is {junc}°C. Near the {arch} throttle (~{throttle}°C) — "
+            "lower graphics settings or improve cooling."
+        )
+        title = "GPU overheating"
+        if thermal.get("throttling"):
+            title = "GPU throttling"
             text = (
-                f"Junction is {junc}°C — at the {arch} throttle point (~{throttle}°C). "
-                f"If clocks drop, lower graphics settings. Below ~{hot_c}°C is normal for {model}; "
-                "RDNA3 is designed to run near this limit."
+                f"Junction {junc}°C with clocks at {gfx or '—'} MHz "
+                f"(peak ~{peak or '—'} MHz). Lower graphics settings or improve cooling."
             )
-            title = "GPU at throttle limit"
-        else:
-            text = (
-                f"Junction is {junc}°C. Near the {arch} throttle (~{throttle}°C) — "
-                "lower graphics settings or improve cooling."
-            )
-            title = "GPU overheating"
         hints.append(_hint(
             "hot",
             title,
             text,
-            actions,
+            cool_actions,
             insight_id="gpu-thermal-ceiling",
             fix_script=script_gpu_thermal(junc, profile=profile),
         ))
@@ -143,10 +177,11 @@ def _append_gpu_thermal_hints(
                 f"sensors {paths['sensor']} | grep -i ppt",
             ),
         ]
-        if fan_help and shutil.which("corectrl"):
-            warm_actions.append(
-                _cmd("Open CoreCtrl", "corectrl", note="A fan curve often helps on RDNA2 and NVIDIA"),
-            )
+        if fan_help:
+            for action in fan_tool_actions(profile, paths["sysfs"]):
+                warm_actions.append(
+                    _cmd(action["label"], action["cmd"], note=action.get("note", ""), kind=action.get("kind", "cmd")),
+                )
         warm_text = f"Junction is {junc}°C. {profile.get('design_note', '')}"
         if fan_help and fan_note:
             warm_text = f"Junction is {junc}°C. {fan_note}"
@@ -188,6 +223,9 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
     dram = bw.get("memory", {})
     cpu = snap["cpu"]
     hints: list[dict] = []
+    gctx = active_game_context(snap.get("game_totals"))
+    gname = gctx.get("name") or "your game"
+    gk = _game_kwargs(snap)
 
     gov = ctx.get("governor")
     swap = ctx.get("swappiness")
@@ -199,7 +237,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             [
                 _cmd("Set performance governor (until reboot)", "echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"),
                 _cmd("Check available governors", "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors"),
-                _cmd("Steam launch: add GameMode", "gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%", kind="steam", note="Steam → Cities 2 → Properties → Launch Options — replaces current line"),
+                _cmd("Steam launch: add GameMode", "gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%", kind="steam", note="Steam → game → Properties → Launch Options"),
             ],
             insight_id="cpu-governor-powersave",
             fix_script=script_governor(),
@@ -245,11 +283,11 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             "VRAM bus is busy",
             f"Memory controller at {g['mem_busy_pct']}% (~{est} GB/s). Textures are pushing the GDDR6 hard.",
             [
-                _cmd("In-game: reduce texture / asset quality", "Cities 2 → Options → Graphics → Texture quality ↓, Asset quality ↓", kind="game"),
-                _cmd("Disable heavy mods temporarily", f"xdg-open '{CS2_DIR}/.cache/Mods'", note="Test without asset-replacement mods"),
+                _cmd("In-game: reduce texture / asset quality", f"{gname} → graphics → lower texture and asset quality", kind="game"),
+                *([_cmd("Disable heavy mods temporarily", f"xdg-open '{gctx['userdata'] / '.cache/Mods'}'", note="Test without asset-replacement mods")] if gctx.get("userdata") else []),
             ],
             insight_id="gpu-vram-bandwidth",
-            fix_script=script_vram_bandwidth(g["mem_busy_pct"], str(est)),
+            fix_script=script_vram_bandwidth(g["mem_busy_pct"], str(est), **gk),
         ))
 
     if (g.get("vram_pct") or 0) >= 80:
@@ -258,12 +296,12 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             "Running low on VRAM",
             f"{g['vram_pct']}% VRAM used ({g.get('vram_used_mb')} MB). Spilling into system RAM causes stutters.",
             [
-                _cmd("In-game: lower resolution scale", "Cities 2 → Options → Graphics → Resolution scale → 85–90%", kind="game"),
-                _cmd("In-game: reduce texture quality", "Cities 2 → Options → Graphics → Texture quality → Medium", kind="game"),
-                _cmd("Open CS2 user data", f"xdg-open '{CS2_DIR}'"),
+                _cmd("In-game: lower resolution scale", f"{gname} → graphics → resolution scale 85–90%", kind="game"),
+                _cmd("In-game: reduce texture quality", f"{gname} → graphics → medium textures", kind="game"),
+                *([_open_game_action(gctx)] if _open_game_action(gctx) else []),
             ],
             insight_id="gpu-vram-full",
-            fix_script=script_vram_low(g["vram_pct"], g.get("vram_used_mb") or 0),
+            fix_script=script_vram_low(g["vram_pct"], g.get("vram_used_mb") or 0, **gk),
         ))
 
     gtt = g.get("gtt") or {}
@@ -273,7 +311,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             "GPU using system RAM",
             f"Shared memory traffic at {gtt['rate_mbps']} MB/s. Keep VRAM under ~80% to avoid this.",
             [
-                _cmd("In-game: drop texture / asset mods", "Cities 2 → Content Manager → disable high-res asset mods", kind="game"),
+                _cmd("In-game: drop texture / asset mods", f"{gname} → disable high-res asset or texture mods", kind="game"),
                 _cmd(
                     "Check VRAM use",
                     f"cat {_gpu_cmd_paths(ctx)['sysfs']}/mem_info_vram_used "
@@ -281,7 +319,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
                 ),
             ],
             insight_id="gpu-gtt-churn",
-            fix_script=script_gtt(gtt["rate_mbps"]),
+            fix_script=script_gtt(gtt["rate_mbps"], **gk),
         ))
 
     if (dram.get("swap_out_kbps") or 0) > 50 or mem.get("swap_pct", 0) > 25:
@@ -293,7 +331,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
                 _cmd("Lower swappiness now", "sudo sysctl vm.swappiness=10"),
                 _cmd("Close memory hogs", "ps aux --sort=-%mem | head -15"),
                 _cmd("Drop caches (safe)", "sync && sudo sysctl vm.drop_caches=3", note="Frees page cache; game may stutter briefly"),
-                _cmd("Reboot before long city session", "sudo reboot", note="Clears fragmented swap state"),
+                _cmd("Reboot before long gaming session", "sudo reboot", note="Clears fragmented swap state"),
             ],
             insight_id="memory-swap-thrash",
             fix_script=script_swap_thrash(mem.get("swap_pct", 0)),
@@ -321,11 +359,11 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             "Loading from disk/swap",
             f"{dram['pgmajfault_per_s']}/s major page faults — data is being pulled from slow storage.",
             [
-                _cmd("Wait for city load to finish", "Avoid camera panning / unpause until loading bar completes", kind="game"),
-                _cmd("Preload: sit on paused city 30s", "Let simulation settle before unpausing large saves", kind="game"),
+                _cmd("Wait for load to finish", "Avoid camera panning / unpause until loading completes", kind="game"),
+                _cmd("Preload: pause 30s after load", "Let the game settle before unpausing large saves", kind="game"),
             ],
             insight_id="memory-page-faults",
-            fix_script=script_page_faults(dram["pgmajfault_per_s"]),
+            fix_script=script_page_faults(dram["pgmajfault_per_s"], **gk),
         ))
 
     st = snap.get("stutter") or {}
@@ -353,13 +391,14 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
                 _cmd("Close Brave — copy & run", "flatpak kill com.brave.Browser", note="You run this; Pulse never does"),
                 _cmd("Lower swappiness — copy & run", "sudo sysctl vm.swappiness=10", note="Needs sudo; Pulse never does"),
                 _cmd("Let load finish", "Stay paused 30s after save load before unpausing", kind="game"),
-                _cmd("Cities: drop sim speed", "Cities 2 → reduce simulation speed on huge saves", kind="game"),
+                _cmd("Lower sim / world detail", f"{gname} → reduce simulation speed or world detail if available", kind="game"),
             ],
             insight_id="stutter-proxy",
             fix_script=script_stutter(
                 st.get("score", 0),
                 st.get("est_ms", 0),
                 [st.get("cause_labels", {}).get(c, c) for c in causes],
+                **gk,
             ),
             games=[gt["game_id"]] if gt.get("game_id") else None,
         ))
@@ -369,14 +408,14 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
         hints.append(_hint(
             "info",
             "CPU is the limit",
-            "GPU has headroom but the CPU is maxed — normal for big Cities 2 saves.",
+            f"GPU has headroom but the CPU is maxed — common in CPU-heavy scenes in {gname}.",
             [
-                _cmd("In-game: lower simulation load", "Cities 2 → Simulation speed 2×→1× on huge cities; reduce traffic/agents in mod settings", kind="game"),
+                _cmd("In-game: lower simulation load", f"{gname} → reduce simulation speed, crowd, or AI detail", kind="game"),
                 _cmd("Set performance governor", "echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"),
                 _cmd("Close background CPU users", "ps aux --sort=-%cpu | head -15"),
             ],
             insight_id="cpu-bound",
-            fix_script=script_cpu_bound(),
+            fix_script=script_cpu_bound(**gk),
         ))
     elif busy >= 85 and mem_busy < 50:
         hints.append(_hint(
@@ -384,10 +423,10 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             "GPU shaders maxed out",
             "GPU compute is high but VRAM bus is fine — lower resolution helps more than textures.",
             [
-                _cmd("In-game: raise resolution before textures", "Cities 2 → Graphics → increase Resolution scale if headroom; avoid max texture packs", kind="game"),
+                _cmd("In-game: raise resolution before textures", f"{gname} → raise resolution scale if thermals allow; avoid max texture packs", kind="game"),
             ],
             insight_id="gpu-shader-bound",
-            fix_script=script_gpu_shader(),
+            fix_script=script_gpu_shader(**gk),
         ))
 
     ccds = cpu.get("temps", {}).get("ccd") or []
@@ -407,13 +446,13 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
         hints.append(_hint(
             "ok",
             "Looking good",
-            "No major issues right now. Check again when the city grows or you add mods.",
+            "No major issues right now. Check again when game load or mods increase.",
             [
-                _cmd("Open Cities 2 settings", f"xdg-open '{CS2_DIR}'"),
-                _cmd("Steam launch options (keep Wayland fix)", "PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%", kind="steam", note="Steam → Cities 2 → Properties → Launch Options"),
+                *([_open_game_action(gctx)] if _open_game_action(gctx) else []),
+                _cmd("Steam launch options (keep Wayland fix)", "PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%", kind="steam", note="Steam → game → Properties → Launch Options"),
             ],
             insight_id="system-balanced",
-            fix_script=script_balanced(),
+            fix_script=script_balanced(**gk),
         ))
 
     return hints

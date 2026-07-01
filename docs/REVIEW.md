@@ -1,10 +1,10 @@
 # Code review guide
 
-Thanks for reviewing Pulse. This doc is written for a technical reviewer (e.g. a sibling or colleague) before the project is published publicly.
+Thanks for reviewing Cosmic Pulse. This doc is written for a technical reviewer (e.g. a sibling or colleague) before the project is published publicly.
 
 ## What you're looking at
 
-Pulse is a **single-user, local-only** Python HTTP server that samples system metrics at 1 Hz and serves a single-page dashboard. There is no auth layer — it binds to `0.0.0.0:8765` so a phone or second machine on the LAN can view it. That is intentional for a second-monitor setup but worth scrutinizing.
+Cosmic Pulse is a **single-user, local-only** Python HTTP server that samples system metrics at 1 Hz and serves a single-page dashboard. There is no auth layer — it binds to `0.0.0.0:8765` so a phone or second machine on the LAN can view it. That is intentional for a second-monitor setup but worth scrutinizing.
 
 **Stack:** Python 3 stdlib + `psutil` + one HTML file. Chart.js loaded from CDN. SQLite for optional history.
 

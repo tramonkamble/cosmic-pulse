@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import time
 
-from games import ALL_GAME_IDS, GAMES
+from games import game_meta
 
 LEVEL_SCORE = {"hot": 100, "warn": 70, "info": 40, "ok": 10}
 MULTI_GAME_BOOST = 22  # extra priority per additional game affected
@@ -20,7 +20,7 @@ def hint_applies_to(hint: dict, game_id: str) -> bool:
 
 
 def _games_for_active(hint: dict, running_ids: list[str]) -> list[str]:
-    return [gid for gid in ALL_GAME_IDS if hint_applies_to(hint, gid) and gid in running_ids]
+    return [gid for gid in running_ids if hint_applies_to(hint, gid)]
 
 
 def enrich_hint(item: dict) -> dict:
@@ -47,6 +47,7 @@ def build_issue_views(
     active: list[dict],
     history: list[dict],
     running_ids: list[str],
+    games_state: dict | None = None,
 ) -> dict:
     """Build overall prioritized list and per-game issue sections."""
     active_ids = {h["insight_id"] for h in active if h.get("insight_id")}
@@ -76,9 +77,16 @@ def build_issue_views(
     ]
     overall = overall_active + inactive
 
-    # Per-game: issues that apply to this game and were seen while playing it (or active now while running)
+    # Per-game: running titles plus any game that accumulated issues this session.
+    game_ids: set[str] = set(running_ids)
+    if games_state:
+        game_ids.update(games_state.keys())
+    for item in history:
+        game_ids.update((item.get("games_seen") or {}).keys())
+
     by_game: dict[str, dict] = {}
-    for gid, meta in GAMES.items():
+    for gid in sorted(game_ids, key=lambda x: (x not in running_ids, x)):
+        src = (games_state or {}).get(gid) or game_meta(gid)
         game_issues: list[dict] = []
         for item in overall:
             if not hint_applies_to(item, gid):
@@ -88,8 +96,8 @@ def build_issue_views(
                 game_issues.append(item)
         by_game[gid] = {
             "id": gid,
-            "name": meta["name"],
-            "short": meta["short"],
+            "name": src.get("name", f"AppID {gid}"),
+            "short": src.get("short", src.get("name", gid)),
             "running": gid in running_ids,
             "issues": game_issues,
             "issue_count": len(game_issues),

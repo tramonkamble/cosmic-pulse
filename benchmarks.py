@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import re
 
+from hardware_profiles import GPU_ALIASES, gpu_tier_list
+
 # Tier score 0-100 = approximate relative strength for city-builder / AAA gaming.
 CPU_TIERS: list[dict] = [
     {"name": "Ryzen 5 5600X", "score": 42, "class": "mid"},
@@ -20,19 +22,7 @@ CPU_TIERS: list[dict] = [
     {"name": "Threadripper 9970X", "score": 98, "class": "workstation"},
 ]
 
-GPU_TIERS: list[dict] = [
-    {"name": "GTX 1660 Super", "score": 22, "vram_gbps": 192, "class": "entry"},
-    {"name": "RTX 3060 12GB", "score": 38, "vram_gbps": 360, "class": "mid"},
-    {"name": "RX 6700 XT", "score": 48, "vram_gbps": 384, "class": "mid"},
-    {"name": "RTX 4070", "score": 58, "vram_gbps": 504, "class": "upper"},
-    {"name": "RX 7800 XT", "score": 66, "vram_gbps": 624, "class": "upper"},
-    {"name": "RTX 4070 Ti Super", "score": 70, "vram_gbps": 672, "class": "upper"},
-    {"name": "RX 7900 XT", "score": 76, "vram_gbps": 800, "class": "enthusiast"},
-    {"name": "RX 7900 XTX", "score": 85, "vram_gbps": 960, "class": "enthusiast"},
-    {"name": "RTX 4080 Super", "score": 82, "vram_gbps": 736, "class": "enthusiast"},
-    {"name": "RTX 4090", "score": 92, "vram_gbps": 1008, "class": "flagship"},
-    {"name": "RTX 5090", "score": 100, "vram_gbps": 1792, "class": "flagship"},
-]
+GPU_TIERS: list[dict] = gpu_tier_list()
 
 MEM_TIERS: list[dict] = [
     {"name": "DDR4-3200 dual", "mts": 3200, "channels": 2, "peak_gbps": 51.2, "class": "legacy"},
@@ -62,16 +52,7 @@ CPU_ALIASES = {
     "13700k": "Core i7-13700K",
 }
 
-GPU_ALIASES = {
-    "7900 xtx": "RX 7900 XTX",
-    "7900 xt": "RX 7900 XT",
-    "7800 xt": "RX 7800 XT",
-    "4070 ti": "RTX 4070 Ti Super",
-    "4080": "RTX 4080 Super",
-    "4090": "RTX 4090",
-    "5090": "RTX 5090",
-    "3060": "RTX 3060 12GB",
-}
+
 
 
 def dram_peak_gbps(mts: int, channels: int = 2) -> float:

@@ -1,3 +1,6 @@
 {
-  "retention_days": 10
+  "retention_days": 10,
+  "suppressed_insights": [
+    "cpu-ccd-spread"
+  ]
 }

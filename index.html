@@ -6,7 +6,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#2b2e34" />
-  <title>Cosmic Pulse · Cities II</title>
+  <title>Cosmic Pulse</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
@@ -380,32 +380,6 @@
     }
     .core-label { text-align: center; font-size: .85rem; color: var(--muted); margin-top: 6px; font-weight: 500; }
     .chart-box { height: 400px; }
-    .dash-top {
-      display: grid;
-      grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr);
-      gap: 1.25rem;
-      align-items: stretch;
-    }
-    @media (max-width: 1280px) {
-      .dash-top { grid-template-columns: 1fr; }
-    }
-    .dash-top .summary-bar,
-    .dash-top #warningsSection {
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-      height: 100%;
-    }
-    .dash-top #warningsSection .warn-list {
-      flex: 1 1 auto;
-      min-height: 10rem;
-      max-height: min(36rem, 62vh);
-    }
-    @media (max-width: 1280px) {
-      .dash-top #warningsSection .warn-list {
-        max-height: min(42rem, 58vh);
-      }
-    }
     .summary-bar { padding: 1.15rem 1.3rem; }
     .sum-grid-scroll {
       overflow-x: auto;
@@ -469,7 +443,7 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       grid-template-areas:
-        "util temp bw league"
+        "util temp bw ."
         "spark spark cores glance"
         "stutter stutter stutter stutter";
       gap: .85rem;
@@ -478,18 +452,17 @@
     .viz-area-util { grid-area: util; }
     .viz-area-temp { grid-area: temp; }
     .viz-area-bw { grid-area: bw; }
-    .viz-area-league { grid-area: league; }
     .viz-area-spark { grid-area: spark; }
     .viz-area-cores { grid-area: cores; }
     .viz-area-glance { grid-area: glance; }
     .viz-area-stutter { grid-area: stutter; }
-    .viz-area-stutter .viz-block { min-height: 17.5rem; }
+    .viz-area-stutter .viz-block { min-height: 35rem; }
     @media (max-width: 1200px) {
       .viz-grid {
         grid-template-columns: repeat(2, 1fr);
         grid-template-areas:
           "util temp"
-          "bw league"
+          "bw ."
           "spark spark"
           "cores glance"
           "stutter stutter";
@@ -499,7 +472,7 @@
       .viz-grid {
         grid-template-columns: 1fr;
         grid-template-areas:
-          "util" "temp" "bw" "league" "spark" "cores" "glance" "stutter";
+          "util" "temp" "bw" "spark" "cores" "glance" "stutter";
       }
     }
     .viz-block {
@@ -526,6 +499,7 @@
     .metric-bar-val.temp { color: var(--purple); }
     .metric-bar-val.temp.warn { color: var(--amber); }
     .metric-bar-val.temp.hot { color: #ff8a7a; }
+    .metric-bar-val.temp.info { color: #8ec0ff; }
     .metric-bar-track {
       height: 12px; background: rgba(0,0,0,.38); border-radius: 99px; overflow: hidden;
       border: 1px solid rgba(255,255,255,.07);
@@ -546,6 +520,7 @@
     .metric-bar-track.temp > span { background: linear-gradient(90deg, #5a8fd4, var(--blue)); }
     .metric-bar-track.temp.warn > span { background: linear-gradient(90deg, #c49a3a, var(--amber)); box-shadow: 0 0 12px rgba(233,184,114,.4); }
     .metric-bar-track.temp.hot > span { background: linear-gradient(90deg, #c43d32, var(--hot)); box-shadow: 0 0 14px rgba(237,106,90,.5); }
+    .metric-bar-track.temp.info > span { background: linear-gradient(90deg, #4a6fa8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.25); }
     .metric-bar-sub { display: block; margin-top: .3rem; font-size: .8rem; color: var(--muted); }
     .spark-box { height: 140px; position: relative; }
     .core-strip {
@@ -557,11 +532,20 @@
       background: linear-gradient(180deg, var(--blue), var(--accent)); min-height: 3px;
       transition: height var(--meter-ease);
     }
-    .league-viz { display: grid; gap: .75rem; }
-    .league-score-row { display: flex; align-items: baseline; gap: .75rem; }
-    .league-big { font-size: 1.85rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
-    .viz-area-league .league-parts { gap: .45rem; }
-    .league-parts { display: grid; gap: .55rem; }
+    .league-panel { cursor: pointer; }
+    .league-panel:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+    .league-panel-meta {
+      margin: -.55rem 0 .85rem; font-size: .88rem; color: var(--text-secondary); line-height: 1.35;
+    }
+    .league-viz-grid {
+      display: grid;
+      grid-template-columns: minmax(11rem, 1fr) minmax(0, 2fr);
+      gap: .85rem;
+      align-items: stretch;
+    }
+    @media (max-width: 900px) {
+      .league-viz-grid { grid-template-columns: 1fr; }
+    }
     .sensor-strip {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
       gap: .45rem; margin-top: .85rem;
@@ -606,11 +590,34 @@
     .sensor-chip.hot .chip-val { color: #ff8a7a; }
     .sensor-chip.warn .chip-val { color: #f5c882; }
     .stutter-layout {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.1rem; flex: 1;
-      min-height: 14rem; align-items: stretch;
+      display: grid;
+      grid-template-columns: minmax(10.5rem, 1fr) minmax(13rem, 1.4fr) minmax(11rem, 1fr);
+      gap: 1rem 1.1rem; flex: 1; min-height: 28rem; align-items: stretch;
     }
-    @media (max-width: 900px) { .stutter-layout { grid-template-columns: 1fr; } }
-    .stutter-bars { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    @media (max-width: 1100px) {
+      .stutter-layout {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+          "drivers chart"
+          "summary summary";
+      }
+      .stutter-drivers { grid-area: drivers; }
+      .stutter-chart-col { grid-area: chart; }
+      .stutter-summary { grid-area: summary; }
+    }
+    @media (max-width: 700px) {
+      .stutter-layout { grid-template-columns: 1fr; grid-template-areas: "drivers" "chart" "summary"; }
+    }
+    .stutter-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: .55rem; }
+    .stutter-drivers { justify-content: flex-start; }
+    .stutter-driver-bars { flex: 1; gap: .85rem; }
+    .stutter-driver-bars .metric-bar-track { height: 12px; }
+    .stutter-chart-col { flex: 1; }
+    .stutter-chart-box {
+      flex: 1; min-height: 11.5rem; position: relative;
+      border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,.22);
+      padding: .45rem .55rem .25rem;
+    }
     .stutter-side-label {
       font-size: .68rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
       color: var(--muted); margin-bottom: .45rem;
@@ -623,7 +630,7 @@
     .metric-list-compact .metric-bar-sub {
       font-size: .68rem; margin-top: .15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .stutter-insight {
+    .stutter-summary {
       display: flex; flex-direction: column; gap: .62rem; min-width: 0; justify-content: flex-start;
     }
     .stutter-insight-top {
@@ -631,7 +638,7 @@
     }
     .stutter-gauge {
       --stutter-score: 0; --stutter-color: var(--green);
-      width: 6.25rem; height: 6.25rem; border-radius: 50%; position: relative; flex-shrink: 0;
+      width: 9rem; height: 9rem; border-radius: 50%; position: relative; flex-shrink: 0;
       background: conic-gradient(var(--stutter-color) calc(var(--stutter-score) * 1%), rgba(255,255,255,.07) 0);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
       transition: box-shadow .25s;
@@ -648,13 +655,13 @@
       justify-content: center; z-index: 1; line-height: 1.1;
     }
     .stutter-gauge-center .score {
-      font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
+      font-size: 1.75rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
     }
     .stutter-gauge-center .score.severe { color: #ff8a7a; }
     .stutter-gauge-center .score.moderate { color: #f5c882; }
     .stutter-gauge-center .score.mild { color: #8ec0ff; }
     .stutter-gauge-center .score.ok { color: var(--green); }
-    .stutter-gauge-center .smooth { font-size: .62rem; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+    .stutter-gauge-center .smooth { font-size: .72rem; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
     .stutter-kpis {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; min-width: 0;
     }
@@ -678,6 +685,45 @@
       display: block; margin-top: .12rem; font-size: .58rem; font-weight: 500;
       color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .game-perf-live { margin-bottom: 1.1rem; }
+    .game-perf-kpis {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+      gap: .55rem; margin: .65rem 0 .85rem;
+    }
+    .game-perf-kpi {
+      padding: .55rem .65rem; border-radius: 12px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--line);
+    }
+    .game-perf-kpi .k {
+      display: block; font-size: .62rem; font-weight: 600; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .game-perf-kpi .v {
+      display: block; margin-top: .18rem; font-size: 1.15rem; font-weight: 600; line-height: 1.1;
+    }
+    .game-perf-kpi .v.excellent { color: var(--green); }
+    .game-perf-kpi .v.good { color: #8fd49a; }
+    .game-perf-kpi .v.fair { color: #f5c882; }
+    .game-perf-kpi .v.poor { color: #ff9f7a; }
+    .game-perf-kpi .v.bad { color: #ff8a7a; }
+    .game-perf-kpi .s {
+      display: block; margin-top: .12rem; font-size: .58rem; color: var(--muted);
+    }
+    .game-perf-chart-box {
+      height: 200px; margin: .5rem 0 .75rem; padding: .45rem;
+      border-radius: 12px; background: rgba(0,0,0,.18); border: 1px solid var(--line);
+    }
+    .game-perf-chart-box-sm { height: 130px; }
+    .game-perf-history { margin-top: .5rem; }
+    .game-perf-history table { width: 100%; font-size: .78rem; }
+    .game-perf-markers {
+      display: flex; flex-wrap: wrap; gap: .35rem; margin: .45rem 0 .65rem;
+      font-size: .68rem; color: var(--muted);
+    }
+    .game-perf-marker {
+      padding: .2rem .45rem; border-radius: 99px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--line);
+    }
     .stutter-status {
       font-size: .72rem; font-weight: 500; color: var(--text-secondary); line-height: 1.3;
       padding: .15rem 0 .05rem;
@@ -691,7 +737,7 @@
       font-size: .66rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
     }
     .stutter-mix-bar {
-      display: flex; height: 11px; border-radius: 99px; overflow: hidden;
+      display: flex; height: 16px; border-radius: 99px; overflow: hidden;
       background: rgba(255,255,255,.06); border: 1px solid var(--line);
     }
     .stutter-mix-seg { min-width: 2px; transition: flex-grow var(--meter-ease); }
@@ -718,7 +764,7 @@
       letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
     }
     .stutter-timeline-track {
-      display: flex; gap: 2px; height: 38px; align-items: flex-end;
+      display: flex; gap: 3px; height: 5rem; align-items: flex-end;
     }
     .stutter-timeline-foot {
       display: flex; justify-content: space-between; align-items: center; gap: .5rem;
@@ -778,6 +824,11 @@
       overscroll-behavior: contain;
     }
     .metric-bar-track.stutter > span { background: linear-gradient(90deg, #7a5c9e, #ed6a5a); box-shadow: 0 0 12px rgba(180,142,173,.45); }
+    .metric-bar-track.stutter-faults > span { background: linear-gradient(90deg, #6a4f8e, #9b7ec8); box-shadow: 0 0 12px rgba(155,126,200,.4); }
+    .metric-bar-track.stutter-mem > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 12px rgba(98,160,234,.4); }
+    .metric-bar-track.stutter-io > span { background: linear-gradient(90deg, #3a9fad, #63d0de); box-shadow: 0 0 12px rgba(99,208,222,.35); }
+    .metric-bar-track.stutter-swap > span { background: linear-gradient(90deg, #b8863a, var(--amber)); box-shadow: 0 0 12px rgba(233,184,114,.35); }
+    .metric-bar-track.stutter-disk > span { background: linear-gradient(90deg, #c43d32, #ed6a5a); box-shadow: 0 0 12px rgba(237,106,90,.4); }
     .drill-stack { display: flex; flex-direction: column; gap: .65rem; }
     details.drill {
       border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel-solid);
@@ -852,6 +903,11 @@
     .warn-row.rec-hot { border-left-color: var(--hot); }
     .warn-row.rec-warn { border-left-color: var(--amber); }
     .warn-row.rec-info { border-left-color: var(--blue); }
+    .warn-hide {
+      font-size: .78rem; padding: .28rem .55rem; margin-left: .35rem;
+      color: var(--muted); border-color: var(--line); background: transparent;
+    }
+    .warn-hide:hover { color: var(--text); border-color: var(--text-secondary); }
     .warn-row.warn-row-session {
       border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
       background: color-mix(in srgb, var(--panel-solid) 92%, color-mix(in srgb, var(--accent) 8%, transparent));
@@ -1123,6 +1179,7 @@
     }
     #summaryBar [data-hw]:not([data-hw-keep]),
     #vizPanel [data-hw]:not([data-hw-keep]),
+    #leagueHeroRow [data-hw]:not([data-hw-keep]),
     #warningList .warn-row[data-hw] {
       overflow: hidden;
       transition:
@@ -1136,7 +1193,7 @@
     #vizPanel .metric-bar[data-hw] { max-height: 6.5rem; }
     #vizPanel .glance-cell[data-hw] { max-height: 5rem; }
     #vizPanel .core-strip[data-hw] { max-height: 5.5rem; }
-    #vizPanel .league-parts .metric-bar[data-hw] { max-height: 5.5rem; }
+    #leagueHeroRow .metric-bar[data-hw] { max-height: 6.5rem; }
     #summaryBar .sensor-chip[data-hw] { max-height: 3.5rem; }
     #warningList .warn-row[data-hw] { max-height: 20rem; }
     .hw-filtered-out {
@@ -1193,7 +1250,6 @@
 
   <main>
     <div id="pageDashboard" class="page active">
-    <div class="dash-top">
     <section class="card summary-bar section-target" id="summaryBar">
       <div class="rig-panel">
         <div class="rig-strip-scroll">
@@ -1240,7 +1296,7 @@
           <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
           <span class="sum-detail" id="sumGameSub">—</span>
         </button>
-        <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="drill-league" data-hw-keep>
+        <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="leagueHeroRow" data-hw-keep>
           <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">League</span></div>
           <div class="sum-body">
             <span class="sum-value" id="sumLeagueVal">—</span>
@@ -1256,19 +1312,31 @@
       <div class="sensor-strip" id="sensorStrip"></div>
     </section>
 
-    <section class="card section-target" id="warningsSection">
-      <div class="warn-panel-head">
-        <h2>Warnings</h2>
-        <span class="warn-session" id="warnGameCtx" hidden></span>
-      </div>
-      <p class="warn-meta" id="tuningMeta">Checking…</p>
-      <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
-      <div class="warn-list stable-scroll" id="warningList"></div>
-      <div class="warn-more" id="warnMoreFixes" hidden>
-        <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Guidance</button>
+    <section class="card viz-panel league-panel section-target" id="leagueHeroRow" data-hw-keep title="Click for full build comparison">
+      <h2 id="leagueHeroTitle">Rig league</h2>
+      <p class="league-panel-meta" id="leagueHeroSub">Are you maxing out your rig?</p>
+      <div class="league-viz-grid" id="leagueViz">
+        <div class="viz-block league-area-load" data-hw-keep>
+          <div class="viz-block-head">
+            <span class="hw-icon-box league" data-glyph="league"></span>
+            <h3>Rig load</h3>
+          </div>
+          <div class="viz-block-body">
+            <div class="metric-list" id="leagueLoadList"></div>
+            <div class="viz-empty-note league-hero-empty" id="leagueHeroEmpty" hidden>League data unavailable</div>
+          </div>
+        </div>
+        <div class="viz-block league-area-parts" data-hw-keep>
+          <div class="viz-block-head">
+            <span class="hw-icon-box cpu" data-glyph="cpu"></span>
+            <h3>Components</h3>
+          </div>
+          <div class="viz-block-body">
+            <div class="metric-list" id="leaguePartsList"></div>
+          </div>
+        </div>
       </div>
     </section>
-    </div>
 
     <section class="card viz-panel section-target" id="vizPanel">
       <h2>Live overview</h2>
@@ -1284,10 +1352,6 @@
         <div class="viz-block viz-area-bw">
           <div class="viz-block-head"><span class="hw-icon-box mem" data-glyph="storage"></span><h3>Bandwidth</h3></div>
           <div class="viz-block-body"><div class="metric-list" id="bwMeters"></div><div class="viz-empty-note" hidden></div></div>
-        </div>
-        <div class="viz-block viz-area-league">
-          <div class="viz-block-head"><span class="hw-icon-box league" data-glyph="league"></span><h3>Hardware league</h3></div>
-          <div class="viz-block-body"><div class="league-viz" id="leagueViz"></div><div class="viz-empty-note" hidden></div></div>
         </div>
         <div class="viz-block viz-area-spark">
           <div class="viz-block-head"><span class="hw-icon-box game" data-glyph="activity"></span><h3>Trend · last 5 minutes</h3></div>
@@ -1305,11 +1369,15 @@
           <div class="viz-block-head"><span class="hw-icon-box stutter" data-glyph="stutter"></span><h3>Stutter proxy · 1% low estimate</h3></div>
           <div class="viz-block-body">
             <div class="stutter-layout">
-              <div class="stutter-bars">
+              <div class="stutter-col stutter-drivers">
                 <div class="stutter-side-label">Hitch drivers</div>
-                <div class="metric-list metric-list-compact" id="stutterComponents"></div>
+                <div class="metric-list metric-list-compact stutter-driver-bars" id="stutterComponents"></div>
               </div>
-              <div class="stutter-insight" data-hw-keep>
+              <div class="stutter-col stutter-chart-col" data-hw-keep>
+                <div class="stutter-side-label">Score · last 5 min</div>
+                <div class="stutter-chart-box"><canvas id="stutterChart"></canvas></div>
+              </div>
+              <div class="stutter-col stutter-summary" data-hw-keep>
                 <div class="stutter-insight-top">
                   <div class="stutter-gauge" id="stutterGauge">
                     <div class="stutter-gauge-center">
@@ -1355,6 +1423,19 @@
             </div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="card section-target" id="warningsSection">
+      <div class="warn-panel-head">
+        <h2>Warnings</h2>
+        <span class="warn-session" id="warnGameCtx" hidden></span>
+      </div>
+      <p class="warn-meta" id="tuningMeta">Checking…</p>
+      <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
+      <div class="warn-list stable-scroll" id="warningList"></div>
+      <div class="warn-more" id="warnMoreFixes" hidden>
+        <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Guidance</button>
       </div>
     </section>
 
@@ -1477,9 +1558,26 @@
       </details>
 
       <details class="drill" id="drill-game" data-open-key="drill-game" data-hw="cpu gpu all">
-        <summary><span class="drill-title">Game processes</span><span class="drill-rollup" id="drillGameSum">—</span></summary>
+        <summary><span class="drill-title">Game performance</span><span class="drill-rollup" id="drillGameSum">—</span></summary>
         <div class="drill-body">
-          <p class="section-lead" id="gameProcLead">Main game executable and related Proton children.</p>
+          <div class="game-perf-live" id="gamePerfLive">
+            <p class="section-lead" id="gamePerfLead">Live session stats while a Steam game is running.</p>
+            <div class="game-perf-kpis" id="gamePerfKpis"></div>
+            <p class="section-lead" id="gamePerfTrendLead" style="margin:.35rem 0 .15rem">This session</p>
+            <div class="game-perf-chart-box"><canvas id="gamePerfChart"></canvas></div>
+            <p class="section-lead" style="margin:.5rem 0 .15rem">Past session ratings</p>
+            <div class="game-perf-chart-box game-perf-chart-box-sm"><canvas id="gamePerfSessionsChart"></canvas></div>
+            <div class="game-perf-markers" id="gamePerfMarkers"></div>
+            <div class="game-perf-history">
+              <h3 class="guidance-section-title" style="margin:.2rem 0 .45rem">Past sessions</h3>
+              <table>
+                <thead><tr><th>When</th><th>Rating</th><th>Smooth</th><th>1% low</th><th>Hitches</th><th>Duration</th></tr></thead>
+                <tbody id="gamePerfHistory"></tbody>
+              </table>
+            </div>
+          </div>
+          <h3 class="guidance-section-title" style="margin:1rem 0 .45rem">Processes</h3>
+          <p class="section-lead" id="gameProcLead">Main game executable and related children.</p>
           <table>
             <thead><tr><th>PID</th><th>Name</th><th>Role</th><th>CPU%</th><th>RAM MB</th></tr></thead>
             <tbody id="procBody"></tbody>
@@ -1650,15 +1748,28 @@
     let enabledBeforeFocus = null;
     let lastStatic = null;
     let lastLatest = null;
+    let lastComparison = null;
     let hwFocus = sessionStorage.getItem('pulse-hw-focus') || null;
     if (!['cpu', 'gpu', 'memory'].includes(hwFocus)) hwFocus = null;
     const HW_FOCUS_LABELS = { cpu: 'CPU', gpu: 'GPU', memory: 'Memory' };
+    const LEAGUE_HERO_TITLES = {
+      default: 'Rig league',
+      cpu: 'CPU league',
+      gpu: 'GPU league',
+      memory: 'Memory league',
+    };
+    const LEAGUE_HERO_SUBS = {
+      default: 'Are you maxing out your rig?',
+      cpu: 'How hard your CPU is working right now',
+      gpu: 'How hard your GPU is working right now',
+      memory: 'How much memory pressure you have right now',
+    };
+
     const HW_FOCUS_SUM_CELLS = { cpu: 'sumCpuCell', gpu: 'sumGpuCell', memory: 'sumMemCell' };
     const VIZ_BLOCK_TITLES = {
       'viz-area-util': { default: 'Utilization', cpu: 'CPU utilization', gpu: 'GPU utilization', memory: 'Memory utilization' },
       'viz-area-temp': { default: 'Temperatures', cpu: 'CPU temperatures', gpu: 'GPU temperatures', memory: 'Memory temperatures' },
       'viz-area-bw': { default: 'Bandwidth', cpu: 'CPU bandwidth', gpu: 'GPU bandwidth', memory: 'Memory bandwidth' },
-      'viz-area-league': { default: 'Hardware league', cpu: 'CPU league', gpu: 'GPU league', memory: 'Memory league' },
       'viz-area-spark': { default: 'Trend · last 5 minutes', cpu: 'Trend · CPU & memory', gpu: 'Trend · GPU', memory: 'Trend · memory' },
       'viz-area-cores': { default: 'CPU cores', cpu: 'CPU cores', gpu: 'CPU cores', memory: 'CPU cores' },
       'viz-area-glance': { default: 'Power & cooling', cpu: 'CPU thermals', gpu: 'GPU power', memory: 'Power & cooling' },
@@ -1673,7 +1784,6 @@
       'viz-area-util': { default: 'cpu', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
       'viz-area-temp': { default: 'temp', cpu: 'cpu', gpu: 'gpu', memory: 'temp' },
       'viz-area-bw': { default: 'storage', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
-      'viz-area-league': { default: 'league', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
       'viz-area-spark': { default: 'activity', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
       'viz-area-cores': { default: 'cpu' },
       'viz-area-glance': { default: 'fan', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
@@ -1692,6 +1802,7 @@
       'ram-expo-verify': ['memory'],
       'gpu-thermal-ceiling': ['gpu'],
       'gpu-thermal-warm': ['gpu'],
+      'gpu-thermal-by-design': ['gpu'],
       'gpu-vram-bandwidth': ['gpu'],
       'gpu-vram-full': ['gpu'],
       'gpu-gtt-churn': ['gpu'],
@@ -1750,6 +1861,74 @@
         scales: {
           x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 10 } }, grid: { color: gridColor } },
           y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 10 }, callback: v => v + '%' }, grid: { color: gridColor } },
+        },
+      },
+    });
+    const stutterChartOpts = {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true, position: 'bottom',
+          labels: { color: tickColor, font: { family: 'Inter', size: 10 }, boxWidth: 10, padding: 10 },
+        },
+        tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
+      },
+      scales: {
+        x: { ticks: { color: tickColor, maxTicksLimit: 5, font: { size: 9 } }, grid: { color: gridColor } },
+        y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 }, callback: v => v }, grid: { color: gridColor } },
+      },
+    };
+    const stutterChart = new Chart(document.getElementById('stutterChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: stutterChartOpts,
+    });
+    const gamePerfChartOpts = {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true, position: 'bottom',
+          labels: { color: tickColor, font: { family: 'Inter', size: 10 }, boxWidth: 10, padding: 8 },
+        },
+        tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
+      },
+      scales: {
+        x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 } }, grid: { color: gridColor } },
+        y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 } }, grid: { color: gridColor } },
+      },
+    };
+    const gamePerfChart = new Chart(document.getElementById('gamePerfChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: gamePerfChartOpts,
+    });
+    const gamePerfSessionsChart = new Chart(document.getElementById('gamePerfSessionsChart'), {
+      type: 'bar',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#404349',
+            callbacks: {
+              afterLabel(ctx) {
+                const s = ctx.dataset.sessionMeta?.[ctx.dataIndex];
+                if (!s) return '';
+                return [
+                  `Smooth ${s.smoothness_avg ?? '—'}%`,
+                  `1% low ~${s.hitch_ms_1pct ?? '—'}ms`,
+                  `${s.hitch_events ?? 0} hitches`,
+                ];
+              },
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 } }, grid: { color: gridColor } },
+          y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 } }, grid: { color: gridColor } },
         },
       },
     });
@@ -1829,20 +2008,35 @@
     function gpuThermalProf() {
       return lastStatic?.gpu_thermal || lastLatest?.gpu?.discrete?.thermal_profile || {};
     }
+    function gpuThermalState() {
+      return lastLatest?.gpu?.discrete?.thermal_state || {};
+    }
     function gpuJuncUiClass(junc) {
       const tp = gpuThermalProf();
+      const ts = gpuThermalState();
+      if (junc == null) return '';
+      if (ts.throttling) return ' hot';
+      if (ts.by_design) return ' info';
       const hot = tp.hot_c ?? 100;
       const warm = tp.warm_c;
-      if (junc == null) return '';
       if (junc >= hot) return ' hot';
       if (warm != null && junc >= warm) return ' warn';
       return '';
     }
     function gpuJuncValCls(junc) {
       const ui = gpuJuncUiClass(junc);
-      return ui === ' hot' ? 'temp hot' : ui === ' warn' ? 'temp warn' : 'temp';
+      if (ui === ' hot') return 'temp hot';
+      if (ui === ' warn') return 'temp warn';
+      if (ui === ' info') return 'temp info';
+      return 'temp';
     }
     function gpuJuncTrackCls(junc) { return gpuJuncValCls(junc); }
+    function suppressedInsights() {
+      return lastStatic?.suppressed_insights || [];
+    }
+    function isInsightSuppressed(iid) {
+      return iid && suppressedInsights().includes(iid);
+    }
     function gpuTempPct(junc) {
       const throttle = gpuThermalProf().throttle_c ?? 110;
       return junc == null ? 0 : Math.min(100, (junc / throttle) * 100);
@@ -2378,6 +2572,7 @@
     document.querySelectorAll('.sum-cell[data-drill]').forEach(btn => {
       btn.onclick = () => jumpTo(btn.dataset.drill);
     });
+    document.getElementById('leagueHeroRow')?.addEventListener('click', () => jumpTo('drill-league'));
     setTab(activeTab);
 
     function renderBacklog(items) {
@@ -2499,7 +2694,8 @@
     function renderSummaryBar(l, hints, comparison) {
       const c = l.cpu, m = l.memory, g = l.gpu.discrete, bw = l.bandwidth || {};
       const gt = l.game_totals;
-      const active = (hints || []).filter(h => h.active !== false);
+      const suppressed = suppressedInsights();
+      const active = (hints || []).filter(h => h.active !== false && !suppressed.includes(h.insight_id));
       const healthHints = hwFocus ? active.filter(h => hintVisibleForFocus(h)) : active;
       const counts = { hot: 0, warn: 0, info: 0 };
       healthHints.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
@@ -2593,9 +2789,18 @@
       document.getElementById('drillLeagueSum').textContent =
         `Score ${comparison ? leagueIdx : '—'}/100 · ${comparison?.composite_rank ?? '—'} · CPU ${comparison?.cpu?.tier_rank ?? '—'}`;
 
+      const gp = l.game_performance;
+      let ratingTxt = null;
+      if (gp?.active && gp.recording) ratingTxt = `${gp.rating ?? '—'}/100`;
+      else if (gp?.active && gp.phase === 'loading') ratingTxt = `load ${Math.ceil(gp.load_remaining_sec ?? 0)}s`;
+      else if (!gp?.active && gp?.last_session?.rating != null) {
+        ratingTxt = `last ${gp.last_session.rating}/100`;
+      }
       document.getElementById('drillGameSum').textContent = gt?.running
-        ? `${gt.primary_name || gt.game_name} · ${gt.proc_count} procs · ${gt.cpu_pct}% CPU`
-        : 'No game running';
+        ? `${gt.primary_name || gt.game_name} · ${ratingTxt ? `rating ${ratingTxt}` : '…'} · ${gt.cpu_pct}% CPU`
+        : (gp?.last_session
+          ? `${gp.last_session.game_name || gameLabel(gp.last_session.game_id)} · ${ratingTxt || 'done'}`
+          : 'No game running');
     }
 
     const UTIL_SPECS = [
@@ -2620,11 +2825,11 @@
       { id: 'dram-psi', label: 'Memory stall', icon: 'cpu', cls: 'mem', hw: 'memory' },
     ];
     const STUTTER_COMP_SPECS = [
-      { id: 'major_faults', label: 'Page faults', cls: 'stutter', hw: 'cpu memory' },
-      { id: 'mem_stall', label: 'Mem stall', cls: 'stutter', hw: 'memory' },
-      { id: 'io_stall', label: 'I/O stall', cls: 'stutter', hw: 'cpu memory' },
-      { id: 'swap', label: 'Swap', cls: 'stutter', hw: 'memory' },
-      { id: 'disk_spike', label: 'Disk spike', cls: 'stutter', hw: 'memory' },
+      { id: 'major_faults', label: 'Page faults', cls: 'stutter-faults', hw: 'cpu memory' },
+      { id: 'mem_stall', label: 'Mem stall', cls: 'stutter-mem', hw: 'memory' },
+      { id: 'io_stall', label: 'I/O stall', cls: 'stutter-io', hw: 'cpu memory' },
+      { id: 'swap', label: 'Swap', cls: 'stutter-swap', hw: 'memory' },
+      { id: 'disk_spike', label: 'Disk spike', cls: 'stutter-disk', hw: 'memory' },
     ];
     const STUTTER_CAUSE_LABELS = {
       major_faults: 'Major page faults',
@@ -2717,39 +2922,20 @@
       const cut = rawHistory.filter(h => h.ts >= last - 300);
       const { labels, points } = bucketize(cut, 5);
       const structKey = `spark|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}`;
-      const stutterRaw = points.map(p => {
-        const slice = Array.isArray(p) ? p : [p];
-        return avg(slice, h => h.stutter?.score ?? 0);
-      });
-      const stutterLine = smoothChartSeries(`${structKey}:stutter`, stutterRaw);
-      const eventPoints = [];
-      points.forEach((p, i) => {
-        const slice = Array.isArray(p) ? p : [p];
-        if (slice.some(h => h.stutter?.event)) {
-          eventPoints.push({ x: labels[i], y: stutterLine[i] });
-        }
-      });
       const sparkDefs = [
         { key: 'cpu', label: 'CPU', pick: p => avg(p, h => h.cpu.overall_pct), color: CHART.cpu, focus: ['cpu'] },
         { key: 'gpu', label: 'GPU', pick: p => avg(p, h => h.gpu.discrete.busy_pct ?? 0), color: CHART.gpu, focus: ['gpu'] },
         { key: 'ram', label: 'RAM', pick: p => avg(p, h => h.memory.pct), color: CHART.ram, focus: ['memory'] },
-        { key: 'stutter', label: 'Hitch score', data: stutterLine, color: '#b48ead', dash: true, fill: false, focus: ['cpu', 'memory'] },
-        { key: 'events', type: 'scatter', label: 'Hitch event', data: eventPoints, color: '#ed6a5a', focus: ['cpu', 'memory'] },
       ];
-      const activeSpark = sparkDefs.filter(d =>
-        !hwFocus || d.focus.includes(hwFocus) || d.key === 'stutter' && (hwFocus === 'cpu' || hwFocus === 'memory')
-      );
+      const activeSpark = sparkDefs.filter(d => !hwFocus || d.focus.includes(hwFocus));
       const newDatasets = activeSpark.map(d => {
-        if (d.type === 'scatter') {
-          return { type: 'scatter', label: d.label, data: d.data, borderColor: d.color, backgroundColor: d.color, pointRadius: 5, pointStyle: 'triangle', yAxisID: 'y', showLine: false };
-        }
-        const raw = d.data ?? points.map(p => d.pick(p));
-        const data = d.key === 'stutter' ? raw : smoothChartSeries(`${structKey}:${d.key}`, raw);
+        const raw = points.map(p => d.pick(p));
+        const data = smoothChartSeries(`${structKey}:${d.key}`, raw);
         return {
           label: d.label, data, borderColor: d.color,
-          backgroundColor: d.fill === false ? 'rgba(180,142,173,.12)' : d.color + '18',
-          fill: d.fill !== false, tension: .35, pointRadius: 0,
-          borderWidth: d.dash ? 2.5 : 2, borderDash: d.dash ? [5, 4] : undefined, yAxisID: 'y',
+          backgroundColor: d.color + '18',
+          fill: true, tension: .35, pointRadius: 0,
+          borderWidth: 2, yAxisID: 'y',
         };
       });
       if (structKey === sparkChart._pulseStructKey && sparkChart.data.datasets.length === newDatasets.length) {
@@ -2760,6 +2946,64 @@
         sparkChart.data.datasets = newDatasets;
       }
       sparkChart.update('none');
+    }
+
+    function renderStutterChart() {
+      const last = rawHistory.at(-1)?.ts ?? 0;
+      const cut = rawHistory.filter(h => h.ts >= last - 300);
+      const { labels, points } = bucketize(cut, 5);
+      const structKey = `stutter|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}`;
+      const scoreRaw = points.map(p => {
+        const slice = Array.isArray(p) ? p : [p];
+        return avg(slice, h => h.stutter?.score ?? 0);
+      });
+      const scoreLine = smoothChartSeries(`${structKey}:score`, scoreRaw);
+      const estRaw = points.map(p => {
+        const slice = Array.isArray(p) ? p : [p];
+        return avg(slice, h => h.stutter?.est_ms ?? 0);
+      });
+      const estLine = smoothChartSeries(`${structKey}:est`, estRaw);
+      const eventPoints = [];
+      points.forEach((p, i) => {
+        const slice = Array.isArray(p) ? p : [p];
+        if (slice.some(h => h.stutter?.event)) {
+          eventPoints.push({ x: labels[i], y: scoreLine[i] });
+        }
+      });
+      const newDatasets = [
+        {
+          label: 'Hitch score', data: scoreLine, borderColor: '#b48ead',
+          backgroundColor: 'rgba(180,142,173,.14)', fill: true, tension: .35,
+          pointRadius: 0, borderWidth: 2.5, yAxisID: 'y',
+        },
+        {
+          label: 'Est. ms', data: estLine, borderColor: '#ed6a5a',
+          backgroundColor: 'transparent', fill: false, tension: .35,
+          pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y1',
+        },
+        {
+          type: 'scatter', label: 'Hitch event', data: eventPoints,
+          borderColor: '#ff8a7a', backgroundColor: '#ff8a7a',
+          pointRadius: 5, pointStyle: 'triangle', yAxisID: 'y', showLine: false,
+        },
+      ];
+      if (!stutterChart.options.scales.y1) {
+        stutterChart.options.scales.y1 = {
+          position: 'right', min: 0, max: 120,
+          ticks: { color: tickColor, font: { size: 9 }, callback: v => v + 'ms' },
+          grid: { drawOnChartArea: false },
+        };
+      }
+      const peakEst = Math.max(40, ...estLine.filter(v => v > 0));
+      stutterChart.options.scales.y1.max = Math.ceil(peakEst / 20) * 20 + 20;
+      if (structKey === stutterChart._pulseStructKey && stutterChart.data.datasets.length === newDatasets.length) {
+        newDatasets.forEach((ds, i) => { stutterChart.data.datasets[i].data = ds.data; });
+      } else {
+        stutterChart._pulseStructKey = structKey;
+        stutterChart.data.labels = labels;
+        stutterChart.data.datasets = newDatasets;
+      }
+      stutterChart.update('none');
     }
 
     const STUTTER_SEV_WORD = { severe: 'Severe', moderate: 'Moderate', mild: 'Mild', none: 'Smooth' };
@@ -2938,9 +3182,10 @@
         else if (s.id === 'io_stall') sub = `I/O ${dram.psi_io_avg10 ?? 0}%`;
         else if (s.id === 'swap') sub = `↓${dram.swap_in_kbps ?? 0} ↑${dram.swap_out_kbps ?? 0}`;
         else if (s.id === 'disk_spike') sub = `W ${l.disk?.write_mbps ?? 0} MB/s`;
-        setMetricBar('stutterComponents', s.id, v, `${Math.round(v)}`, sub, '', 'stutter');
+        setMetricBar('stutterComponents', s.id, v, `${Math.round(v)}`, sub, '', s.cls);
       });
 
+      renderStutterChart();
       renderStutterMix(comp, st.causes);
       renderStutterTimeline(sess);
 
@@ -2976,78 +3221,122 @@
       });
     }
 
+    const LEAGUE_LOAD_SPECS = [
+      { id: 'rig-load', label: 'Rig load', icon: 'league', cls: 'league' },
+    ];
+    const LEAGUE_PART_SPECS = [
+      { id: 'league-cpu', label: 'CPU', icon: 'cpu', cls: 'cpu', hw: 'cpu' },
+      { id: 'league-gpu', label: 'GPU', icon: 'gpu', cls: 'gpu', hw: 'gpu' },
+      { id: 'league-ram', label: 'RAM', icon: 'ram', cls: 'mem', hw: 'memory' },
+    ];
+
+    function leagueValCls(loadPct) {
+      if (loadPct >= 86) return 'temp hot';
+      if (loadPct >= 71) return 'gpu';
+      if (loadPct >= 46) return 'temp warn';
+      return '';
+    }
+
+    function compositeVs(c, key) {
+      const vals = [c.cpu, c.gpu, c.memory].map(p => p?.[key]).filter(v => v != null && !isNaN(v));
+      if (!vals.length) return null;
+      return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    }
+
+    function leagueLoadStatus(pct) {
+      if (pct >= 86) return { word: 'Maxed out', cls: 'severe' };
+      if (pct >= 71) return { word: 'Pushed hard', cls: 'hot' };
+      if (pct >= 46) return { word: 'Working hard', cls: 'warn' };
+      if (pct >= 18) return { word: 'Light load', cls: 'ok' };
+      return { word: 'Mostly idle', cls: 'ok' };
+    }
+
+    function leagueHeadroomPct(loadPct, partHeadroom) {
+      if (partHeadroom != null && !isNaN(partHeadroom)) return Math.round(partHeadroom);
+      return Math.max(0, Math.round(100 - loadPct));
+    }
+
+    function updateLeagueHeroTitle() {
+      const title = document.getElementById('leagueHeroTitle');
+      const sub = document.getElementById('leagueHeroSub');
+      const focus = hwFocus || 'default';
+      if (title) {
+        const next = LEAGUE_HERO_TITLES[focus] || LEAGUE_HERO_TITLES.default;
+        if (title.textContent !== next) title.textContent = next;
+      }
+      if (sub) {
+        const nextSub = LEAGUE_HERO_SUBS[focus] || LEAGUE_HERO_SUBS.default;
+        if (sub.textContent !== nextSub) sub.textContent = nextSub;
+      }
+    }
+
     function renderLeagueViz(c) {
-      const el = document.getElementById('leagueViz');
+      const gridEl = document.getElementById('leagueViz');
+      const emptyEl = document.getElementById('leagueHeroEmpty');
+      const loadBlock = document.querySelector('.league-area-load');
+      if (!gridEl) return;
+
+      const partsBlock = document.querySelector('.league-area-parts');
       if (!c) {
-        el.innerHTML = '<div class="sub">League data unavailable</div>';
+        if (emptyEl) emptyEl.hidden = false;
+        if (loadBlock) loadBlock.classList.add('noc-hw-empty');
+        if (partsBlock) partsBlock.classList.add('hw-filtered-hidden');
         return;
       }
-      if (el.dataset.hwVer !== '3') {
-        el.innerHTML = '';
-        delete el.dataset.init;
-        el.dataset.hwVer = '3';
-      }
-      if (!el.dataset.init) {
-        el.innerHTML = `
-          <div class="league-score-row" data-hw-keep>
-            <span class="league-big" id="leagueBig">—</span>
-            <span class="rank-badge" id="leagueBadge">—</span>
-          </div>
-          <div class="metric-bar" data-hw-keep>
-            <div class="metric-bar-head"><span class="metric-bar-label" id="leagueSessionLabel">Session load</span><span class="metric-bar-val" id="leagueSessionVal">—</span></div>
-            <div class="metric-bar-track league"><span id="leagueSessionBar" style="width:0%"></span></div>
-          </div>
-          <div class="league-parts" id="leagueParts"></div>`;
-        el.dataset.init = '1';
-      }
+      if (emptyEl) emptyEl.hidden = true;
+      if (loadBlock) loadBlock.classList.remove('noc-hw-empty');
+      if (partsBlock) partsBlock.classList.remove('hw-filtered-hidden');
+
+      ensureMetricList('leagueLoadList', LEAGUE_LOAD_SPECS);
+      ensureMetricList('leaguePartsList', LEAGUE_PART_SPECS);
+      syncMetricHwTags('leaguePartsList', LEAGUE_PART_SPECS);
+
       const sessionIdx = smoothDisplayPct('session-index', c.session_index);
-      const sessionLabel = document.getElementById('leagueSessionLabel');
+      const vsAvg = compositeVs(c, 'vs_avg_pct');
+      const vsEnth = compositeVs(c, 'vs_enthusiast_pct');
+      let loadPct = sessionIdx;
+      let loadLabel = 'Rig load';
+      let loadSub = '';
+      let loadTrack = 'league';
+      let loadValCls = leagueValCls(sessionIdx);
+
       if (hwFocus && c[hwFocus === 'memory' ? 'memory' : hwFocus]) {
         const part = c[hwFocus === 'memory' ? 'memory' : hwFocus];
         const live = hwFocus === 'memory' ? part.live_pressure_pct : part.live_pct;
         const liveS = smoothDisplayPct(`league-head-${hwFocus}`, live ?? 0);
-        document.getElementById('leagueBig').textContent = `${liveS}%`;
-        setTierBadge(document.getElementById('leagueBadge'), part.tier_rank);
-        if (sessionLabel) sessionLabel.textContent = `${HW_FOCUS_LABELS[hwFocus]} tier`;
-        document.getElementById('leagueSessionVal').textContent = `${part.tier_score ?? '—'}/100`;
-        setMeterWidth(document.getElementById('leagueSessionBar'), part.tier_score ?? 0);
+        loadPct = liveS;
+        loadLabel = `${HW_FOCUS_LABELS[hwFocus]} load`;
+        loadTrack = hwFocus === 'memory' ? 'mem' : hwFocus;
+        loadValCls = hwFocus === 'cpu' ? 'cpu' : hwFocus === 'gpu' ? 'gpu' : 'mem';
+        const headroom = leagueHeadroomPct(liveS, hwFocus === 'cpu' ? part.headroom_pct : null);
+        const status = leagueLoadStatus(liveS);
+        loadSub = `${status.word} · ${part.tier_rank}-grade · ${headroom}% headroom`;
       } else {
-        document.getElementById('leagueBig').textContent = `${sessionIdx}/100`;
-        setTierBadge(document.getElementById('leagueBadge'), c.composite_rank);
-        if (sessionLabel) sessionLabel.textContent = 'Session load';
-        document.getElementById('leagueSessionVal').textContent = `${sessionIdx}%`;
-        setMeterWidth(document.getElementById('leagueSessionBar'), sessionIdx);
+        const status = leagueLoadStatus(sessionIdx);
+        loadSub = `${status.word} · ${c.composite_rank}-tier build · ${leagueHeadroomPct(sessionIdx)}% headroom · index ${Math.round(sessionIdx)}`;
       }
-      const parts = [
-        { label: 'CPU', icon: 'cpu', track: 'cpu', hw: 'cpu', tier: c.cpu?.tier_rank, score: c.cpu?.tier_score, live: c.cpu?.live_pct },
-        { label: 'GPU', icon: 'gpu', track: 'gpu', hw: 'gpu', tier: c.gpu?.tier_rank, score: c.gpu?.tier_score, live: c.gpu?.live_pct },
-        { label: 'RAM', icon: 'ram', track: 'mem', hw: 'memory', tier: c.memory?.tier_rank, score: c.memory?.tier_score, live: c.memory?.live_pressure_pct },
-      ];
-      const partsEl = document.getElementById('leagueParts');
-      if (partsEl.dataset.hwVer !== '3') {
-        delete partsEl.dataset.init;
-        partsEl.dataset.hwVer = '3';
+      const refBits = [
+        vsAvg != null ? `vs avg ${vsFmt(vsAvg)}` : null,
+        vsEnth != null ? `vs enth ${vsFmt(vsEnth)}` : null,
+      ].filter(Boolean);
+      if (refBits.length) loadSub = `${loadSub} · ${refBits.join(' · ')}`;
+
+      const loadRow = document.querySelector('#leagueLoadList [data-mid="rig-load"]');
+      if (loadRow) {
+        const labelEl = loadRow.querySelector('.metric-bar-label');
+        if (labelEl) labelEl.innerHTML = metricLabelHtml({ ...LEAGUE_LOAD_SPECS[0], label: loadLabel });
       }
-      if (!partsEl.dataset.init) {
-        partsEl.innerHTML = parts.map(p => `
-          <div class="metric-bar" data-lpart="${p.label}" data-hw="${p.hw}">
-            <div class="metric-bar-head">
-              <span class="metric-bar-label hw-row">${hwIcon(p.icon, 'hw-part-glyph')}${p.label} · <span data-lpart-tier></span></span>
-              <span class="metric-bar-val" data-lpart-live>—</span>
-            </div>
-            <div class="metric-bar-track ${p.track}" data-lpart-track><span data-lpart-fill style="width:0%"></span></div>
-            <span class="metric-bar-sub" data-lpart-sub>—</span>
-          </div>`).join('');
-        partsEl.dataset.init = '1';
-      }
-      parts.forEach(p => {
-        const row = partsEl.querySelector(`[data-lpart="${p.label}"]`);
-        if (!row) return;
-        setTierBadge(row.querySelector('[data-lpart-tier]'), p.tier ?? '—', false);
-        const livePct = smoothDisplayPct(`league-live-${p.label}`, p.live ?? 0);
-        row.querySelector('[data-lpart-live]').textContent = `${livePct}% live`;
-        row.querySelector('[data-lpart-sub]').textContent = `Tier score ${p.score ?? '—'}/100`;
-        setMeterWidth(row.querySelector('[data-lpart-fill]'), p.score ?? 0);
+      setMetricBar('leagueLoadList', 'rig-load', loadPct, `${Math.round(loadPct)}%`, loadSub, loadValCls, loadTrack);
+
+      LEAGUE_PART_SPECS.forEach(spec => {
+        const part = spec.hw === 'memory' ? c.memory : c[spec.hw];
+        if (!part) return;
+        const livePct = smoothDisplayPct(
+          `league-live-${spec.id}`,
+          spec.hw === 'memory' ? part.live_pressure_pct : part.live_pct,
+        );
+        const sub = `${part.tier_rank}-tier · vs enth ${vsFmt(part.vs_enthusiast_pct)}`;
+        setMetricBar('leaguePartsList', spec.id, livePct, `${Math.round(livePct)}%`, sub, spec.cls === 'cpu' ? 'cpu' : spec.cls === 'gpu' ? 'gpu' : 'mem', spec.cls);
       });
     }
 
@@ -3448,7 +3737,7 @@
     }
 
     function applyHwFilterClasses() {
-      document.querySelectorAll('#summaryBar [data-hw], #vizPanel [data-hw]').forEach(el => {
+      document.querySelectorAll('#summaryBar [data-hw], #vizPanel [data-hw], #leagueHeroRow [data-hw]').forEach(el => {
         setHwFilterVisible(el, hwItemVisible(el));
       });
     }
@@ -3617,6 +3906,7 @@
         }
       }
       updateVizTitles();
+      updateLeagueHeroTitle();
       applyChartFocus();
       applyHwFilterClasses();
       updateWarningsFocusUI();
@@ -3776,13 +4066,18 @@
     function gameLabel(id) {
       const cat = lastStatic?.games_catalog?.[id];
       if (cat?.short) return cat.short;
-      return id === 'cities2' ? 'Cities II' : id === 'counterstrike2' ? 'CS2' : id || 'Game';
+      if (cat?.name) return cat.name;
+      if (id && /^\d+$/.test(id)) return `App ${id}`;
+      return id || 'Game';
     }
 
     const WARN_WIDGET_MAX = 10;
 
     function warningsForDisplay(hints) {
-      return (hints || []).filter(h => h.active !== false && h.level !== 'ok');
+      const suppressed = suppressedInsights();
+      return (hints || []).filter(h =>
+        h.active !== false && h.level !== 'ok' && !suppressed.includes(h.insight_id),
+      );
     }
 
     function warningPriority(h) {
@@ -3981,14 +4276,34 @@
       const hwTags = hintHwFocus(h).join(' ');
       const sessionCls = lastActiveGameId && hintForActiveGame(h, lastActiveGameId) ? ' warn-row-session' : '';
       const game = gameTag(h);
+      const hideBtn = lv === 'info'
+        ? `<button class="btn warn-hide" type="button" data-hide-iid="${esc(sid)}" title="Hide from warnings">Hide</button>`
+        : '';
       return `<div class="warn-row rec-${lv}${sessionCls}" data-iid="${esc(sid)}" data-hw="${esc(hwTags)}" id="warn-${domId}">
         <div class="warn-row-top">
           <div class="warn-row-badges">${sevBadge(lv, SEV_LABEL[lv] || lv)}${game}</div>
           <h4 class="warn-title">${esc(h.title)}</h4>
-          <button class="btn warn-go" type="button" data-goto-fix="${esc(sid)}">See Details</button>
+          <button class="btn warn-go" type="button" data-goto-fix="${esc(sid)}">See Details</button>${hideBtn}
         </div>
         <p class="warn-text">${esc(h.text)}</p>
       </div>`;
+    }
+
+    async function suppressInsight(insightId) {
+      if (!insightId) return;
+      try {
+        const res = await fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ suppress_insight: insightId }),
+        });
+        const data = await res.json();
+        if (!data.ok) return;
+        if (lastStatic) lastStatic.suppressed_insights = data.suppressed_insights || [];
+        renderWarnings(lastWarningsHints);
+        renderSummaryBar(lastLatest, lastWarningsHints, lastComparison);
+        updateWarningsFocusUI();
+      } catch (_) { /* ignore */ }
     }
 
     function bindWarningActions(list) {
@@ -3996,6 +4311,12 @@
         btn.onclick = () => {
           const sid = btn.dataset.gotoFix;
           setTab('fixes', `insight-${sid}`);
+        };
+      });
+      document.querySelectorAll('.warn-hide[data-hide-iid]').forEach(btn => {
+        btn.onclick = e => {
+          e.stopPropagation();
+          suppressInsight(btn.dataset.hideIid);
         };
       });
     }
@@ -4170,6 +4491,263 @@
       });
     }
 
+    const RATING_TIER_LABEL = {
+      excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', bad: 'Bad',
+    };
+
+    function fmtDuration(sec) {
+      if (!sec || sec < 60) return `${Math.round(sec || 0)}s`;
+      const m = Math.floor(sec / 60);
+      const s = Math.round(sec % 60);
+      return s ? `${m}m ${s}s` : `${m}m`;
+    }
+
+    let gameSessionsCache = null;
+    let gameSessionsKey = '';
+    let gameSessionsTick = 0;
+    let lastSeenSessionEnd = 0;
+
+    function resolveLastSession(gp, gid) {
+      const cached = (gameSessionsCache?.sessions || []).find(s => s.game_id === gid)
+        || gameSessionsCache?.sessions?.[0];
+      if (!gid) return gp?.last_session || cached || null;
+      if (gp?.last_session?.game_id === gid) return gp.last_session;
+      if (cached?.game_id === gid) return cached;
+      return gp?.last_session || cached || null;
+    }
+
+    function applyGamePerfTrendChart(trend, title) {
+      const lead = document.getElementById('gamePerfTrendLead');
+      const points = trend || [];
+      gamePerfChart.data.labels = points.map(p => fmtTime(p.ts));
+      gamePerfChart.data.datasets = [
+        {
+          label: 'Smooth %',
+          data: points.map(p => p.smoothness ?? null),
+          borderColor: CHART.gameCpu || '#6fcf97',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+        },
+        {
+          label: 'Stutter',
+          data: points.map(p => p.stutter_score ?? null),
+          borderColor: '#f5c882',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+        },
+        {
+          label: 'Game CPU',
+          data: points.map(p => p.game_cpu ?? null),
+          borderColor: CHART.cpu,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.2,
+        },
+      ];
+      gamePerfChart.update('none');
+      if (lead) lead.textContent = title;
+    }
+
+    function renderGamePerfKpis(gp, gt, st) {
+      const el = document.getElementById('gamePerfKpis');
+      const lead = document.getElementById('gamePerfLead');
+      if (!gp?.active) {
+        const gid = gp?.last_session?.game_id || lastActiveGameId;
+        const last = resolveLastSession(gp, gid);
+        if (last?.rating != null) {
+          const tier = last.rating_tier || 'fair';
+          if (lead) {
+            lead.textContent = `Last session — ${last.game_name || gameLabel(last.game_id)} · ended ${fmtStoreSpan(last.ended_ts)}`;
+          }
+          el.innerHTML = [
+            { k: 'Rating', v: last.rating, s: RATING_TIER_LABEL[tier] || tier, cls: tier },
+            { k: 'Smooth', v: `${last.smoothness_avg ?? '—'}%`, s: fmtDuration(last.duration_sec), cls: '' },
+            { k: '1% low', v: `${last.hitch_ms_1pct ?? '—'}ms`, s: `${last.hitch_events ?? 0} hitches`, cls: '' },
+            { k: 'Game CPU', v: `${last.game_cpu_avg ?? '—'}%`, s: 'session avg', cls: '' },
+            { k: 'GPU', v: `${last.gpu_busy_avg ?? '—'}%`, s: 'session avg', cls: '' },
+          ].map(it =>
+            `<div class="game-perf-kpi"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.v}</span><span class="s">${it.s}</span></div>`
+          ).join('');
+          return;
+        }
+        if (lead) lead.textContent = 'Launch a Steam game — live rating and session history appear here.';
+        el.innerHTML = '<div class="game-perf-kpi"><span class="k">Status</span><span class="v">Idle</span><span class="s">No active session</span></div>';
+        return;
+      }
+      if (!gp.recording) {
+        const remain = Math.ceil(gp.load_remaining_sec ?? 0);
+        if (lead) {
+          lead.textContent = `${gp.game_name || gt?.game_name || 'Game'} detected — waiting for load (${remain}s). Stats start after the grace period.`;
+        }
+        el.innerHTML = [
+          { k: 'Status', v: 'Loading', s: `${remain}s until recording`, cls: '' },
+          { k: 'Game CPU', v: `${gt?.cpu_pct ?? '—'}%`, s: 'live (not scored yet)', cls: '' },
+          { k: 'Grace', v: `${gp.load_grace_sec ?? 45}s`, s: 'skip menus / boot', cls: '' },
+        ].map(it =>
+          `<div class="game-perf-kpi"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.v}</span><span class="s">${it.s}</span></div>`
+        ).join('');
+        return;
+      }
+      const tier = gp.rating_tier || 'fair';
+      const sess = st?.session || {};
+      if (lead) {
+        lead.textContent = `${gp.game_name || gt?.game_name || 'Game'} · session ${fmtDuration(gp.duration_sec)} · rating updates live`;
+      }
+      const items = [
+        { k: 'Rating', v: gp.rating ?? '—', s: RATING_TIER_LABEL[tier] || tier, cls: tier },
+        { k: 'Smooth', v: `${gp.smoothness_avg ?? '—'}%`, s: 'session avg', cls: '' },
+        { k: '1% low', v: `${gp.hitch_ms_1pct ?? '—'}ms`, s: 'worst hitch est.', cls: (gp.hitch_ms_1pct || 0) >= 50 ? 'poor' : 'ok' },
+        { k: 'Hitches', v: gp.hitch_events ?? 0, s: `${sess.hitch_rate_per_min ?? 0}/min (5m)`, cls: (gp.hitch_events || 0) >= 5 ? 'fair' : 'ok' },
+        { k: 'Game CPU', v: `${gp.game_cpu_avg ?? '—'}%`, s: `now ${gt?.cpu_pct ?? '—'}%`, cls: '' },
+        { k: 'GPU', v: `${gp.gpu_busy_avg ?? '—'}%`, s: 'session avg', cls: '' },
+      ];
+      el.innerHTML = items.map(it =>
+        `<div class="game-perf-kpi"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.v}</span><span class="s">${it.s}</span></div>`
+      ).join('');
+    }
+
+    function renderGamePerfLiveTrend(history, gp, gt) {
+      const gid = gp.game_id || gt?.game_id || gp.last_session?.game_id || lastActiveGameId;
+      if (gp.recording && gid && gp.started_ts) {
+        const slice = (history || []).filter(h =>
+          h.game_totals?.game_id === gid && (h.ts || 0) >= gp.started_ts
+        );
+        const trend = slice.map(h => ({
+          ts: h.ts,
+          smoothness: h.stutter?.smoothness,
+          stutter_score: h.stutter?.score,
+          game_cpu: h.game_totals?.cpu_pct,
+        }));
+        const title = slice.length
+          ? `This session — ${slice.length} samples since recording started`
+          : 'This session — collecting first samples…';
+        applyGamePerfTrendChart(trend, title);
+        return;
+      }
+      if (gp.active && !gp.recording) {
+        gamePerfChart.data.labels = [];
+        gamePerfChart.data.datasets = [];
+        gamePerfChart.update('none');
+        const lead = document.getElementById('gamePerfTrendLead');
+        if (lead) {
+          lead.textContent = `This session — recording in ${Math.ceil(gp.load_remaining_sec ?? 0)}s (load grace)`;
+        }
+        return;
+      }
+      const last = resolveLastSession(gp, gid);
+      if (last?.trend?.length) {
+        const name = last.game_name || gameLabel(last.game_id);
+        applyGamePerfTrendChart(
+          last.trend,
+          `Last session — ${name} · ended ${fmtStoreSpan(last.ended_ts)} · rating ${last.rating ?? '—'}/100`,
+        );
+        return;
+      }
+      gamePerfChart.data.labels = [];
+      gamePerfChart.data.datasets = [];
+      gamePerfChart.update('none');
+      const lead = document.getElementById('gamePerfTrendLead');
+      if (lead) lead.textContent = 'Last session trend — appears after you finish a game (45s load + 30s play)';
+    }
+
+    function renderGamePerfSessionChart(sessions, markers) {
+      const ordered = [...(sessions || [])].reverse().slice(-24);
+      const labels = ordered.map(s => {
+        const d = new Date((s.started_ts || 0) * 1000);
+        return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      });
+      const ratings = ordered.map(s => s.rating ?? 0);
+      const colors = ordered.map(s => {
+        const t = s.rating_tier || 'fair';
+        if (t === 'excellent') return '#6fcf97';
+        if (t === 'good') return '#8fd49a';
+        if (t === 'fair') return '#f5c882';
+        if (t === 'poor') return '#ff9f7a';
+        return '#ff8a7a';
+      });
+      gamePerfSessionsChart.data.labels = labels;
+      gamePerfSessionsChart.data.datasets = [{
+        label: 'Rating',
+        data: ratings,
+        backgroundColor: colors,
+        borderRadius: 6,
+        sessionMeta: ordered,
+      }];
+      gamePerfSessionsChart.update('none');
+
+      const markersEl = document.getElementById('gamePerfMarkers');
+      const fixMarkers = (markers || []).filter(m => m.kind === 'fix').slice(0, 8);
+      markersEl.innerHTML = fixMarkers.length
+        ? fixMarkers.map(m =>
+            `<span class="game-perf-marker" title="${m.meta || ''}">${fmtStoreSpan(m.ts)} · fix · ${m.insight_id || m.label}</span>`
+          ).join('')
+        : '<span class="game-perf-marker">Fix markers appear when you use one-click Fix during a game session</span>';
+    }
+
+    function renderGamePerfHistory(sessions) {
+      const body = document.getElementById('gamePerfHistory');
+      const rows = (sessions || []).slice(0, 12);
+      body.innerHTML = rows.length
+        ? rows.map(s => `<tr>
+            <td>${fmtStoreSpan(s.started_ts)}</td>
+            <td><strong>${s.rating ?? '—'}</strong> <span style="color:var(--muted)">${RATING_TIER_LABEL[s.rating_tier] || s.rating_tier || ''}</span></td>
+            <td>${s.smoothness_avg ?? '—'}%</td>
+            <td>${s.hitch_ms_1pct ?? '—'}ms</td>
+            <td>${s.hitch_events ?? 0}</td>
+            <td>${fmtDuration(s.duration_sec)}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="6" style="color:var(--muted)">No completed sessions yet — after the 45s load wait, play ~30s+; ratings save when you quit.</td></tr>';
+    }
+
+    async function fetchGameSessions(gameId) {
+      if (!gameId) {
+        gameSessionsCache = { sessions: [], markers: [] };
+        renderGamePerfSessionChart([], []);
+        renderGamePerfHistory([]);
+        return;
+      }
+      const key = gameId;
+      if (gameSessionsKey === key && gameSessionsCache && gameSessionsTick % 30 !== 0) {
+        renderGamePerfSessionChart(gameSessionsCache.sessions, gameSessionsCache.markers);
+        renderGamePerfHistory(gameSessionsCache.sessions);
+        return;
+      }
+      try {
+        const data = await (await fetch(`/api/game-sessions?game=${encodeURIComponent(gameId)}&days=30`)).json();
+        gameSessionsCache = data;
+        gameSessionsKey = key;
+        renderGamePerfSessionChart(data.sessions, data.markers);
+        renderGamePerfHistory(data.sessions);
+        renderGamePerfLiveTrend(rawHistory, lastLatest?.game_performance || {}, lastLatest?.game_totals || {});
+      } catch (_) {
+        document.getElementById('gamePerfHistory').innerHTML =
+          '<tr><td colspan="6" style="color:var(--muted)">Session history unavailable</td></tr>';
+      }
+    }
+
+    function renderGamePerformance(l, s) {
+      const gp = l.game_performance || {};
+      const gt = l.game_totals || {};
+      if (gp.last_session?.ended_ts && gp.last_session.ended_ts !== lastSeenSessionEnd) {
+        lastSeenSessionEnd = gp.last_session.ended_ts;
+        gameSessionsKey = '';
+      }
+      renderGamePerfKpis(gp, gt, l.stutter);
+      renderGamePerfLiveTrend(rawHistory, gp, gt);
+      const gid = gp.active ? gp.game_id
+        : (gt?.running ? gt.game_id : (gp.last_session?.game_id || lastActiveGameId));
+      if (gid !== gameSessionsKey || ++gameSessionsTick % 30 === 0) fetchGameSessions(gid);
+      else if (gameSessionsCache) {
+        renderGamePerfSessionChart(gameSessionsCache.sessions, gameSessionsCache.markers);
+        renderGamePerfHistory(gameSessionsCache.sessions);
+      }
+    }
+
     function renderProcs(procs, totals) {
       const body = document.getElementById('procBody');
       const lead = document.getElementById('gameProcLead');
@@ -4177,7 +4755,7 @@
         const gname = totals?.primary_name || totals?.game_name || 'Game';
         lead.textContent = totals?.running
           ? `${gname} (PID ${totals.primary_pid}) · ${totals.proc_count} related process${totals.proc_count === 1 ? '' : 'es'} · ${(totals.tree_rss_mb / 1024).toFixed(1)} GB tree total`
-          : 'No supported game running — launch Cities II or CS2 and this table will populate.';
+          : 'No Steam game running — any installed title is detected automatically.';
       }
       const structKey = JSON.stringify(procs.map(p => [p.pid, p.name, p.tier]));
       if (structKey === lastProcKey && body.dataset.init) {
@@ -4210,7 +4788,11 @@
       storeCache = s;
       const days = s.retention_days ?? 10;
       const est = s.est_max_mb ?? '—';
-      const games = Object.entries(s.games || {}).map(([id, n]) => `${id === 'cities2' ? 'Cities II' : id === 'counterstrike2' ? 'CS2' : id}: ${n}`).join(' · ');
+      const catalog = storeCache?.games_catalog || lastStatic?.games_catalog || {};
+      const games = Object.entries(s.games || {}).map(([id, n]) => {
+        const label = catalog[id]?.short || catalog[id]?.name || gameLabel(id);
+        return `${label}: ${n}`;
+      }).join(' · ');
       document.getElementById('storeStats').innerHTML = [
         `<span><strong>${(s.samples || 0).toLocaleString()}</strong> samples</span>`,
         `<span><strong>${s.size_mb ?? 0}</strong> MB on disk</span>`,
@@ -4293,6 +4875,7 @@
         const l = data.latest, s = data.static;
         lastStatic = s;
         lastLatest = l;
+        lastComparison = l.comparison;
         const themeChanged = applyCosmicTheme(s.cosmic_theme);
         const mem = s.memory || {};
         const rig = s.rig || {};
@@ -4328,6 +4911,7 @@
         renderSensorGroups(l.sensors || []);
         renderCharts();
         if (themeChanged) renderSparkChart();
+        renderGamePerformance(l, s);
         renderProcs(l.game_procs, l.game_totals);
         if (++storeTick % 30 === 0) fetchStore();
         if (storeTick % 90 === 0) fetchDiagnostics();

@@ -11,7 +11,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from games import GAMES, STEAM
+from games import STEAM, game_name_for_appid, installed_appids
 
 HOME = Path.home()
 STEAM_LOGS = STEAM / "logs"
@@ -275,10 +275,7 @@ def _check_steam_logs(findings: list[dict]) -> None:
             bad_exits.setdefault(appid, []).append(code)
 
     for appid, codes in bad_exits.items():
-        game_name = next(
-            (g["name"] for g in GAMES.values() if g["appid"] == appid),
-            f"AppID {appid}",
-        )
+        game_name = game_name_for_appid(appid)
         recent = codes[-5:]
         findings.append(_finding(
             f"game-exit-{appid}",
@@ -316,15 +313,15 @@ def _check_steam_logs(findings: list[dict]) -> None:
 
 def _check_game_prefixes(findings: list[dict]) -> None:
     compat_root = STEAM / "steamapps" / "compatdata"
-    for gid, meta in GAMES.items():
-        appid = meta["appid"]
+    for appid in installed_appids():
+        meta_name = game_name_for_appid(appid)
         prefix = compat_root / appid
         if not prefix.is_dir():
             findings.append(_finding(
-                f"prefix-missing-{gid}",
+                f"prefix-missing-{appid}",
                 "game",
                 "info",
-                f"{meta['name']}: no Proton prefix yet",
+                f"{meta_name}: no Proton prefix yet",
                 "First launch will create compatdata — errors before that are normal.",
                 source=str(prefix),
             ))
@@ -335,17 +332,17 @@ def _check_game_prefixes(findings: list[dict]) -> None:
                 ver = ver_file.read_text().strip()
                 if ver and "proton" not in ver.lower() and "steam" not in ver.lower():
                     findings.append(_finding(
-                        f"prefix-version-{gid}",
+                        f"prefix-version-{appid}",
                         "game",
                         "info",
-                        f"{meta['name']} prefix version",
+                        f"{meta_name} prefix version",
                         f"compatdata version: {ver}",
                         source=str(ver_file),
                     ))
             except OSError:
                 pass
 
-        # Cities II / game stderr in prefix
+        # Game stderr in Proton prefix
         for pattern in ("*/logs/*.log", "*/error*.log"):
             for log_path in list(prefix.glob(pattern))[:20]:
                 if log_path.stat().st_size > 5_000_000:
@@ -356,10 +353,10 @@ def _check_game_prefixes(findings: list[dict]) -> None:
                 ]
                 if len(err_lines) >= 3:
                     findings.append(_finding(
-                        f"game-log-{gid}-{log_path.name}",
+                        f"game-log-{appid}-{log_path.name}",
                         "game",
                         "info",
-                        f"{meta['short']} log errors",
+                        f"{game_name_for_appid(appid)} log errors",
                         f"Errors in {log_path.relative_to(prefix)}",
                         detail="\n".join(list(dict.fromkeys(err_lines))[-5:])[:1200],
                         fix=f"xdg-open '{log_path.parent}'",

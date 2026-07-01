@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 Pulse contributors
 # SPDX-License-Identifier: GPL-3.0-only
-"""Live performance dashboard for Pop!_OS / Cities II."""
+"""Live performance dashboard for Pop!_OS gaming rigs."""
 
 import json
 import os
@@ -30,21 +30,29 @@ from hardware_probe import (
 )
 from cosmic_theme import get_cosmic_theme
 from diagnostics import get_diagnostics
-from games import GAMES, detect_games, primary_active_game, prime_game_cpu, running_game_ids
+from game_performance import seed_last_session, tick_game_performance
+from games import build_games_catalog, detect_games, primary_active_game, prime_game_cpu, running_game_ids
 from issue_aggregate import _games_for_active, build_issue_views, merge_games_seen
 from probe_memory import infer_fallback
 from stutter import attach_stutter
 from store import (
     correlate,
     init_db,
+    latest_game_session,
+    list_game_sessions,
+    list_session_markers,
     prune_old,
     record_sample_maybe_prune,
+    record_session_marker,
+    save_game_session,
     series,
     stats as store_stats,
     update_settings,
 )
 from apply_fix import apply_fix
-from gpu_thermal import profile_for_model
+from gpu_thermal import gpu_thermal_state, profile_for_model
+from hardware_profiles import detect_gpu_spec
+from pulse_config import get_suppressed_insights, load_config
 from tuning_actions import build_tuning_hints, system_context
 
 PORT = 8765
@@ -65,13 +73,7 @@ _prev_disk_busy: tuple[int, float] | None = None
 _sensors_cache: tuple[float, dict] = (0.0, {})
 _rate_smooth: dict[str, float] = {}
 
-# Peak VRAM bandwidth by SKU (AMD reference specs)
-GPU_VRAM_PEAK_GBPS = {
-    "RX 7900 XTX": 960.0,
-    "RX 7900 XT": 800.0,
-    "RX 7800 XT": 624.0,
-}
-VRAM_PEAK_GBPS = 960.0
+VRAM_PEAK_GBPS = 800.0
 # PCIe 4.0 x16 one-way theoretical payload ≈ 31.5 GB/s
 PCIE_PEAK_GBPS = 31.5
 MEMORY_CACHE = ROOT / ".memory_cache.json"
@@ -121,78 +123,8 @@ def read_str(path: Path) -> str | None:
         return None
 
 
-def discrete_gpu_pci() -> str:
-    try:
-        out = subprocess.check_output(["lspci", "-D"], text=True, timeout=3)
-        for line in out.splitlines():
-            if "VGA" not in line or "1002:" not in line:
-                continue
-            if "164e" in line.lower() or "raphael" in line.lower():
-                continue
-            return line.split()[0]
-    except (subprocess.SubprocessError, OSError, ValueError):
-        pass
-    return "0000:03:00.0"
-
-
-def detect_gpu_spec() -> dict:
-    """Detect discrete GPU model, board partner, and VRAM peak from lspci."""
-    model = "RX 7900 XT"
-    brand = "AMD"
-    maker = None
-    board = None
-    pci = discrete_gpu_pci()
-    try:
-        out = subprocess.check_output(
-            ["lspci", "-v", "-s", pci], text=True, stderr=subprocess.DEVNULL, timeout=3
-        )
-        for line in out.splitlines():
-            if not line.strip().startswith("Subsystem:"):
-                continue
-            sub = line.split(":", 1)[1].strip()
-            bracket = re.search(r"\[([^\]]+)\]", sub)
-            if bracket:
-                board = bracket.group(1)
-                bu = board.upper()
-                if "7900 XTX" in bu:
-                    model = "RX 7900 XTX"
-                elif "7900 XT" in bu:
-                    model = "RX 7900 XT"
-                elif "7800 XT" in bu:
-                    model = "RX 7800 XT"
-            partner = sub.split("[")[0].strip()
-            m = re.match(r"^([A-Za-z][A-Za-z0-9+.-]*)", partner)
-            if m:
-                maker = m.group(1)
-            break
-    except (subprocess.SubprocessError, OSError, ValueError):
-        pass
-    if board is None:
-        try:
-            out = subprocess.check_output(
-                ["glxinfo", "-B"], text=True, stderr=subprocess.DEVNULL, timeout=3
-            )
-            blob = out.upper()
-            if "7900 XTX" in blob:
-                model = "RX 7900 XTX"
-            elif "7900 XT" in blob:
-                model = "RX 7900 XT"
-        except (subprocess.SubprocessError, OSError, ValueError, FileNotFoundError):
-            pass
-    vram_peak = GPU_VRAM_PEAK_GBPS.get(model, 800.0)
-    label = f"{maker} · {model}" if maker else model
-    return {
-        "model": model,
-        "brand": brand,
-        "maker": maker,
-        "board": board,
-        "label": label,
-        "vram_peak_gbps": vram_peak,
-        "pci": pci,
-    }
-
-
 _gpu_spec: dict = {}
+_gpu_session_peak_mhz: float = 0.0
 
 
 def gpu_hwmon(base: Path) -> Path | None:
@@ -828,7 +760,15 @@ def collect_metrics() -> dict:
         _gpu_spec.get("label") or _gpu_spec.get("model", "GPU"),
         gpu_sensor_prefix(),
     )
-    dgpu["thermal_profile"] = profile_for_model(_gpu_spec.get("model", ""))
+    global _gpu_session_peak_mhz
+    thermal_profile = (
+        _gpu_spec.get("thermal_profile") or profile_for_model(_gpu_spec.get("model", ""))
+    )
+    dgpu["thermal_profile"] = thermal_profile
+    gfx_mhz = dgpu.get("gfx_mhz")
+    if gfx_mhz and (dgpu.get("busy_pct") or 0) >= 25:
+        _gpu_session_peak_mhz = max(_gpu_session_peak_mhz, float(gfx_mhz))
+    dgpu["thermal_state"] = gpu_thermal_state(dgpu, thermal_profile, _gpu_session_peak_mhz)
     igpu = gpu_stats(
         igpu_device_path(),
         igpu_label(_static.get("cpu_model", "")),
@@ -886,7 +826,7 @@ def collect_metrics() -> dict:
         attach_stutter(snap, _history)
     active_hints = tuning_hints(snap)
     history = update_tuning_history(active_hints, running_ids)
-    views = build_issue_views(active_hints, history, running_ids)
+    views = build_issue_views(active_hints, history, running_ids, games_state)
     snap["tuning_active"] = active_hints
     snap["tuning"] = views["overall"]
     snap["issues_by_game"] = views["by_game"]
@@ -898,13 +838,14 @@ def collect_metrics() -> dict:
     }
     snap["comparison"] = hardware_comparison(
         _static.get("cpu_model", ""),
-        _static.get("gpu_model", "RX 7900 XT"),
+        _static.get("gpu_model", "Discrete GPU"),
         _mem_spec,
         snap,
         gpu_info=_static.get("gpu") or _gpu_spec,
         machine=_static.get("machine", ""),
         hostname=_static.get("hostname", ""),
     )
+    snap["game_performance"] = tick_game_performance(snap, save_session=save_game_session)
     return snap
 
 
@@ -920,13 +861,14 @@ def cpu_temps() -> dict:
 
 
 def sampler():
-    global _history, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS
+    global _history, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS, _gpu_session_peak_mhz
     from hardware_probe import _drm_cache, _storage_cache
     _drm_cache = None
     _storage_cache = None
 
     _mem_spec = load_memory_spec()
     _gpu_spec = detect_gpu_spec()
+    _gpu_session_peak_mhz = 0.0
     VRAM_PEAK_GBPS = _gpu_spec["vram_peak_gbps"]
     load_tuning_log()
     discover_drm_cards()
@@ -946,8 +888,10 @@ def sampler():
         "storage": storage_drives,
         "threads": psutil.cpu_count(logical=True),
         "history_max_sec": HISTORY_LEN,
-        "gpu_model": _gpu_spec.get("model", "RX 7900 XT"),
-        "gpu_thermal": profile_for_model(_gpu_spec.get("model", "")),
+        "gpu_model": _gpu_spec.get("model", "Discrete GPU"),
+        "gpu_thermal": (
+            _gpu_spec.get("thermal_profile") or profile_for_model(_gpu_spec.get("model", ""))
+        ),
         "gpu": _gpu_spec,
         "vram_peak_gbps": _gpu_spec.get("vram_peak_gbps", VRAM_PEAK_GBPS),
         "dram_peak_gbps": _mem_spec.get("peak_gbps", 89.6),
@@ -964,9 +908,9 @@ def sampler():
         "backlog": json.loads(BACKLOG_FILE.read_text()) if BACKLOG_FILE.exists() else [],
         "pulse_root": str(ROOT),
         "cosmic_theme": get_cosmic_theme(),
-        "games_catalog": {
-            gid: {"name": m["name"], "short": m["short"]} for gid, m in GAMES.items()
-        },
+        "suppressed_insights": get_suppressed_insights(),
+        "pulse_config": load_config(),
+        "games_catalog": build_games_catalog(),
     }
     net_rates()
     disk_rates()
@@ -1069,6 +1013,15 @@ class Handler(BaseHTTPRequestHandler):
             hours = float((qs.get("hours") or ["4"])[0])
             game_id = (qs.get("game") or [None])[0]
             self._json(correlate(a, b, hours, game_id))
+        elif path == "/api/game-sessions":
+            game_id = (qs.get("game") or [None])[0]
+            days = float((qs.get("days") or ["30"])[0])
+            self._json({
+                "game_id": game_id,
+                "days": days,
+                "sessions": list_game_sessions(game_id, days),
+                "markers": list_session_markers(game_id, days),
+            })
         else:
             self.send_response(404)
             self.end_headers()
@@ -1088,7 +1041,25 @@ class Handler(BaseHTTPRequestHandler):
             if not insight_id or not isinstance(insight_id, str):
                 self._json({"ok": False, "error": "insight_id required"}, status=400)
                 return
-            self._json(apply_fix(insight_id.strip()))
+            with _lock:
+                latest = _history[-1] if _history else {}
+            gt = latest.get("game_totals") or {}
+            result = apply_fix(
+                insight_id.strip(),
+                game_id=gt.get("game_id") if gt.get("running") else None,
+                game_name=gt.get("game_name"),
+            )
+            if result.get("ok"):
+                gid = gt.get("game_id")
+                if gid:
+                    record_session_marker(
+                        gid,
+                        "fix",
+                        label=insight_id.strip(),
+                        insight_id=insight_id.strip(),
+                        meta=(result.get("message") or "")[:240],
+                    )
+            self._json(result)
             return
         if path == "/api/store":
             if "retention_days" in body:
@@ -1105,6 +1076,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     init_db()
+    seed_last_session(latest_game_session())
     pruned = prune_old()
     if pruned:
         print(f"Cosmic Pulse DB: pruned {pruned} old samples")

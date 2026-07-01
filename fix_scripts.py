@@ -5,15 +5,37 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from pathlib import Path
+
+from games import game_data_paths
+from hardware_profiles import FIX_TOOL_SPECS, iter_fix_tools
 
 HOME = Path.home()
 ROOT = Path(__file__).resolve().parent
-CS2_DIR = (
-    HOME
-    / ".local/share/Steam/steamapps/compatdata/949230/pfx/drive_c/users/steamuser/AppData/LocalLow/Colossal Order/Cities Skylines II"
-)
 PROBE = ROOT / "probe_memory.py"
+
+
+def _game_ctx(game_id: str | None = None, game_name: str | None = None, **kwargs) -> dict:
+    appid = game_id or kwargs.get("game_id")
+    ctx = game_data_paths(appid)
+    if game_name:
+        ctx["name"] = game_name
+    return ctx
+
+
+def _open_dir_cmd(ctx: dict, key: str = "open_dir") -> str:
+    path = ctx.get(key)
+    if path:
+        return f"xdg-open '{path}' 2>/dev/null || true"
+    return 'log "Game folder not found — change settings in-game"'
+
+
+def _open_subdir_cmd(ctx: dict, sub: str) -> str:
+    base = ctx.get("userdata") or ctx.get("open_dir")
+    if base:
+        return f"xdg-open '{Path(base) / sub}' 2>/dev/null || true"
+    return 'log "Game folder not found"'
 
 
 def _gpu_sysfs() -> str:
@@ -32,14 +54,115 @@ def _gpu_sensor_chip() -> str:
         return "amdgpu-pci-0300"
 
 
-def _corectrl_hint() -> str:
-    if shutil.which("corectrl"):
-        return """log "CoreCtrl is installed — raise fan speed or set a hotter fan curve"
-log "  corectrl &"
+def _fan_tool_hint(*, profile: dict | None = None) -> str:
+    prof = profile or {}
+    if not prof.get("fan_curve_helpful", True):
+        arch = prof.get("label", "GPU")
+        return (
+            f'log "{arch} rarely needs a fan curve — lower in-game settings if clocks drop"\n'
+        )
+    chunks: list[str] = []
+    for tool in iter_fix_tools(prof):
+        spec = FIX_TOOL_SPECS.get(tool, {})
+        label = spec.get("label", tool)
+        binary = spec.get("binary", "")
+        note = spec.get("note", "")
+        if binary and shutil.which(binary):
+            chunks.append(f'log "{label} is installed — adjust fan curve"\nlog "  {binary} &"\n')
+        elif tool == "afterburner":
+            chunks.append(
+                f'log "{label} (Windows) or CoolerControl (Linux) for NVIDIA fan curves"\n'
+                f'log "  {spec.get("install", "")}"\n'
+            )
+        else:
+            chunks.append(
+                f'log "Optional: {label} for fan curve GUI"\n'
+                f'log "  {spec.get("install", "")}"\n'
+            )
+        if note:
+            chunks.append(f'log "  ({note})"\n')
+    vendor = prof.get("vendor")
+    if vendor == "amd":
+        sysfs = _gpu_sysfs()
+        chunks.append(
+            f'log "CLI fallback (AMD): manual fan via amdgpu sysfs"\n'
+            f'log "  echo manual | sudo tee {sysfs}/pp_power_profile_mode"\n'
+            f'log "  echo 1 | sudo tee {sysfs}/hwmon/hwmon*/pwm1_enable"\n'
+        )
+    return "".join(chunks)
+
+
+def _gpu_telemetry_block(*, profile: dict | None = None) -> str:
+    prof = profile or {}
+    vendor = prof.get("vendor")
+    if vendor == "nvidia":
+        return """log "=== GPU telemetry ==="
+nvidia-smi --query-gpu=temperature.gpu,clocks.gr,power.draw,fan.speed,utilization.gpu --format=csv 2>/dev/null || true
 """
-    return """log "Optional: install CoreCtrl for fan curve GUI"
-log "  sudo apt install corectrl   (then run CoreCtrl)"
+    sensor = _gpu_sensor_chip()
+    sysfs = _gpu_sysfs()
+    return f"""log "=== GPU telemetry ==="
+sensors {sensor} 2>/dev/null | grep -E 'edge|junction|mem|fan|PPT' || true
+cat {sysfs}/gpu_busy_percent 2>/dev/null && echo "% GPU busy" || true
 """
+
+
+def fan_tool_actions(profile: dict, sysfs: str) -> list[dict]:
+    """UI action rows for thermal hints — profile picks CoreCtrl vs CoolerControl vs sysfs."""
+    prof = profile or {}
+    actions: list[dict] = []
+    if not prof.get("fan_curve_helpful", True):
+        return actions
+    launched = False
+    for tool in iter_fix_tools(prof):
+        spec = FIX_TOOL_SPECS.get(tool, {})
+        binary = spec.get("binary", "")
+        label = spec.get("label", tool)
+        if binary and shutil.which(binary):
+            actions.append({
+                "label": f"Open {label}",
+                "kind": "cmd",
+                "cmd": binary,
+                "note": spec.get("note", ""),
+            })
+            launched = True
+            break
+    if not launched and prof.get("vendor") == "amd":
+        actions.append({
+            "label": "Raise GPU fan (amdgpu sysfs)",
+            "kind": "cmd",
+            "cmd": (
+                f"echo manual | sudo tee {sysfs}/pp_power_profile_mode 2>/dev/null; "
+                f"echo 1 | sudo tee {sysfs}/hwmon/hwmon*/pwm1_enable 2>/dev/null"
+            ),
+            "note": spec.get("install", "Or install CoreCtrl: sudo apt install corectrl")
+            if (spec := FIX_TOOL_SPECS.get("corectrl"))
+            else "Or install CoreCtrl: sudo apt install corectrl",
+        })
+    elif not launched and prof.get("vendor") == "nvidia":
+        actions.append({
+            "label": "Install CoolerControl (NVIDIA fan curves)",
+            "kind": "cmd",
+            "cmd": FIX_TOOL_SPECS["coolercontrol"]["install"],
+            "note": FIX_TOOL_SPECS["coolercontrol"]["note"],
+        })
+    return actions
+
+
+def launch_fan_tool(profile: dict) -> str | None:
+    """Launch the first installed fan tool for this GPU profile."""
+    for tool in iter_fix_tools(profile or {}):
+        spec = FIX_TOOL_SPECS.get(tool, {})
+        binary = spec.get("binary", "")
+        if binary and shutil.which(binary):
+            subprocess.Popen(
+                [binary],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            return tool
+    return None
 
 
 def _header(insight_id: str, title: str, risk: str = "low") -> str:
@@ -129,40 +252,35 @@ def script_gpu_thermal(junction: float, *, profile: dict | None = None) -> str:
     prof = profile or {}
     arch = prof.get("label", "GPU")
     throttle = prof.get("throttle_c", 110)
-    fan_help = prof.get("fan_curve_helpful", True)
+    temp_key = prof.get("primary_temp", "junction")
     if prof.get("arch") == "rdna3":
         target_line = (
-            f"log \"RDNA3 runs junction near {throttle}°C by design — only worry if clocks drop\"\n"
-        )
-        corectrl = _corectrl_hint() if fan_help else (
-            'log "RDNA3 rarely needs a fan curve — lower in-game settings if throttling"\n'
+            f"log \"RDNA3 runs {temp_key} near {throttle}°C by design — only worry if clocks drop\"\n"
         )
     else:
-        target_line = f'log "Re-check junction on dashboard — target well below {throttle}°C sustained"\n'
-        corectrl = _corectrl_hint() if fan_help else ""
+        target_line = (
+            f"log \"Re-check {temp_key} on dashboard — target well below {throttle}°C sustained\"\n"
+        )
+    fan_note = prof.get("fan_curve_note") or prof.get("design_note", "")
+    fan_block = _fan_tool_hint(profile=prof)
+    if fan_note:
+        fan_block += f'log "Note: {fan_note}"\n'
     return (
-        _header("gpu-thermal-ceiling", f"Cool-down playbook ({arch}, junction was {junction}°C)", "medium")
-        + f"""
-log "=== GPU telemetry ==="
-sensors {_gpu_sensor_chip()} 2>/dev/null | grep -E 'edge|junction|mem|fan|PPT' || true
-cat {_gpu_sysfs()}/gpu_busy_percent 2>/dev/null && echo "% GPU busy" || true
-
+        _header("gpu-thermal-ceiling", f"Cool-down playbook ({arch}, {temp_key} was {junction}°C)", "medium")
+        + _gpu_telemetry_block(profile=prof)
+        + """
 log "=== In-game (manual) ==="
 cat <<'PLAYBOOK'
 
-  Cities: Skylines II → Options → Graphics:
-    • Frame rate limit → 60 or 90
-    • Level of detail → Medium or lower
-    • Shadow quality → Medium or lower
-    • Volumetrics / depth of field → off or low
+  In your game's graphics settings:
+    • Cap frame rate (60–90 FPS)
+    • Lower shadow / LOD / draw distance
+    • Reduce volumetrics, AA, or upscaling quality if thermals climb
 
 PLAYBOOK
 
-log "Opening CS2 settings folder..."
-xdg-open '{CS2_DIR}' 2>/dev/null || true
-
 """
-        + corectrl
+        + fan_block
         + target_line
     )
 
@@ -179,45 +297,70 @@ def script_gpu_warm(junction: float, *, profile: dict | None = None) -> str:
     return body
 
 
-def script_vram_bandwidth(pct: int, est: str) -> str:
+def script_vram_bandwidth(
+    pct: int,
+    est: str,
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
+    gname = ctx["name"]
     return _header("gpu-vram-bandwidth", f"Reduce VRAM bandwidth load ({pct}% busy)", "low") + f"""
 log "VRAM controller busy: {pct}% (~{est} GB/s est.)"
-log "Opening mod cache + settings..."
-xdg-open '{CS2_DIR}/.cache/Mods' 2>/dev/null || true
+log "Opening game folders for {gname}..."
+{_open_subdir_cmd(ctx, '.cache/Mods')}
 sleep 1
-xdg-open '{CS2_DIR}' 2>/dev/null || true
+{_open_dir_cmd(ctx)}
 cat <<'PLAYBOOK'
 
-  In Cities 2 → Options → Graphics:
-    • Texture quality → Medium
-    • Asset quality → Medium or lower
-  Disable asset-replacement mods temporarily and retest.
+  In {gname} → graphics settings:
+    • Texture quality → Medium or lower
+    • Asset / model quality → Medium or lower
+  Disable heavy mods temporarily and retest.
 
 PLAYBOOK
 log "Monitor mem_busy% on dashboard — aim for under 50% in normal play"
 """
 
 
-def script_vram_low(pct: float, used: int) -> str:
+def script_vram_low(
+    pct: float,
+    used: int,
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
+    gname = ctx["name"]
     return _header("gpu-vram-full", f"Free VRAM headroom ({pct}% used)", "low") + f"""
 log "VRAM {pct}% used ({used} MB)"
-xdg-open '{CS2_DIR}' 2>/dev/null || true
+{_open_dir_cmd(ctx)}
 cat <<'PLAYBOOK'
 
-  Cities 2 → Options → Graphics:
+  In {gname} → graphics settings:
     • Resolution scale → 85–90%
     • Texture quality → Medium
-    • Disable high-res asset mods (Content Manager)
+    • Disable high-res texture or asset mods
 
 PLAYBOOK
 """
 
 
-def script_gtt(rate: float) -> str:
+def script_gtt(
+    rate: float,
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
     return _header("gpu-gtt-churn", f"Reduce shared GPU memory traffic ({rate} MB/s GTT)", "low") + f"""
 log "GTT churn: {rate} MB/s"
 cat {_gpu_sysfs()}/mem_info_gtt_used {_gpu_sysfs()}/mem_info_gtt_total 2>/dev/null || true
-xdg-open '{CS2_DIR}/.cache/Mods' 2>/dev/null || true
+{_open_subdir_cmd(ctx, '.cache/Mods')}
 cat <<'PLAYBOOK'
 
   Keep VRAM under 80% — lower textures/resolution before adding mods.
@@ -265,7 +408,7 @@ cat <<'PLAYBOOK'
   Close or suspend:
     • Browsers (Firefox/Brave — hundreds of MB each)
     • Discord overlay
-    • Paradox launcher if not needed
+    • Extra game launchers if not needed
   Then re-check PSI Memory on dashboard (aim under 5%).
 
 PLAYBOOK
@@ -277,8 +420,17 @@ log "  pkill -x discord"
 """
 
 
-def script_stutter(score: float, est_ms: float, causes: list[str]) -> str:
+def script_stutter(
+    score: float,
+    est_ms: float,
+    causes: list[str],
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
     cause_txt = ", ".join(causes) if causes else "memory pressure"
+    gname = _game_ctx(game_id, game_name, **kwargs)["name"]
     return _header(
         "stutter-proxy",
         f"Reduce hitches (score {score}, ~{est_ms}ms est.)",
@@ -295,9 +447,9 @@ cat <<'PLAYBOOK'
 
   Hitch playbook (no true frametime — system-level proxy):
     1. Close browsers, Discord, extra launchers
-    2. Let the game finish loading before unpausing / camera moves
+    2. Let {gname} finish loading before unpausing / big camera moves
     3. If swap is active: sudo sysctl vm.swappiness=10
-    4. Large Cities saves: drop sim speed to 1× until stable
+    4. Lower simulation speed or world detail if the game allows it
     5. Reboot if swap stayed high from a prior session
 
   Re-check Cosmic Pulse → Stutter panel (aim score under 30, 1% proxy under 25ms).
@@ -313,25 +465,39 @@ fi
 """
 
 
-def script_page_faults(rate: int) -> str:
+def script_page_faults(
+    rate: int,
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
+    gname = ctx["name"]
     return _header("memory-page-faults", f"Reduce major page faults ({rate}/s)", "low") + f"""
 log "Major faults indicate disk/swap backed loads."
 cat <<'PLAYBOOK'
 
-  Cities 2 playbook:
+  {gname} playbook:
     1. Load save → wait until loading completes
     2. Stay paused 30s after load before unpausing
-    3. Avoid alt-tab during initial simulation catch-up
-    4. If faults persist: lower city size mods / reboot before session
+    3. Avoid alt-tab during initial catch-up
+    4. If faults persist: lower detail mods / reboot before session
 
 PLAYBOOK
 log "Opening save folder..."
-xdg-open '{CS2_DIR}/Saves' 2>/dev/null || true
+{_open_subdir_cmd(ctx, 'Saves')}
 """
 
 
-def script_cpu_bound() -> str:
-    return _header("cpu-bound", "CPU-bound — boost clocks and trim background load", "low") + """
+def script_cpu_bound(
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    gname = _game_ctx(game_id, game_name, **kwargs)["name"]
+    return _header("cpu-bound", "CPU-bound — boost clocks and trim background load", "low") + f"""
 log "=== CPU ==="
 grep . /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 ps aux --sort=-%cpu | head -15
@@ -343,28 +509,35 @@ done
 
 cat <<'PLAYBOOK'
 
-  Cities 2 (in-game):
-    • Simulation speed 1× on huge cities
-    • Reduce traffic/agent mods
-    • Lower citizen simulation detail if mod offers it
+  {gname} (in-game):
+    • Lower simulation / crowd / AI detail if available
+    • Reduce background mods or overlays
+    • Cap frame rate to ease CPU load
 
 PLAYBOOK
 log "Governor set to performance"
 """
 
 
-def script_gpu_shader() -> str:
+def script_gpu_shader(
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
+    gname = ctx["name"]
     return _header("gpu-shader-bound", "GPU shader bound — favor resolution over textures", "low") + f"""
 cat <<'PLAYBOOK'
 
   You are GPU compute bound (not VRAM bandwidth bound).
-  Cities 2 → Graphics:
+  {gname} → graphics settings:
     • OK to raise resolution scale if thermals allow
     • Avoid max texture / asset packs
     • Watch junction temp on dashboard
 
 PLAYBOOK
-xdg-open '{CS2_DIR}' 2>/dev/null || true
+{_open_dir_cmd(ctx)}
 """
 
 
@@ -381,14 +554,20 @@ fi
 """
 
 
-def script_balanced() -> str:
+def script_balanced(
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
     return _header("system-balanced", "System healthy — maintenance checklist", "low") + f"""
 log "No critical insights. Maintenance:"
 log "  • Steam launch options:"
 echo '    PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%'
 log "  • Optional GameMode:"
 echo '    gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%'
-xdg-open '{CS2_DIR}' 2>/dev/null || true
+{_open_dir_cmd(ctx)}
 log "Dashboard: http://localhost:8765"
 """
 

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 import sqlite3
 import threading
@@ -17,8 +18,11 @@ from pulse_config import (
     RETENTION_PRESETS,
     estimate_max_mb,
     get_retention_days,
+    get_suppressed_insights,
     save_config,
     save_retention_days,
+    suppress_insight,
+    unsuppress_insight,
 )
 
 ROOT = Path(__file__).resolve().parent
@@ -47,7 +51,18 @@ METRICS: dict[str, str] = {
     "game_rss_mb": "Game RSS MB",
     "session_index": "Session load index",
     "active_issues": "Active issue count",
+    "stutter_score": "Stutter proxy score",
+    "stutter_smoothness": "Smoothness %",
+    "stutter_est_ms": "Hitch estimate ms",
 }
+
+_SAMPLE_EXTRA_COLS = (
+    ("stutter_score", "REAL"),
+    ("stutter_smoothness", "REAL"),
+    ("stutter_est_ms", "REAL"),
+    ("stutter_event", "INTEGER"),
+)
+_SESSION_EXTRA_COLS = (("trend_json", "TEXT"),)
 
 _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
@@ -61,6 +76,13 @@ def _get_conn() -> sqlite3.Connection:
         _conn.execute("PRAGMA journal_mode=WAL")
         _conn.execute("PRAGMA synchronous=NORMAL")
     return _conn
+
+
+def _ensure_columns(c: sqlite3.Connection, table: str, cols: tuple[tuple[str, str], ...]) -> None:
+    existing = {row[1] for row in c.execute(f"PRAGMA table_info({table})").fetchall()}
+    for col, typ in cols:
+        if col not in existing:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
 
 
 def init_db() -> None:
@@ -96,16 +118,52 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_samples_ts ON samples(ts);
             CREATE INDEX IF NOT EXISTS idx_samples_game_ts ON samples(game_id, ts);
+
+            CREATE TABLE IF NOT EXISTS game_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                game_id TEXT NOT NULL,
+                game_name TEXT,
+                started_ts REAL NOT NULL,
+                ended_ts REAL NOT NULL,
+                duration_sec REAL,
+                rating REAL,
+                rating_tier TEXT,
+                smoothness_avg REAL,
+                stutter_score_avg REAL,
+                hitch_ms_1pct REAL,
+                hitch_events INTEGER,
+                game_cpu_avg REAL,
+                gpu_busy_avg REAL,
+                ram_pct_avg REAL,
+                sample_count INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_game_sessions_game ON game_sessions(game_id, started_ts);
+
+            CREATE TABLE IF NOT EXISTS session_markers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts REAL NOT NULL,
+                game_id TEXT,
+                kind TEXT NOT NULL,
+                label TEXT,
+                insight_id TEXT,
+                meta TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_session_markers_game ON session_markers(game_id, ts);
             """
         )
+        _ensure_columns(c, "samples", _SAMPLE_EXTRA_COLS)
+        _ensure_columns(c, "game_sessions", _SESSION_EXTRA_COLS)
         c.commit()
 
 
 def prune_old() -> int:
     cutoff = time.time() - get_retention_days() * 86400
     with _lock:
-        cur = _get_conn().execute("DELETE FROM samples WHERE ts < ?", (cutoff,))
-        _get_conn().commit()
+        c = _get_conn()
+        cur = c.execute("DELETE FROM samples WHERE ts < ?", (cutoff,))
+        c.execute("DELETE FROM game_sessions WHERE ended_ts < ?", (cutoff,))
+        c.execute("DELETE FROM session_markers WHERE ts < ?", (cutoff,))
+        c.commit()
         return cur.rowcount
 
 
@@ -121,6 +179,7 @@ def flatten_sample(snap: dict) -> dict:
     if not active and snap.get("tuning_active"):
         active = snap["tuning_active"]
     load = cpu.get("load") or [None, None, None]
+    st = snap.get("stutter") or {}
     return {
         "ts": snap["ts"],
         "game_id": gt.get("game_id"),
@@ -145,6 +204,10 @@ def flatten_sample(snap: dict) -> dict:
         "game_rss_mb": gt.get("rss_mb") if gt.get("running") else None,
         "session_index": cmp.get("session_index"),
         "active_issues": len(active),
+        "stutter_score": st.get("score"),
+        "stutter_smoothness": st.get("smoothness"),
+        "stutter_est_ms": st.get("est_ms"),
+        "stutter_event": 1 if st.get("event") else 0,
     }
 
 
@@ -272,6 +335,131 @@ def _strength(r: float | None) -> str | None:
     return "negligible"
 
 
+def _decode_session(row: sqlite3.Row) -> dict:
+    data = dict(row)
+    raw = data.pop("trend_json", None)
+    if raw:
+        try:
+            data["trend"] = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            data["trend"] = []
+    else:
+        data["trend"] = []
+    return data
+
+
+def save_game_session(row: dict) -> int:
+    trend = row.get("trend") or []
+    trend_json = json.dumps(trend, separators=(",", ":")) if trend else None
+    with _lock:
+        cur = _get_conn().execute(
+            """
+            INSERT INTO game_sessions (
+                game_id, game_name, started_ts, ended_ts, duration_sec,
+                rating, rating_tier, smoothness_avg, stutter_score_avg,
+                hitch_ms_1pct, hitch_events, game_cpu_avg, gpu_busy_avg,
+                ram_pct_avg, sample_count, trend_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                row["game_id"],
+                row.get("game_name"),
+                row["started_ts"],
+                row["ended_ts"],
+                row.get("duration_sec"),
+                row.get("rating"),
+                row.get("rating_tier"),
+                row.get("smoothness_avg"),
+                row.get("stutter_score_avg"),
+                row.get("hitch_ms_1pct"),
+                row.get("hitch_events"),
+                row.get("game_cpu_avg"),
+                row.get("gpu_busy_avg"),
+                row.get("ram_pct_avg"),
+                row.get("sample_count"),
+                trend_json,
+            ),
+        )
+        _get_conn().commit()
+        return int(cur.lastrowid or 0)
+
+
+def list_game_sessions(game_id: str | None = None, days: float = 30) -> list[dict]:
+    since = time.time() - max(0.1, days) * 86400
+    clause = "AND game_id = ?" if game_id else ""
+    params: list = [since]
+    if game_id:
+        params.append(game_id)
+    with _lock:
+        rows = _get_conn().execute(
+            f"""
+            SELECT * FROM game_sessions
+            WHERE started_ts >= ? {clause}
+            ORDER BY started_ts DESC
+            LIMIT 200
+            """,
+            params,
+        ).fetchall()
+    return [_decode_session(r) for r in rows]
+
+
+def latest_game_session(game_id: str | None = None) -> dict | None:
+    clause = "AND game_id = ?" if game_id else ""
+    params: list = []
+    if game_id:
+        params.append(game_id)
+    with _lock:
+        row = _get_conn().execute(
+            f"""
+            SELECT * FROM game_sessions
+            WHERE 1=1 {clause}
+            ORDER BY ended_ts DESC
+            LIMIT 1
+            """,
+            params,
+        ).fetchone()
+    return _decode_session(row) if row else None
+
+
+def list_session_markers(game_id: str | None = None, days: float = 30) -> list[dict]:
+    since = time.time() - max(0.1, days) * 86400
+    clause = "AND game_id = ?" if game_id else ""
+    params: list = [since]
+    if game_id:
+        params.append(game_id)
+    with _lock:
+        rows = _get_conn().execute(
+            f"""
+            SELECT id, ts, game_id, kind, label, insight_id, meta
+            FROM session_markers
+            WHERE ts >= ? {clause}
+            ORDER BY ts DESC
+            LIMIT 100
+            """,
+            params,
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def record_session_marker(
+    game_id: str,
+    kind: str,
+    *,
+    label: str = "",
+    insight_id: str = "",
+    meta: str = "",
+) -> None:
+    with _lock:
+        _get_conn().execute(
+            """
+            INSERT INTO session_markers (ts, game_id, kind, label, insight_id, meta)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (time.time(), game_id, kind, label, insight_id, meta),
+        )
+        _get_conn().commit()
+
+
 def stats() -> dict:
     with _lock:
         c = _get_conn()
@@ -280,6 +468,7 @@ def stats() -> dict:
         games = c.execute(
             "SELECT game_id, COUNT(*) AS n FROM samples WHERE game_id IS NOT NULL GROUP BY game_id"
         ).fetchall()
+        session_count = c.execute("SELECT COUNT(*) FROM game_sessions").fetchone()[0]
     size_mb = round(DB_PATH.stat().st_size / 1024**2, 2) if DB_PATH.exists() else 0
     days = get_retention_days()
     return {
@@ -295,6 +484,7 @@ def stats() -> dict:
         "size_mb": size_mb,
         "est_max_mb": estimate_max_mb(days),
         "games": {r["game_id"]: r["n"] for r in games},
+        "game_sessions": session_count,
         "metrics": METRICS,
     }
 
@@ -311,18 +501,29 @@ def set_retention(days: int) -> dict:
 
 def update_settings(body: dict) -> dict:
     updates: dict = {}
+    acted = False
     if "retention_days" in body:
         updates["retention_days"] = body["retention_days"]
-    if not updates:
+    if "suppressed_insights" in body:
+        updates["suppressed_insights"] = body["suppressed_insights"]
+    if "suppress_insight" in body and isinstance(body["suppress_insight"], str):
+        suppress_insight(body["suppress_insight"].strip())
+        acted = True
+    if "unsuppress_insight" in body and isinstance(body["unsuppress_insight"], str):
+        unsuppress_insight(body["unsuppress_insight"].strip())
+        acted = True
+    if not updates and not acted:
         out = stats()
         out["ok"] = False
         out["error"] = "no settings provided"
         return out
-    save_config(**updates)
+    if updates:
+        save_config(**updates)
     pruned = 0
     if "retention_days" in updates:
         pruned = prune_old()
     out = stats()
     out["ok"] = True
     out["pruned"] = pruned
+    out["suppressed_insights"] = get_suppressed_insights()
     return out
