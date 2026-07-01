@@ -973,6 +973,12 @@
     .sum-cell.hw-focus-hero.mem { --hw-hero-accent: var(--green); }
     .sum-cell.hw-focus-hero.gpu { --hw-hero-accent: var(--orange); }
     .sum-cell.hw-focus-hero .sum-value { font-size: 1.62rem; }
+    @media (max-width: 600px) {
+      .sum-cell.hw-focus-hero {
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--hw-hero-accent) 30%, transparent);
+      }
+      .sum-cell.hw-focus-hero .sum-value { font-size: 1.55rem; }
+    }
     #summaryBar [data-hw]:not([data-hw-keep]),
     #vizPanel [data-hw]:not([data-hw-keep]),
     #warningList .warn-row[data-hw] {
@@ -990,10 +996,13 @@
     #vizPanel .core-strip[data-hw] { max-height: 5.5rem; }
     #vizPanel .league-parts .metric-bar[data-hw] { max-height: 5.5rem; }
     #summaryBar .sensor-chip[data-hw] { max-height: 3.5rem; }
-    #warningList .warn-row[data-hw] { max-height: 8rem; }
+    #warningList .warn-row[data-hw] { max-height: 20rem; }
     .hw-filtered-out {
       opacity: 0 !important;
       max-height: 0 !important;
+      height: 0 !important;
+      min-height: 0 !important;
+      flex: 0 0 0 !important;
       margin-top: 0 !important;
       margin-bottom: 0 !important;
       padding-top: 0 !important;
@@ -1013,7 +1022,7 @@
       font-size: .82rem; color: var(--muted); font-style: italic; text-align: center; padding: .5rem;
     }
     .viz-block.noc-hw-empty .viz-empty-note { display: flex; }
-    .viz-block.noc-hw-empty .viz-block-body > :not(.viz-empty-note) { display: none !important; }
+    .warn-empty.warn-focus-empty { font-style: italic; }
 
     .hw-id-row { display: inline-flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
     .hw-identity { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
@@ -1478,18 +1487,36 @@
     const HW_FOCUS_SUM_CELLS = { cpu: 'sumCpuCell', gpu: 'sumGpuCell', memory: 'sumMemCell' };
     const VIZ_BLOCK_TITLES = {
       'viz-area-util': { default: 'Utilization', cpu: 'CPU utilization', gpu: 'GPU utilization', memory: 'Memory utilization' },
-      'viz-area-temp': { default: 'Temperatures', cpu: 'CPU temperatures', gpu: 'GPU temperatures' },
-      'viz-area-bw': { default: 'Bandwidth', gpu: 'GPU bandwidth', memory: 'Memory bandwidth' },
+      'viz-area-temp': { default: 'Temperatures', cpu: 'CPU temperatures', gpu: 'GPU temperatures', memory: 'Memory temperatures' },
+      'viz-area-bw': { default: 'Bandwidth', cpu: 'CPU bandwidth', gpu: 'GPU bandwidth', memory: 'Memory bandwidth' },
       'viz-area-league': { default: 'Hardware league', cpu: 'CPU league', gpu: 'GPU league', memory: 'Memory league' },
       'viz-area-spark': { default: 'Trend · last 5 minutes', cpu: 'Trend · CPU & memory', gpu: 'Trend · GPU', memory: 'Trend · memory' },
-      'viz-area-cores': { default: 'CPU cores' },
-      'viz-area-glance': { default: 'Power & cooling', cpu: 'CPU thermals', gpu: 'GPU power' },
+      'viz-area-cores': { default: 'CPU cores', cpu: 'CPU cores', gpu: 'CPU cores', memory: 'CPU cores' },
+      'viz-area-glance': { default: 'Power & cooling', cpu: 'CPU thermals', gpu: 'GPU power', memory: 'Power & cooling' },
       'viz-area-stutter': {
         default: 'Stutter proxy · 1% low estimate',
         cpu: 'Stutter proxy · CPU & memory',
+        gpu: 'Stutter proxy · system hitch',
         memory: 'Stutter proxy · memory drivers',
       },
     };
+    const VIZ_BLOCK_ICONS = {
+      'viz-area-util': { default: 'cpu', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
+      'viz-area-temp': { default: 'temp', cpu: 'cpu', gpu: 'gpu', memory: 'temp' },
+      'viz-area-bw': { default: 'storage', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
+      'viz-area-league': { default: 'league', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
+      'viz-area-spark': { default: 'activity', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
+      'viz-area-cores': { default: 'cpu' },
+      'viz-area-glance': { default: 'fan', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
+      'viz-area-stutter': { default: 'stutter', cpu: 'stutter', gpu: 'stutter', memory: 'stutter' },
+    };
+    const VIZ_ICON_BOX_CLS = {
+      cpu: 'cpu', gpu: 'gpu', mem: 'mem', temp: 'temp', storage: 'mem', league: 'league',
+      activity: 'game', fan: 'gpu', stutter: 'stutter',
+    };
+    const HW_FILTER_HIDE_MS = 350;
+    const hwFilterHideHandlers = new WeakMap();
+    let nocEmptyTimer = null;
     const HINT_HW_MAP = {
       'cpu-governor-powersave': ['cpu'],
       'vm-swappiness-high': ['memory'],
@@ -1502,7 +1529,7 @@
       'memory-swap-thrash': ['memory'],
       'memory-dram-stall': ['memory'],
       'memory-page-faults': ['memory'],
-      'stutter-proxy': ['cpu', 'memory'],
+      'stutter-proxy': ['cpu', 'gpu', 'memory'],
       'cpu-bound': ['cpu'],
       'gpu-shader-bound': ['gpu'],
       'cpu-ccd-spread': ['cpu'],
@@ -2217,33 +2244,39 @@
       const c = l.cpu, m = l.memory, g = l.gpu.discrete, bw = l.bandwidth || {};
       const gt = l.game_totals;
       const active = (hints || []).filter(h => h.active !== false);
+      const healthHints = hwFocus ? active.filter(h => hintVisibleForFocus(h)) : active;
       const counts = { hot: 0, warn: 0, info: 0 };
-      active.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
+      healthHints.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
 
       const healthCell = document.getElementById('sumHealthCell');
       let healthVal = 'All clear', healthSub = 'No warnings', healthCls = 'ok';
       if (counts.hot) {
         healthVal = `${counts.hot} critical`;
-        healthSub = `${active.length} active issue${active.length === 1 ? '' : 's'}`;
+        healthSub = `${healthHints.length} active issue${healthHints.length === 1 ? '' : 's'}${hwFocus ? ` · ${HW_FOCUS_LABELS[hwFocus]} focus` : ''}`;
         healthCls = 'hot';
       } else if (counts.warn) {
         healthVal = `${counts.warn} important`;
-        healthSub = `${active.length} active issue${active.length === 1 ? '' : 's'}`;
+        healthSub = `${healthHints.length} active issue${healthHints.length === 1 ? '' : 's'}${hwFocus ? ` · ${HW_FOCUS_LABELS[hwFocus]} focus` : ''}`;
         healthCls = 'warn';
       } else if (counts.info) {
         healthVal = `${counts.info} notes`;
-        healthSub = `${active.length} to review`;
+        healthSub = `${healthHints.length} to review${hwFocus ? ` · ${HW_FOCUS_LABELS[hwFocus]} focus` : ''}`;
         healthCls = 'info';
-      } else if (active.length) {
-        healthVal = `${active.length} healthy`;
-        healthSub = 'Signals look good';
+      } else if (healthHints.length) {
+        healthVal = `${healthHints.length} healthy`;
+        healthSub = hwFocus ? `No ${HW_FOCUS_LABELS[hwFocus]} issues` : 'Signals look good';
+      } else if (hwFocus && active.length) {
+        healthVal = 'All clear';
+        healthSub = `No ${HW_FOCUS_LABELS[hwFocus]} warnings`;
+        healthCls = 'ok';
       }
-      healthCell.className = `sum-cell tall ${healthCls}`;
+      healthCell.classList.remove('hot', 'warn', 'info', 'ok');
+      healthCell.classList.add('sum-cell', 'tall', healthCls);
       document.getElementById('sumHealthVal').textContent = healthVal;
       document.getElementById('sumHealthSub').textContent = healthSub;
       const healthMeter = document.getElementById('sumHealthMeter');
       healthMeter.className = `sum-meter health ${healthCls}`;
-      const healthPct = counts.hot ? 92 : counts.warn ? 68 : counts.info ? 42 : active.length ? 18 : 8;
+      const healthPct = counts.hot ? 92 : counts.warn ? 68 : counts.info ? 42 : healthHints.length ? 18 : 8;
       setMeterWidth(healthMeter.querySelector('span'), healthPct);
       setMeterWidth(document.getElementById('sumCpuMeter'), c.overall_pct);
       setMeterWidth(document.getElementById('sumMemMeter'), m.pct);
@@ -2796,7 +2829,8 @@
       items.forEach((it, i) => {
         const cell = glanceEl.querySelector(`[data-gi="${i}"]`);
         if (!cell) return;
-        cell.className = `glance-cell ${it.cls}`;
+        cell.classList.remove('gpu', 'cpu', 'temp', 'hot', 'warn');
+        it.cls.split(/\s+/).filter(Boolean).forEach(c => cell.classList.add(c));
         cell.querySelector('[data-gi-val]').textContent = it.val;
         cell.querySelector('[data-gi-sub]').textContent = `${it.label} · ${it.sub}`;
         setMeterHeight(cell.querySelector('[data-gi-bar]'), it.pct, 3);
@@ -2833,8 +2867,11 @@
       picks.forEach(s => {
         const chip = el.querySelector(`[data-sid="${CSS.escape(s.id)}"]`);
         if (!chip) return;
-        const cls = s.kind === 'temp' ? tempClass(s.value) : '';
-        chip.className = `sensor-chip ${cls}`.trim();
+        chip.classList.remove('hot', 'warn');
+        if (s.kind === 'temp') {
+          const tc = tempClass(s.value);
+          if (tc) chip.classList.add(tc);
+        }
         chip.querySelector('[data-sval]').textContent = `${s.value ?? '—'}${s.unit || ''}`;
       });
     }
@@ -2889,8 +2926,6 @@
       renderSensorStrip(l.sensors || []);
       renderStutterViz(l);
       renderSparkChart();
-      updateVizTitles();
-      applyHwFilterClasses();
     }
 
     function downloadScript(name, body) {
@@ -3094,26 +3129,47 @@
       return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
 
+    function clearHwFilterHide(el) {
+      const pending = hwFilterHideHandlers.get(el);
+      if (!pending) return;
+      if (pending.timer) clearTimeout(pending.timer);
+      if (pending.onEnd) el.removeEventListener('transitionend', pending.onEnd);
+      hwFilterHideHandlers.delete(el);
+    }
+
+    function finishHwFilterHide(el) {
+      clearHwFilterHide(el);
+      el.classList.add('hw-filtered-hidden');
+    }
+
     function setHwFilterVisible(el, visible) {
       if (!el || el.hasAttribute('data-hw-keep')) return;
       if (visible) {
+        clearHwFilterHide(el);
         el.classList.remove('hw-filtered-hidden');
         if (el.classList.contains('hw-filtered-out')) {
           requestAnimationFrame(() => el.classList.remove('hw-filtered-out'));
         }
+        if (el.matches('.warn-row[data-hw]')) el.style.maxHeight = '';
         return;
       }
       if (el.classList.contains('hw-filtered-hidden')) return;
+      if (el.classList.contains('hw-filtered-out') && hwFilterHideHandlers.has(el)) return;
+      clearHwFilterHide(el);
       if (prefersReducedMotion()) {
         el.classList.add('hw-filtered-out', 'hw-filtered-hidden');
         return;
       }
+      if (el.matches('.warn-row[data-hw]')) {
+        el.style.maxHeight = `${Math.max(el.scrollHeight, el.offsetHeight)}px`;
+      }
       el.classList.add('hw-filtered-out');
       const onEnd = (e) => {
         if (e.target !== el || (e.propertyName !== 'opacity' && e.propertyName !== 'max-height')) return;
-        el.classList.add('hw-filtered-hidden');
-        el.removeEventListener('transitionend', onEnd);
+        finishHwFilterHide(el);
       };
+      const timer = setTimeout(() => finishHwFilterHide(el), HW_FILTER_HIDE_MS);
+      hwFilterHideHandlers.set(el, { onEnd, timer });
       el.addEventListener('transitionend', onEnd);
     }
 
@@ -3139,6 +3195,16 @@
         if (!h3) return;
         const title = hwFocus && map[hwFocus] ? map[hwFocus] : map.default;
         if (h3.textContent !== title) h3.textContent = title;
+        const iconMap = VIZ_BLOCK_ICONS[areaClass];
+        const iconEl = block.querySelector('.viz-block-head .hw-icon-box[data-glyph]');
+        if (iconEl && iconMap) {
+          const glyph = hwFocus && iconMap[hwFocus] ? iconMap[hwFocus] : iconMap.default;
+          if (iconEl.dataset.glyph !== glyph) {
+            iconEl.dataset.glyph = glyph;
+            iconEl.className = `hw-icon-box ${VIZ_ICON_BOX_CLS[glyph] || glyph}`;
+            iconEl.innerHTML = hwIcon(glyph);
+          }
+        }
       });
     }
 
@@ -3148,7 +3214,8 @@
       const blob = `${id} ${hint?.title || ''} ${hint?.text || ''}`.toLowerCase();
       const tags = new Set();
       if (/cpu|governor|ccd|core|ryzen|package|powersave/.test(blob)) tags.add('cpu');
-      if (/gpu|vram|gtt|junction|shader|radeon|geforce|thermal|amdgpu/.test(blob)) tags.add('gpu');
+      if (/gpu|vram|gtt|junction|shader|radeon|geforce|amdgpu/.test(blob)) tags.add('gpu');
+      if (/\bgpu\b.*thermal|thermal.*\bgpu\b|overheating|getting warm/.test(blob)) tags.add('gpu');
       if (/memory|ram|swap|dram|expo|page.?fault|swappiness/.test(blob)) tags.add('memory');
       if (/stutter|hitch/.test(blob)) {
         tags.add('cpu');
@@ -3191,6 +3258,29 @@
         }
       }
       applyWarningFilterClasses();
+      const listEl = document.getElementById('warningList');
+      if (!listEl) return;
+      let focusEmptyEl = listEl.querySelector('.warn-focus-empty');
+      if (active.length && !visible.length && hwFocus) {
+        if (!focusEmptyEl) {
+          focusEmptyEl = document.createElement('p');
+          focusEmptyEl.className = 'warn-empty warn-focus-empty';
+          listEl.appendChild(focusEmptyEl);
+        }
+        focusEmptyEl.textContent =
+          `No ${HW_FOCUS_LABELS[hwFocus]} warnings — view full rig or pick another filter.`;
+        focusEmptyEl.hidden = false;
+      } else if (focusEmptyEl) {
+        focusEmptyEl.hidden = true;
+      }
+    }
+
+    function scheduleNocEmptyStates() {
+      if (nocEmptyTimer) clearTimeout(nocEmptyTimer);
+      nocEmptyTimer = setTimeout(() => {
+        nocEmptyTimer = null;
+        updateNocEmptyStates();
+      }, prefersReducedMotion() ? 0 : HW_FILTER_HIDE_MS);
     }
 
     function updateNocEmptyStates() {
@@ -3199,21 +3289,26 @@
         const note = block.querySelector('.viz-empty-note');
         const filterable = [...block.querySelectorAll('[data-hw]')].filter(el =>
           !el.classList.contains('viz-empty-note') && !el.hasAttribute('data-hw-keep'));
+        const keepers = [...block.querySelectorAll('[data-hw-keep]')].filter(el =>
+          !el.classList.contains('viz-empty-note'));
         if (!hwFocus || !filterable.length) {
           block.classList.remove('noc-hw-empty');
           if (note) note.hidden = true;
           return;
         }
-        const anyShown = filterable.some(el => hwItemVisible(el));
-        block.classList.toggle('noc-hw-empty', !anyShown);
+        const anyFilterableShown = filterable.some(el =>
+          hwItemVisible(el) && !el.classList.contains('hw-filtered-hidden'));
+        const hasKeeperContent = keepers.length > 0;
+        const isEmpty = !anyFilterableShown && !hasKeeperContent;
+        block.classList.toggle('noc-hw-empty', isEmpty);
         if (note) {
-          note.hidden = anyShown;
+          note.hidden = !isEmpty;
           note.textContent = `No ${label} metrics in this widget`;
         }
       });
     }
 
-    function applyHwFocus() {
+    function syncHwFocusDOM() {
       if (hwFocus) document.body.dataset.hwFocus = hwFocus;
       else delete document.body.dataset.hwFocus;
       document.querySelectorAll('[data-hw-filter]').forEach(btn => {
@@ -3242,7 +3337,7 @@
       applyChartFocus();
       applyHwFilterClasses();
       updateWarningsFocusUI();
-      requestAnimationFrame(updateNocEmptyStates);
+      scheduleNocEmptyStates();
     }
 
     function setHwFocus(part) {
@@ -3257,7 +3352,7 @@
         hwFocus = null;
         sessionStorage.removeItem('pulse-hw-focus');
       }
-      applyHwFocus();
+      syncHwFocusDOM();
       if (lastStatic) updateMetaLine(lastStatic, lastLatest);
       renderCharts();
       renderSparkChart();
@@ -3348,10 +3443,7 @@
         if (stat) stat.textContent = t.stat;
         const hint = btn.querySelector('.rig-tile-hint');
         if (hint) hint.textContent = t.hint;
-        btn.classList.toggle('active', t.active);
-        btn.setAttribute('aria-pressed', t.active ? 'true' : 'false');
       });
-      applyHwFocus();
     }
 
     function hwIdentityCell(row) {
@@ -3722,10 +3814,10 @@
         updateMetaLine(s, l);
         renderSummaryBar(l, l.tuning, l.comparison);
         renderVisualDashboard(l, l.comparison);
-        requestAnimationFrame(updateNocEmptyStates);
         renderBandwidth(l);
         renderComparison(l.comparison, mem, s.pulse_root);
         renderWarnings(l.tuning);
+        syncHwFocusDOM();
         renderFixes(l.tuning);
         renderGameIssues(l.issues_by_game);
         renderBacklog(s.backlog);
@@ -3758,9 +3850,21 @@
     }
 
     document.getElementById('rigFocusClear')?.addEventListener('click', () => setHwFocus(null));
+    window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => {
+      document.querySelectorAll('#summaryBar [data-hw], #vizPanel [data-hw], #warningList .warn-row[data-hw]').forEach(el => {
+        clearHwFilterHide(el);
+        if (hwItemVisible(el)) {
+          el.classList.remove('hw-filtered-hidden', 'hw-filtered-out');
+          if (el.matches('.warn-row[data-hw]')) el.style.maxHeight = '';
+        } else {
+          el.classList.add('hw-filtered-out', 'hw-filtered-hidden');
+        }
+      });
+      scheduleNocEmptyStates();
+    });
     bindScrollContainment();
     initStaticGlyphs();
-    applyHwFocus();
+    syncHwFocusDOM();
     tick();
     setInterval(tick, 1000);
   </script>
