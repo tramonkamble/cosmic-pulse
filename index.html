@@ -745,7 +745,7 @@
     .drill-body .card { box-shadow: none; }
     .drill-body .grid { margin: 0; }
     .chart-controls-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: 1rem; }
-    .section-target { scroll-margin-top: 5rem; }
+    .section-target, .rec-card { scroll-margin-top: var(--header-scroll-offset, 6.5rem); }
     .sensor-group { margin-bottom: 1rem; }
     .sensor-group h3 { margin: 0 0 .65rem; font-size: 1rem; color: var(--muted); font-weight: 500; letter-spacing: 0.03em; }
     .g-sensors { grid-template-columns: repeat(6, 1fr); }
@@ -2157,6 +2157,23 @@
       return false;
     }
 
+    function syncHeaderScrollOffset() {
+      const h = document.querySelector('header');
+      const pad = 12;
+      const px = (h?.offsetHeight ?? 104) + pad;
+      document.documentElement.style.setProperty('--header-scroll-offset', `${px}px`);
+      return px;
+    }
+    syncHeaderScrollOffset();
+    window.addEventListener('resize', syncHeaderScrollOffset);
+
+    function scrollToElement(el, smooth = true) {
+      if (!el) return;
+      const pad = syncHeaderScrollOffset();
+      const top = el.getBoundingClientRect().top + window.scrollY - pad;
+      window.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
+    }
+
     function setTab(name, scrollTo, scrollTop = false) {
       activeTab = name;
       sessionStorage.setItem('pulse-tab', name);
@@ -2165,8 +2182,7 @@
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       if (scrollTo) {
         requestAnimationFrame(() => {
-          const el = document.getElementById(scrollTo);
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          requestAnimationFrame(() => scrollToElement(document.getElementById(scrollTo)));
         });
       } else if (scrollTop) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2271,8 +2287,7 @@
       if (activeTab !== 'dashboard') setTab('dashboard');
       requestAnimationFrame(() => {
         if (DRILL_IDS.has(id)) openDrill(id);
-        const el = document.getElementById(id);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        scrollToElement(document.getElementById(id));
       });
     }
 
