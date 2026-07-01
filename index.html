@@ -952,7 +952,7 @@
     }
     .drive-name { font-weight: 500; color: var(--text); flex: 1 1 12rem; min-width: 0; }
     .drive-meta { font-size: .88rem; color: var(--muted); }
-    .rig-tile.storage { border-color: color-mix(in srgb, var(--blue) 22%, var(--line)); }
+
 
     /* Icons & manufacturer marks */
     .hw-glyph {
@@ -1074,6 +1074,7 @@
     .rig-tile.cpu { --rig-accent: var(--blue); --rig-glow: rgba(99,208,222,.14); }
     .rig-tile.gpu { --rig-accent: var(--orange); --rig-glow: rgba(255,173,0,.14); }
     .rig-tile.memory { --rig-accent: var(--green); --rig-glow: rgba(146,206,155,.14); }
+    .rig-tile.storage { --rig-accent: var(--blue); --rig-glow: rgba(98,160,234,.12); }
     .rig-tile-type {
       font-size: .6rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
       color: var(--muted); line-height: 1;
@@ -3641,8 +3642,8 @@
     }
 
     function rigTileHtml(t) {
-      return `<button type="button" class="rig-tile ${t.kind}${t.active ? ' active' : ''}" data-hw-filter="${t.filter}"
-        aria-pressed="${t.active ? 'true' : 'false'}" title="${esc(t.tooltip)}">
+      return `<button type="button" class="rig-tile ${t.kind}${t.active ? ' active' : ''}" data-rig-id="${esc(t.id)}"
+        data-hw-filter="${t.filter}" aria-pressed="${t.active ? 'true' : 'false'}" title="${esc(t.tooltip)}">
         <span class="rig-tile-type">${esc(t.type)}</span>
         <span class="rig-tile-head">${mfrMark(t.slug)}<span class="rig-tile-name">${esc(t.name)}</span></span>
         <span class="rig-tile-stat" data-rig-stat>${esc(t.stat)}</span>
@@ -3651,9 +3652,13 @@
     }
 
     function bindRigTiles(el) {
-      el.querySelectorAll('[data-hw-filter]').forEach(btn => {
+      el.querySelectorAll('[data-rig-id]').forEach(btn => {
         btn.onclick = () => {
           const f = btn.dataset.hwFilter;
+          if (f === 'storage') {
+            jumpTo('drill-storage');
+            return;
+          }
           if (f === 'chassis') setHwFocus(null);
           else setHwFocus(f);
         };
@@ -3668,7 +3673,7 @@
       const tiles = [];
       if (r.chassis?.label) {
         tiles.push({
-          filter: 'chassis', kind: 'chassis', slug: brandSlug(r.chassis.brand || 'System76'),
+          id: 'chassis', filter: 'chassis', kind: 'chassis', slug: brandSlug(r.chassis.brand || 'System76'),
           type: 'Chassis', name: r.chassis.model || r.chassis.label,
           stat: 'All parts · full dashboard',
           hint: hwFocus ? 'Click to clear filter' : 'Full rig view',
@@ -3677,7 +3682,7 @@
       }
       if (r.cpu?.model) {
         tiles.push({
-          filter: 'cpu', kind: 'cpu', slug: brandSlug(r.cpu.brand || 'CPU'),
+          id: 'cpu', filter: 'cpu', kind: 'cpu', slug: brandSlug(r.cpu.brand || 'CPU'),
           type: 'Processor', name: r.cpu.model,
           stat: `${c.overall_pct ?? '—'}% · ${c.temps?.package ?? '—'}°C · load ${c.load?.[0] ?? '—'}`,
           hint: 'Filter CPU metrics',
@@ -3691,7 +3696,7 @@
           : r.gpu.model;
         const rdna3Note = tp.arch === 'rdna3' ? ' · junction 95–108°C normal for RDNA3' : '';
         tiles.push({
-          filter: 'gpu', kind: 'gpu', slug: brandSlug(r.gpu.maker || r.gpu.brand || 'GPU'),
+          id: 'gpu', filter: 'gpu', kind: 'gpu', slug: brandSlug(r.gpu.maker || r.gpu.brand || 'GPU'),
           type: 'Graphics', name: gpuName,
           stat: `${g.busy_pct ?? '—'}% · ${g.junction_c ?? '—'}°C · ${g.power_w ?? '—'} W`,
           hint: 'Filter GPU metrics',
@@ -3702,7 +3707,7 @@
       if (r.memory?.kit || r.memory?.label) {
         const memName = r.memory.kit || r.memory.label || 'RAM';
         tiles.push({
-          filter: 'memory', kind: 'memory', slug: brandSlug(r.memory.brand || 'RAM'),
+          id: 'memory', filter: 'memory', kind: 'memory', slug: brandSlug(r.memory.brand || 'RAM'),
           type: 'Memory', name: memName,
           stat: `${m.pct ?? '—'}% · ${m.used_gb ?? '—'}/${m.total_gb ?? '—'} GB · swap ${m.swap_pct ?? 0}%`,
           hint: 'Filter RAM & bandwidth',
@@ -3713,10 +3718,10 @@
       if (drives.length) {
         const labels = drives.map(d => d.label || d.model).filter(Boolean);
         tiles.push({
-          filter: 'chassis', kind: 'storage', slug: brandSlug(drives[0].brand || 'NVMe'),
+          id: 'storage', filter: 'storage', kind: 'storage', slug: brandSlug(drives[0].brand || 'NVMe'),
           type: 'Storage', name: drives.length === 1 ? (labels[0] || 'NVMe') : `${drives.length} NVMe drives`,
           stat: drives.map(d => d.size || '—').join(' · '),
-          hint: labels.join(' · '),
+          hint: 'Open drives & history',
           tooltip: drives.map(d => `${d.brand} ${d.model} (${d.size})`).join('\n'),
           active: false,
         });
@@ -3727,14 +3732,14 @@
     function renderRigStrip(s, l) {
       const el = document.getElementById('rigStrip');
       const tiles = buildRigTiles(s, l);
-      const structKey = tiles.map(t => t.filter).join('|');
+      const structKey = tiles.map(t => t.id).join('|');
       if (el.dataset.structKey !== structKey) {
         el.dataset.structKey = structKey;
         el.innerHTML = tiles.map(rigTileHtml).join('');
         bindRigTiles(el);
       }
       tiles.forEach(t => {
-        const btn = el.querySelector(`[data-hw-filter="${t.filter}"]`);
+        const btn = el.querySelector(`[data-rig-id="${CSS.escape(t.id)}"]`);
         if (!btn) return;
         const stat = btn.querySelector('[data-rig-stat]');
         if (stat) stat.textContent = t.stat;
