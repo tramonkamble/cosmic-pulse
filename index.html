@@ -522,20 +522,36 @@
     .metric-bar-track.temp.info > span { background: linear-gradient(90deg, #4a6fa8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.25); }
     .metric-bar-sub { display: block; margin-top: .3rem; font-size: .8rem; color: var(--muted); }
     .stutter-layout.rig-layout {
-      grid-template-columns: minmax(13rem, 1.15fr) minmax(13rem, 1.45fr) minmax(11rem, 1fr);
+      grid-template-columns: minmax(10.5rem, 0.9fr) minmax(14rem, 1.5fr) minmax(13rem, 1.3fr);
     }
     .rig-layout .stutter-drivers {
       gap: .35rem;
-      overflow-y: auto;
-      padding-right: .2rem;
+      justify-content: flex-start;
+      padding-right: .15rem;
     }
     .rig-layout .stutter-side-label { margin: .08rem 0 .1rem; flex-shrink: 0; }
     .rig-layout .stutter-side-label:first-child { margin-top: 0; }
     .rig-layout .rig-driver-group { flex-shrink: 0; }
-    .rig-layout .stutter-summary { gap: .48rem; }
-    .rig-layout .glance-grid { margin-top: .1rem; }
-    .rig-layout .core-strip { height: 64px; flex-shrink: 0; }
-    .rig-layout .core-strip-cell { height: 64px; }
+    .rig-layout .stutter-summary {
+      gap: .42rem;
+      overflow-y: auto;
+      padding-left: .1rem;
+      padding-right: .15rem;
+    }
+    .rig-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .4rem .55rem;
+      flex-shrink: 0;
+    }
+    .rig-detail-col { display: flex; flex-direction: column; gap: .22rem; min-width: 0; }
+    .rig-detail-col .metric-list-compact { gap: .38rem; }
+    .rig-layout .glance-grid { margin-top: 0; flex-shrink: 0; }
+    .rig-layout .core-strip { height: 58px; flex-shrink: 0; }
+    .rig-layout .core-strip-cell { height: 58px; }
+    @media (max-width: 1100px) {
+      .rig-detail-grid { grid-template-columns: 1fr; }
+    }
     .rig-status {
       font-size: .72rem; font-weight: 500; color: var(--text-secondary); line-height: 1.35;
       padding: .1rem 0 .05rem;
@@ -1448,14 +1464,6 @@
                   <div class="stutter-side-label">Utilization</div>
                   <div class="metric-list metric-list-compact stutter-driver-bars" id="utilMeters"></div>
                 </div>
-                <div class="rig-driver-group">
-                  <div class="stutter-side-label">Temperatures</div>
-                  <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
-                </div>
-                <div class="rig-driver-group">
-                  <div class="stutter-side-label">Bandwidth</div>
-                  <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
-                </div>
               </div>
               <div class="stutter-col stutter-chart-col" data-hw-keep>
                 <div class="stutter-side-label" id="sparkChartLabel">Trend · last 5 min</div>
@@ -1480,6 +1488,16 @@
                   </div>
                 </div>
                 <div class="rig-status ok" id="rigStatus">—</div>
+                <div class="rig-detail-grid">
+                  <div class="rig-detail-col">
+                    <div class="stutter-side-label">Temperatures</div>
+                    <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
+                  </div>
+                  <div class="rig-detail-col">
+                    <div class="stutter-side-label">Bandwidth</div>
+                    <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
+                  </div>
+                </div>
                 <div class="stutter-side-label">Power &amp; cooling</div>
                 <div class="glance-grid" id="glanceGrid"></div>
                 <div class="stutter-side-label" data-hw="cpu">CPU cores</div>
