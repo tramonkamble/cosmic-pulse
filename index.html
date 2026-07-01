@@ -1,0 +1,2607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pulse · Cities II</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d0e12;
+      --panel: rgba(38, 41, 52, 0.92);
+      --panel-solid: #252830;
+      --panel-elevated: #2e323d;
+      --text: #f4f6fa;
+      --text-secondary: #c8d0dc;
+      --muted: #9aa3b2;
+      --accent: #e95420;
+      --accent-soft: rgba(233, 84, 32, 0.14);
+      --blue: #62a0ea;
+      --purple: #b48ead;
+      --green: #6ac98d;
+      --amber: #e9b872;
+      --hot: #ed6a5a;
+      --ok: #6ac98d;
+      --line: rgba(255, 255, 255, 0.09);
+      --glass: rgba(18, 20, 26, 0.72);
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.32);
+      --radius: 12px;
+      --radius-lg: 16px;
+      --ui-scale: 1.5;
+      --bar-h: 200px;
+      --meter-h: 18px;
+      --rank-bar-h: 14px;
+      --meter-ease: 1.85s cubic-bezier(0.28, 0.82, 0.32, 1);
+      /* legacy aliases for chart/inline refs */
+      --cyan: var(--blue);
+      --magenta: var(--accent);
+      --violet: var(--purple);
+      --lime: var(--green);
+    }
+    * { box-sizing: border-box; }
+    button { font-family: inherit; color: inherit; }
+    body {
+      margin: 0; color: var(--text); min-height: 100vh; font-size: calc(18px * var(--ui-scale)); line-height: 1.62;
+      font-family: "Sora", system-ui, -apple-system, sans-serif;
+      font-weight: 400;
+      letter-spacing: 0.012em;
+      font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+      font-kerning: normal;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background:
+        radial-gradient(ellipse 90% 55% at 0% -15%, rgba(233, 84, 32, 0.09), transparent),
+        radial-gradient(ellipse 70% 45% at 100% 0%, rgba(98, 160, 234, 0.07), transparent),
+        var(--bg);
+    }
+    header {
+      display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;
+      padding: 1rem 1.5rem; border-bottom: 1px solid var(--line);
+      background: var(--glass); backdrop-filter: blur(20px) saturate(1.15);
+      position: sticky; top: 0; z-index: 20;
+    }
+    h1 {
+      margin: 0; font-size: 1.6rem; font-weight: 500; letter-spacing: 0.02em; color: var(--text);
+    }
+    h1 .pop-dot {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent); margin-right: .55rem; vertical-align: middle;
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .sub { color: var(--muted); font-size: 1.02rem; font-weight: 400; margin-top: .4rem; line-height: 1.55; letter-spacing: 0.018em; }
+    .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: .75rem; }
+    .nav-tabs { display: flex; gap: 4px; background: var(--panel-solid); padding: 5px; border-radius: var(--radius); border: 1px solid var(--line); }
+    .tab-btn {
+      font-family: inherit; font-size: 1rem; font-weight: 500;
+      padding: .6rem 1.1rem; border: 1px solid transparent; border-radius: 10px;
+      background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s;
+    }
+    .tab-btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
+    .tab-btn.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .chart-controls-bar { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+    .controls { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+    .ctrl-group { display: flex; gap: 4px; background: var(--panel-solid); padding: 5px; border-radius: var(--radius); border: 1px solid var(--line); }
+    .ctrl-label { font-size: .95rem; color: var(--muted); font-weight: 500; padding: 0 .5rem; }
+    .btn {
+      font-family: inherit; font-size: 1rem; font-weight: 500;
+      padding: .65rem 1rem; border: 1px solid transparent; border-radius: 10px;
+      background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s;
+    }
+    .btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
+    .btn.active { color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 500; }
+    .btn.mag.active { background: #d14d1a; border-color: #d14d1a; color: #fff; }
+    .btn.vio.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .pill {
+      display: inline-flex; align-items: center; gap: .5rem; padding: .55rem .9rem;
+      border-radius: 999px; border: 1px solid var(--line); font-size: 1rem;
+      background: var(--panel-solid);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    main { padding: 1.5rem 1.75rem; max-width: 1920px; margin: 0 auto; position: relative; z-index: 1; }
+    .page { display: none; flex-direction: column; gap: 1.25rem; }
+    .page.active { display: flex; }
+    .grid { display: grid; gap: 1.25rem; }
+    .g-hero { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 1000px) { .g-hero { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .g-hero { grid-template-columns: 1fr; } }
+    .g-bw { grid-template-columns: 1fr 1fr; }
+    .g-mid { grid-template-columns: 1.4fr 1fr; }
+    .g-charts { grid-template-columns: 1fr 1fr; }
+    .g-charts-3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 1200px) { .g-bw, .g-mid, .g-charts, .g-charts-3 { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel); backdrop-filter: blur(16px) saturate(1.1);
+      border: 1px solid var(--line); border-radius: var(--radius-lg);
+      padding: 1.4rem 1.5rem; position: relative; box-shadow: var(--shadow);
+    }
+    .card h2 {
+      margin: 0 0 1.1rem; font-size: 1.2rem; color: var(--text);
+      font-weight: 500; letter-spacing: 0.04em;
+    }
+    .stat, .bw-big, .rank-score, .sensor .val {
+      font-variant-numeric: tabular-nums lining-nums;
+      font-feature-settings: "kern" 1, "tnum" 1, "lnum" 1;
+    }
+    .stat { font-size: 2.85rem; font-weight: 600; line-height: 1.08; letter-spacing: -0.018em; }
+    .stat small { font-size: 1rem; color: var(--muted); font-weight: 400; letter-spacing: 0.02em; }
+    .hero-card .stat { color: var(--blue); }
+    .hero-card.mag .stat { color: var(--accent); }
+    .hero-card.lime .stat { color: var(--green); }
+    .hero-card.game .stat { color: var(--accent); }
+    .bw-card { display: grid; gap: 1rem; }
+    .bw-head { display: flex; justify-content: space-between; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
+    .bw-big { font-size: 3rem; font-weight: 600; color: var(--accent); line-height: 1.05; letter-spacing: -0.02em; }
+    .bw-big.mem { color: var(--green); }
+    .bw-sub { font-size: 1.05rem; color: var(--muted); }
+    .bw-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; font-size: 1rem; }
+    .bw-kv { background: var(--panel-solid); border: 1px solid var(--line); border-radius: 12px; padding: .85rem .95rem; }
+    .bw-kv .k { color: var(--muted); font-size: .95rem; font-weight: 500; display: block; margin-bottom: .35rem; }
+    .bw-kv .v { color: var(--text); font-size: 1.1rem; font-weight: 500; letter-spacing: 0.01em; }
+    .meter { height: var(--meter-h); background: var(--panel-solid); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+    .meter > span {
+      display: block; height: 100%; border-radius: 99px;
+      transition: width var(--meter-ease);
+    }
+    .meter.gpu > span { background: linear-gradient(90deg, #d14d1a, var(--accent)); }
+    .meter.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); }
+    .meter-label { display: flex; justify-content: space-between; font-size: 1.05rem; color: var(--muted); margin-bottom: .5rem; font-weight: 500; }
+    /* Recommendations — clear hierarchy, generous spacing (Cosmic / HIG inspired) */
+    .rec-status { margin: -.35rem 0 1rem; font-size: 1rem; color: var(--muted); font-weight: 400; }
+    .rec-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.25rem; }
+    .stable-toolbar { min-height: 2.75rem; align-items: center; }
+    .stable-scroll { overflow-y: auto; overflow-x: hidden; }
+
+    .rec-list { display: flex; flex-direction: column; gap: 1rem; }
+    .rec-card {
+      display: flex; flex-direction: column; gap: .75rem;
+      padding: 1.15rem 1.25rem; border-radius: var(--radius);
+      border: 1px solid var(--line); background: var(--panel-solid);
+      border-left: 4px solid var(--blue);
+    }
+    .rec-card.rec-hot { border-left-color: var(--hot); }
+    .rec-card.rec-warn { border-left-color: var(--amber); }
+    .rec-card.rec-info { border-left-color: var(--blue); }
+    .rec-card.rec-ok { border-left-color: var(--ok); }
+    .rec-card.rec-stale { opacity: .5; border-left-color: var(--muted); }
+    .rec-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .65rem; }
+    .rec-sev {
+      font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+      padding: .28rem .55rem; border-radius: 6px; line-height: 1.2; white-space: nowrap;
+    }
+    .rec-sev.hot { color: var(--hot); background: rgba(237,106,90,.14); }
+    .rec-sev.warn { color: var(--amber); background: rgba(233,184,114,.14); }
+    .rec-sev.info { color: var(--blue); background: rgba(98,160,234,.14); }
+    .rec-sev.ok { color: var(--ok); background: rgba(106,201,141,.14); }
+    .rec-game {
+      font-size: .78rem; font-weight: 500; color: var(--muted);
+      padding: .22rem .5rem; border-radius: 6px; background: rgba(255,255,255,.04);
+      border: 1px solid var(--line); white-space: nowrap;
+    }
+    .rec-title {
+      margin: 0; flex: 1 1 100%; font-size: 1.12rem; font-weight: 500;
+      line-height: 1.35; letter-spacing: 0.01em; color: var(--text);
+    }
+    .rec-card.rec-hot .rec-title { color: var(--hot); }
+    .rec-card.rec-warn .rec-title { color: var(--amber); }
+    .rec-body {
+      margin: 0; font-size: 1rem; line-height: 1.55; color: var(--muted); font-weight: 400;
+    }
+    .rec-meta { margin: 0; font-size: .88rem; color: var(--muted); opacity: .85; }
+    .rec-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .insight-pill {
+      font-size: .88rem; font-weight: 500; padding: .4rem .75rem; border-radius: 8px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.03); letter-spacing: 0.01em;
+    }
+    .insight-pill.hot { border-color: rgba(237,106,90,.35); color: var(--hot); }
+    .insight-pill.warn { border-color: rgba(233,184,114,.35); color: var(--amber); }
+    .insight-pill.info { border-color: rgba(98,160,234,.35); color: var(--blue); }
+    .insight-pill.ok { border-color: rgba(106,201,141,.35); color: var(--ok); }
+    .rec-subheading {
+      margin: 1.75rem 0 .85rem; font-size: .95rem; font-weight: 500;
+      color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .rec-cleared { margin-top: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(0,0,0,.12); }
+    .rec-cleared summary {
+      padding: .85rem 1rem; font-size: .95rem; color: var(--muted); cursor: pointer; font-weight: 500;
+    }
+    .rec-cleared .rec-list { padding: 0 1rem 1rem; }
+    .game-issues-block {
+      border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--panel-solid); padding: 0 1rem 1rem;
+    }
+    .game-issues-body { display: flex; flex-direction: column; gap: 1rem; }
+    .script-btn {
+      font-family: inherit; font-size: .95rem; font-weight: 500;
+      padding: .6rem 1rem; border-radius: 10px; border: none; cursor: pointer;
+      background: var(--accent); color: #fff; transition: filter .15s;
+    }
+    .script-btn:hover { filter: brightness(1.08); }
+    .script-btn.sec { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .script-btn.sec:hover { background: rgba(255,255,255,.05); }
+    .script-pre {
+      font-size: .85rem; line-height: 1.5; max-height: 240px; overflow: auto;
+      background: #12141a; border: 1px solid var(--line); border-radius: 10px;
+      padding: .65rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, monospace; margin: .35rem 0 0;
+    }
+    details.rec-more { margin: 0; }
+    details.rec-more summary {
+      font-size: .92rem; color: var(--blue); cursor: pointer; padding: .35rem 0;
+      font-weight: 500; list-style: none;
+    }
+    details.rec-more summary::-webkit-details-marker { display: none; }
+    .rec-steps { display: flex; flex-direction: column; gap: .5rem; margin-top: .35rem; }
+    .rec-step {
+      display: grid; grid-template-columns: 1fr auto; gap: .5rem .75rem; align-items: start;
+      padding: .65rem .75rem; border-radius: 10px; background: rgba(0,0,0,.18); border: 1px solid var(--line);
+    }
+    .rec-step-label { font-size: .95rem; font-weight: 500; line-height: 1.4; grid-column: 1; }
+    .rec-step code {
+      grid-column: 1; font-size: .82rem; color: var(--blue); word-break: break-all;
+      font-family: ui-monospace, monospace; line-height: 1.45;
+    }
+    .rec-step-note { grid-column: 1; font-size: .85rem; color: var(--muted); line-height: 1.4; }
+    .rec-step .copy-btn { grid-column: 2; grid-row: 1 / span 3; align-self: start; }
+    .copy-btn {
+      font-family: inherit; font-size: .92rem; font-weight: 500;
+      padding: .5rem .85rem; border-radius: 10px; border: 1px solid var(--line); letter-spacing: 0.02em;
+      background: var(--panel-solid); color: var(--text); cursor: pointer; white-space: nowrap;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,.06); }
+    .copy-btn.ok { color: var(--green); border-color: rgba(106,201,141,.4); }
+    .backlog { display: grid; gap: .45rem; }
+    .bl-item {
+      display: flex; gap: .6rem; align-items: flex-start; padding: .55rem .65rem;
+      border-radius: 10px; background: var(--panel-solid); font-size: 1.05rem; border: 1px solid var(--line);
+    }
+    .bl-pri {
+      font-size: .62rem; font-weight: 700; text-transform: uppercase; padding: .15rem .4rem;
+      border-radius: 999px; background: rgba(157,77,255,.15); color: var(--violet); white-space: nowrap;
+    }
+    .bl-pri.done { background: rgba(93,255,122,.12); color: var(--lime); }
+    .bl-pri.high { background: rgba(255,77,109,.12); color: var(--hot); }
+    .sensor-status { font-size: 1.05rem; color: var(--muted); margin-bottom: .85rem; }
+    .sensor-status.ok { color: var(--lime); }
+
+    .bar-wrap { display: grid; grid-template-columns: repeat(auto-fill, minmax(28px, 1fr)); gap: 6px; align-items: end; height: var(--bar-h); }
+    .core-bar { background: var(--panel-solid); border: 1px solid var(--line); border-radius: 8px 8px 0 0; position: relative; height: var(--bar-h); }
+    .core-fill {
+      position: absolute; bottom: 0; left: 0; right: 0; border-radius: 5px 5px 0 0;
+      background: linear-gradient(180deg, var(--blue), var(--accent));
+      min-height: 2px;
+      transition: height var(--meter-ease);
+    }
+    .core-label { text-align: center; font-size: .85rem; color: var(--muted); margin-top: 6px; font-weight: 500; }
+    .chart-box { height: 400px; }
+    .summary-bar { padding: 1.15rem 1.3rem; }
+    .sum-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 1fr 1.05fr;
+      grid-template-rows: 1fr 1fr;
+      grid-template-areas:
+        "health cpu mem league"
+        "health gpu game league";
+      gap: .65rem;
+      min-height: 10.5rem;
+    }
+    #sumHealthCell { grid-area: health; }
+    #sumCpuCell { grid-area: cpu; }
+    #sumMemCell { grid-area: mem; }
+    #sumGpuCell { grid-area: gpu; }
+    #sumGameCell { grid-area: game; }
+    #sumLeagueCell { grid-area: league; }
+    @media (max-width: 1000px) {
+      .sum-grid {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: auto;
+        grid-template-areas:
+          "health health league"
+          "cpu mem gpu"
+          "game game game";
+        min-height: 0;
+      }
+    }
+    @media (max-width: 560px) {
+      .sum-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-areas:
+          "health health"
+          "league league"
+          "cpu mem"
+          "gpu game";
+      }
+    }
+    .sum-cell {
+      font-family: inherit; text-align: left; cursor: pointer; color: var(--text);
+      border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-elevated);
+      padding: .85rem 1rem; display: flex; flex-direction: column; gap: .4rem;
+      justify-content: flex-start; min-height: 0; height: 100%;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+    }
+    .sum-cell.tall { padding: 1rem 1.1rem; }
+    .sum-cell.tall .sum-value { font-size: 1.75rem; margin-top: auto; }
+    .sum-cell.tall .sum-body { display: flex; flex-direction: column; gap: .45rem; flex: 1; }
+    .sum-foot { margin-top: auto; display: flex; flex-direction: column; gap: .35rem; }
+    .sum-league-badge { min-height: 1.6rem; display: flex; align-items: center; }
+    .sum-league-badge .rank-badge { font-size: .82rem; padding: .3rem .6rem; }
+
+    .sum-cell:hover { background: #353a46; border-color: rgba(98,160,234,.45); box-shadow: 0 4px 20px rgba(0,0,0,.25); }
+    .sum-cell.hot { border-left: 4px solid var(--hot); }
+    .sum-cell.warn { border-left: 4px solid var(--amber); }
+    .sum-cell.info { border-left: 4px solid var(--blue); }
+    .sum-cell.ok { border-left: 4px solid var(--ok); }
+    .sum-label { font-size: .78rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secondary); }
+    .sum-value { font-size: 1.5rem; font-weight: 600; line-height: 1.15; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; color: var(--text); }
+    .sum-cell.hot .sum-value { color: #ff8a7a; }
+    .sum-cell.warn .sum-value { color: #f5c882; }
+    .sum-cell.info .sum-value { color: #8ec0ff; }
+    .sum-cell.cpu .sum-value { color: var(--blue); }
+    .sum-cell.mem .sum-value { color: var(--green); }
+    .sum-cell.gpu .sum-value { color: #ff7a45; }
+    .sum-cell.game .sum-value { color: var(--accent); }
+    .sum-cell.league .sum-value { color: var(--purple); }
+    .sum-detail { font-size: .88rem; color: var(--text-secondary); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sum-meter { height: 6px; background: rgba(0,0,0,.35); border-radius: 99px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
+    .sum-meter > span {
+      display: block; height: 100%; border-radius: 99px; min-width: 2px;
+      transition: width var(--meter-ease);
+    }
+    .sum-meter.cpu > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.5); }
+    .sum-meter.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 10px rgba(106,201,141,.45); }
+    .sum-meter.gpu > span { background: linear-gradient(90deg, #c44a18, var(--accent)); box-shadow: 0 0 10px rgba(233,84,32,.5); }
+    .sum-meter.health > span { background: linear-gradient(90deg, var(--green), var(--blue)); }
+    .sum-meter.health.hot > span { background: linear-gradient(90deg, #c43d32, var(--hot)); box-shadow: 0 0 10px rgba(237,106,90,.5); }
+    .sum-meter.health.warn > span { background: linear-gradient(90deg, #b8863a, var(--amber)); }
+    .sum-meter.league > span { background: linear-gradient(90deg, var(--purple), var(--blue)); box-shadow: 0 0 10px rgba(180,142,173,.4); }
+    .sum-meter.game > span { background: linear-gradient(90deg, #d14d1a, var(--accent)); }
+    .viz-panel h2 { margin-bottom: .85rem; }
+    .viz-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-areas:
+        "util temp bw league"
+        "spark spark cores glance"
+        "stutter stutter stutter stutter";
+      gap: .85rem;
+      align-items: stretch;
+    }
+    .viz-area-util { grid-area: util; }
+    .viz-area-temp { grid-area: temp; }
+    .viz-area-bw { grid-area: bw; }
+    .viz-area-league { grid-area: league; }
+    .viz-area-spark { grid-area: spark; }
+    .viz-area-cores { grid-area: cores; }
+    .viz-area-glance { grid-area: glance; }
+    .viz-area-stutter { grid-area: stutter; }
+    @media (max-width: 1200px) {
+      .viz-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-areas:
+          "util temp"
+          "bw league"
+          "spark spark"
+          "cores glance"
+          "stutter stutter";
+      }
+    }
+    @media (max-width: 600px) {
+      .viz-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "util" "temp" "bw" "league" "spark" "cores" "glance" "stutter";
+      }
+    }
+    .viz-block {
+      background: var(--panel-elevated); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 1rem 1.1rem; display: flex; flex-direction: column; min-height: 0; height: 100%;
+    }
+    .viz-block-head {
+      display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; flex-shrink: 0;
+    }
+    .viz-block-head .hw-icon-box { width: 1.85rem; height: 1.85rem; border-radius: 8px; }
+    .viz-block-head h3 {
+      margin: 0; flex: 1; font-size: .82rem; font-weight: 600; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--text-secondary);
+    }
+    .viz-block-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .hw-metric-glyph { width: .95em; height: .95em; opacity: .8; flex-shrink: 0; }
+    .metric-list { display: flex; flex-direction: column; gap: .7rem; flex: 1; }
+    .metric-bar-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .35rem; }
+    .metric-bar-label { font-size: .92rem; font-weight: 500; color: var(--text); }
+    .metric-bar-val { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+    .metric-bar-val.cpu { color: var(--blue); }
+    .metric-bar-val.mem { color: var(--green); }
+    .metric-bar-val.gpu { color: #ff7a45; }
+    .metric-bar-val.temp { color: var(--purple); }
+    .metric-bar-val.temp.warn { color: var(--amber); }
+    .metric-bar-val.temp.hot { color: #ff8a7a; }
+    .metric-bar-track {
+      height: 12px; background: rgba(0,0,0,.38); border-radius: 99px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,.07);
+    }
+    .metric-bar-track > span {
+      display: block; height: 100%; border-radius: 99px; min-width: 3px;
+      transition: width var(--meter-ease);
+    }
+    .metric-bar-track.cpu > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 14px rgba(98,160,234,.45); }
+    .metric-bar-track.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 14px rgba(106,201,141,.4); }
+    .metric-bar-track.gpu > span { background: linear-gradient(90deg, #c44a18, var(--accent)); box-shadow: 0 0 14px rgba(233,84,32,.45); }
+    .metric-bar-track.swap > span { background: linear-gradient(90deg, #7a5c9e, var(--purple)); }
+    .metric-bar-track.game > span { background: linear-gradient(90deg, #d14d1a, #ff6b35); }
+    .metric-bar-track.vram > span { background: linear-gradient(90deg, #e95420, #ffb347); }
+    .metric-bar-track.bw-gpu > span { background: linear-gradient(90deg, var(--accent), #ff9f6b); }
+    .metric-bar-track.bw-mem > span { background: linear-gradient(90deg, #2d7a52, var(--green)); }
+    .metric-bar-track.league > span { background: linear-gradient(90deg, var(--purple), var(--blue)); box-shadow: 0 0 12px rgba(180,142,173,.4); }
+    .metric-bar-track.temp > span { background: linear-gradient(90deg, #5a8fd4, var(--blue)); }
+    .metric-bar-track.temp.warn > span { background: linear-gradient(90deg, #c49a3a, var(--amber)); box-shadow: 0 0 12px rgba(233,184,114,.4); }
+    .metric-bar-track.temp.hot > span { background: linear-gradient(90deg, #c43d32, var(--hot)); box-shadow: 0 0 14px rgba(237,106,90,.5); }
+    .metric-bar-sub { display: block; margin-top: .3rem; font-size: .8rem; color: var(--muted); }
+    .spark-box { height: 140px; position: relative; }
+    .core-strip {
+      display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; align-items: end; height: 72px;
+    }
+    .core-strip-cell { background: rgba(0,0,0,.35); border-radius: 4px 4px 0 0; position: relative; height: 72px; border: 1px solid rgba(255,255,255,.05); }
+    .core-strip-fill {
+      position: absolute; bottom: 0; left: 0; right: 0; border-radius: 3px 3px 0 0;
+      background: linear-gradient(180deg, var(--blue), var(--accent)); min-height: 3px;
+      transition: height var(--meter-ease);
+    }
+    .league-viz { display: grid; gap: .75rem; }
+    .league-score-row { display: flex; align-items: baseline; gap: .75rem; }
+    .league-big { font-size: 1.85rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+    .viz-area-league .league-parts { gap: .45rem; }
+    .league-parts { display: grid; gap: .55rem; }
+    .sensor-strip {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+      gap: .45rem; margin-top: .85rem;
+      min-height: 2.4rem; max-height: 5.5rem; overflow-y: auto; align-items: stretch;
+    }
+    .sensor-chip { justify-content: flex-start; }
+    .glance-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: .55rem; flex: 1;
+    }
+    .glance-cell {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .55rem .65rem; border-radius: 10px;
+      background: rgba(0,0,0,.22); border: 1px solid var(--line);
+      min-width: 0;
+    }
+    .glance-cell .hw-icon-box { width: 2rem; height: 2rem; border-radius: 9px; flex-shrink: 0; }
+    .glance-body { display: flex; flex-direction: column; gap: .12rem; min-width: 0; flex: 1; }
+    .glance-val { font-size: 1.02rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .glance-sub { font-size: .76rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .glance-bar {
+      width: 4px; align-self: stretch; border-radius: 99px; background: rgba(255,255,255,.08);
+      flex-shrink: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end;
+    }
+    .glance-bar > span {
+      display: block; width: 100%; border-radius: 99px;
+      background: var(--glance-accent, var(--blue));
+      height: 0%; min-height: 3px;
+      transition: height var(--meter-ease);
+    }
+    .glance-cell.gpu { --glance-accent: #ff7a45; }
+    .glance-cell.cpu { --glance-accent: var(--blue); }
+    .glance-cell.temp.hot { --glance-accent: var(--hot); }
+    .glance-cell.temp.warn { --glance-accent: var(--amber); }
+    .glance-cell.temp { --glance-accent: var(--purple); }
+    .sensor-chip.placeholder { opacity: .5; border-style: dashed; background: transparent; color: var(--muted); }
+    .sensor-chip {
+      display: inline-flex; align-items: center; gap: .45rem; padding: .4rem .7rem;
+      border-radius: 999px; border: 1px solid var(--line); background: var(--panel-solid);
+      font-size: .85rem; color: var(--text-secondary);
+    }
+    .sensor-chip .chip-val { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+    .sensor-chip.hot .chip-val { color: #ff8a7a; }
+    .sensor-chip.warn .chip-val { color: #f5c882; }
+    .stutter-head {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; margin-bottom: 1rem;
+    }
+    @media (max-width: 800px) { .stutter-head { grid-template-columns: repeat(2, 1fr); } }
+    .stutter-stat {
+      background: rgba(0,0,0,.28); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: .75rem .9rem; text-align: center;
+    }
+    .stutter-stat .k { display: block; font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: .25rem; }
+    .stutter-stat .v { font-size: 1.55rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+    .stutter-stat .v.severe { color: #ff8a7a; }
+    .stutter-stat .v.moderate { color: #f5c882; }
+    .stutter-stat .v.mild { color: #8ec0ff; }
+    .stutter-stat .v.ok { color: var(--green); }
+    .stutter-causes { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .75rem; min-height: 2.2rem; align-items: center; }
+    .stutter-cause.placeholder { opacity: .5; border-style: dashed; background: transparent; color: var(--muted); }
+    .stutter-cause {
+      font-size: .8rem; font-weight: 500; padding: .35rem .65rem; border-radius: 999px;
+      border: 1px solid var(--line); background: rgba(180,142,173,.12); color: var(--purple);
+    }
+    .diag-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-bottom: 1rem; }
+    .diag-counts { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; min-height: 2.75rem; align-items: center; }
+    .diag-list { display: flex; flex-direction: column; gap: .75rem; min-height: 6rem; max-height: 22rem; }
+    .diag-item {
+      border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-solid);
+      padding: 1rem 1.1rem; border-left: 4px solid var(--blue);
+    }
+    .diag-item.hot { border-left-color: var(--hot); }
+    .diag-item.warn { border-left-color: var(--amber); }
+    .diag-item.info { border-left-color: var(--blue); }
+    .diag-item.ok { border-left-color: var(--ok); }
+    .diag-head { display: flex; flex-wrap: wrap; gap: .45rem .65rem; align-items: center; margin-bottom: .45rem; }
+    .diag-cat {
+      font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--text-secondary); padding: .2rem .45rem; border-radius: 5px;
+      background: rgba(255,255,255,.04); border: 1px solid var(--line);
+    }
+    .diag-title { font-size: 1.05rem; font-weight: 500; color: var(--text); flex: 1 1 100%; }
+    .diag-item.hot .diag-title { color: #ff8a7a; }
+    .diag-item.warn .diag-title { color: #f5c882; }
+    .diag-body { margin: 0; font-size: .95rem; color: var(--text-secondary); line-height: 1.5; }
+    .diag-fix { margin-top: .65rem; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .diag-fix code {
+      font-size: .82rem; color: var(--blue); background: rgba(0,0,0,.25);
+      padding: .4rem .6rem; border-radius: 8px; word-break: break-all;
+    }
+    details.diag-detail { margin-top: .65rem; }
+    details.diag-detail summary { font-size: .88rem; color: var(--blue); margin: 0; }
+    .diag-pre {
+      font-size: .78rem; line-height: 1.45; max-height: 180px; overflow: auto;
+      background: #12141a; border: 1px solid var(--line); border-radius: 8px;
+      padding: .55rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, monospace; margin-top: .4rem;
+    }
+    .metric-bar-track.stutter > span { background: linear-gradient(90deg, #7a5c9e, #ed6a5a); box-shadow: 0 0 12px rgba(180,142,173,.45); }
+    .drill-stack { display: flex; flex-direction: column; gap: .65rem; }
+    details.drill {
+      border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel);
+      overflow: hidden; box-shadow: var(--shadow);
+    }
+    details.drill summary {
+      list-style: none; cursor: pointer; padding: 1rem 1.25rem;
+      display: grid; grid-template-columns: auto 1fr auto; gap: .75rem 1rem; align-items: center;
+      font-weight: 500; margin: 0;
+    }
+    details.drill summary::-webkit-details-marker { display: none; }
+    details.drill summary::after {
+      content: "▾"; font-size: .85rem; color: var(--muted); grid-column: 3;
+    }
+    details.drill[open] summary::after { content: "▴"; color: var(--accent); }
+    details.drill[open] summary { border-bottom: 1px solid var(--line); }
+    .drill-title { font-size: 1.05rem; color: var(--text); white-space: nowrap; font-weight: 500; }
+    .drill-rollup { font-size: .95rem; color: var(--text-secondary); font-weight: 400; text-align: right; }
+    .drill-body { padding: 1.25rem 1.5rem; }
+    .drill-body .card { box-shadow: none; }
+    .drill-body .grid { margin: 0; }
+    .chart-controls-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: 1rem; }
+    .section-target { scroll-margin-top: 5rem; }
+    .sensor-group { margin-bottom: 1rem; }
+    .sensor-group h3 { margin: 0 0 .65rem; font-size: 1rem; color: var(--muted); font-weight: 500; letter-spacing: 0.03em; }
+    .g-sensors { grid-template-columns: repeat(6, 1fr); }
+    @media (max-width: 1200px) { .g-sensors { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 700px) { .g-sensors { grid-template-columns: repeat(2, 1fr); } }
+    .warn-list { display: flex; flex-direction: column; gap: .65rem; min-height: 5.5rem; max-height: 14rem; }
+    .warn-empty { margin: 0; padding: .65rem 0; font-size: 1rem; color: var(--muted); line-height: 1.45; }
+    .warn-row {
+      display: grid; grid-template-columns: auto auto 1fr auto; gap: .5rem .75rem; align-items: center;
+      padding: .85rem 1rem; border-radius: var(--radius); border: 1px solid var(--line);
+      background: var(--panel-solid); border-left: 4px solid var(--blue);
+    }
+    .warn-row.rec-hot { border-left-color: var(--hot); }
+    .warn-row.rec-warn { border-left-color: var(--amber); }
+    .warn-row.rec-info { border-left-color: var(--blue); }
+    .warn-row .warn-title { font-weight: 500; font-size: 1.05rem; grid-column: 3; }
+    .warn-row.rec-hot .warn-title { color: var(--hot); }
+    .warn-row.rec-warn .warn-title { color: var(--amber); }
+    .warn-row .warn-text { grid-column: 3; font-size: .92rem; color: var(--text-secondary); line-height: 1.45; }
+    .warn-row .rec-sev, .warn-row .rec-game { grid-row: 1; }
+    .warn-row .warn-title { grid-row: 1; }
+    .warn-row .warn-text { grid-row: 2; }
+    .warn-row .warn-go { grid-row: 1 / span 2; grid-column: 4; align-self: center; white-space: nowrap; }
+    .game-issues-static { display: flex; flex-direction: column; gap: 1rem; }
+    .game-issues-head {
+      padding: .85rem 0 .35rem; font-weight: 500; font-size: 1.05rem; color: var(--text);
+      border-bottom: 1px solid var(--line);
+    }
+    .sensor {
+      padding: .9rem .75rem; border-radius: 12px; border: 1px solid var(--line);
+      background: var(--panel-solid); text-align: center;
+    }
+    .sensor .lbl { font-size: .9rem; color: var(--muted); margin-bottom: .35rem; }
+    .sensor .val { font-size: 1.65rem; color: var(--purple); font-weight: 600; letter-spacing: -0.015em; }
+    .sensor .unit { font-size: .85rem; color: var(--muted); }
+    .sensor.warn .val { color: var(--amber); }
+    .sensor.hot .val { color: var(--hot); }
+    table { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+    th, td { text-align: left; padding: .75rem .6rem; border-bottom: 1px solid rgba(255,255,255,.05); color: var(--text); }
+    th { color: var(--text-secondary); font-size: .95rem; font-weight: 500; letter-spacing: 0.03em; }
+    .chart-meta { font-size: 1rem; color: var(--muted); margin-bottom: .65rem; }
+    .chart-controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .55rem; }
+    .type-toggles { display: flex; flex-wrap: wrap; gap: .35rem; flex: 1; }
+    .rollup-mini { display: flex; gap: 2px; }
+    .rollup-mini .btn { padding: .45rem .65rem; font-size: .85rem; }
+    .chip {
+      font-size: .95rem; padding: .45rem .7rem; border-radius: 8px; cursor: pointer;
+      border: 1px solid rgba(255,255,255,.08); color: var(--muted); user-select: none;
+    }
+    .chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .chip.off { opacity: .35; }
+    details summary { cursor: pointer; color: var(--muted); font-size: 1.1rem; margin-bottom: .85rem; font-weight: 500; }
+    details[open] summary { color: var(--text); margin-bottom: 1rem; }
+    details.drill summary { color: var(--text); margin-bottom: 0; }
+    details.drill[open] summary { margin-bottom: 0; }
+    .rank-head { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .rank-score { font-size: 2.85rem; color: var(--text); line-height: 1.05; letter-spacing: -0.018em; font-weight: 600; }
+
+    .rank-table { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+    .rank-table th, .rank-table td { padding: .85rem .6rem; border-bottom: 1px solid rgba(255,255,255,.06); vertical-align: middle; }
+    .rank-table th { color: var(--muted); font-size: .95rem; font-weight: 500; letter-spacing: 0.03em; }
+    .rank-bar { height: var(--rank-bar-h); background: var(--panel-solid); border-radius: 99px; overflow: hidden; min-width: 120px; }
+    .rank-bar > span {
+      display: block; height: 100%; border-radius: 99px;
+      transition: width var(--meter-ease);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      :root { --meter-ease: 0ms linear; }
+    }
+    .rank-bar.tier > span { background: linear-gradient(90deg, var(--purple), var(--blue)); }
+    .rank-bar.live > span { background: linear-gradient(90deg, var(--accent), var(--green)); }
+    .vs-pos { color: var(--lime); }
+    .vs-neg { color: var(--amber); }
+    .mem-note { font-size: 1.05rem; color: var(--muted); margin-top: .65rem; }
+    .mem-note button {
+      font-family: inherit; font-size: 1rem; color: var(--accent); background: var(--accent-soft);
+      border: 1px solid rgba(233,84,32,.3); border-radius: 10px; padding: .45rem .75rem; cursor: pointer;
+    }
+    .section-lead { margin: 0 0 1.25rem; font-size: 1.1rem; color: var(--muted); }
+    .storage-panel { display: grid; gap: 1.1rem; }
+    .storage-stats { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; font-size: .95rem; color: var(--muted); }
+    .storage-stats strong { color: var(--text); font-weight: 500; }
+    .storage-row { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+    .storage-label { font-size: .95rem; color: var(--muted); font-weight: 500; min-width: 5.5rem; }
+    .storage-custom { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .storage-custom input[type="number"] {
+      font-family: inherit; font-size: 1rem; width: 4.5rem;
+      padding: .55rem .65rem; border-radius: 10px; border: 1px solid var(--line);
+      background: var(--panel-solid); color: var(--text);
+    }
+    .storage-note { margin: 0; font-size: .9rem; color: var(--muted); line-height: 1.5; }
+    .storage-msg { font-size: .9rem; color: var(--green); min-height: 1.2em; }
+
+    /* Icons & manufacturer marks */
+    .hw-glyph {
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: inherit; line-height: 0;
+    }
+    .hw-glyph svg { display: block; width: 1.125em; height: 1.125em; }
+    .hw-pill-glyph svg, .hw-sev-glyph svg { width: .92em; height: .92em; opacity: .95; }
+    .hw-badge-glyph svg { width: .95em; height: .95em; opacity: .9; }
+    .hw-part-glyph svg { width: 1em; height: 1em; }
+    .hw-chip-glyph svg { width: .88em; height: .88em; opacity: .85; }
+    .hw-metric-glyph svg { width: .95em; height: .95em; opacity: .88; }
+    .hw-icon-box {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 2.1rem; height: 2.1rem; border-radius: 11px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.04);
+      color: var(--text-secondary);
+    }
+    .hw-icon-box .hw-glyph svg { width: 1.15rem; height: 1.15rem; }
+    .hw-icon-box.health { color: var(--green); background: rgba(106,201,141,.1); border-color: rgba(106,201,141,.22); }
+    .hw-icon-box.cpu { color: var(--blue); background: rgba(98,160,234,.1); border-color: rgba(98,160,234,.22); }
+    .hw-icon-box.mem { color: var(--green); background: rgba(106,201,141,.1); border-color: rgba(106,201,141,.22); }
+    .hw-icon-box.gpu { color: #ff8a55; background: rgba(233,84,32,.1); border-color: rgba(233,84,32,.22); }
+    .hw-icon-box.game { color: var(--accent); background: rgba(233,84,32,.12); border-color: rgba(233,84,32,.25); }
+    .hw-icon-box.league { color: var(--purple); background: rgba(180,142,173,.12); border-color: rgba(180,142,173,.25); }
+    .hw-icon-box.temp { color: #c49aef; background: rgba(180,142,173,.1); border-color: rgba(180,142,173,.22); }
+    .hw-icon-box.stutter { color: var(--amber); background: rgba(233,184,114,.1); border-color: rgba(233,184,114,.25); }
+    .sum-head { display: flex; align-items: center; gap: .55rem; margin-bottom: .15rem; }
+    .sum-head .sum-label { margin: 0; }
+    .mfr-mark {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: inherit; font-size: .58rem; font-weight: 700; letter-spacing: .05em;
+      line-height: 1; padding: .28rem .46rem; border-radius: 6px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .mfr-mark.sm { font-size: .52rem; padding: .22rem .38rem; border-radius: 5px; }
+    .mfr-mark.amd { color: #fff; background: linear-gradient(180deg, #ed1c24, #c41218); }
+    .mfr-mark.intel { color: #e8f4ff; background: linear-gradient(180deg, #0071c5, #005a9e); }
+    .mfr-mark.nvidia { color: #f0ffe0; background: linear-gradient(180deg, #76b900, #5a9100); }
+    .mfr-mark.xfx { color: #fff; background: linear-gradient(180deg, #f07828, #d45a10); }
+    .mfr-mark.gskill { color: #fff; background: linear-gradient(180deg, #e42313, #b8180c); font-size: .5rem; letter-spacing: .02em; }
+    .mfr-mark.system76 { color: #d4e8ff; background: linear-gradient(180deg, #3d6a9e, #2a4a72); }
+    .mfr-mark.sapphire { color: #e8f4ff; background: linear-gradient(180deg, #2e86de, #1a5fad); font-size: .5rem; }
+    .mfr-mark.asus { color: #e8e8e8; background: linear-gradient(180deg, #4a4a4a, #2a2a2a); }
+    .mfr-mark.msi { color: #ffe8e8; background: linear-gradient(180deg, #e41e1e, #a80f0f); }
+    .mfr-mark.corsair { color: #2a2200; background: linear-gradient(180deg, #ffcc00, #d4a800); }
+    .mfr-mark.generic { color: var(--text-secondary); background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+    .insight-pill, .rec-sev, .rec-game, .rank-badge, .sensor-chip, .bl-pri {
+      display: inline-flex; align-items: center; gap: .4rem;
+    }
+    .rank-badge {
+      font-size: .95rem; font-weight: 600; letter-spacing: 0.05em;
+      padding: .42rem .8rem; border-radius: 10px;
+      border: 1px solid var(--line);
+      background: linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+      color: var(--text-secondary);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .rank-badge.tier-s {
+      color: #ffe08a; border-color: rgba(255,216,107,.4);
+      background: linear-gradient(145deg, rgba(255,216,107,.22), rgba(180,130,30,.08));
+      box-shadow: 0 0 18px rgba(255,216,107,.14), inset 0 1px 0 rgba(255,255,255,.1);
+    }
+    .rank-badge.tier-a {
+      color: #b8dcff; border-color: rgba(98,160,234,.38);
+      background: linear-gradient(145deg, rgba(98,160,234,.2), rgba(50,90,150,.08));
+    }
+    .rank-badge.tier-b {
+      color: #d4b8e8; border-color: rgba(180,142,173,.38);
+      background: linear-gradient(145deg, rgba(180,142,173,.2), rgba(100,70,120,.08));
+    }
+    .rank-badge.tier-c { color: #c8d0dc; border-color: rgba(154,163,178,.3); }
+    .rank-badge.tier-d { color: var(--muted); }
+    .metric-bar-label.hw-row { display: inline-flex; align-items: center; gap: .4rem; }
+    .rank-part { display: inline-flex; align-items: center; gap: .45rem; font-weight: 500; }
+    .sensor-chip .hw-chip-glyph { color: var(--muted); }
+    .sensor-chip.hot .hw-chip-glyph { color: #ff8a7a; }
+    .sensor-chip.warn .hw-chip-glyph { color: #f5c882; }
+    .rig-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem;
+      margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line);
+    }
+    @media (max-width: 900px) { .rig-strip { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .rig-strip { grid-template-columns: 1fr; } }
+    .rig-chip { width: 100%; min-width: 0; }
+    .rig-chip {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .45rem .8rem; border-radius: 999px;
+      border: 1px solid var(--line); background: var(--panel-solid);
+      font-size: .88rem; font-weight: 500; color: var(--text);
+      max-width: 100%;
+    }
+    .rig-chip .rig-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 14rem; }
+
+    .hw-id-row { display: inline-flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+    .hw-identity { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+    .hw-id-primary { font-weight: 500; color: var(--text); line-height: 1.35; }
+    .hw-id-sub { font-size: .82rem; color: var(--muted); line-height: 1.35; }
+
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1><span class="pop-dot"></span>Pulse</h1>
+      <div class="sub" id="meta">Connecting…</div>
+    </div>
+    <div class="header-right">
+      <nav class="nav-tabs" aria-label="Pages">
+        <button type="button" class="tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button type="button" class="tab-btn" data-tab="fixes">Fixes</button>
+      </nav>
+      <div class="chart-controls-bar">
+        <span class="pill"><span class="dot" id="liveDot"></span><span id="liveLabel">Online</span></span>
+        <span class="pill" id="clock">--:--:--</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="pageDashboard" class="page active">
+    <section class="card summary-bar section-target" id="summaryBar">
+      <div class="rig-strip" id="rigStrip" aria-label="Your hardware"></div>
+      <div class="sum-grid">
+        <button type="button" class="sum-cell tall ok" id="sumHealthCell" data-drill="warningsSection">
+          <div class="sum-head"><span class="hw-icon-box health" data-glyph="health"></span><span class="sum-label">Health</span></div>
+          <div class="sum-body">
+            <span class="sum-value" id="sumHealthVal">—</span>
+            <div class="sum-foot">
+              <div class="sum-meter health" id="sumHealthMeter"><span style="width:0%"></span></div>
+              <span class="sum-detail" id="sumHealthSub">—</span>
+            </div>
+          </div>
+        </button>
+        <button type="button" class="sum-cell cpu" id="sumCpuCell" data-drill="drill-compute">
+          <div class="sum-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><span class="sum-label">CPU</span></div>
+          <span class="sum-value" id="sumCpuVal">—</span>
+          <div class="sum-meter cpu"><span id="sumCpuMeter" style="width:0%"></span></div>
+          <span class="sum-detail" id="sumCpuSub">—</span>
+        </button>
+        <button type="button" class="sum-cell mem" id="sumMemCell" data-drill="drill-bandwidth">
+          <div class="sum-head"><span class="hw-icon-box mem" data-glyph="ram"></span><span class="sum-label">Memory</span></div>
+          <span class="sum-value" id="sumMemVal">—</span>
+          <div class="sum-meter mem"><span id="sumMemMeter" style="width:0%"></span></div>
+          <span class="sum-detail" id="sumMemSub">—</span>
+        </button>
+        <button type="button" class="sum-cell gpu" id="sumGpuCell" data-drill="drill-compute">
+          <div class="sum-head"><span class="hw-icon-box gpu" data-glyph="gpu"></span><span class="sum-label">GPU</span></div>
+          <span class="sum-value" id="sumGpuVal">—</span>
+          <div class="sum-meter gpu"><span id="sumGpuMeter" style="width:0%"></span></div>
+          <span class="sum-detail" id="sumGpuSub">—</span>
+        </button>
+        <button type="button" class="sum-cell game" id="sumGameCell" data-drill="drill-game">
+          <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label">Game</span></div>
+          <span class="sum-value" id="sumGameVal">—</span>
+          <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
+          <span class="sum-detail" id="sumGameSub">—</span>
+        </button>
+        <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="drill-league">
+          <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">League</span></div>
+          <div class="sum-body">
+            <span class="sum-value" id="sumLeagueVal">—</span>
+            <div class="sum-foot">
+              <div id="sumLeagueBadge" class="sum-league-badge"></div>
+              <div class="sum-meter league"><span id="sumLeagueMeter" style="width:0%"></span></div>
+              <span class="sum-detail" id="sumLeagueSub">—</span>
+            </div>
+          </div>
+        </button>
+      </div>
+      <div class="sensor-strip" id="sensorStrip"></div>
+    </section>
+
+    <section class="card viz-panel section-target" id="vizPanel">
+      <h2>Live overview</h2>
+      <div class="viz-grid">
+        <div class="viz-block viz-area-util">
+          <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><h3>Utilization</h3></div>
+          <div class="viz-block-body"><div class="metric-list" id="utilMeters"></div></div>
+        </div>
+        <div class="viz-block viz-area-temp">
+          <div class="viz-block-head"><span class="hw-icon-box temp" data-glyph="temp"></span><h3>Temperatures</h3></div>
+          <div class="viz-block-body"><div class="metric-list" id="tempMeters"></div></div>
+        </div>
+        <div class="viz-block viz-area-bw">
+          <div class="viz-block-head"><span class="hw-icon-box mem" data-glyph="storage"></span><h3>Bandwidth</h3></div>
+          <div class="viz-block-body"><div class="metric-list" id="bwMeters"></div></div>
+        </div>
+        <div class="viz-block viz-area-league">
+          <div class="viz-block-head"><span class="hw-icon-box league" data-glyph="league"></span><h3>Hardware league</h3></div>
+          <div class="viz-block-body"><div class="league-viz" id="leagueViz"></div></div>
+        </div>
+        <div class="viz-block viz-area-spark">
+          <div class="viz-block-head"><span class="hw-icon-box game" data-glyph="activity"></span><h3>Trend · last 5 minutes</h3></div>
+          <div class="viz-block-body"><div class="spark-box"><canvas id="sparkChart"></canvas></div></div>
+        </div>
+        <div class="viz-block viz-area-cores">
+          <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><h3>CPU cores</h3></div>
+          <div class="viz-block-body"><div class="core-strip" id="coreStrip"></div></div>
+        </div>
+        <div class="viz-block viz-area-glance">
+          <div class="viz-block-head"><span class="hw-icon-box gpu" data-glyph="fan"></span><h3>Power &amp; cooling</h3></div>
+          <div class="viz-block-body"><div class="glance-grid" id="glanceGrid"></div></div>
+        </div>
+        <div class="viz-block viz-area-stutter" id="stutterBlock">
+          <div class="viz-block-head"><span class="hw-icon-box stutter" data-glyph="stutter"></span><h3>Stutter proxy · 1% low estimate</h3></div>
+          <div class="viz-block-body">
+            <div class="stutter-head">
+              <div class="stutter-stat">
+                <span class="k">Hitch score</span>
+                <span class="v ok" id="stutterScoreVal">—</span>
+              </div>
+              <div class="stutter-stat">
+                <span class="k">Now (est.)</span>
+                <span class="v" id="stutterEstMs">—</span>
+              </div>
+              <div class="stutter-stat">
+                <span class="k">1% low proxy</span>
+                <span class="v" id="stutter1Pct">—</span>
+              </div>
+              <div class="stutter-stat">
+                <span class="k">Hitches · 5m</span>
+                <span class="v" id="stutterEvents">—</span>
+              </div>
+            </div>
+            <div class="metric-list" id="stutterComponents"></div>
+            <div class="stutter-causes" id="stutterCauses"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card section-target" id="warningsSection">
+      <h2>Warnings</h2>
+      <p class="rec-status" id="tuningMeta">Checking…</p>
+      <div class="rec-toolbar stable-toolbar" id="tuningSummary"></div>
+      <div class="warn-list stable-scroll" id="warningList"></div>
+    </section>
+
+    <div class="drill-stack">
+      <details class="drill" id="drill-sensors" data-open-key="drill-sensors">
+        <summary><span class="drill-title">Sensors</span><span class="drill-rollup" id="drillSensorsSum">—</span></summary>
+        <div class="drill-body section-target" id="sensorsSection">
+          <div class="sensor-status" id="sensorStatus"></div>
+          <div id="sensorGroups"></div>
+        </div>
+      </details>
+
+      <details class="drill" id="drill-charts" data-open-key="drill-charts">
+        <summary><span class="drill-title">Charts</span><span class="drill-rollup" id="drillChartsSum">—</span></summary>
+        <div class="drill-body section-target" id="chartsSection">
+          <div class="chart-controls-top">
+            <span class="ctrl-label">Span</span>
+            <div class="ctrl-group" id="spanBtns">
+              <button class="btn" data-span="60">1m</button>
+              <button class="btn active" data-span="300">5m</button>
+              <button class="btn" data-span="600">10m</button>
+            </div>
+            <span class="ctrl-label">Rollup</span>
+            <div class="ctrl-group" id="rollupBtns">
+              <button class="btn active" data-roll="1">Live</button>
+              <button class="btn mag" data-roll="60">1m</button>
+              <button class="btn mag" data-roll="300">5m</button>
+              <button class="btn vio" data-roll="600">10m</button>
+            </div>
+          </div>
+          <div class="grid g-charts-3">
+            <div class="card">
+              <h2>Utilization</h2>
+              <div class="chart-meta" id="utilMeta">—</div>
+              <div class="chart-controls">
+                <div class="type-toggles" id="utilToggles"></div>
+                <div class="rollup-mini" id="utilRollup"></div>
+              </div>
+              <div class="chart-box"><canvas id="utilChart"></canvas></div>
+            </div>
+            <div class="card">
+              <h2>Bandwidth</h2>
+              <div class="chart-meta" id="bwMeta">—</div>
+              <div class="chart-controls">
+                <div class="type-toggles" id="bwToggles"></div>
+                <div class="rollup-mini" id="bwRollup"></div>
+              </div>
+              <div class="chart-box"><canvas id="bwChart"></canvas></div>
+            </div>
+            <div class="card">
+              <h2>Disk / Net</h2>
+              <div class="chart-meta" id="ioMeta">—</div>
+              <div class="chart-controls">
+                <div class="type-toggles" id="ioToggles"></div>
+                <div class="rollup-mini" id="ioRollup"></div>
+              </div>
+              <div class="chart-box"><canvas id="ioChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="drill" id="drill-bandwidth" data-open-key="drill-bandwidth">
+        <summary><span class="drill-title">Bandwidth</span><span class="drill-rollup" id="drillBwSum">—</span></summary>
+        <div class="drill-body section-target" id="bandwidthSection">
+          <div class="grid g-bw">
+            <div class="card">
+              <h2>GPU Bandwidth — RX 7900 XT</h2>
+              <div class="bw-card" id="gpuBw"></div>
+            </div>
+            <div class="card">
+              <h2>System Memory Bandwidth</h2>
+              <div class="bw-card" id="memBw"></div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="drill" id="drill-compute" data-open-key="drill-compute">
+        <summary><span class="drill-title">Compute</span><span class="drill-rollup" id="drillComputeSum">—</span></summary>
+        <div class="drill-body section-target" id="coresSection">
+          <div class="grid g-mid">
+            <div class="card">
+              <h2>CPU cores</h2>
+              <div class="bar-wrap" id="coreBars"></div>
+            </div>
+            <div class="card">
+              <h2>VRAM</h2>
+              <div class="stat" id="vramStat" style="color:var(--accent)">—</div>
+              <div class="meter gpu" style="margin-top:.6rem"><span id="vramMeter" style="width:0%"></span></div>
+              <div class="sub" style="margin-top:.75rem" id="gpuDetail">—</div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="drill" id="drill-league" data-open-key="drill-league">
+        <summary><span class="drill-title">Hardware league</span><span class="drill-rollup" id="drillLeagueSum">—</span></summary>
+        <div class="drill-body section-target" id="leagueSection">
+          <div class="rank-head">
+            <div>
+              <div class="rank-score" id="sessionIndex">—</div>
+              <div class="sub">How hard your rig is working vs its tier</div>
+            </div>
+            <div>
+              <span class="rank-badge" id="compositeRank">—</span>
+              <span class="sub" id="compositeSub" style="margin-left:.5rem">—</span>
+            </div>
+          </div>
+          <table class="rank-table">
+            <thead>
+              <tr>
+                <th>Part</th><th>Yours</th><th>Tier</th><th>Score</th><th>Live now</th><th>vs Avg PC</th><th>vs Enthusiast</th>
+              </tr>
+            </thead>
+            <tbody id="rankBody"></tbody>
+          </table>
+          <div class="mem-note" id="memProbeNote"></div>
+        </div>
+      </details>
+
+      <details class="drill" id="drill-game" data-open-key="drill-game">
+        <summary><span class="drill-title">Game processes</span><span class="drill-rollup" id="drillGameSum">—</span></summary>
+        <div class="drill-body">
+          <p class="section-lead" id="gameProcLead">Main game executable and related Proton children.</p>
+          <table>
+            <thead><tr><th>PID</th><th>Name</th><th>Role</th><th>CPU%</th><th>RAM MB</th></tr></thead>
+            <tbody id="procBody"></tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="drill" id="drill-storage" data-open-key="drill-storage">
+        <summary><span class="drill-title">History & storage</span><span class="drill-rollup" id="drillStorageSum">—</span></summary>
+        <div class="drill-body section-target" id="storageSection">
+          <div class="storage-panel">
+            <p class="section-lead" style="margin:0">SQLite time-series for trends and correlation. Live charts use the last 10 minutes in memory.</p>
+            <div class="storage-stats" id="storeStats">Loading…</div>
+            <div class="storage-row">
+              <span class="storage-label">Keep data</span>
+              <div class="ctrl-group" id="retentionPresets"></div>
+            </div>
+            <div class="storage-row">
+              <span class="storage-label">Custom</span>
+              <div class="storage-custom">
+                <input type="number" id="retentionCustom" min="1" max="90" step="1" value="10" aria-label="Retention days" />
+                <span class="sub" style="margin:0">days</span>
+                <button class="btn" type="button" id="retentionApply">Apply</button>
+              </div>
+            </div>
+            <p class="storage-note" id="storeEstimate">—</p>
+            <p class="storage-msg" id="storeMsg" aria-live="polite"></p>
+          </div>
+        </div>
+      </details>
+
+      <details class="drill" id="drill-troubleshoot" data-open-key="drill-troubleshoot">
+        <summary><span class="drill-title">Troubleshooting</span><span class="drill-rollup" id="drillTroubleshootSum">Scanning…</span></summary>
+        <div class="drill-body section-target" id="troubleshootSection">
+          <p class="section-lead" style="margin-top:0">Boot errors, missing libraries, Steam/Proton logs, and pending updates.</p>
+          <div class="diag-toolbar">
+            <button class="btn" type="button" id="diagRefresh">Scan again</button>
+            <span class="sub" id="diagMeta" style="margin:0">—</span>
+          </div>
+          <div class="diag-counts stable-toolbar" id="diagCounts"></div>
+          <div class="diag-list stable-scroll" id="diagList">Loading…</div>
+        </div>
+      </details>
+
+      <details class="drill" id="drill-admin" data-open-key="drill-admin">
+        <summary><span class="drill-title">Backlog & tools</span><span class="drill-rollup" id="drillAdminSum">—</span></summary>
+        <div class="drill-body">
+          <h2 style="margin:0 0 1rem;font-size:1.1rem">Backlog</h2>
+          <div class="backlog" id="backlogList"></div>
+          <h2 style="margin:1.5rem 0 1rem;font-size:1.1rem">Profiling tools</h2>
+          <p class="section-lead">Optional packages that improve what Pulse can see.</p>
+          <div class="backlog" id="toolsList"></div>
+        </div>
+      </details>
+    </div>
+    </div>
+
+    <div id="pageFixes" class="page">
+    <section class="card section-target" id="insightsSection">
+      <h2>Fixes</h2>
+      <p class="section-lead" id="tuningLead">Highest impact first. Issues seen in more games rank higher. Copy scripts or follow steps below.</p>
+      <div class="rec-list" id="tuningHints"></div>
+      <div id="tuningCleared"></div>
+      <h3 class="rec-subheading" id="gameIssuesHeading" hidden>By game</h3>
+      <div class="game-issues-static" id="gameIssues"></div>
+    </section>
+    </div>
+  </main>
+
+  <script>
+    const CHART = {
+      cpu: '#62a0ea', gpu: '#e95420', ram: '#6ac98d', swap: '#b48ead',
+      vramBw: '#e95420', dramBw: '#6ac98d', gtt: '#e9b872',
+      netDn: '#62a0ea', netUp: '#e9b872', diskR: '#6ac98d', diskW: '#ed6a5a', gameCpu: '#d14d1a',
+    };
+    const ROLL_LABELS = { 1: 'Live', 60: '1m', 300: '5m', 600: '10m' };
+    const SENSOR_GROUPS = {
+      Temps: s => s.kind === 'temp',
+      GPU: s => /gpu|vram|igpu|gfx/i.test(s.label),
+      System: s => /psi|swap|ctx|intr|procs|threads|uptime|load|ram|disk/i.test(s.label),
+      Other: s => true,
+    };
+    let spanSec = 300, globalRollup = 1, rawHistory = [];
+    const chartRollup = { util: null, bw: null, io: null };
+    const enabled = {
+      util: { cpu: true, gpu: true, ram: true, swap: false, gameCpu: true },
+      bw: { vramBw: true, dramBw: true, gtt: true },
+      io: { netDn: false, netUp: false, diskR: true, diskW: true },
+    };
+
+    const gridColor = 'rgba(255,255,255,.06)';
+    const tickColor = '#9aa3b2';
+
+    function chartOpts(y2) {
+      const scales = {
+        x: { ticks: { color: tickColor, maxTicksLimit: 7, font: { size: 15, weight: '500' } }, grid: { color: gridColor } },
+        y: { position: 'left', ticks: { color: tickColor, font: { size: 15, weight: '500' } }, grid: { color: gridColor } },
+      };
+      if (y2) scales.y1 = { position: 'right', ticks: { color: tickColor, font: { size: 15, weight: '500' } }, grid: { drawOnChartArea: false } };
+      return {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor: '#1c1e26', titleFont: { family: 'Sora', weight: '500' }, bodyFont: { family: 'Sora', weight: '400' }, padding: 12, cornerRadius: 10 },
+        },
+        scales,
+      };
+    }
+
+    const utilChart = new Chart(document.getElementById('utilChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts() });
+    const bwChart = new Chart(document.getElementById('bwChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts(true) });
+    const ioChart = new Chart(document.getElementById('ioChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts() });
+    const sparkChart = new Chart(document.getElementById('sparkChart'), {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true, position: 'bottom',
+            labels: { color: tickColor, font: { family: 'Sora', size: 11 }, boxWidth: 12, padding: 14 },
+          },
+          tooltip: { backgroundColor: '#2e323d', titleFont: { family: 'Sora' }, bodyFont: { family: 'Sora' }, padding: 10 },
+        },
+        scales: {
+          x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 10 } }, grid: { color: gridColor } },
+          y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 10 }, callback: v => v + '%' }, grid: { color: gridColor } },
+        },
+      },
+    });
+
+    const utilDefs = [
+      { key: 'cpu', label: 'CPU %', color: CHART.cpu, pick: h => h.cpu.overall_pct },
+      { key: 'gpu', label: 'GPU %', color: CHART.gpu, pick: h => h.gpu.discrete.busy_pct ?? 0 },
+      { key: 'ram', label: 'RAM %', color: CHART.ram, pick: h => h.memory.pct },
+      { key: 'swap', label: 'Swap %', color: CHART.swap, pick: h => h.memory.swap_pct },
+      { key: 'gameCpu', label: 'Cities II', color: CHART.gameCpu, pick: h => h.game_totals?.cpu_pct ?? 0 },
+    ];
+    const bwDefs = [
+      { key: 'vramBw', label: 'VRAM GB/s', color: CHART.vramBw, yAxis: 'y', pick: h => h.bandwidth?.gpu?.vram_est_gbps ?? 0 },
+      { key: 'dramBw', label: 'DRAM demand', color: CHART.dramBw, yAxis: 'y', pick: h => h.bandwidth?.memory?.dram_est_gbps ?? 0 },
+      { key: 'gtt', label: 'GTT MB/s', color: CHART.gtt, yAxis: 'y1', pick: h => h.bandwidth?.gpu?.gtt_rate_mbps ?? 0 },
+    ];
+    const ioDefs = [
+      { key: 'netDn', label: 'Net ↓', color: CHART.netDn, pick: h => h.network.down_mbps },
+      { key: 'netUp', label: 'Net ↑', color: CHART.netUp, pick: h => h.network.up_mbps },
+      { key: 'diskR', label: 'Disk R', color: CHART.diskR, pick: h => h.disk.read_mbps },
+      { key: 'diskW', label: 'Disk W', color: CHART.diskW, pick: h => h.disk.write_mbps },
+    ];
+
+    function buildToggles(container, defs, group) {
+      container.innerHTML = defs.map(d => `<span class="chip on" data-g="${group}" data-k="${d.key}">${d.label}</span>`).join('');
+      container.querySelectorAll('.chip').forEach(el => {
+        el.onclick = () => {
+          const k = el.dataset.k, g = el.dataset.g;
+          enabled[g][k] = !enabled[g][k];
+          el.classList.toggle('on', enabled[g][k]);
+          el.classList.toggle('off', !enabled[g][k]);
+          renderCharts();
+        };
+      });
+    }
+
+    function buildRollupMini(container, group) {
+      container.innerHTML = [1, 60, 300, 600].map(r =>
+        `<button class="btn" data-g="${group}" data-r="${r}">${ROLL_LABELS[r]}</button>`
+      ).join('');
+      container.querySelectorAll('.btn').forEach(b => {
+        b.onclick = () => {
+          const g = b.dataset.g, r = +b.dataset.r;
+          chartRollup[g] = chartRollup[g] === r ? null : r;
+          container.querySelectorAll('.btn').forEach(x => x.classList.toggle('active', chartRollup[g] === +x.dataset.r));
+          renderCharts();
+        };
+      });
+    }
+
+    ['util', 'bw', 'io'].forEach(g => {
+      buildToggles(document.getElementById(g + 'Toggles'), { util: utilDefs, bw: bwDefs, io: ioDefs }[g], g);
+      buildRollupMini(document.getElementById(g + 'Rollup'), g);
+    });
+
+    document.querySelectorAll('#spanBtns .btn').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('#spanBtns .btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        spanSec = +b.dataset.span;
+        renderCharts();
+      };
+    });
+    document.querySelectorAll('#rollupBtns .btn').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('#rollupBtns .btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        globalRollup = +b.dataset.roll;
+        chartRollup.util = chartRollup.bw = chartRollup.io = null;
+        document.querySelectorAll('.rollup-mini .btn').forEach(x => x.classList.remove('active'));
+        renderCharts();
+      };
+    });
+
+    const fmtTime = ts => new Date(ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const tempClass = v => v == null ? '' : v >= 90 ? 'hot' : v >= 75 ? 'warn' : '';
+    const pct = (v, max) => Math.min(100, Math.round((v / max) * 100));
+
+    function bucketize(cut, bucket) {
+      if (!cut.length) return { labels: [], points: [] };
+      if (bucket <= 1) return { labels: cut.map(h => fmtTime(h.ts)), points: cut };
+      const buckets = [], t0 = cut[0].ts, end = cut.at(-1).ts;
+      for (let t = t0; t <= end; t += bucket) {
+        const slice = cut.filter(h => h.ts >= t && h.ts < t + bucket);
+        if (slice.length) buckets.push(slice);
+      }
+      return { labels: buckets.map((_, i) => fmtTime(t0 + i * bucket + bucket / 2)), points: buckets };
+    }
+
+    function avg(slice, fn) {
+      const v = slice.map(fn).filter(x => x != null && !isNaN(x));
+      return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(2) : 0;
+    }
+
+    function renderOneChart(chart, defs, group, metaEl, rollup, dualAxis) {
+      const last = rawHistory.at(-1)?.ts ?? 0;
+      const cut = rawHistory.filter(h => h.ts >= last - spanSec);
+      const { labels, points } = bucketize(cut, rollup);
+      const rollLabel = ROLL_LABELS[rollup] || rollup + 's';
+      metaEl.textContent = `${spanSec / 60}m window · ${rollLabel} rollup · ${labels.length} points`;
+      const getVal = rollup <= 1 ? (p, fn) => fn(p) : (p, fn) => avg(p, fn);
+      chart.data.labels = labels;
+      chart.data.datasets = defs.filter(d => enabled[group][d.key]).map(d => ({
+        label: d.label, data: points.map(p => getVal(p, d.pick)),
+        borderColor: d.color, backgroundColor: d.color + '20',
+        yAxisID: dualAxis ? (d.yAxis || 'y') : 'y',
+        fill: group !== 'io', tension: .3, pointRadius: 0, borderWidth: 3,
+      }));
+      chart.update();
+    }
+
+    function renderCharts() {
+      renderOneChart(utilChart, utilDefs, 'util', document.getElementById('utilMeta'), chartRollup.util ?? globalRollup);
+      renderOneChart(bwChart, bwDefs, 'bw', document.getElementById('bwMeta'), chartRollup.bw ?? globalRollup, true);
+      renderOneChart(ioChart, ioDefs, 'io', document.getElementById('ioMeta'), chartRollup.io ?? globalRollup);
+    }
+
+    function vsFmt(n) {
+      if (n == null || isNaN(n)) return '—';
+      const cls = n >= 0 ? 'vs-pos' : 'vs-neg';
+      const sign = n > 0 ? '+' : '';
+      return `<span class="${cls}">${sign}${n}%</span>`;
+    }
+
+    function updateRankRow(tr, r) {
+      if (!tr) return;
+      setMeterWidth(tr.querySelector('[data-live-fill]'), r.liveBar);
+      const liveText = tr.querySelector('[data-live-text]');
+      if (liveText) liveText.textContent = r.live;
+      const vsAvg = tr.querySelector('[data-vs-avg]');
+      const vsEnth = tr.querySelector('[data-vs-enth]');
+      if (vsAvg) vsAvg.innerHTML = vsFmt(r.vs_avg_pct);
+      if (vsEnth) vsEnth.innerHTML = vsFmt(r.vs_enthusiast_pct);
+    }
+
+    function renderComparison(c, mem) {
+      if (!c) return;
+      document.getElementById('sessionIndex').textContent = `${c.session_index}/100`;
+      document.getElementById('compositeRank').innerHTML = tierBadge(c.composite_rank);
+      document.getElementById('compositeSub').textContent =
+        `Composite tier ${c.composite_tier}/100 · CPU+GPU+RAM blend`;
+
+      const rows = [
+        {
+          part: 'CPU', ...c.cpu,
+          live: `${c.cpu.live_pct}% load · ${c.cpu.headroom_pct}% headroom`,
+          liveBar: c.cpu.live_pct,
+        },
+        {
+          part: 'GPU', ...c.gpu,
+          live: `${c.gpu.live_pct}% GPU · ${c.gpu.vram_gbps_live} GB/s VRAM (${c.gpu.vram_bw_busy_pct}% BW)`,
+          liveBar: c.gpu.live_pct,
+        },
+        {
+          part: 'RAM', ...c.memory,
+          live: `${c.memory.live_gbps_est} GB/s est. · ${c.memory.live_pressure_pct}% pressure`,
+          liveBar: c.memory.live_pressure_pct,
+        },
+      ];
+
+      const structKey = rows.map(r => `${r.part}:${r.name}:${r.tier_rank}:${r.tier_score}`).join('|');
+      if (structKey !== lastRankStructKey) {
+        lastRankStructKey = structKey;
+        document.getElementById('rankBody').innerHTML = rows.map(r => `
+          <tr data-rank-part="${r.part}">
+            <td>${partLabel(r.part)}</td>
+            <td>${hwIdentityCell(r)}</td>
+            <td>${tierBadge(r.tier_rank, false)}</td>
+            <td><div class="rank-bar tier"><span data-tier-fill style="width:0%"></span></div> <span data-tier-score>${r.tier_score}</span></td>
+            <td><div class="rank-bar live"><span data-live-fill style="width:0%"></span></div> <span class="sub" data-live-text style="margin:0;display:inline">${esc(r.live)}</span></td>
+            <td data-vs-avg>${vsFmt(r.vs_avg_pct)}</td>
+            <td data-vs-enth>${vsFmt(r.vs_enthusiast_pct)}</td>
+          </tr>`).join('');
+        rows.forEach(r => {
+          const tr = document.querySelector(`[data-rank-part="${r.part}"]`);
+          setMeterWidth(tr?.querySelector('[data-tier-fill]'), r.tier_score);
+          updateRankRow(tr, r);
+        });
+      } else {
+        rows.forEach(r => updateRankRow(document.querySelector(`[data-rank-part="${r.part}"]`), r));
+      }
+
+      const conf = mem?.confidence || 'unknown';
+      const note = mem?.note || '';
+      document.getElementById('memProbeNote').innerHTML = conf === 'exact'
+        ? `RAM spec: <strong>${mem.label}</strong> (probed via DMI)`
+        : `RAM spec: <strong>${mem?.label || 'unknown'}</strong> (${conf}) — ${note}
+           <button type="button" id="probeBtn">Probe exact speed</button>`;
+      const btn = document.getElementById('probeBtn');
+      if (btn) btn.onclick = async () => {
+        btn.textContent = 'Need sudo in terminal…';
+        btn.disabled = true;
+        alert('Run in terminal for exact RAM speed:\\n\\nsudo python3 /home/tkep/perf-dashboard/probe_memory.py\\n\\nThen refresh this page.');
+      };
+    }
+
+    function ensureBwPanels() {
+      const gpu = document.getElementById('gpuBw');
+      if (!gpu.dataset.init) {
+        gpu.innerHTML = `
+          <div class="bw-head">
+            <div class="bw-big" id="gpuBwBig">—</div>
+            <div class="bw-sub" id="gpuBwSub">—</div>
+          </div>
+          <div class="meter-label"><span id="gpuBwMeterLbl">—</span><span id="gpuBwEngineLbl">—</span></div>
+          <div class="meter gpu"><span id="gpuBwMeterFill" style="width:0%"></span></div>
+          <div class="bw-row">
+            <div class="bw-kv"><span class="k">PCIe link</span><span class="v" id="gpuBwPcie">—</span></div>
+            <div class="bw-kv"><span class="k">GTT (shared RAM)</span><span class="v" id="gpuBwGtt">—</span></div>
+            <div class="bw-kv"><span class="k">VRAM fill</span><span class="v" id="gpuBwVramFill">—</span></div>
+          </div>`;
+        gpu.dataset.init = '1';
+      }
+      const mem = document.getElementById('memBw');
+      if (!mem.dataset.init) {
+        mem.innerHTML = `
+          <div class="bw-head">
+            <div class="bw-big mem" id="memBwBig">—</div>
+            <div class="bw-sub" id="memBwSub">—</div>
+          </div>
+          <div class="meter-label"><span id="memBwMeterLbl">—</span><span id="memBwPsiLbl">—</span></div>
+          <div class="meter mem"><span id="memBwMeterFill" style="width:0%"></span></div>
+          <div class="bw-row">
+            <div class="bw-kv"><span class="k">Fault I/O proxy</span><span class="v" id="memBwFault">—</span></div>
+            <div class="bw-kv"><span class="k">Page churn</span><span class="v" id="memBwPages">—</span></div>
+            <div class="bw-kv"><span class="k">Swap I/O</span><span class="v" id="memBwSwap">—</span></div>
+            <div class="bw-kv"><span class="k">Active / cached</span><span class="v" id="memBwActive">—</span></div>
+          </div>`;
+        mem.dataset.init = '1';
+      }
+    }
+
+    function renderBandwidth(l) {
+      const g = l.bandwidth?.gpu || {}, m = l.bandwidth?.memory || {};
+      const vramPct = g.vram_busy_pct ?? 0;
+      const dramPct = m.dram_util_pct ?? 0;
+      ensureBwPanels();
+      document.getElementById('gpuBwBig').innerHTML =
+        `${g.vram_est_gbps ?? '—'} <small style="font-size:1.15rem;color:var(--muted)">GB/s</small>`;
+      document.getElementById('gpuBwSub').textContent =
+        `Peak ~${g.vram_peak_gbps} GB/s · MCLK ${g.mclk_mhz ?? '—'} MHz`;
+      document.getElementById('gpuBwMeterLbl').textContent = `VRAM controller ${vramPct}% busy`;
+      document.getElementById('gpuBwEngineLbl').textContent = `Engine ${g.engine_busy_pct ?? '—'}%`;
+      setMeterWidth(document.getElementById('gpuBwMeterFill'), vramPct);
+      document.getElementById('gpuBwPcie').textContent = g.pcie_link || '—';
+      document.getElementById('gpuBwGtt').textContent =
+        `${g.gtt_used_mb ?? '—'} MB · ${g.gtt_rate_mbps ?? 0} MB/s churn`;
+      document.getElementById('gpuBwVramFill').textContent =
+        `${l.gpu.discrete.vram_used_mb ?? '—'} / ${l.gpu.discrete.vram_total_mb ?? '—'} MB`;
+
+      document.getElementById('memBwBig').innerHTML =
+        `${m.dram_est_gbps ?? '—'} <small style="font-size:1.15rem;color:var(--muted)">GB/s demand</small>`;
+      document.getElementById('memBwSub').textContent =
+        `${m.dram_util_pct ?? 0}% of ${m.dram_peak_gbps} GB/s ceiling · workload model (not a hw counter)`;
+      document.getElementById('memBwMeterLbl').textContent = `DRAM demand ${dramPct}%`;
+      document.getElementById('memBwPsiLbl').textContent = `PSI stall ${m.psi_avg10 ?? 0}%`;
+      setMeterWidth(document.getElementById('memBwMeterFill'), dramPct);
+      document.getElementById('memBwFault').textContent =
+        `${m.dram_fault_gbps ?? m.fault_proxy_gbps ?? 0} GB/s · ${(m.pgmajfault_per_s ?? 0).toLocaleString()}/s major faults`;
+      document.getElementById('memBwPages').textContent =
+        `${(m.pgfault_per_s ?? 0).toLocaleString()}/s minor · ${(m.pgmajfault_per_s ?? 0).toLocaleString()}/s major`;
+      document.getElementById('memBwSwap').textContent =
+        `↓${m.swap_in_kbps ?? 0} ↑${m.swap_out_kbps ?? 0} KB/s`;
+      document.getElementById('memBwActive').textContent =
+        `${m.active_gb ?? '—'} GB active · ${m.cached_gb ?? '—'} GB cache`;
+    }
+
+    function fmtAgo(ts) {
+      if (!ts) return '';
+      const s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+      if (s < 60) return `${s}s ago`;
+      if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+      return `${Math.floor(s / 3600)}h ago`;
+    }
+
+    function copyText(text, btn) {
+      const done = () => { btn.textContent = 'Copied'; btn.classList.add('ok'); setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 1600); };
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => {});
+      } else {
+        const t = document.createElement('textarea');
+        t.value = text; document.body.appendChild(t); t.select();
+        try { document.execCommand('copy'); done(); } catch {}
+        t.remove();
+      }
+    }
+
+    const KIND_LABEL = { cmd: 'Terminal', game: 'In-game', steam: 'Steam', bios: 'BIOS', file: 'File' };
+    const openPanels = new Set();
+    let lastWarningsKey = '', lastFixesKey = '', lastGameIssuesKey = '', lastSensorKey = '';
+    let lastRankStructKey = '';
+    const meterSmooth = new Map();
+    const METER_SMOOTH_ALPHA = 0.22;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function clampPct(p) {
+      return Math.min(100, Math.max(0, Number(p) || 0));
+    }
+
+    function smoothPct(el, raw) {
+      const v = clampPct(raw);
+      if (prefersReducedMotion) return v;
+      const key = el.id || el.dataset.smoothKey || el;
+      const prev = meterSmooth.has(key) ? meterSmooth.get(key) : v;
+      const next = prev + METER_SMOOTH_ALPHA * (v - prev);
+      meterSmooth.set(key, next);
+      return next;
+    }
+
+    function setMeterWidth(el, pct) {
+      if (!el) return;
+      el.style.width = `${smoothPct(el, pct).toFixed(1)}%`;
+    }
+
+    function setMeterHeight(el, pct, min = 2) {
+      if (!el) return;
+      el.style.height = `${Math.max(min, smoothPct(el, pct)).toFixed(1)}%`;
+    }
+    let activeTab = sessionStorage.getItem('pulse-tab') || 'dashboard';
+
+    document.addEventListener('toggle', e => {
+      const d = e.target;
+      if (d.tagName !== 'DETAILS' || !d.dataset.openKey) return;
+      if (d.open) openPanels.add(d.dataset.openKey);
+      else openPanels.delete(d.dataset.openKey);
+    }, true);
+
+    function captureOpenPanels() {
+      document.querySelectorAll('details[data-open-key]').forEach(d => {
+        const k = d.dataset.openKey;
+        if (d.open) openPanels.add(k);
+        else openPanels.delete(k);
+      });
+    }
+
+    function restoreOpenPanels() {
+      document.querySelectorAll('details[data-open-key]').forEach(d => {
+        d.open = openPanels.has(d.dataset.openKey);
+      });
+    }
+
+    function stablePillsHtml(items) {
+      return items
+        .filter(([, , n]) => n > 0)
+        .map(([lv, lbl, n]) => `<span class="insight-pill ${lv}">${hwIcon(lv, 'hw-pill-glyph')}${n} ${lbl}</span>`)
+        .join('');
+    }
+
+    function hintsKey(hints) {
+      return JSON.stringify((hints || []).map(h => [
+        h.insight_id, h.active, h.level, h.title, h.text, h.last_seen,
+        h.games_affected, h.multi_game, !!(h.fix_script), (h.actions || []).length,
+      ]));
+    }
+
+    function openDrill(id) {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      if (el.tagName === 'DETAILS') {
+        el.open = true;
+        if (el.dataset.openKey) openPanels.add(el.dataset.openKey);
+        return true;
+      }
+      return false;
+    }
+
+    function setTab(name, scrollTo, scrollTop = false) {
+      activeTab = name;
+      sessionStorage.setItem('pulse-tab', name);
+      document.getElementById('pageDashboard').classList.toggle('active', name === 'dashboard');
+      document.getElementById('pageFixes').classList.toggle('active', name === 'fixes');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      if (scrollTo) {
+        requestAnimationFrame(() => {
+          const el = document.getElementById(scrollTo);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      } else if (scrollTop) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => setTab(btn.dataset.tab, null, true);
+    });
+    document.querySelectorAll('.sum-cell[data-drill]').forEach(btn => {
+      btn.onclick = () => jumpTo(btn.dataset.drill);
+    });
+    setTab(activeTab);
+
+    function renderBacklog(items) {
+      const open = (items || []).filter(b => b.priority !== 'done');
+      document.getElementById('backlogList').innerHTML = open.length
+        ? open.map(b => `
+          <div class="bl-item">
+            <span class="bl-pri ${b.priority}">${hwIcon(b.priority === 'done' ? 'ok' : b.priority === 'high' ? 'hot' : 'info', 'hw-pill-glyph')}${b.priority}</span>
+            <div><strong>${b.title}</strong><div class="sub" style="margin:.15rem 0 0">${b.notes}</div></div>
+          </div>`).join('')
+        : '<div class="sub">Backlog empty</div>';
+      const high = open.filter(b => b.priority === 'high').length;
+      document.getElementById('drillAdminSum').textContent =
+        `${open.length} backlog item${open.length === 1 ? '' : 's'}${high ? ` · ${high} high` : ''}`;
+    }
+
+    const DRILL_IDS = new Set([
+      'drill-sensors', 'drill-charts', 'drill-bandwidth', 'drill-compute',
+      'drill-league', 'drill-game', 'drill-storage', 'drill-troubleshoot', 'drill-admin',
+    ]);
+
+    const DIAG_CAT_LABEL = {
+      boot: 'Boot', steam: 'Steam', game: 'Game', libraries: 'Libraries',
+      driver: 'Driver', updates: 'Updates', storage: 'Storage', system: 'System',
+    };
+
+    let diagCache = null;
+    let lastDiagKey = '';
+
+    async function fetchDiagnostics(force = false) {
+      try {
+        const d = await (await fetch('/api/diagnostics')).json();
+        const key = JSON.stringify([d.counts, d.findings?.map(f => [f.id, f.severity])]);
+        if (force || key !== lastDiagKey) {
+          lastDiagKey = key;
+          diagCache = d;
+          renderDiagnostics(d);
+        }
+        return d;
+      } catch {
+        document.getElementById('diagList').innerHTML = '<p class="sub">Diagnostics scan failed.</p>';
+        document.getElementById('drillTroubleshootSum').textContent = 'Scan failed';
+      }
+      return null;
+    }
+
+    function renderDiagnostics(d) {
+      if (!d) return;
+      const c = d.counts || {};
+      const n = (c.hot || 0) + (c.warn || 0);
+      document.getElementById('drillTroubleshootSum').textContent = n
+        ? `${c.hot || 0} critical · ${c.warn || 0} warnings · ${d.findings?.length || 0} checks`
+        : `${d.findings?.length || 0} checks · all clear`;
+      document.getElementById('diagMeta').textContent = d.scanned_at
+        ? `Last scan ${new Date(d.scanned_at * 1000).toLocaleTimeString()}`
+        : '—';
+      document.getElementById('diagCounts').innerHTML = stablePillsHtml([
+        ['hot', 'Critical', c.hot || 0],
+        ['warn', 'Warnings', c.warn || 0],
+        ['info', 'Notes', c.info || 0],
+        ['ok', 'OK', c.ok || 0],
+      ]);
+      const listEl = document.getElementById('diagList');
+      const scrollTop = listEl.scrollTop;
+      listEl.innerHTML = (d.findings || []).map(f => `
+        <article class="diag-item ${f.severity}" id="diag-${esc(f.id)}">
+          <div class="diag-head">
+            ${sevBadge(f.severity, f.severity === 'hot' ? 'Critical' : f.severity === 'warn' ? 'Warning' : f.severity === 'ok' ? 'OK' : 'Note')}
+            <span class="diag-cat">${DIAG_CAT_LABEL[f.category] || f.category}</span>
+            <h3 class="diag-title">${esc(f.title)}</h3>
+          </div>
+          <p class="diag-body">${esc(f.text)}</p>
+          ${f.detail ? `<details class="diag-detail"><summary>Log excerpt</summary><pre class="diag-pre">${esc(f.detail)}</pre></details>` : ''}
+          ${f.fix ? `<div class="diag-fix"><code>${esc(f.fix)}</code><button class="copy-btn" type="button" data-copy="${esc(f.fix)}">Copy</button></div>` : ''}
+        </article>`).join('');
+      listEl.scrollTop = scrollTop;
+      document.querySelectorAll('.diag-fix .copy-btn').forEach(btn => {
+        btn.onclick = () => copyText(btn.dataset.copy, btn);
+      });
+    }
+
+    document.getElementById('diagRefresh').onclick = () => fetchDiagnostics(true);
+    fetchDiagnostics();
+
+    function jumpTo(id) {
+      if (id === 'insightsSection') {
+        setTab('fixes', id);
+        return;
+      }
+      if (activeTab !== 'dashboard') setTab('dashboard');
+      requestAnimationFrame(() => {
+        if (DRILL_IDS.has(id)) openDrill(id);
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+
+    function renderTools(tools) {
+      const rec = tools?.recommended || [];
+      const el = document.getElementById('toolsList');
+      if (!rec.length) {
+        el.innerHTML = '<div class="sub">No tool list configured</div>';
+        return;
+      }
+      const missing = rec.filter(t => !t.installed).length;
+      el.innerHTML = rec.map(t => `
+        <div class="bl-item">
+          <span class="bl-pri ${t.installed ? 'done' : 'high'}">${hwIcon(t.installed ? 'ok' : 'warn', 'hw-pill-glyph')}${t.installed ? 'ok' : 'missing'}</span>
+          <div>
+            <strong>${t.bin}</strong>
+            <div class="sub" style="margin:.15rem 0 0">${t.note}</div>
+            ${t.installed ? '' : `<code style="display:block;margin-top:.35rem;font-size:.9rem;color:var(--blue)">sudo apt install ${t.pkg}</code>`}
+          </div>
+        </div>`).join('');
+      const adminSum = document.getElementById('drillAdminSum');
+      const base = adminSum.textContent || '';
+      if (missing) adminSum.textContent = `${base} · ${missing} tool${missing === 1 ? '' : 's'} missing`;
+    }
+
+    function renderSummaryBar(l, hints, comparison) {
+      const c = l.cpu, m = l.memory, g = l.gpu.discrete, bw = l.bandwidth || {};
+      const gt = l.game_totals;
+      const active = (hints || []).filter(h => h.active !== false);
+      const counts = { hot: 0, warn: 0, info: 0 };
+      active.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
+
+      const healthCell = document.getElementById('sumHealthCell');
+      let healthVal = 'All clear', healthSub = 'No warnings', healthCls = 'ok';
+      if (counts.hot) {
+        healthVal = `${counts.hot} critical`;
+        healthSub = `${active.length} active issue${active.length === 1 ? '' : 's'}`;
+        healthCls = 'hot';
+      } else if (counts.warn) {
+        healthVal = `${counts.warn} important`;
+        healthSub = `${active.length} active issue${active.length === 1 ? '' : 's'}`;
+        healthCls = 'warn';
+      } else if (counts.info) {
+        healthVal = `${counts.info} notes`;
+        healthSub = `${active.length} to review`;
+        healthCls = 'info';
+      } else if (active.length) {
+        healthVal = `${active.length} healthy`;
+        healthSub = 'Signals look good';
+      }
+      healthCell.className = `sum-cell tall ${healthCls}`;
+      document.getElementById('sumHealthVal').textContent = healthVal;
+      document.getElementById('sumHealthSub').textContent = healthSub;
+      const healthMeter = document.getElementById('sumHealthMeter');
+      healthMeter.className = `sum-meter health ${healthCls}`;
+      const healthPct = counts.hot ? 92 : counts.warn ? 68 : counts.info ? 42 : active.length ? 18 : 8;
+      setMeterWidth(healthMeter.querySelector('span'), healthPct);
+      setMeterWidth(document.getElementById('sumCpuMeter'), c.overall_pct);
+      setMeterWidth(document.getElementById('sumMemMeter'), m.pct);
+      setMeterWidth(document.getElementById('sumGpuMeter'), g.busy_pct ?? 0);
+      setMeterWidth(document.getElementById('sumGameMeter'), gt?.running ? gt.cpu_pct : 0);
+      setMeterWidth(document.getElementById('sumLeagueMeter'), comparison?.session_index ?? 0);
+
+      document.getElementById('sumCpuVal').textContent = `${c.overall_pct}%`;
+      document.getElementById('sumCpuSub').textContent = `${c.temps.package ?? '—'}°C · load ${c.load?.[0] ?? '—'}`;
+
+      document.getElementById('sumMemVal').textContent = `${m.pct}%`;
+      document.getElementById('sumMemSub').textContent =
+        `${m.used_gb}/${m.total_gb} GB · swap ${m.swap_pct}%`;
+
+      document.getElementById('sumGpuVal').textContent = `${g.busy_pct ?? '—'}%`;
+      document.getElementById('sumGpuSub').textContent =
+        `${g.junction_c ?? '—'}°C · ${g.power_w ?? '—'} W · VRAM ${g.vram_pct ?? '—'}%`;
+
+      document.getElementById('sumGameVal').textContent = gt?.running ? `${gt.cpu_pct}%` : 'Idle';
+      document.getElementById('sumGameSub').textContent = gt?.running
+        ? `${gt.primary_name || gt.game_name} · ${(gt.rss_mb / 1024).toFixed(1)} GB`
+        : 'No game running';
+
+      document.getElementById('sumLeagueVal').textContent = `${comparison?.session_index ?? '—'}/100`;
+      const badgeEl = document.getElementById('sumLeagueBadge');
+      if (badgeEl) {
+        badgeEl.innerHTML = comparison?.composite_rank ? tierBadge(comparison.composite_rank) : '';
+      }
+      document.getElementById('sumLeagueSub').textContent =
+        comparison?.composite_tier != null
+          ? `Tier ${comparison.composite_tier}/100 · session load`
+          : '—';
+
+      const sh = l.sensor_health;
+      document.getElementById('drillSensorsSum').textContent = sh
+        ? `${sh.ok}/${sh.total} reporting · CPU ${c.temps.package ?? '—'}°C · GPU ${g.junction_c ?? '—'}°C`
+        : '—';
+
+      const st = l.stutter || {};
+      document.getElementById('drillChartsSum').textContent =
+        `CPU ${c.overall_pct}% · GPU ${g.busy_pct ?? '—'}% · hitch ${st.score ?? 0} · 1% ~${st.session?.hitch_ms_1pct ?? '—'}ms`;
+
+      document.getElementById('drillBwSum').textContent =
+        `VRAM ${bw.gpu?.vram_est_gbps ?? '—'} GB/s · DRAM ${bw.memory?.dram_est_gbps ?? '—'} GB/s · stall ${bw.memory?.psi_avg10 ?? 0}%`;
+
+      document.getElementById('drillComputeSum').textContent =
+        `CPU ${c.overall_pct}% · GPU ${g.busy_pct ?? '—'}% · VRAM ${g.vram_used_mb ?? '—'}/${g.vram_total_mb ?? '—'} MB`;
+
+      document.getElementById('drillLeagueSum').textContent =
+        `Score ${comparison?.session_index ?? '—'}/100 · ${comparison?.composite_rank ?? '—'} · CPU ${comparison?.cpu?.tier_rank ?? '—'}`;
+
+      document.getElementById('drillGameSum').textContent = gt?.running
+        ? `${gt.primary_name || gt.game_name} · ${gt.proc_count} procs · ${gt.cpu_pct}% CPU`
+        : 'No game running';
+    }
+
+    const UTIL_SPECS = [
+      { id: 'cpu', label: 'CPU', icon: 'cpu', cls: 'cpu' },
+      { id: 'ram', label: 'RAM', icon: 'ram', cls: 'mem' },
+      { id: 'gpu', label: 'GPU', icon: 'gpu', cls: 'gpu' },
+      { id: 'vram', label: 'VRAM', icon: 'gpu', cls: 'vram' },
+      { id: 'swap', label: 'Swap', icon: 'ram', cls: 'swap' },
+      { id: 'game', label: 'Game CPU', icon: 'game', cls: 'game' },
+    ];
+    const TEMP_SPECS = [
+      { id: 'cpu-pkg', label: 'CPU package', icon: 'cpu', key: 'package' },
+      { id: 'cpu-ccd0', label: 'CCD 1', icon: 'cpu', key: 'ccd0' },
+      { id: 'cpu-ccd1', label: 'CCD 2', icon: 'cpu', key: 'ccd1' },
+      { id: 'gpu-junc', label: 'GPU junction', icon: 'gpu', gpu: true, key: 'junction_c' },
+      { id: 'gpu-mem', label: 'VRAM', icon: 'temp', gpu: true, key: 'mem_temp_c' },
+    ];
+    const BW_SPECS = [
+      { id: 'vram-bw', label: 'VRAM bus', icon: 'gpu', cls: 'bw-gpu' },
+      { id: 'dram-bw', label: 'DRAM demand', icon: 'ram', cls: 'bw-mem' },
+      { id: 'vram-busy', label: 'VRAM controller', icon: 'gpu', cls: 'gpu' },
+      { id: 'dram-psi', label: 'Memory stall', icon: 'cpu', cls: 'mem' },
+    ];
+    const STUTTER_COMP_SPECS = [
+      { id: 'major_faults', label: 'Major page faults', cls: 'stutter' },
+      { id: 'mem_stall', label: 'Memory stall (PSI)', cls: 'stutter' },
+      { id: 'io_stall', label: 'I/O stall (PSI)', cls: 'stutter' },
+      { id: 'swap', label: 'Swap churn', cls: 'stutter' },
+      { id: 'disk_spike', label: 'Disk write spike', cls: 'stutter' },
+    ];
+    const STUTTER_CAUSE_LABELS = {
+      major_faults: 'Major page faults',
+      mem_stall: 'Memory stall',
+      io_stall: 'I/O stall',
+      swap: 'Swap activity',
+      disk_spike: 'Disk spike',
+    };
+
+    function metricLabelHtml(s) {
+      const icon = s.icon ? hwIcon(s.icon, 'hw-metric-glyph') : '';
+      return `<span class="metric-bar-label hw-row">${icon}${esc(s.label)}</span>`;
+    }
+
+    function ensureMetricList(containerId, specs, trackKey = 'cls') {
+      const el = document.getElementById(containerId);
+      if (el.dataset.init) return;
+      el.innerHTML = specs.map(s => `
+        <div class="metric-bar" data-mid="${s.id}">
+          <div class="metric-bar-head">
+            ${metricLabelHtml(s)}
+            <span class="metric-bar-val" data-val>—</span>
+          </div>
+          <div class="metric-bar-track ${s[trackKey] || 'cpu'}" data-track><span data-fill style="width:0%"></span></div>
+          <span class="metric-bar-sub" data-sub>—</span>
+        </div>`).join('');
+      el.dataset.init = '1';
+    }
+
+    function setMetricBar(containerId, id, pct, valText, subText, valCls, trackCls) {
+      const row = document.querySelector(`#${containerId} [data-mid="${id}"]`);
+      if (!row) return;
+      const val = row.querySelector('[data-val]');
+      val.textContent = valText;
+      val.className = `metric-bar-val${valCls ? ' ' + valCls : ''}`;
+      setMeterWidth(row.querySelector('[data-fill]'), pct);
+      if (trackCls) row.querySelector('[data-track]').className = `metric-bar-track ${trackCls}`;
+      row.querySelector('[data-sub]').textContent = subText;
+    }
+
+    function tempPct(v) { return v == null ? 0 : Math.min(100, (v / 105) * 100); }
+    function tempValCls(v) {
+      if (v == null) return '';
+      if (v >= 90) return 'temp hot';
+      if (v >= 75) return 'temp warn';
+      return 'temp';
+    }
+    function tempTrackCls(v) {
+      if (v == null) return 'temp';
+      if (v >= 90) return 'temp hot';
+      if (v >= 75) return 'temp warn';
+      return 'temp';
+    }
+
+    function renderSparkChart() {
+      const last = rawHistory.at(-1)?.ts ?? 0;
+      const cut = rawHistory.filter(h => h.ts >= last - 300);
+      const { labels, points } = bucketize(cut, 5);
+      const stutterLine = points.map(p => {
+        const slice = Array.isArray(p) ? p : [p];
+        return avg(slice, h => h.stutter?.score ?? 0);
+      });
+      const eventPoints = [];
+      points.forEach((p, i) => {
+        const slice = Array.isArray(p) ? p : [p];
+        if (slice.some(h => h.stutter?.event)) {
+          eventPoints.push({ x: labels[i], y: stutterLine[i] });
+        }
+      });
+      sparkChart.data.labels = labels;
+      sparkChart.data.datasets = [
+        { label: 'CPU', data: points.map(p => avg(p, h => h.cpu.overall_pct)), borderColor: CHART.cpu, backgroundColor: CHART.cpu + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+        { label: 'GPU', data: points.map(p => avg(p, h => h.gpu.discrete.busy_pct ?? 0)), borderColor: CHART.gpu, backgroundColor: CHART.gpu + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+        { label: 'RAM', data: points.map(p => avg(p, h => h.memory.pct)), borderColor: CHART.ram, backgroundColor: CHART.ram + '18', fill: true, tension: .35, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+        { label: 'Hitch score', data: stutterLine, borderColor: '#b48ead', backgroundColor: 'rgba(180,142,173,.12)', fill: false, tension: .35, pointRadius: 0, borderWidth: 2.5, borderDash: [5, 4], yAxisID: 'y' },
+        { type: 'scatter', label: 'Hitch event', data: eventPoints, borderColor: '#ed6a5a', backgroundColor: '#ed6a5a', pointRadius: 5, pointStyle: 'triangle', yAxisID: 'y', showLine: false },
+      ];
+      sparkChart.update();
+    }
+
+    function renderStutterViz(l) {
+      const st = l.stutter || {};
+      const sess = st.session || {};
+      const sev = st.severity || 'none';
+      const scoreEl = document.getElementById('stutterScoreVal');
+      scoreEl.textContent = st.score ?? '—';
+      scoreEl.className = `v ${sev === 'none' ? 'ok' : sev}`;
+      const estEl = document.getElementById('stutterEstMs');
+      estEl.textContent = st.est_ms != null ? `${st.est_ms}ms` : '—';
+      estEl.className = `v ${sev === 'none' ? 'ok' : sev}`;
+      const pctEl = document.getElementById('stutter1Pct');
+      pctEl.textContent = sess.hitch_ms_1pct != null ? `${sess.hitch_ms_1pct}ms` : '—';
+      pctEl.className = `v ${(sess.hitch_ms_1pct || 0) >= 50 ? 'severe' : (sess.hitch_ms_1pct || 0) >= 28 ? 'moderate' : 'ok'}`;
+      document.getElementById('stutterEvents').textContent = sess.events ?? 0;
+      document.getElementById('stutterEvents').className =
+        `v ${(sess.events || 0) >= 8 ? 'severe' : (sess.events || 0) >= 3 ? 'moderate' : 'ok'}`;
+
+      ensureMetricList('stutterComponents', STUTTER_COMP_SPECS);
+      const comp = st.components || {};
+      const dram = l.bandwidth?.memory || {};
+      STUTTER_COMP_SPECS.forEach(s => {
+        const v = comp[s.id] ?? 0;
+        let sub = '';
+        if (s.id === 'major_faults') sub = `${dram.pgmajfault_per_s ?? 0}/s major · ${dram.pgfault_per_s ?? 0}/s minor`;
+        else if (s.id === 'mem_stall') sub = `PSI memory ${dram.psi_avg10 ?? 0}%`;
+        else if (s.id === 'io_stall') sub = `PSI I/O ${dram.psi_io_avg10 ?? 0}%`;
+        else if (s.id === 'swap') sub = `↓${dram.swap_in_kbps ?? 0} ↑${dram.swap_out_kbps ?? 0} KB/s`;
+        else if (s.id === 'disk_spike') sub = `Disk write ${l.disk?.write_mbps ?? 0} MB/s`;
+        setMetricBar('stutterComponents', s.id, v, `${Math.round(v)}`, sub, '', 'stutter');
+      });
+
+      const causes = st.causes || [];
+      document.getElementById('stutterCauses').innerHTML = causes.length
+        ? causes.map(c => `<span class="stutter-cause">${STUTTER_CAUSE_LABELS[c] || c}</span>`).join('')
+        : '<span class="stutter-cause placeholder">No active hitch drivers</span>';
+
+      const gt = l.game_totals;
+      if (gt?.running && (st.event || (st.score || 0) >= 35)) {
+        document.getElementById('sumGameSub').textContent =
+          `${gt.primary_name || gt.game_name} · hitch ~${st.est_ms}ms · ${sess.events ?? 0} in 5m`;
+      }
+    }
+
+    function renderCoreStrip(cores) {
+      const el = document.getElementById('coreStrip');
+      if (!el.dataset.init) {
+        el.innerHTML = cores.map(c => `
+          <div class="core-strip-cell" data-core="${c.id}" title="Core ${c.id}">
+            <div class="core-strip-fill"></div>
+          </div>`).join('');
+        el.dataset.init = '1';
+      }
+      cores.forEach(c => {
+        const f = el.querySelector(`[data-core="${c.id}"] .core-strip-fill`);
+        if (f) setMeterHeight(f, c.pct, 4);
+      });
+    }
+
+    function renderLeagueViz(c) {
+      const el = document.getElementById('leagueViz');
+      if (!c) {
+        el.innerHTML = '<div class="sub">League data unavailable</div>';
+        return;
+      }
+      if (!el.dataset.init) {
+        el.innerHTML = `
+          <div class="league-score-row">
+            <span class="league-big" id="leagueBig">—</span>
+            <span class="rank-badge" id="leagueBadge">—</span>
+          </div>
+          <div class="metric-bar">
+            <div class="metric-bar-head"><span class="metric-bar-label">Session load</span><span class="metric-bar-val" id="leagueSessionVal">—</span></div>
+            <div class="metric-bar-track league"><span id="leagueSessionBar" style="width:0%"></span></div>
+          </div>
+          <div class="league-parts" id="leagueParts"></div>`;
+        el.dataset.init = '1';
+      }
+      document.getElementById('leagueBig').textContent = `${c.session_index}/100`;
+      document.getElementById('leagueBadge').innerHTML = tierBadge(c.composite_rank);
+      document.getElementById('leagueSessionVal').textContent = `${c.session_index}%`;
+      setMeterWidth(document.getElementById('leagueSessionBar'), c.session_index);
+      const parts = [
+        { label: 'CPU', icon: 'cpu', track: 'cpu', tier: c.cpu?.tier_rank, score: c.cpu?.tier_score, live: c.cpu?.live_pct },
+        { label: 'GPU', icon: 'gpu', track: 'gpu', tier: c.gpu?.tier_rank, score: c.gpu?.tier_score, live: c.gpu?.live_pct },
+        { label: 'RAM', icon: 'ram', track: 'mem', tier: c.memory?.tier_rank, score: c.memory?.tier_score, live: c.memory?.live_pressure_pct },
+      ];
+      const partsEl = document.getElementById('leagueParts');
+      if (!partsEl.dataset.init) {
+        partsEl.innerHTML = parts.map(p => `
+          <div class="metric-bar" data-lpart="${p.label}">
+            <div class="metric-bar-head">
+              <span class="metric-bar-label hw-row" data-lpart-label>${hwIcon(p.icon, 'hw-part-glyph')}${p.label}</span>
+              <span class="metric-bar-val" data-lpart-live>—</span>
+            </div>
+            <div class="metric-bar-track ${p.track}" data-lpart-track><span data-lpart-fill style="width:0%"></span></div>
+            <span class="metric-bar-sub" data-lpart-sub>—</span>
+          </div>`).join('');
+        partsEl.dataset.init = '1';
+      }
+      parts.forEach(p => {
+        const row = partsEl.querySelector(`[data-lpart="${p.label}"]`);
+        if (!row) return;
+        row.querySelector('[data-lpart-label]').innerHTML =
+          `${hwIcon(p.icon, 'hw-part-glyph')}${p.label} · ${tierBadge(p.tier ?? '—', false)}`;
+        row.querySelector('[data-lpart-live]').textContent = `${p.live ?? '—'}% live`;
+        row.querySelector('[data-lpart-sub]').textContent = `Tier score ${p.score ?? '—'}/100`;
+        setMeterWidth(row.querySelector('[data-lpart-fill]'), p.score ?? 0);
+      });
+    }
+
+    function renderQuickGlance(l) {
+      const g = l.gpu?.discrete || {}, c = l.cpu || {};
+      const pkg = c.temps?.package;
+      const junc = g.junction_c;
+      const items = [
+        { icon: 'gpu', label: 'GPU', val: `${g.power_w ?? '—'}W`, sub: `${g.gfx_mhz ?? '—'} MHz`, pct: Math.min(100, ((g.power_w || 0) / 355) * 100), cls: 'gpu' },
+        { icon: 'fan', label: 'Fan', val: `${g.fan_rpm ?? '—'}`, sub: 'rpm', pct: Math.min(100, ((g.fan_rpm || 0) / 2800) * 100), cls: 'gpu' },
+        { icon: 'temp', label: 'Junction', val: junc != null ? `${junc}°` : '—', sub: 'GPU', pct: tempPct(junc), cls: `temp${junc >= 90 ? ' hot' : junc >= 75 ? ' warn' : ''}` },
+        { icon: 'cpu', label: 'CPU', val: pkg != null ? `${pkg}°` : '—', sub: 'package', pct: tempPct(pkg), cls: 'cpu' },
+      ];
+      const boxCls = { gpu: 'gpu', fan: 'gpu', temp: 'temp', cpu: 'cpu' };
+      const glanceEl = document.getElementById('glanceGrid');
+      if (!glanceEl.dataset.init) {
+        glanceEl.innerHTML = items.map((it, i) => `
+          <div class="glance-cell ${it.cls}" data-gi="${i}">
+            <span class="hw-icon-box ${boxCls[it.icon] || 'cpu'}" data-gi-icon></span>
+            <div class="glance-body">
+              <span class="glance-val" data-gi-val>—</span>
+              <span class="glance-sub" data-gi-sub>—</span>
+            </div>
+            <div class="glance-bar"><span data-gi-bar style="height:0%"></span></div>
+          </div>`).join('');
+        items.forEach((it, i) => {
+          glanceEl.querySelector(`[data-gi="${i}"] [data-gi-icon]`).innerHTML = hwIcon(it.icon);
+        });
+        glanceEl.dataset.init = '1';
+      }
+      items.forEach((it, i) => {
+        const cell = glanceEl.querySelector(`[data-gi="${i}"]`);
+        if (!cell) return;
+        cell.className = `glance-cell ${it.cls}`;
+        cell.querySelector('[data-gi-val]').textContent = it.val;
+        cell.querySelector('[data-gi-sub]').textContent = `${it.label} · ${it.sub}`;
+        setMeterHeight(cell.querySelector('[data-gi-bar]'), it.pct, 3);
+      });
+    }
+
+    function renderSensorStrip(sensors) {
+      const picks = (sensors || [])
+        .filter(s => s.kind === 'temp' || /load|psi|fan/i.test(s.label))
+        .slice(0, 10);
+      document.getElementById('sensorStrip').innerHTML = picks.length
+        ? picks.map(s => {
+            const cls = s.kind === 'temp' ? tempClass(s.value) : '';
+            const short = s.label.replace(/^k10temp-[^ ]+ /i, '').replace(/^amdgpu-[^ ]+ /i, '');
+            return `<span class="sensor-chip ${cls}">${hwIcon(sensorKindIcon(s), 'hw-chip-glyph')}${short} <span class="chip-val">${s.value ?? '—'}${s.unit || ''}</span></span>`;
+          }).join('')
+        : `<span class="sensor-chip placeholder">${hwIcon('temp', 'hw-chip-glyph')}No live sensors</span>`;
+    }
+
+    function renderVisualDashboard(l, comparison) {
+      ensureMetricList('utilMeters', UTIL_SPECS);
+      ensureMetricList('tempMeters', TEMP_SPECS.map(s => ({ ...s, cls: 'temp' })), 'cls');
+      ensureMetricList('bwMeters', BW_SPECS);
+
+      const c = l.cpu, m = l.memory, g = l.gpu.discrete, gt = l.game_totals;
+      const bw = l.bandwidth || {};
+
+      setMetricBar('utilMeters', 'cpu', c.overall_pct, `${c.overall_pct}%`, `Load ${c.load?.join(' / ') ?? '—'}`, 'cpu');
+      setMetricBar('utilMeters', 'ram', m.pct, `${m.pct}%`, `${m.used_gb} / ${m.total_gb} GB used`, 'mem');
+      setMetricBar('utilMeters', 'gpu', g.busy_pct ?? 0, `${g.busy_pct ?? '—'}%`, `${g.power_w ?? '—'} W · ${g.gfx_mhz ?? '—'} MHz`, 'gpu');
+      setMetricBar('utilMeters', 'vram', g.vram_pct ?? 0, `${g.vram_pct ?? '—'}%`, `${g.vram_used_mb ?? '—'} / ${g.vram_total_mb ?? '—'} MB`, 'gpu');
+      setMetricBar('utilMeters', 'swap', m.swap_pct, `${m.swap_pct}%`, `${m.swap_used_gb ?? '—'} GB swap used`, '');
+      setMetricBar('utilMeters', 'game', gt?.running ? gt.cpu_pct : 0, gt?.running ? `${gt.cpu_pct}%` : 'Idle',
+        gt?.running ? `${gt.primary_name || gt.game_name}` : 'No game', 'game');
+
+      const temps = c.temps || {};
+      const tempVals = {
+        'cpu-pkg': temps.package,
+        'cpu-ccd0': temps.ccd?.[0],
+        'cpu-ccd1': temps.ccd?.[1],
+        'gpu-junc': g.junction_c,
+        'gpu-mem': g.mem_temp_c,
+      };
+      TEMP_SPECS.forEach(s => {
+        const v = tempVals[s.id];
+        setMetricBar('tempMeters', s.id, tempPct(v), v != null ? `${v}°C` : '—', s.label, tempValCls(v), tempTrackCls(v));
+      });
+
+      const vramPeak = bw.gpu?.vram_peak_gbps || 1;
+      const dramPeak = bw.memory?.dram_peak_gbps || 1;
+      setMetricBar('bwMeters', 'vram-bw', ((bw.gpu?.vram_est_gbps ?? 0) / vramPeak) * 100,
+        `${bw.gpu?.vram_est_gbps ?? '—'} GB/s`, `Peak ${vramPeak} GB/s · MCLK ${bw.gpu?.mclk_mhz ?? '—'}`, '', 'bw-gpu');
+      setMetricBar('bwMeters', 'dram-bw', bw.memory?.dram_util_pct ?? ((bw.memory?.dram_est_gbps ?? 0) / dramPeak) * 100,
+        `${bw.memory?.dram_est_gbps ?? '—'} GB/s`, `${bw.memory?.dram_util_pct ?? 0}% demand · ${bw.memory?.spec_label || 'DDR5'} ${dramPeak} peak`, '', 'bw-mem');
+      setMetricBar('bwMeters', 'vram-busy', bw.gpu?.vram_busy_pct ?? 0,
+        `${bw.gpu?.vram_busy_pct ?? '—'}% busy`, `Engine ${bw.gpu?.engine_busy_pct ?? '—'}%`, 'gpu');
+      setMetricBar('bwMeters', 'dram-psi', Math.min(100, (bw.memory?.psi_avg10 ?? 0) * 5),
+        `${bw.memory?.psi_avg10 ?? 0}% PSI`, `Page faults ${(bw.memory?.pgfault_per_s ?? 0).toLocaleString()}/s`, 'mem');
+
+      renderCoreStrip(l.cpu.per_core || []);
+      renderLeagueViz(comparison);
+      renderQuickGlance(l);
+      renderSensorStrip(l.sensors || []);
+      renderStutterViz(l);
+      renderSparkChart();
+    }
+
+    function downloadScript(name, body) {
+      const blob = new Blob([body], { type: 'text/x-shellscript' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `pulse-fix-${name}.sh`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    const SEV_LABEL = { hot: 'Critical', warn: 'Important', info: 'Moderate', ok: 'Healthy' };
+
+    function esc(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    const ICON_PATHS = {
+      health: '<path d="M12 3.5 18 6.5v5.2c0 4.2-2.8 7.2-6 8.3-3.2-1.1-6-4.1-6-8.3V6.5L12 3.5z"/><path d="m9.2 12.2 2.1 2.1 3.8-4"/>',
+      cpu: '<rect x="7.5" y="7.5" width="9" height="9" rx="1.5"/><path d="M10.5 4.5v2.5M13.5 4.5v2.5M10.5 17v2.5M13.5 17v2.5M4.5 10.5h2.5M4.5 13.5h2.5M17 10.5h2.5M17 13.5h2.5"/>',
+      ram: '<path d="M5 8.5h14v7H5z"/><path d="M8.5 8.5V6.5M12 8.5V6.5M15.5 8.5V6.5"/><path d="M7.5 11.5h2M11 11.5h2M14.5 11.5h2"/>',
+      mem: '<path d="M5 8.5h14v7H5z"/><path d="M8.5 8.5V6.5M12 8.5V6.5M15.5 8.5V6.5"/><path d="M7.5 11.5h2M11 11.5h2M14.5 11.5h2"/>',
+      gpu: '<path d="M4.5 9.5h15v6.5H4.5z"/><circle cx="9" cy="12.8" r="1.6"/><path d="M12.5 12.8H17"/><path d="M6.5 9.5V7.5M17.5 9.5V7.5"/>',
+      game: '<path d="M8.5 11.8a2.6 2.6 0 0 1 2.6-2.6h1.3a2.6 2.6 0 0 1 2.6 2.6v.8a2.6 2.6 0 0 1-2.6 2.6h-1.3a2.6 2.6 0 0 1-2.6-2.6z"/><path d="M16.2 11.2h4.3M18.3 9.1v4.2"/><circle cx="10.2" cy="12.1" r=".7" fill="currentColor" stroke="none"/><circle cx="12.4" cy="10.8" r=".55" fill="currentColor" stroke="none"/>',
+      league: '<path d="M8.2 5h7.6v3.4a3.8 3.8 0 0 1-7.6 0z"/><path d="M6.5 5H5v1.2a1.8 1.8 0 0 0 1.8 1.8M17.5 5H19v1.2a1.8 1.8 0 0 1-1.8 1.8"/><path d="M12 12.2v2.3M9.8 18.5h4.4M10.5 14.5h3l-.9 2.8"/>',
+      fan: '<circle cx="12" cy="12" r="1.5"/><path d="M12 5.5c1.2 1.6 1.7 2.8 1.9 4.5M12 18.5c-1.2-1.6-1.7-2.8-1.9-4.5M5.5 12c1.6 1.2 2.8 1.7 4.5 1.9M18.5 12c-1.6-1.2-2.8-1.7-4.5-1.9"/>',
+      temp: '<path d="M14.2 15.8V7.2a2.2 2.2 0 1 0-4.4 0v8.6"/><circle cx="12" cy="17.2" r="2.3"/>',
+      storage: '<ellipse cx="12" cy="7.5" rx="6.5" ry="2.5"/><path d="M5.5 7.5v9c0 1.5 2.9 2.7 6.5 2.7s6.5-1.2 6.5-2.7v-9"/><path d="M5.5 12c0 1.5 2.9 2.7 6.5 2.7S18.5 13.5 18.5 12"/>',
+      hot: '<path d="M12 5.2 19.5 18H4.5z"/><path d="M12 10.2v3.8"/><circle cx="12" cy="16.2" r=".8" fill="currentColor" stroke="none"/>',
+      warn: '<circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v4.2"/><circle cx="12" cy="15.8" r=".8" fill="currentColor" stroke="none"/>',
+      info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11.2v4.5"/><circle cx="12" cy="8.5" r=".8" fill="currentColor" stroke="none"/>',
+      ok: '<circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.2 2.6 2.6 4.8-5.6"/>',
+      activity: '<path d="M3.5 12h3.8l2.4-6.5 3.4 13 2.8-6.5H20.5"/>',
+      stutter: '<path d="M3.5 12h3.5l2-5 3 10 2.5-6H20"/>',
+      chip: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 3.5v2M15 3.5v2M9 18.5v2M15 18.5v2M3.5 9h2M3.5 15h2M18.5 9h2M18.5 15h2"/>',
+      power: '<path d="M13 2.8 4.8 13.8h6.8l-.9 7.4L19 10.2h-6.8z"/>',
+    };
+
+    function hwIcon(name, extraCls = '') {
+      const paths = ICON_PATHS[name] || ICON_PATHS.chip;
+      const svg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+      return `<span class="hw-glyph ${extraCls}">${svg}</span>`;
+    }
+
+    function initStaticGlyphs() {
+      document.querySelectorAll('[data-glyph]').forEach(el => {
+        el.innerHTML = hwIcon(el.dataset.glyph);
+      });
+    }
+
+    function tierBadgeClass(rank) {
+      const r = String(rank ?? '').toUpperCase().trim();
+      if (!r || r === '—') return '';
+      if (r.startsWith('S')) return 'tier-s';
+      if (r.startsWith('A')) return 'tier-a';
+      if (r.startsWith('B')) return 'tier-b';
+      if (r.startsWith('C')) return 'tier-c';
+      return 'tier-d';
+    }
+
+    function tierBadge(rank, showTrophy = true) {
+      const label = esc(rank ?? '—');
+      const cls = tierBadgeClass(rank);
+      return `<span class="rank-badge ${cls}">${showTrophy ? hwIcon('league', 'hw-badge-glyph') : ''}${label}</span>`;
+    }
+
+    function sevBadge(lv, label) {
+      const icon = lv === 'hot' ? 'hot' : lv;
+      return `<span class="rec-sev ${lv}">${hwIcon(icon, 'hw-sev-glyph')}${esc(label)}</span>`;
+    }
+
+    function partLabel(part) {
+      const map = { CPU: 'cpu', GPU: 'gpu', RAM: 'ram' };
+      const icon = map[part] || 'cpu';
+      return `<span class="rank-part">${hwIcon(icon, 'hw-part-glyph')}<span>${esc(part)}</span></span>`;
+    }
+
+    function sensorKindIcon(s) {
+      if (s.kind === 'temp') return 'temp';
+      if (/fan/i.test(s.label)) return 'fan';
+      if (/psi|load/i.test(s.label)) return 'cpu';
+      return 'temp';
+    }
+
+    const MFR_LABELS = {
+      amd: 'AMD', intel: 'Intel', nvidia: 'NVDA', xfx: 'XFX',
+      gskill: 'G.SKILL', system76: 'S76', sapphire: 'SAPPHIRE',
+      asus: 'ASUS', msi: 'MSI', corsair: 'CORSAIR', generic: 'HW',
+    };
+
+    function brandSlug(name) {
+      if (!name) return 'generic';
+      const n = String(name).toLowerCase();
+      if (n.includes('g.skill') || n.includes('gskill')) return 'gskill';
+      if (n.includes('system76')) return 'system76';
+      if (n.includes('nvidia') || n.includes('geforce')) return 'nvidia';
+      if (n.includes('sapphire')) return 'sapphire';
+      if (n.includes('corsair')) return 'corsair';
+      if (n.includes('xfx')) return 'xfx';
+      if (n.includes('asus')) return 'asus';
+      if (n.includes('msi')) return 'msi';
+      if (n.includes('amd') || n.includes('ryzen') || n.includes('radeon')) return 'amd';
+      if (n.includes('intel') || n.includes('core i')) return 'intel';
+      return 'generic';
+    }
+
+    function mfrMark(slug, size = '') {
+      const label = MFR_LABELS[slug] || MFR_LABELS.generic;
+      const sm = size === 'sm' ? ' sm' : '';
+      return `<span class="mfr-mark ${slug}${sm}" aria-hidden="true">${esc(label)}</span>`;
+    }
+
+    function rigChip(brand, title, tooltip) {
+      const slug = brandSlug(brand);
+      const tip = tooltip ? ` title="${esc(tooltip)}"` : '';
+      const label = `${brand || 'Hardware'} · ${title}`;
+      return `<span class="rig-chip ${slug}"${tip} aria-label="${esc(label)}">
+        ${mfrMark(slug)}
+        <span class="rig-name">${esc(title)}</span>
+      </span>`;
+    }
+
+    function renderRigStrip(s) {
+      const r = s.rig || {};
+      const chips = [];
+      if (r.chassis?.label) {
+        chips.push(rigChip(r.chassis.brand || 'Chassis', r.chassis.model || r.chassis.label, r.chassis.label));
+      }
+      if (r.cpu?.model) {
+        chips.push(rigChip(r.cpu.brand || 'CPU', r.cpu.model, r.cpu.label));
+      }
+      if (r.gpu?.model) {
+        const gpuTitle = r.gpu.board
+          ? `${r.gpu.model} · ${r.gpu.board.replace(/^.*RX /i, '').slice(0, 40)}`
+          : r.gpu.model;
+        chips.push(rigChip(r.gpu.maker || r.gpu.brand || 'GPU', gpuTitle, r.gpu.board || r.gpu.label));
+      }
+      if (r.memory?.kit || r.memory?.label) {
+        const memTitle = r.memory.kit
+          ? `${r.memory.kit} · DDR5-6000`
+          : (r.memory.label || 'RAM');
+        chips.push(rigChip(r.memory.brand || 'RAM', memTitle, r.memory.label));
+      }
+      document.getElementById('rigStrip').innerHTML = chips.join('') || '';
+    }
+
+    function hwIdentityCell(row) {
+      const name = row.name || '—';
+      const maker = row.maker || row.brand;
+      const board = row.board;
+      const slug = brandSlug(maker || row.brand || row.kit || row.label || '');
+      if (row.label && row.label !== name && (maker || row.kit || row.brand)) {
+        return `<div class="hw-identity">
+          <span class="hw-id-primary hw-id-row">${mfrMark(slug, 'sm')}<span>${esc(row.label)}</span></span>
+          <span class="hw-id-sub">League tier · ${esc(name)}</span>
+        </div>`;
+      }
+      if (maker && maker !== name) {
+        return `<div class="hw-identity">
+          <span class="hw-id-primary hw-id-row">${mfrMark(slug, 'sm')}<span>${esc(name)}</span></span>
+          ${board ? `<span class="hw-id-sub">${esc(board)}</span>` : ''}
+        </div>`;
+      }
+      if (row.brand && brandSlug(row.brand) !== 'generic') {
+        return `<div class="hw-identity">
+          <span class="hw-id-primary hw-id-row">${mfrMark(brandSlug(row.brand), 'sm')}<span>${esc(name)}</span></span>
+        </div>`;
+      }
+      return `<span class="hw-id-primary">${esc(name)}</span>`;
+    }
+
+    function gameLabel(id) {
+      return id === 'cities2' ? 'Cities II' : id === 'counterstrike2' ? 'CS2' : id;
+    }
+
+    function gameTag(h) {
+      const ids = h.games_affected || [];
+      if (!ids.length) return '';
+      const names = ids.map(gameLabel);
+      const label = h.multi_game
+        ? (names.length <= 2 ? names.join(' + ') : `${names.length} games`)
+        : names[0];
+      return `<span class="rec-game" title="Seen in: ${esc(names.join(', '))}">${hwIcon('game', 'hw-pill-glyph')}${esc(label)}</span>`;
+    }
+
+    function hintById(list, iid) {
+      return (list || []).find(h => h.insight_id === iid);
+    }
+
+    function recCardHtml(h, idPrefix = '') {
+      const lv = h.level || 'info';
+      const stale = h.active === false;
+      const sid = h.insight_id || 'insight';
+      const domId = `${idPrefix}insight-${sid}`;
+      const when = h.last_seen ? `Last seen ${fmtAgo(h.last_seen)}` : '';
+      const steps = (h.actions || []).map((a, ai) => `
+        <div class="rec-step">
+          <div class="rec-step-label">${esc(a.label)}</div>
+          ${a.cmd ? `<code>${esc(a.cmd)}</code>` : ''}
+          ${a.note ? `<div class="rec-step-note">${esc(a.note)}</div>` : ''}
+          ${a.cmd ? `<button class="copy-btn" type="button" data-iid="${esc(sid)}" data-a="${ai}">Copy</button>` : ''}
+        </div>`).join('');
+      const script = h.fix_script || '';
+      const scriptBlock = script ? `
+        <div class="rec-actions">
+          <button class="script-btn" type="button" data-script-iid="${esc(sid)}">Copy fix script</button>
+          <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>
+        </div>
+        <details class="rec-more" data-open-key="hint-${domId}-script">
+          <summary>Show script</summary>
+          <pre class="script-pre">${esc(script)}</pre>
+        </details>` : '';
+      const stepsBlock = steps ? `
+        <details class="rec-more" data-open-key="hint-${domId}-steps">
+          <summary>${(h.actions || []).length} steps</summary>
+          <div class="rec-steps">${steps}</div>
+        </details>` : '';
+      return `<article class="rec-card rec-${lv}${stale ? ' rec-stale' : ''}" data-level="${lv}" id="${domId}">
+        <header class="rec-head">
+          ${sevBadge(lv, SEV_LABEL[lv] || lv)}
+          ${gameTag(h)}
+          <h3 class="rec-title">${esc(h.title)}${stale ? ' <span style="font-weight:400;color:var(--muted)">(cleared)</span>' : ''}</h3>
+        </header>
+        <p class="rec-body">${esc(h.text)}</p>
+        ${when ? `<p class="rec-meta">${when}</p>` : ''}
+        ${scriptBlock}
+        ${stepsBlock}
+      </article>`;
+    }
+
+    function bindHintActions(el, list) {
+      el.querySelectorAll('.copy-btn[data-iid]').forEach(btn => {
+        const h = hintById(list, btn.dataset.iid);
+        const a = h?.actions?.[+btn.dataset.a];
+        if (a?.cmd) btn.onclick = () => copyText(a.cmd, btn);
+      });
+      el.querySelectorAll('[data-script-iid]').forEach(btn => {
+        const h = hintById(list, btn.dataset.scriptIid);
+        if (h?.fix_script) btn.onclick = () => copyText(h.fix_script, btn);
+      });
+      el.querySelectorAll('[data-dl-iid]').forEach(btn => {
+        const h = hintById(list, btn.dataset.dlIid);
+        if (h?.fix_script) btn.onclick = e => { e.stopPropagation(); downloadScript(h.insight_id || 'fix', h.fix_script); };
+      });
+      el.querySelectorAll('.script-btn, .copy-btn').forEach(btn => {
+        btn.addEventListener('click', e => e.stopPropagation());
+      });
+    }
+
+    function warningRowHtml(h) {
+      const lv = h.level || 'info';
+      const sid = h.insight_id || 'insight';
+      const domId = `insight-${sid}`;
+      return `<div class="warn-row rec-${lv}" data-iid="${esc(sid)}" id="warn-${domId}">
+        ${sevBadge(lv, SEV_LABEL[lv] || lv)}
+        ${gameTag(h)}
+        <span class="warn-title">${esc(h.title)}</span>
+        <span class="warn-text">${esc(h.text)}</span>
+        <button class="btn warn-go" type="button" data-goto-fix="${esc(sid)}">Fix →</button>
+      </div>`;
+    }
+
+    function bindWarningActions(list) {
+      document.querySelectorAll('.warn-go[data-goto-fix]').forEach(btn => {
+        btn.onclick = () => {
+          const sid = btn.dataset.gotoFix;
+          setTab('fixes', `insight-${sid}`);
+        };
+      });
+    }
+
+    function renderWarnings(hints) {
+      const list = hints || [];
+      const active = list.filter(h => h.active !== false);
+      const key = hintsKey(active);
+      const multi = active.filter(h => h.multi_game).length;
+
+      document.getElementById('tuningMeta').textContent = active.length
+        ? `${active.length} to address${multi ? ` · ${multi} affect multiple games` : ''}`
+        : 'Nothing needs attention right now';
+
+      const counts = { hot: 0, warn: 0, info: 0, ok: 0 };
+      active.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
+      document.getElementById('tuningSummary').innerHTML = stablePillsHtml([
+        ['hot', 'Critical', counts.hot],
+        ['warn', 'Important', counts.warn],
+        ['info', 'Moderate', counts.info],
+        ['ok', 'Healthy', counts.ok],
+      ]);
+
+      const listEl = document.getElementById('warningList');
+      if (key === lastWarningsKey) return;
+      lastWarningsKey = key;
+      const scrollTop = listEl.scrollTop;
+      listEl.innerHTML = active.length
+        ? active.map(h => warningRowHtml(h)).join('')
+        : '<p class="warn-empty">Nothing needs attention. Open <strong>Fixes</strong> for scripts and step-by-step guidance.</p>';
+      listEl.scrollTop = scrollTop;
+      bindWarningActions(active);
+    }
+
+    function renderFixes(hints) {
+      const list = hints || [];
+      const active = list.filter(h => h.active !== false);
+      const cleared = list.filter(h => h.active === false);
+      const key = hintsKey(list);
+      if (key === lastFixesKey) return;
+      lastFixesKey = key;
+      captureOpenPanels();
+
+      const el = document.getElementById('tuningHints');
+      el.innerHTML = active.length
+        ? active.map(h => recCardHtml(h)).join('')
+        : '<p class="sub" style="margin:0">Play a session — issues show up here when something needs attention.</p>';
+      bindHintActions(el, active);
+
+      const clearedEl = document.getElementById('tuningCleared');
+      clearedEl.innerHTML = cleared.length
+        ? `<h3 class="rec-subheading">${cleared.length} cleared issue${cleared.length === 1 ? '' : 's'}</h3>
+           <div class="rec-list">${cleared.map(h => recCardHtml(h)).join('')}</div>`
+        : '';
+      if (cleared.length) bindHintActions(clearedEl, cleared);
+
+      restoreOpenPanels();
+    }
+
+    function renderGameIssues(byGame) {
+      const blocks = Object.values(byGame || {}).filter(g => g.issue_count > 0 || g.running);
+      const key = JSON.stringify(blocks.map(g => [g.id, g.running, g.issue_count, hintsKey(g.issues)]));
+      if (key === lastGameIssuesKey) return;
+      lastGameIssuesKey = key;
+
+      const el = document.getElementById('gameIssues');
+      const heading = document.getElementById('gameIssuesHeading');
+      if (!blocks.length) {
+        if (heading) heading.hidden = true;
+        el.innerHTML = '';
+        return;
+      }
+      if (heading) heading.hidden = false;
+      el.innerHTML = blocks.map(g => `
+        <div class="game-issues-block" id="game-issues-${g.id}">
+          <div class="game-issues-head">${esc(g.name)}${g.running ? ' · live' : ''} — ${g.issue_count} issue${g.issue_count === 1 ? '' : 's'}</div>
+          <div class="game-issues-body">
+            ${g.issues.length
+              ? g.issues.map(h => recCardHtml(h, `g-${g.id}-`)).join('')
+              : '<p class="sub" style="margin:0">No issues logged yet for this game.</p>'}
+          </div>
+        </div>`).join('');
+      blocks.forEach(g => {
+        const body = el.querySelector(`#game-issues-${g.id} .game-issues-body`);
+        if (body && g.issues.length) bindHintActions(body, g.issues);
+      });
+    }
+
+    function renderSensorGroups(sensors) {
+      const sensorKey = JSON.stringify((sensors || []).map(s => [s.id, s.value]));
+      if (sensorKey === lastSensorKey) return;
+      lastSensorKey = sensorKey;
+      const used = new Set();
+      const html = [];
+      for (const [name, pred] of Object.entries(SENSOR_GROUPS)) {
+        const items = sensors.filter(s => !used.has(s.id) && pred(s));
+        items.forEach(s => used.add(s.id));
+        if (!items.length) continue;
+        html.push(`<div class="sensor-group"><h3>${name}</h3><div class="grid g-sensors">${items.map(s => {
+          let cls = s.kind === 'temp' ? tempClass(s.value) : (s.kind === 'psi' && s.value > 5 ? 'warn' : '');
+          return `<div class="sensor ${cls}"><div class="lbl">${s.label}</div><div class="val">${s.value ?? '—'}</div><div class="unit">${s.unit}</div></div>`;
+        }).join('')}</div></div>`);
+      }
+      document.getElementById('sensorGroups').innerHTML = html.join('');
+    }
+
+    function renderCores(cores) {
+      const el = document.getElementById('coreBars');
+      if (!el.dataset.init) {
+        el.innerHTML = cores.map(c => `<div><div class="core-bar" data-core="${c.id}"><div class="core-fill"></div></div><div class="core-label">${c.id}</div></div>`).join('');
+        el.dataset.init = '1';
+      }
+      cores.forEach(c => {
+        const f = el.querySelector(`[data-core="${c.id}"] .core-fill`);
+        if (f) setMeterHeight(f, c.pct, 2);
+      });
+    }
+
+    function renderProcs(procs, totals) {
+      const body = document.getElementById('procBody');
+      const lead = document.getElementById('gameProcLead');
+      if (lead) {
+        lead.textContent = totals?.running
+          ? `${totals.primary_name} (PID ${totals.primary_pid}) · ${totals.proc_count} related process${totals.proc_count === 1 ? '' : 'es'} · ${(totals.tree_rss_mb / 1024).toFixed(1)} GB tree total`
+          : 'Cities II is not running — start the game and this table will populate.';
+      }
+      body.innerHTML = procs.length
+        ? procs.map(p => `<tr><td>${p.pid}</td><td>${p.name}</td><td>${p.tier === 'main' ? 'Game' : 'Child'}</td><td>${p.cpu_pct}</td><td>${p.rss_mb}</td></tr>`).join('')
+        : '<tr><td colspan="5" style="color:var(--muted)">No Cities II processes detected</td></tr>';
+    }
+
+    let storeCache = null;
+    let storeTick = 0;
+    let storeMsgTimer = null;
+
+    function fmtStoreSpan(ts) {
+      if (!ts) return '—';
+      return new Date(ts * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderStorage(s) {
+      if (!s) return;
+      storeCache = s;
+      const days = s.retention_days ?? 10;
+      const est = s.est_max_mb ?? '—';
+      const games = Object.entries(s.games || {}).map(([id, n]) => `${id === 'cities2' ? 'Cities II' : id === 'counterstrike2' ? 'CS2' : id}: ${n}`).join(' · ');
+      document.getElementById('storeStats').innerHTML = [
+        `<span><strong>${(s.samples || 0).toLocaleString()}</strong> samples</span>`,
+        `<span><strong>${s.size_mb ?? 0}</strong> MB on disk</span>`,
+        `<span>span ${fmtStoreSpan(s.oldest_ts)} → ${fmtStoreSpan(s.newest_ts)}</span>`,
+        games ? `<span>${games}</span>` : '',
+      ].filter(Boolean).join('');
+      document.getElementById('storeEstimate').textContent =
+        `At 1 sample/sec, ~${est} MB max with ${days}-day retention (older samples are removed automatically).`;
+      document.getElementById('drillStorageSum').textContent =
+        `${(s.samples || 0).toLocaleString()} samples · ${s.size_mb ?? 0} MB · ${days}d retention`;
+      const presets = s.retention_presets || [3, 7, 10, 14, 30];
+      const min = s.retention_min ?? 1;
+      const max = s.retention_max ?? 90;
+      const custom = document.getElementById('retentionCustom');
+      custom.min = min;
+      custom.max = max;
+      if (document.activeElement !== custom) custom.value = days;
+      document.getElementById('retentionPresets').innerHTML = presets.map(d =>
+        `<button class="btn${d === days ? ' active' : ''}" type="button" data-days="${d}">${d}d</button>`
+      ).join('');
+      document.getElementById('retentionPresets').querySelectorAll('[data-days]').forEach(btn => {
+        btn.onclick = () => applyRetention(+btn.dataset.days, btn);
+      });
+    }
+
+    function showStoreMsg(text, ok = true) {
+      const el = document.getElementById('storeMsg');
+      el.textContent = text;
+      el.style.color = ok ? 'var(--green)' : 'var(--hot)';
+      clearTimeout(storeMsgTimer);
+      if (text) storeMsgTimer = setTimeout(() => { el.textContent = ''; }, 4000);
+    }
+
+    async function applyRetention(days, btn) {
+      const min = storeCache?.retention_min ?? 1;
+      const max = storeCache?.retention_max ?? 90;
+      days = Math.round(Number(days));
+      if (!Number.isFinite(days) || days < min || days > max) {
+        showStoreMsg(`Enter ${min}–${max} days`, false);
+        return;
+      }
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ retention_days: days }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'failed');
+        renderStorage(data);
+        const pruned = data.pruned ? ` · removed ${data.pruned.toLocaleString()} old samples` : '';
+        showStoreMsg(`Retention set to ${days} days${pruned}`);
+      } catch (e) {
+        showStoreMsg('Could not save retention setting', false);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function fetchStore() {
+      try {
+        renderStorage(await (await fetch('/api/store')).json());
+      } catch (_) {
+        document.getElementById('storeStats').textContent = 'Storage stats unavailable';
+      }
+    }
+
+    document.getElementById('retentionApply').onclick = () =>
+      applyRetention(document.getElementById('retentionCustom').value);
+    document.getElementById('retentionCustom').addEventListener('keydown', e => {
+      if (e.key === 'Enter') applyRetention(e.target.value);
+    });
+    fetchStore();
+
+    async function tick() {
+      try {
+        const data = await (await fetch('/api/metrics')).json();
+        rawHistory = data.history;
+        const l = data.latest, s = data.static;
+        const mem = s.memory || {};
+        const rig = s.rig || {};
+        const gpuTag = rig.gpu?.maker ? `${rig.gpu.maker} ${s.gpu_model}` : s.gpu_model;
+        document.getElementById('meta').textContent =
+          `${rig.chassis?.model || s.machine || s.hostname} · ${rig.cpu?.model || 'CPU'} · ${gpuTag} · ${mem.label || 'RAM'}`;
+        document.getElementById('clock').textContent = fmtTime(l.ts);
+        renderRigStrip(s);
+        renderSummaryBar(l, l.tuning, l.comparison);
+        renderVisualDashboard(l, l.comparison);
+        renderBandwidth(l);
+        renderComparison(l.comparison, mem);
+        renderWarnings(l.tuning);
+        renderFixes(l.tuning);
+        renderGameIssues(l.issues_by_game);
+        renderBacklog(s.backlog);
+        renderTools(s.tools);
+        const sh = l.sensor_health;
+        if (sh) {
+          const el = document.getElementById('sensorStatus');
+          el.textContent = `${sh.ok}/${sh.total} sensors reporting`;
+          el.className = 'sensor-status' + (sh.missing?.length ? '' : ' ok');
+          if (sh.missing?.length) el.textContent += ` · missing: ${sh.missing.join(', ')}`;
+        }
+        renderCores(l.cpu.per_core);
+        document.getElementById('vramStat').innerHTML = `${l.gpu.discrete.vram_used_mb ?? '—'}<small> / ${l.gpu.discrete.vram_total_mb ?? '—'} MB</small>`;
+        setMeterWidth(document.getElementById('vramMeter'), l.gpu.discrete.vram_pct ?? 0);
+        const g = l.gpu.discrete;
+        document.getElementById('gpuDetail').textContent =
+          `${g.gfx_mhz ?? '—'} MHz · Fan ${g.fan_rpm ?? '—'} rpm · VRAM ${g.mem_temp_c ?? '—'}°C · PCIe ${g.pcie_active || g.pcie_link || '—'}`;
+        renderSensorGroups(l.sensors || []);
+        renderCharts();
+        renderProcs(l.game_procs, l.game_totals);
+        if (++storeTick % 30 === 0) fetchStore();
+        if (storeTick % 90 === 0) fetchDiagnostics();
+        document.getElementById('liveDot').style.background = 'var(--lime)';
+        document.getElementById('liveLabel').textContent = 'Online';
+      } catch {
+        document.getElementById('liveDot').style.background = 'var(--hot)';
+        document.getElementById('liveLabel').textContent = 'Offline';
+      }
+    }
+
+    initStaticGlyphs();
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>

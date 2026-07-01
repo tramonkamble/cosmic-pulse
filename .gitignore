@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.ruff_cache/
+
+# Runtime / local machine state
+pulse.db
+pulse.db-*
+.tuning_log.json
+.memory_cache.json
+
+# Editor / OS
+*.swp
+.DS_Store
