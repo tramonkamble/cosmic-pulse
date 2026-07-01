@@ -16,6 +16,13 @@ HOME = Path.home()
 APPID_RE = re.compile(r"AppId=(\d+)", re.I)
 COMPAT_RE = re.compile(r"compatdata/(\d+)", re.I)
 GAMEID_RE = re.compile(r"-gameid\s+(\d+)", re.I)
+OVERLAY_GAMEID_RE = re.compile(r"-gameid\s+(\d+)", re.I)
+OVERLAY_PID_RE = re.compile(r"-pid\s+(\d+)", re.I)
+STEAM_ENV_APPID_KEYS = (
+    b"STEAM_COMPAT_APP_ID=",
+    b"SteamAppId=",
+    b"SteamGameId=",
+)
 GAME_BINARY_SUFFIXES = (".exe", ".x86_64", ".x86", ".bin")
 MANIFEST_NAME_RE = re.compile(r'"name"\s*"([^"]+)"')
 MANIFEST_DIR_RE = re.compile(r'"installdir"\s*"([^"]+)"')
@@ -243,7 +250,67 @@ def scan_active_appids() -> set[str]:
     return appids
 
 
-def _proc_matches_appid(cmd: str, appid: str, installdir: str, exe_l: str = "") -> bool:
+def scan_overlay_game_pids() -> dict[str, set[int]]:
+    """Map AppID -> game PIDs from Steam gameoverlayui (-gameid / -pid)."""
+    out: dict[str, set[int]] = {}
+    for proc in psutil.process_iter(["name", "cmdline"]):
+        try:
+            name = (proc.info["name"] or "").lower()
+            if "gameoverlayui" not in name:
+                continue
+            cmd = " ".join(proc.info["cmdline"] or [])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+        gid_m = OVERLAY_GAMEID_RE.search(cmd)
+        pid_m = OVERLAY_PID_RE.search(cmd)
+        if gid_m and pid_m:
+            out.setdefault(gid_m.group(1), set()).add(int(pid_m.group(1)))
+    return out
+
+
+def _proc_steam_appid(pid: int) -> str | None:
+    """Read Proton/Steam AppID from /proc/pid/environ (short Wine cmdlines omit paths)."""
+    try:
+        raw = Path(f"/proc/{pid}/environ").read_bytes()
+    except OSError:
+        return None
+    for entry in raw.split(b"\0"):
+        if not entry:
+            continue
+        for prefix in STEAM_ENV_APPID_KEYS:
+            if entry.startswith(prefix):
+                val = entry[len(prefix):].decode("utf-8", errors="ignore").strip()
+                if val.isdigit():
+                    return val
+    return None
+
+
+def _proc_cwd(pid: int) -> str | None:
+    try:
+        return os.readlink(f"/proc/{pid}/cwd")
+    except OSError:
+        return None
+
+
+def _cwd_matches_installdir(cwd: str, installdir: str) -> bool:
+    if not installdir:
+        return False
+    cl = cwd.replace("\\", "/").lower().rstrip("/")
+    idir = installdir.replace("\\", "/").lower().strip("/")
+    return cl.endswith(f"/common/{idir}") or f"/common/{idir}/" in f"{cl}/"
+
+
+def _proc_matches_appid(
+    cmd: str,
+    appid: str,
+    installdir: str,
+    exe_l: str = "",
+    *,
+    pid: int | None = None,
+    overlay_pids: set[int] | None = None,
+    env_cache: dict[int, str | None] | None = None,
+    cwd_cache: dict[int, str | None] | None = None,
+) -> bool:
     cl = cmd.lower().replace("\\", "/")
     aid = appid.lower()
     if f"compatdata/{aid}" in cl:
@@ -258,6 +325,21 @@ def _proc_matches_appid(cmd: str, appid: str, installdir: str, exe_l: str = "") 
     main_exes = override.get("main_exe")
     if main_exes and exe_l in main_exes:
         return True
+    if pid is None:
+        return False
+    if overlay_pids and pid in overlay_pids:
+        return True
+    if env_cache is not None:
+        if pid not in env_cache:
+            env_cache[pid] = _proc_steam_appid(pid)
+        if env_cache[pid] == appid:
+            return True
+    if installdir and cwd_cache is not None:
+        if pid not in cwd_cache:
+            cwd_cache[pid] = _proc_cwd(pid)
+        cwd = cwd_cache[pid]
+        if cwd and _cwd_matches_installdir(cwd, installdir):
+            return True
     return False
 
 
@@ -293,12 +375,31 @@ def _effective_exe_name(name: str, cmd: str) -> str:
     return from_cmd or name_l
 
 
-def _classify_proc(appid: str, name: str, cmd: str, meta: dict) -> str | None:
+def _classify_proc(
+    appid: str,
+    name: str,
+    cmd: str,
+    meta: dict,
+    *,
+    pid: int | None = None,
+    overlay_pids: set[int] | None = None,
+    env_cache: dict[int, str | None] | None = None,
+    cwd_cache: dict[int, str | None] | None = None,
+) -> str | None:
     name_l = (name or "").lower()
     exe_l = _effective_exe_name(name, cmd)
     if name_l in SKIP_PROCS or exe_l in SKIP_PROCS or exe_l in AUXILIARY_EXES:
         return None
-    if not _proc_matches_appid(cmd, appid, meta.get("installdir", ""), exe_l):
+    if not _proc_matches_appid(
+        cmd,
+        appid,
+        meta.get("installdir", ""),
+        exe_l,
+        pid=pid,
+        overlay_pids=overlay_pids,
+        env_cache=env_cache,
+        cwd_cache=cwd_cache,
+    ):
         return None
 
     override = GAME_OVERRIDES.get(appid, {})
@@ -342,9 +443,13 @@ def detect_games() -> dict[str, dict]:
 
     buckets: dict[str, list[dict]] = {appid: [] for appid in active_appids}
     metas = {appid: game_meta(appid) for appid in active_appids}
+    overlay_map = scan_overlay_game_pids()
+    env_cache: dict[int, str | None] = {}
+    cwd_cache: dict[int, str | None] = {}
 
     for proc in psutil.process_iter(["pid", "name", "memory_info", "cmdline"]):
         try:
+            pid = proc.info["pid"]
             name = proc.info["name"] or ""
             cmd = " ".join(proc.info["cmdline"] or [])
             mi = proc.info["memory_info"]
@@ -353,7 +458,16 @@ def detect_games() -> dict[str, dict]:
             continue
 
         for appid, meta in metas.items():
-            tier = _classify_proc(appid, name, cmd, meta)
+            tier = _classify_proc(
+                appid,
+                name,
+                cmd,
+                meta,
+                pid=pid,
+                overlay_pids=overlay_map.get(appid),
+                env_cache=env_cache,
+                cwd_cache=cwd_cache,
+            )
             if not tier:
                 continue
             display_name = _effective_exe_name(name, cmd)
@@ -391,12 +505,25 @@ def prime_game_cpu() -> None:
     if not active:
         return
     metas = {appid: game_meta(appid) for appid in active}
+    overlay_map = scan_overlay_game_pids()
+    env_cache: dict[int, str | None] = {}
+    cwd_cache: dict[int, str | None] = {}
     for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         try:
+            pid = proc.info["pid"]
             name = proc.info["name"] or ""
             cmd = " ".join(proc.info["cmdline"] or [])
             for appid, meta in metas.items():
-                if _classify_proc(appid, name, cmd, meta):
+                if _classify_proc(
+                    appid,
+                    name,
+                    cmd,
+                    meta,
+                    pid=pid,
+                    overlay_pids=overlay_map.get(appid),
+                    env_cache=env_cache,
+                    cwd_cache=cwd_cache,
+                ):
                     proc.cpu_percent(interval=None)
                     break
         except (psutil.NoSuchProcess, psutil.AccessDenied):
