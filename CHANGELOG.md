@@ -7,6 +7,9 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Added
+- **Hardware focus filter** — redesigned rig strip with live stats; click chassis (Thelio) to view full rig, or click CPU/GPU/RAM to filter dashboard panels, charts, and metrics to that part.
+
 ### Changed
 - **Stutter proxy layout** — compact 50/50 split: driver bars on the left; hitch gauge, KPIs, weighted driver-mix bar, and 5-minute event timeline on the right.
 - **Stutter proxy detail** — taller widget; KPI subs, live status line, session avg/p95/rate under timeline, richer hitch tooltips and timeline meta (peak score, est. ms, last hitch).
