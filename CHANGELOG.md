@@ -11,7 +11,7 @@ Dates use the machine local timezone (EDT unless noted).
 - *(none yet)*
 
 ### Changed
-- *(none yet)*
+- **Git workflow** — `CONTRIBUTING.md` documents Conventional Commits, changelog sync, and local `main` practices.
 
 ## [2026-06-30] — local git
 
