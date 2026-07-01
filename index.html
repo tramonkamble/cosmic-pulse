@@ -960,12 +960,12 @@
       color: var(--text); cursor: pointer; white-space: nowrap;
     }
     .rig-focus-clear:hover { border-color: var(--accent); color: var(--accent); }
-    body[data-hw-focus="cpu"] #summaryBar [data-hw]:not([data-hw~="all"]):not([data-hw~="cpu"]),
-    body[data-hw-focus="cpu"] #vizPanel [data-hw]:not([data-hw~="all"]):not([data-hw~="cpu"]) { display: none !important; }
-    body[data-hw-focus="gpu"] #summaryBar [data-hw]:not([data-hw~="all"]):not([data-hw~="gpu"]),
-    body[data-hw-focus="gpu"] #vizPanel [data-hw]:not([data-hw~="all"]):not([data-hw~="gpu"]) { display: none !important; }
-    body[data-hw-focus="memory"] #summaryBar [data-hw]:not([data-hw~="all"]):not([data-hw~="memory"]),
-    body[data-hw-focus="memory"] #vizPanel [data-hw]:not([data-hw~="all"]):not([data-hw~="memory"]) { display: none !important; }
+    body[data-hw-focus="cpu"] #summaryBar [data-hw]:not([data-hw-keep]):not([data-hw~="cpu"]),
+    body[data-hw-focus="cpu"] #vizPanel [data-hw]:not([data-hw-keep]):not([data-hw~="cpu"]) { display: none !important; }
+    body[data-hw-focus="gpu"] #summaryBar [data-hw]:not([data-hw-keep]):not([data-hw~="gpu"]),
+    body[data-hw-focus="gpu"] #vizPanel [data-hw]:not([data-hw-keep]):not([data-hw~="gpu"]) { display: none !important; }
+    body[data-hw-focus="memory"] #summaryBar [data-hw]:not([data-hw-keep]):not([data-hw~="memory"]),
+    body[data-hw-focus="memory"] #vizPanel [data-hw]:not([data-hw-keep]):not([data-hw~="memory"]) { display: none !important; }
     .viz-empty-note {
       display: none; align-items: center; justify-content: center; flex: 1; min-height: 3.5rem;
       font-size: .82rem; color: var(--muted); font-style: italic; text-align: center; padding: .5rem;
@@ -1009,7 +1009,7 @@
         </div>
       </div>
       <div class="sum-grid">
-        <button type="button" class="sum-cell tall ok" id="sumHealthCell" data-drill="warningsSection" data-hw="all">
+        <button type="button" class="sum-cell tall ok" id="sumHealthCell" data-drill="warningsSection" data-hw-keep>
           <div class="sum-head"><span class="hw-icon-box health" data-glyph="health"></span><span class="sum-label">Health</span></div>
           <div class="sum-body">
             <span class="sum-value" id="sumHealthVal">—</span>
@@ -1019,31 +1019,31 @@
             </div>
           </div>
         </button>
-        <button type="button" class="sum-cell cpu" id="sumCpuCell" data-drill="drill-compute" data-hw="cpu all">
+        <button type="button" class="sum-cell cpu" id="sumCpuCell" data-drill="drill-compute" data-hw="cpu">
           <div class="sum-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><span class="sum-label">CPU</span></div>
           <span class="sum-value" id="sumCpuVal">—</span>
           <div class="sum-meter cpu"><span id="sumCpuMeter" style="width:0%"></span></div>
           <span class="sum-detail" id="sumCpuSub">—</span>
         </button>
-        <button type="button" class="sum-cell mem" id="sumMemCell" data-drill="drill-bandwidth" data-hw="memory all">
+        <button type="button" class="sum-cell mem" id="sumMemCell" data-drill="drill-bandwidth" data-hw="memory">
           <div class="sum-head"><span class="hw-icon-box mem" data-glyph="ram"></span><span class="sum-label">Memory</span></div>
           <span class="sum-value" id="sumMemVal">—</span>
           <div class="sum-meter mem"><span id="sumMemMeter" style="width:0%"></span></div>
           <span class="sum-detail" id="sumMemSub">—</span>
         </button>
-        <button type="button" class="sum-cell gpu" id="sumGpuCell" data-drill="drill-compute" data-hw="gpu all">
+        <button type="button" class="sum-cell gpu" id="sumGpuCell" data-drill="drill-compute" data-hw="gpu">
           <div class="sum-head"><span class="hw-icon-box gpu" data-glyph="gpu"></span><span class="sum-label">GPU</span></div>
           <span class="sum-value" id="sumGpuVal">—</span>
           <div class="sum-meter gpu"><span id="sumGpuMeter" style="width:0%"></span></div>
           <span class="sum-detail" id="sumGpuSub">—</span>
         </button>
-        <button type="button" class="sum-cell game" id="sumGameCell" data-drill="drill-game" data-hw="cpu gpu all">
+        <button type="button" class="sum-cell game" id="sumGameCell" data-drill="drill-game" data-hw="cpu gpu">
           <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label">Game</span></div>
           <span class="sum-value" id="sumGameVal">—</span>
           <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
           <span class="sum-detail" id="sumGameSub">—</span>
         </button>
-        <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="drill-league" data-hw="all">
+        <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="drill-league" data-hw-keep>
           <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">League</span></div>
           <div class="sum-body">
             <span class="sum-value" id="sumLeagueVal">—</span>
@@ -1079,11 +1079,11 @@
         </div>
         <div class="viz-block viz-area-spark">
           <div class="viz-block-head"><span class="hw-icon-box game" data-glyph="activity"></span><h3>Trend · last 5 minutes</h3></div>
-          <div class="viz-block-body"><div class="spark-box" data-hw="all"><canvas id="sparkChart"></canvas></div></div>
+          <div class="viz-block-body"><div class="spark-box" data-hw-keep><canvas id="sparkChart"></canvas></div></div>
         </div>
         <div class="viz-block viz-area-cores">
           <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><h3>CPU cores</h3></div>
-          <div class="viz-block-body"><div class="core-strip" id="coreStrip" data-hw="cpu all"></div><div class="viz-empty-note" hidden></div></div>
+          <div class="viz-block-body"><div class="core-strip" id="coreStrip" data-hw="cpu"></div><div class="viz-empty-note" hidden></div></div>
         </div>
         <div class="viz-block viz-area-glance">
           <div class="viz-block-head"><span class="hw-icon-box gpu" data-glyph="fan"></span><h3>Power &amp; cooling</h3></div>
@@ -1097,7 +1097,7 @@
                 <div class="stutter-side-label">Hitch drivers</div>
                 <div class="metric-list metric-list-compact" id="stutterComponents"></div>
               </div>
-              <div class="stutter-insight" data-hw="all">
+              <div class="stutter-insight" data-hw-keep>
                 <div class="stutter-insight-top">
                   <div class="stutter-gauge" id="stutterGauge">
                     <div class="stutter-gauge-center">
@@ -1675,7 +1675,7 @@
         lastRankStructKey = structKey;
         const partHw = { CPU: 'cpu', GPU: 'gpu', RAM: 'memory' };
         document.getElementById('rankBody').innerHTML = rows.map(r => `
-          <tr data-rank-part="${r.part}" data-hw="${partHw[r.part] || 'all'} all">
+          <tr data-rank-part="${r.part}" data-hw="${partHw[r.part] || 'cpu'}">
             <td>${partLabel(r.part)}</td>
             <td>${hwIdentityCell(r)}</td>
             <td>${tierBadge(r.tier_rank, false)}</td>
@@ -2234,32 +2234,32 @@
     }
 
     const UTIL_SPECS = [
-      { id: 'cpu', label: 'CPU', icon: 'cpu', cls: 'cpu', hw: 'cpu all' },
-      { id: 'ram', label: 'RAM', icon: 'ram', cls: 'mem', hw: 'memory all' },
-      { id: 'gpu', label: 'GPU', icon: 'gpu', cls: 'gpu', hw: 'gpu all' },
-      { id: 'vram', label: 'VRAM', icon: 'gpu', cls: 'vram', hw: 'gpu all' },
-      { id: 'swap', label: 'Swap', icon: 'ram', cls: 'swap', hw: 'memory all' },
-      { id: 'game', label: 'Game CPU', icon: 'game', cls: 'game', hw: 'cpu gpu all' },
+      { id: 'cpu', label: 'CPU', icon: 'cpu', cls: 'cpu', hw: 'cpu' },
+      { id: 'ram', label: 'RAM', icon: 'ram', cls: 'mem', hw: 'memory' },
+      { id: 'gpu', label: 'GPU', icon: 'gpu', cls: 'gpu', hw: 'gpu' },
+      { id: 'vram', label: 'VRAM', icon: 'gpu', cls: 'vram', hw: 'gpu' },
+      { id: 'swap', label: 'Swap', icon: 'ram', cls: 'swap', hw: 'memory' },
+      { id: 'game', label: 'Game CPU', icon: 'game', cls: 'game', hw: 'cpu gpu' },
     ];
     const TEMP_SPECS = [
-      { id: 'cpu-pkg', label: 'CPU package', icon: 'cpu', key: 'package', hw: 'cpu all' },
-      { id: 'cpu-ccd0', label: 'CCD 1', icon: 'cpu', key: 'ccd0', hw: 'cpu all' },
-      { id: 'cpu-ccd1', label: 'CCD 2', icon: 'cpu', key: 'ccd1', hw: 'cpu all' },
-      { id: 'gpu-junc', label: 'GPU junction', icon: 'gpu', gpu: true, key: 'junction_c', hw: 'gpu all' },
-      { id: 'gpu-mem', label: 'VRAM', icon: 'temp', gpu: true, key: 'mem_temp_c', hw: 'gpu all' },
+      { id: 'cpu-pkg', label: 'CPU package', icon: 'cpu', key: 'package', hw: 'cpu' },
+      { id: 'cpu-ccd0', label: 'CCD 1', icon: 'cpu', key: 'ccd0', hw: 'cpu' },
+      { id: 'cpu-ccd1', label: 'CCD 2', icon: 'cpu', key: 'ccd1', hw: 'cpu' },
+      { id: 'gpu-junc', label: 'GPU junction', icon: 'gpu', gpu: true, key: 'junction_c', hw: 'gpu' },
+      { id: 'gpu-mem', label: 'VRAM', icon: 'temp', gpu: true, key: 'mem_temp_c', hw: 'gpu' },
     ];
     const BW_SPECS = [
-      { id: 'vram-bw', label: 'VRAM bus', icon: 'gpu', cls: 'bw-gpu', hw: 'gpu all' },
-      { id: 'dram-bw', label: 'DRAM demand', icon: 'ram', cls: 'bw-mem', hw: 'memory all' },
-      { id: 'vram-busy', label: 'VRAM controller', icon: 'gpu', cls: 'gpu', hw: 'gpu all' },
-      { id: 'dram-psi', label: 'Memory stall', icon: 'cpu', cls: 'mem', hw: 'memory all' },
+      { id: 'vram-bw', label: 'VRAM bus', icon: 'gpu', cls: 'bw-gpu', hw: 'gpu' },
+      { id: 'dram-bw', label: 'DRAM demand', icon: 'ram', cls: 'bw-mem', hw: 'memory' },
+      { id: 'vram-busy', label: 'VRAM controller', icon: 'gpu', cls: 'gpu', hw: 'gpu' },
+      { id: 'dram-psi', label: 'Memory stall', icon: 'cpu', cls: 'mem', hw: 'memory' },
     ];
     const STUTTER_COMP_SPECS = [
-      { id: 'major_faults', label: 'Page faults', cls: 'stutter', hw: 'cpu memory all' },
-      { id: 'mem_stall', label: 'Mem stall', cls: 'stutter', hw: 'memory all' },
-      { id: 'io_stall', label: 'I/O stall', cls: 'stutter', hw: 'all' },
-      { id: 'swap', label: 'Swap', cls: 'stutter', hw: 'memory all' },
-      { id: 'disk_spike', label: 'Disk spike', cls: 'stutter', hw: 'all' },
+      { id: 'major_faults', label: 'Page faults', cls: 'stutter', hw: 'cpu memory' },
+      { id: 'mem_stall', label: 'Mem stall', cls: 'stutter', hw: 'memory' },
+      { id: 'io_stall', label: 'I/O stall', cls: 'stutter', hw: 'cpu memory' },
+      { id: 'swap', label: 'Swap', cls: 'stutter', hw: 'memory' },
+      { id: 'disk_spike', label: 'Disk spike', cls: 'stutter', hw: 'memory' },
     ];
     const STUTTER_CAUSE_LABELS = {
       major_faults: 'Major page faults',
@@ -2296,9 +2296,9 @@
 
     function ensureMetricList(containerId, specs, trackKey = 'cls') {
       const el = document.getElementById(containerId);
-      if (el.dataset.hwVer !== '2') {
+      if (el.dataset.hwVer !== '3') {
         delete el.dataset.init;
-        el.dataset.hwVer = '2';
+        el.dataset.hwVer = '3';
       }
       if (el.dataset.init) return;
       el.innerHTML = specs.map(s => `
@@ -2609,11 +2609,11 @@
       }
       if (!el.dataset.init) {
         el.innerHTML = `
-          <div class="league-score-row" data-hw="all">
+          <div class="league-score-row" data-hw-keep>
             <span class="league-big" id="leagueBig">—</span>
             <span class="rank-badge" id="leagueBadge">—</span>
           </div>
-          <div class="metric-bar" data-hw="all">
+          <div class="metric-bar" data-hw-keep>
             <div class="metric-bar-head"><span class="metric-bar-label" id="leagueSessionLabel">Session load</span><span class="metric-bar-val" id="leagueSessionVal">—</span></div>
             <div class="metric-bar-track league"><span id="leagueSessionBar" style="width:0%"></span></div>
           </div>
@@ -2639,14 +2639,14 @@
         setMeterWidth(document.getElementById('leagueSessionBar'), sessionIdx);
       }
       const parts = [
-        { label: 'CPU', icon: 'cpu', track: 'cpu', hw: 'cpu all', tier: c.cpu?.tier_rank, score: c.cpu?.tier_score, live: c.cpu?.live_pct },
-        { label: 'GPU', icon: 'gpu', track: 'gpu', hw: 'gpu all', tier: c.gpu?.tier_rank, score: c.gpu?.tier_score, live: c.gpu?.live_pct },
-        { label: 'RAM', icon: 'ram', track: 'mem', hw: 'memory all', tier: c.memory?.tier_rank, score: c.memory?.tier_score, live: c.memory?.live_pressure_pct },
+        { label: 'CPU', icon: 'cpu', track: 'cpu', hw: 'cpu', tier: c.cpu?.tier_rank, score: c.cpu?.tier_score, live: c.cpu?.live_pct },
+        { label: 'GPU', icon: 'gpu', track: 'gpu', hw: 'gpu', tier: c.gpu?.tier_rank, score: c.gpu?.tier_score, live: c.gpu?.live_pct },
+        { label: 'RAM', icon: 'ram', track: 'mem', hw: 'memory', tier: c.memory?.tier_rank, score: c.memory?.tier_score, live: c.memory?.live_pressure_pct },
       ];
       const partsEl = document.getElementById('leagueParts');
-      if (partsEl.dataset.hwVer !== '2') {
+      if (partsEl.dataset.hwVer !== '3') {
         delete partsEl.dataset.init;
-        partsEl.dataset.hwVer = '2';
+        partsEl.dataset.hwVer = '3';
       }
       if (!partsEl.dataset.init) {
         partsEl.innerHTML = parts.map(p => `
@@ -2676,13 +2676,17 @@
       const pkg = c.temps?.package;
       const junc = g.junction_c;
       const items = [
-        { icon: 'gpu', label: 'GPU', hw: 'gpu all', val: `${g.power_w ?? '—'}W`, sub: `${g.gfx_mhz ?? '—'} MHz`, pct: Math.min(100, ((g.power_w || 0) / 355) * 100), cls: 'gpu' },
-        { icon: 'fan', label: 'Fan', hw: 'gpu all', val: `${g.fan_rpm ?? '—'}`, sub: 'rpm', pct: Math.min(100, ((g.fan_rpm || 0) / 2800) * 100), cls: 'gpu' },
-        { icon: 'temp', label: 'Junction', hw: 'gpu all', val: junc != null ? `${junc}°` : '—', sub: 'GPU', pct: tempPct(junc), cls: `temp${junc >= 90 ? ' hot' : junc >= 75 ? ' warn' : ''}` },
-        { icon: 'cpu', label: 'CPU', hw: 'cpu all', val: pkg != null ? `${pkg}°` : '—', sub: 'package', pct: tempPct(pkg), cls: 'cpu' },
+        { icon: 'gpu', label: 'GPU', hw: 'gpu', val: `${g.power_w ?? '—'}W`, sub: `${g.gfx_mhz ?? '—'} MHz`, pct: Math.min(100, ((g.power_w || 0) / 355) * 100), cls: 'gpu' },
+        { icon: 'fan', label: 'Fan', hw: 'gpu', val: `${g.fan_rpm ?? '—'}`, sub: 'rpm', pct: Math.min(100, ((g.fan_rpm || 0) / 2800) * 100), cls: 'gpu' },
+        { icon: 'temp', label: 'Junction', hw: 'gpu', val: junc != null ? `${junc}°` : '—', sub: 'GPU', pct: tempPct(junc), cls: `temp${junc >= 90 ? ' hot' : junc >= 75 ? ' warn' : ''}` },
+        { icon: 'cpu', label: 'CPU', hw: 'cpu', val: pkg != null ? `${pkg}°` : '—', sub: 'package', pct: tempPct(pkg), cls: 'cpu' },
       ];
       const boxCls = { gpu: 'gpu', fan: 'gpu', temp: 'temp', cpu: 'cpu' };
       const glanceEl = document.getElementById('glanceGrid');
+      if (glanceEl.dataset.hwVer !== '3') {
+        delete glanceEl.dataset.init;
+        glanceEl.dataset.hwVer = '3';
+      }
       if (!glanceEl.dataset.init) {
         glanceEl.innerHTML = items.map((it, i) => `
           <div class="glance-cell ${it.cls}" data-gi="${i}" data-hw="${it.hw}">
@@ -2911,10 +2915,10 @@
 
     function sensorHwFocus(sensor) {
       const lbl = (sensor.label || '').toLowerCase();
-      if (/gpu|vram|amdgpu|gfx|edge|junction/i.test(lbl)) return 'gpu all';
-      if (/psi|swap|ram|mem|dram|fault/i.test(lbl)) return 'memory all';
-      if (/cpu|k10|ccd|package|core|load/i.test(lbl)) return 'cpu all';
-      return 'all';
+      if (/gpu|vram|amdgpu|gfx|edge|junction/i.test(lbl)) return 'gpu';
+      if (/psi|swap|ram|mem|dram|fault/i.test(lbl)) return 'memory';
+      if (/cpu|k10|ccd|package|core|load/i.test(lbl)) return 'cpu';
+      return '';
     }
 
     function syncChipToggles() {
@@ -2979,6 +2983,33 @@
       }
     }
 
+    function hwItemVisible(el) {
+      if (!hwFocus) return true;
+      if (el.hasAttribute('data-hw-keep')) return true;
+      const hw = el.getAttribute('data-hw') || '';
+      if (!hw) return true;
+      return hw.split(/\s+/).filter(Boolean).includes(hwFocus);
+    }
+
+    function updateNocEmptyStates() {
+      const label = hwFocus ? HW_FOCUS_LABELS[hwFocus] : '';
+      document.querySelectorAll('#vizPanel .viz-block').forEach(block => {
+        const note = block.querySelector('.viz-empty-note');
+        const filterable = [...block.querySelectorAll('[data-hw]')].filter(el => !el.classList.contains('viz-empty-note'));
+        if (!hwFocus || !filterable.length) {
+          block.classList.remove('noc-hw-empty');
+          if (note) note.hidden = true;
+          return;
+        }
+        const anyShown = filterable.some(el => hwItemVisible(el));
+        block.classList.toggle('noc-hw-empty', !anyShown);
+        if (note) {
+          note.hidden = anyShown;
+          note.textContent = `No ${label} metrics in this widget`;
+        }
+      });
+    }
+
     function applyHwFocus() {
       if (hwFocus) document.body.dataset.hwFocus = hwFocus;
       else delete document.body.dataset.hwFocus;
@@ -2997,10 +3028,11 @@
           banner.hidden = false;
           const tile = document.querySelector(`[data-hw-filter="${hwFocus}"] .rig-tile-name`);
           const name = tile?.textContent?.trim() || HW_FOCUS_LABELS[hwFocus];
-          text.textContent = `Showing ${HW_FOCUS_LABELS[hwFocus]} data · ${name}`;
+          text.textContent = `NOC filtered to ${HW_FOCUS_LABELS[hwFocus]} · ${name}`;
         }
       }
       applyChartFocus();
+      requestAnimationFrame(updateNocEmptyStates);
     }
 
     function setHwFocus(part) {
@@ -3494,6 +3526,7 @@
         updateMetaLine(s, l);
         renderSummaryBar(l, l.tuning, l.comparison);
         renderVisualDashboard(l, l.comparison);
+        requestAnimationFrame(updateNocEmptyStates);
         renderBandwidth(l);
         renderComparison(l.comparison, mem, s.pulse_root);
         renderWarnings(l.tuning);
