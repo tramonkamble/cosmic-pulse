@@ -404,6 +404,7 @@
     .viz-area-cores { grid-area: cores; }
     .viz-area-glance { grid-area: glance; }
     .viz-area-stutter { grid-area: stutter; }
+    .viz-area-stutter .viz-block { min-height: 17.5rem; }
     @media (max-width: 1200px) {
       .viz-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -526,7 +527,8 @@
     .sensor-chip.hot .chip-val { color: #ff8a7a; }
     .sensor-chip.warn .chip-val { color: #f5c882; }
     .stutter-layout {
-      display: grid; grid-template-columns: 1fr 1fr; gap: .85rem 1rem; flex: 1; min-height: 0; align-items: stretch;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.1rem; flex: 1;
+      min-height: 14rem; align-items: stretch;
     }
     @media (max-width: 900px) { .stutter-layout { grid-template-columns: 1fr; } }
     .stutter-bars { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -534,25 +536,29 @@
       font-size: .68rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
       color: var(--muted); margin-bottom: .45rem;
     }
-    .metric-list-compact { gap: .42rem; }
-    .metric-list-compact .metric-bar-head { margin-bottom: .2rem; }
-    .metric-list-compact .metric-bar-label { font-size: .76rem; }
-    .metric-list-compact .metric-bar-val { font-size: .82rem; }
-    .metric-list-compact .metric-bar-track { height: 7px; }
+    .metric-list-compact { gap: .5rem; }
+    .metric-list-compact .metric-bar-head { margin-bottom: .22rem; }
+    .metric-list-compact .metric-bar-label { font-size: .78rem; }
+    .metric-list-compact .metric-bar-val { font-size: .84rem; }
+    .metric-list-compact .metric-bar-track { height: 8px; }
     .metric-list-compact .metric-bar-sub {
       font-size: .68rem; margin-top: .15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .stutter-insight {
-      display: flex; flex-direction: column; gap: .55rem; min-width: 0; justify-content: center;
+      display: flex; flex-direction: column; gap: .62rem; min-width: 0; justify-content: flex-start;
     }
     .stutter-insight-top {
       display: grid; grid-template-columns: auto 1fr; gap: .65rem .75rem; align-items: center;
     }
     .stutter-gauge {
       --stutter-score: 0; --stutter-color: var(--green);
-      width: 5.5rem; height: 5.5rem; border-radius: 50%; position: relative; flex-shrink: 0;
+      width: 6.25rem; height: 6.25rem; border-radius: 50%; position: relative; flex-shrink: 0;
       background: conic-gradient(var(--stutter-color) calc(var(--stutter-score) * 1%), rgba(255,255,255,.07) 0);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+      transition: box-shadow .25s;
+    }
+    .stutter-gauge.event-active {
+      box-shadow: 0 0 0 2px rgba(237,106,90,.4), inset 0 0 0 1px rgba(255,255,255,.06);
     }
     .stutter-gauge::after {
       content: ""; position: absolute; inset: 18%; border-radius: 50%;
@@ -575,7 +581,7 @@
     }
     .stutter-kpi {
       background: rgba(0,0,0,.22); border: 1px solid var(--line); border-radius: 8px;
-      padding: .4rem .45rem; text-align: center; min-width: 0;
+      padding: .45rem .5rem; text-align: center; min-width: 0;
     }
     .stutter-kpi .k {
       display: block; font-size: .58rem; font-weight: 600; letter-spacing: .06em;
@@ -589,13 +595,24 @@
     .stutter-kpi .v.moderate { color: #f5c882; }
     .stutter-kpi .v.mild { color: #8ec0ff; }
     .stutter-kpi .v.ok { color: var(--green); }
-    .stutter-mix { display: flex; flex-direction: column; gap: .28rem; }
+    .stutter-kpi .s {
+      display: block; margin-top: .12rem; font-size: .58rem; font-weight: 500;
+      color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .stutter-status {
+      font-size: .72rem; font-weight: 500; color: var(--text-secondary); line-height: 1.3;
+      padding: .15rem 0 .05rem;
+    }
+    .stutter-status.mild { color: #8ec0ff; }
+    .stutter-status.moderate { color: #f5c882; }
+    .stutter-status.severe { color: #ff8a7a; }
+    .stutter-mix { display: flex; flex-direction: column; gap: .32rem; }
     .stutter-mix-head {
       display: flex; justify-content: space-between; align-items: baseline; gap: .5rem;
       font-size: .66rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
     }
     .stutter-mix-bar {
-      display: flex; height: 10px; border-radius: 99px; overflow: hidden;
+      display: flex; height: 11px; border-radius: 99px; overflow: hidden;
       background: rgba(255,255,255,.06); border: 1px solid var(--line);
     }
     .stutter-mix-seg { min-width: 2px; transition: flex-grow var(--meter-ease); }
@@ -622,7 +639,15 @@
       letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
     }
     .stutter-timeline-track {
-      display: flex; gap: 2px; height: 22px; align-items: flex-end;
+      display: flex; gap: 2px; height: 38px; align-items: flex-end;
+    }
+    .stutter-timeline-foot {
+      display: flex; justify-content: space-between; align-items: center; gap: .5rem;
+      font-size: .62rem; color: var(--muted); margin-top: .1rem;
+    }
+    .stutter-timeline-foot .detail {
+      flex: 1; text-align: center; font-variant-numeric: tabular-nums;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .stutter-tick {
       flex: 1; min-width: 0; border-radius: 3px 3px 1px 1px; background: rgba(255,255,255,.07);
@@ -632,7 +657,7 @@
     .stutter-tick.sev-mild { background: rgba(142,192,255,.45); }
     .stutter-tick.sev-moderate { background: rgba(245,200,130,.65); }
     .stutter-tick.sev-severe { background: rgba(255,138,122,.85); }
-    .stutter-causes { display: flex; flex-wrap: wrap; gap: .35rem; min-height: 1.6rem; align-items: center; }
+    .stutter-causes { display: flex; flex-wrap: wrap; gap: .35rem; min-height: 1.75rem; align-items: center; }
     .stutter-cause.placeholder { opacity: .5; border-style: dashed; background: transparent; color: var(--muted); }
     .stutter-cause {
       font-size: .8rem; font-weight: 500; padding: .35rem .65rem; border-radius: 999px;
@@ -1018,17 +1043,21 @@
                     <div class="stutter-kpi">
                       <span class="k">Now</span>
                       <span class="v" id="stutterEstMs">—</span>
+                      <span class="s" id="stutterEstSub">estimate</span>
                     </div>
                     <div class="stutter-kpi">
                       <span class="k">1% low</span>
                       <span class="v" id="stutter1Pct">—</span>
+                      <span class="s" id="stutter1PctSub">session worst</span>
                     </div>
                     <div class="stutter-kpi">
                       <span class="k">5m</span>
                       <span class="v" id="stutterEvents">—</span>
+                      <span class="s" id="stutterEventsSub">hitches</span>
                     </div>
                   </div>
                 </div>
+                <div class="stutter-status ok" id="stutterStatus">—</div>
                 <div class="stutter-mix" id="stutterMix">
                   <div class="stutter-mix-head"><span>Driver mix</span><span id="stutterMixHint">—</span></div>
                   <div class="stutter-mix-bar" id="stutterMixBar"></div>
@@ -1037,6 +1066,11 @@
                 <div class="stutter-timeline">
                   <div class="stutter-timeline-head"><span>Last 5 min</span><span id="stutterTimelineMeta">—</span></div>
                   <div class="stutter-timeline-track" id="stutterTimeline"></div>
+                  <div class="stutter-timeline-foot">
+                    <span>−5m</span>
+                    <span class="detail" id="stutterSessionDetail">—</span>
+                    <span>now</span>
+                  </div>
                 </div>
                 <div class="stutter-causes" id="stutterCauses"></div>
               </div>
@@ -2245,11 +2279,20 @@
       sparkChart.update('none');
     }
 
+    const STUTTER_SEV_WORD = { severe: 'Severe', moderate: 'Moderate', mild: 'Mild', none: 'Smooth' };
+
     function stutterSevClass(score) {
       if (score >= 70) return 'severe';
       if (score >= 50) return 'moderate';
       if (score >= 30) return 'mild';
       return 'ok';
+    }
+
+    function stutterAgoLabel(sec) {
+      if (sec == null || sec < 0) return null;
+      if (sec < 45) return `${Math.round(sec)}s ago`;
+      if (sec < 3600) return `${Math.round(sec / 60)}m ago`;
+      return `${Math.round(sec / 3600)}h ago`;
     }
 
     function renderStutterMix(components, causes) {
@@ -2287,9 +2330,10 @@
       ).join('');
     }
 
-    function renderStutterTimeline() {
+    function renderStutterTimeline(sess) {
       const trackEl = document.getElementById('stutterTimeline');
       const metaEl = document.getElementById('stutterTimelineMeta');
+      const detailEl = document.getElementById('stutterSessionDetail');
       if (!trackEl) return;
       const slots = 30;
       const windowSec = 300;
@@ -2302,6 +2346,8 @@
         trackEl.dataset.init = '1';
       }
       let events = 0;
+      let peakScore = 0;
+      let peakEst = 0;
       const slotSec = windowSec / slots;
       for (let i = 0; i < slots; i++) {
         const start = t0 + i * slotSec;
@@ -2309,20 +2355,43 @@
         const tick = trackEl.querySelector(`[data-slot="${i}"]`);
         if (!tick) continue;
         if (!slice.length) {
-          tick.style.height = '18%';
+          tick.style.height = '16%';
           tick.className = 'stutter-tick';
           tick.title = `${fmtTime(start)} · no data`;
           continue;
         }
         const maxScore = Math.max(...slice.map(h => h.stutter?.score ?? 0));
+        const maxEst = Math.max(...slice.map(h => h.stutter?.est_ms ?? 0));
         const hadEvent = slice.some(h => h.stutter?.event);
         if (hadEvent) events += 1;
+        peakScore = Math.max(peakScore, maxScore);
+        peakEst = Math.max(peakEst, maxEst);
         const sev = stutterSevClass(maxScore);
         tick.className = `stutter-tick${hadEvent ? ' event' : ''}${maxScore >= 30 ? ` sev-${sev === 'ok' ? 'mild' : sev}` : ''}`;
-        tick.style.height = `${Math.max(18, Math.min(100, 18 + maxScore * 0.82))}%`;
-        tick.title = `${fmtTime(start)} · score ${Math.round(maxScore)}${hadEvent ? ' · hitch' : ''}`;
+        tick.style.height = `${Math.max(16, Math.min(100, 14 + maxScore * 0.86))}%`;
+        const tipParts = [`${fmtTime(start)}`, `score ${Math.round(maxScore)}`];
+        if (maxEst > 0) tipParts.push(`~${maxEst.toFixed(1)}ms`);
+        if (hadEvent) tipParts.push('hitch');
+        tick.title = tipParts.join(' · ');
       }
-      if (metaEl) metaEl.textContent = `${events} hitches`;
+      const windowSlice = rawHistory.filter(h => h.ts >= t0);
+      const lastEvent = [...windowSlice].reverse().find(h => h.stutter?.event);
+      const lastAgo = lastEvent ? stutterAgoLabel(last - lastEvent.ts) : null;
+      if (metaEl) {
+        if (!events) metaEl.textContent = 'No hitches';
+        else {
+          const parts = [`${events} hitch${events !== 1 ? 'es' : ''}`, `peak ${Math.round(peakScore)}`];
+          if (peakEst > 0) parts.push(`~${peakEst.toFixed(0)}ms`);
+          if (lastAgo) parts.push(lastAgo);
+          metaEl.textContent = parts.join(' · ');
+        }
+      }
+      if (detailEl && sess) {
+        const avg = sess.score_avg ?? 0;
+        const p95 = sess.score_p95 ?? 0;
+        const rate = sess.hitch_rate_per_min ?? 0;
+        detailEl.textContent = `avg ${avg} · p95 ${p95} · ${rate}/min`;
+      }
     }
 
     function renderStutterViz(l) {
@@ -2341,19 +2410,38 @@
       if (gaugeEl) {
         gaugeEl.style.setProperty('--stutter-score', scoreDisplay ?? 0);
         gaugeEl.style.setProperty('--stutter-color', STUTTER_GAUGE_COLORS[sev] || STUTTER_GAUGE_COLORS.none);
+        gaugeEl.classList.toggle('event-active', !!st.event);
       }
       const smoothEl = document.getElementById('stutterSmoothVal');
       if (smoothEl) smoothEl.textContent = smoothDisplayVal != null ? `${smoothDisplayVal}% smooth` : '—% smooth';
 
+      const statusEl = document.getElementById('stutterStatus');
+      if (statusEl) {
+        const word = STUTTER_SEV_WORD[sev] || 'Smooth';
+        if (st.event) statusEl.textContent = `${word} · live hitch ~${st.est_ms ?? '—'}ms`;
+        else if (sess.events) statusEl.textContent = `${word} · ${sess.events} hitch${sess.events !== 1 ? 'es' : ''} in 5m`;
+        else statusEl.textContent = `${word} · clear for 5m`;
+        statusEl.className = `stutter-status ${sev === 'none' ? 'ok' : sev}`;
+      }
+
       const estEl = document.getElementById('stutterEstMs');
       estEl.textContent = st.est_ms != null ? `${st.est_ms}ms` : '—';
       estEl.className = `v ${sev === 'none' ? 'ok' : sev}`;
+      const estSub = document.getElementById('stutterEstSub');
+      if (estSub) estSub.textContent = st.event ? 'live hitch' : 'single-frame est.';
       const pctEl = document.getElementById('stutter1Pct');
       pctEl.textContent = sess.hitch_ms_1pct != null ? `${sess.hitch_ms_1pct}ms` : '—';
       pctEl.className = `v ${(sess.hitch_ms_1pct || 0) >= 50 ? 'severe' : (sess.hitch_ms_1pct || 0) >= 28 ? 'moderate' : 'ok'}`;
+      const pctSub = document.getElementById('stutter1PctSub');
+      if (pctSub) {
+        const smoothSess = sess.smoothness_session;
+        pctSub.textContent = smoothSess != null ? `${smoothSess}% session smooth` : 'session worst';
+      }
       const eventsEl = document.getElementById('stutterEvents');
       eventsEl.textContent = sess.events ?? 0;
       eventsEl.className = `v ${(sess.events || 0) >= 8 ? 'severe' : (sess.events || 0) >= 3 ? 'moderate' : 'ok'}`;
+      const eventsSub = document.getElementById('stutterEventsSub');
+      if (eventsSub) eventsSub.textContent = `${sess.hitch_rate_per_min ?? 0}/min rate`;
 
       ensureMetricList('stutterComponents', STUTTER_COMP_SPECS);
       const comp = st.components || {};
