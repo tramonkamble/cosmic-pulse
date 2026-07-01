@@ -585,19 +585,36 @@
     .index-tick.sev-hot { background: rgba(155,126,200,.75); }
     .index-tick.sev-warn { background: rgba(98,160,234,.55); }
     .index-tick.sev-ok { background: rgba(106,201,141,.45); }
+    .stutter-layout.index-layout {
+      grid-template-columns: minmax(14rem, 1.2fr) minmax(13rem, 1.45fr) minmax(10.5rem, 1fr);
+    }
+    .index-layout .stutter-drivers {
+      gap: .4rem;
+      overflow-y: auto;
+      padding-right: .2rem;
+    }
+    .index-layout .stutter-side-label {
+      margin: .1rem 0 .12rem;
+      flex-shrink: 0;
+    }
     .index-build-strip {
-      display: flex; align-items: center; gap: .55rem; flex-wrap: wrap;
-      padding: .5rem .62rem; margin-bottom: .1rem;
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+      padding: .45rem .55rem; margin-bottom: .15rem; flex-shrink: 0;
       background: rgba(180,142,173,.08); border: 1px solid rgba(180,142,173,.22); border-radius: 10px;
     }
     .index-build-strip .meta {
-      font-size: .72rem; color: var(--text-secondary); line-height: 1.35; flex: 1; min-width: 0;
+      font-size: .7rem; color: var(--text-secondary); line-height: 1.35; flex: 1; min-width: 0;
     }
-    .index-build-strip .rank-badge { font-size: .82rem; padding: .32rem .62rem; }
-    .index-rank-list { display: flex; flex-direction: column; gap: .5rem; flex: 1; min-height: 0; }
+    .index-build-strip .meta .vs-pos,
+    .index-build-strip .meta .vs-neg { font-weight: 600; }
+    .index-build-strip .rank-badge { font-size: .8rem; padding: .28rem .55rem; flex-shrink: 0; }
+    .index-rank-list {
+      display: flex; flex-direction: column; gap: .42rem;
+      flex: 0 0 auto; min-height: 0;
+    }
     .index-rank-card {
-      display: flex; flex-direction: column; gap: .32rem;
-      padding: .52rem .6rem; border-radius: 10px;
+      display: flex; flex-direction: column; gap: .28rem;
+      padding: .48rem .52rem; border-radius: 10px;
       background: rgba(0,0,0,.22); border: 1px solid var(--line); min-width: 0;
     }
     .index-rank-head {
@@ -631,6 +648,10 @@
       font-size: .64rem; color: var(--text-secondary); line-height: 1.35;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .index-rank-foot .vs-pos,
+    .index-rank-foot .vs-neg { font-weight: 600; }
+    .index-status .vs-pos,
+    .index-status .vs-neg { font-weight: 600; }
     .sensor-strip {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
       gap: .45rem; margin-top: .85rem;
@@ -718,9 +739,15 @@
     .stutter-summary {
       display: flex; flex-direction: column; gap: .62rem; min-width: 0; justify-content: flex-start;
     }
+    .index-layout .stutter-summary { gap: .5rem; }
     .stutter-insight-top {
       display: grid; grid-template-columns: auto 1fr; gap: .65rem .75rem; align-items: center;
     }
+    .index-layout .stutter-insight-top {
+      gap: .55rem .65rem;
+      align-items: start;
+    }
+    .index-layout .index-gauge { width: 8.25rem; height: 8.25rem; }
     .stutter-gauge {
       --stutter-score: 0; --stutter-color: var(--green);
       width: 9rem; height: 9rem; border-radius: 50%; position: relative; flex-shrink: 0;
@@ -1278,8 +1305,7 @@
     #vizPanel .metric-bar[data-hw] { max-height: 6.5rem; }
     #vizPanel .glance-cell[data-hw] { max-height: 5rem; }
     #vizPanel .core-strip[data-hw] { max-height: 5.5rem; }
-    #pulseIndexBlock .metric-bar[data-hw] { max-height: 6.5rem; }
-    #pulseIndexBlock .index-rank-card[data-hw] { max-height: 8.5rem; }
+    #pulseIndexBlock .index-rank-card[data-hw] { max-height: 9rem; }
     #summaryBar .sensor-chip[data-hw] { max-height: 3.5rem; }
     #warningList .warn-row[data-hw] { max-height: 20rem; }
     .hw-filtered-out {
@@ -1436,8 +1462,6 @@
                 </div>
                 <div class="stutter-side-label">Component rankings</div>
                 <div class="index-rank-list" id="indexRankList"></div>
-                <div class="stutter-side-label">Live pressure</div>
-                <div class="metric-list metric-list-compact stutter-driver-bars" id="indexComponents"></div>
               </div>
               <div class="stutter-col stutter-chart-col" data-hw-keep>
                 <div class="stutter-side-label" id="indexChartLabel">Index · last 5 min</div>
@@ -1448,7 +1472,7 @@
                   <div class="index-gauge" id="indexGauge">
                     <div class="index-gauge-center">
                       <span class="score ok" id="indexScoreVal">—</span>
-                      <span class="sub" id="indexScoreSub">/100</span>
+                      <span class="sub" id="indexScoreSub">index</span>
                     </div>
                   </div>
                   <div class="stutter-kpis">
@@ -2234,11 +2258,16 @@
       renderOneChart(ioChart, ioDefs, 'io', document.getElementById('ioMeta'), chartRollup.io ?? globalRollup);
     }
 
+    function vsFmtPlain(n) {
+      if (n == null || isNaN(n)) return '—';
+      const sign = n > 0 ? '+' : '';
+      return `${sign}${n}%`;
+    }
+
     function vsFmt(n) {
       if (n == null || isNaN(n)) return '—';
       const cls = n >= 0 ? 'vs-pos' : 'vs-neg';
-      const sign = n > 0 ? '+' : '';
-      return `<span class="${cls}">${sign}${n}%</span>`;
+      return `<span class="${cls}">${vsFmtPlain(n)}</span>`;
     }
 
     function updateRankRow(tr, r) {
@@ -3030,7 +3059,9 @@
       val.className = `metric-bar-val${valCls ? ' ' + valCls : ''}`;
       setMeterWidth(row.querySelector('[data-fill]'), pct);
       if (trackCls) row.querySelector('[data-track]').className = `metric-bar-track ${trackCls}`;
-      row.querySelector('[data-sub]').textContent = subText;
+      const subEl = row.querySelector('[data-sub]');
+      if (subText && /<\/?[a-z]/i.test(subText)) subEl.innerHTML = subText;
+      else subEl.textContent = subText;
     }
 
     function tempPct(v) { return v == null ? 0 : Math.min(100, (v / 105) * 100); }
@@ -3351,11 +3382,6 @@
       });
     }
 
-    const INDEX_COMP_SPECS = [
-      { id: 'index-cpu', label: 'CPU load', cls: 'cpu', hw: 'cpu' },
-      { id: 'index-gpu', label: 'GPU load', cls: 'gpu', hw: 'gpu' },
-      { id: 'index-ram', label: 'RAM pressure', cls: 'mem', hw: 'memory' },
-    ];
     const INDEX_RANK_SPECS = [
       { id: 'cpu', part: 'CPU', hw: 'cpu', icon: 'cpu', cls: 'cpu' },
       { id: 'gpu', part: 'GPU', hw: 'gpu', icon: 'gpu', cls: 'gpu' },
@@ -3446,6 +3472,12 @@
       indexChart.update('none');
     }
 
+    function indexPartShortName(spec, part) {
+      if (!part) return '—';
+      if (spec.hw === 'memory') return part.kit || part.name || '—';
+      return part.name || '—';
+    }
+
     function indexRankFoot(spec, part) {
       if (!part) return '—';
       const vs = part.vs_enthusiast_pct != null ? `vs enth ${vsFmt(part.vs_enthusiast_pct)}` : null;
@@ -3517,7 +3549,7 @@
         const badgeSlot = card.querySelector('[data-rank-badge]');
         if (badgeSlot) setTierBadge(badgeSlot, part.tier_rank, false);
         const nameEl = card.querySelector('[data-rank-name]');
-        if (nameEl) nameEl.textContent = part.label || part.name || '—';
+        if (nameEl) nameEl.textContent = indexPartShortName(spec, part);
         setMeterWidth(card.querySelector('[data-tier-fill]'), tierScore);
         setMeterWidth(card.querySelector('[data-live-fill]'), livePct);
         const tierVal = card.querySelector('[data-tier-val]');
@@ -3672,7 +3704,7 @@
           vsAvg != null ? `vs avg ${vsFmt(vsAvg)}` : null,
           vsEnthVal != null ? `vs enth ${vsFmt(vsEnthVal)}` : null,
         ].filter(Boolean);
-        statusEl.textContent = [status.word, statusExtra, ...refBits].filter(Boolean).join(' · ');
+        statusEl.innerHTML = [status.word, statusExtra, ...refBits].filter(Boolean).join(' · ');
         statusEl.className = `index-status ${status.cls}`;
       }
 
@@ -3701,23 +3733,6 @@
       if (avgSub) avgSub.textContent = 'vs average build';
 
       renderIndexRankings(c);
-
-      ensureMetricList('indexComponents', INDEX_COMP_SPECS);
-      syncMetricHwTags('indexComponents', INDEX_COMP_SPECS);
-      INDEX_COMP_SPECS.forEach(spec => {
-        const part = spec.hw === 'memory' ? c.memory : c[spec.hw];
-        if (!part) return;
-        const livePct = smoothDisplayPct(
-          `index-live-${spec.id}`,
-          spec.hw === 'memory' ? part.live_pressure_pct : part.live_pct,
-        );
-        const enth = part.vs_enthusiast_pct != null ? ` · vs enth ${vsFmt(part.vs_enthusiast_pct)}` : '';
-        const sub = `${part.tier_rank}-tier · score ${part.tier_score ?? '—'}${enth}`;
-        setMetricBar(
-          'indexComponents', spec.id, livePct, `${Math.round(livePct)}%`, sub,
-          spec.cls === 'cpu' ? 'cpu' : spec.cls === 'gpu' ? 'gpu' : 'mem', spec.cls,
-        );
-      });
 
       renderIndexChart();
       renderIndexMix(c);
