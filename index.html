@@ -771,8 +771,18 @@
     .warn-counts:empty { display: none; margin: 0; }
     .warn-list {
       display: flex; flex-direction: column; gap: .55rem;
-      min-height: 3rem; max-height: min(26rem, 42vh);
+      min-height: 3rem; max-height: min(42rem, 58vh);
     }
+    .warn-more {
+      margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--line);
+      display: flex; justify-content: center;
+    }
+    .warn-more-link {
+      font-size: .92rem; font-weight: 500; color: var(--accent);
+      background: transparent; border: none; cursor: pointer; font-family: inherit;
+      padding: .35rem .5rem; border-radius: 8px;
+    }
+    .warn-more-link:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
     .warn-empty { margin: 0; padding: .5rem 0; font-size: .95rem; color: var(--muted); line-height: 1.45; }
     .warn-row {
       display: flex; flex-direction: column; gap: .4rem;
@@ -1259,6 +1269,9 @@
       <p class="warn-meta" id="tuningMeta">Checking…</p>
       <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
       <div class="warn-list stable-scroll" id="warningList"></div>
+      <div class="warn-more" id="warnMoreFixes" hidden>
+        <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Fixes</button>
+      </div>
     </section>
 
     <div class="drill-stack">
@@ -2191,6 +2204,9 @@
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.onclick = () => setTab(btn.dataset.tab, null, true);
+    });
+    document.getElementById('warnMoreFixesBtn')?.addEventListener('click', () => {
+      setTab('fixes', 'insightsSection');
     });
     document.querySelectorAll('.sum-cell[data-drill]').forEach(btn => {
       btn.onclick = () => jumpTo(btn.dataset.drill);
@@ -3311,7 +3327,7 @@
     }
 
     function updateWarningsFocusUI() {
-      const active = warningsForDisplay(lastWarningsHints);
+      const { all: active } = warningsWidgetData(lastWarningsHints);
       const visible = active.filter(h => hintVisibleForFocus(h));
       const sessionHits = lastActiveGameId
         ? visible.filter(h => hintForActiveGame(h, lastActiveGameId)).length
@@ -3566,8 +3582,28 @@
       return id === 'cities2' ? 'Cities II' : id === 'counterstrike2' ? 'CS2' : id || 'Game';
     }
 
+    const WARN_WIDGET_MAX = 10;
+
     function warningsForDisplay(hints) {
       return (hints || []).filter(h => h.active !== false && h.level !== 'ok');
+    }
+
+    function warningPriority(h) {
+      if (h.priority_score != null) return h.priority_score;
+      return { hot: 100, warn: 70, info: 40 }[h.level] ?? 40;
+    }
+
+    function sortWarningsByPriority(hints) {
+      return [...hints].sort((a, b) => {
+        const ps = warningPriority(b) - warningPriority(a);
+        if (ps) return ps;
+        return (b.last_seen || 0) - (a.last_seen || 0);
+      });
+    }
+
+    function warningsWidgetData(hints) {
+      const all = sortWarningsByPriority(warningsForDisplay(hints));
+      return { all, shown: all.slice(0, WARN_WIDGET_MAX), total: all.length };
     }
 
     function hintForActiveGame(h, gameId) {
@@ -3575,16 +3611,6 @@
       if ((h.games_affected || []).includes(gameId)) return true;
       const scope = h.games || ['all'];
       return scope.includes('all') || scope.includes(gameId);
-    }
-
-    function sortWarnings(hints, gameId) {
-      const order = { hot: 0, warn: 1, info: 2 };
-      return [...hints].sort((a, b) => {
-        const ag = gameId && hintForActiveGame(a, gameId) ? 0 : 1;
-        const bg = gameId && hintForActiveGame(b, gameId) ? 0 : 1;
-        if (ag !== bg) return ag - bg;
-        return (order[a.level] ?? 9) - (order[b.level] ?? 9);
-      });
     }
 
     function activeGameName(gt, catalog) {
@@ -3772,23 +3798,38 @@
       });
     }
 
+    function updateWarningsMoreLink(total) {
+      const wrap = document.getElementById('warnMoreFixes');
+      const btn = document.getElementById('warnMoreFixesBtn');
+      if (!wrap || !btn) return;
+      if (!total) {
+        wrap.hidden = true;
+        return;
+      }
+      wrap.hidden = false;
+      const extra = total - WARN_WIDGET_MAX;
+      btn.textContent = extra > 0
+        ? `View all ${total} issues in Fixes →`
+        : 'Open Fixes for scripts and step-by-step guidance →';
+    }
+
     function renderWarnings(hints) {
       const list = hints || [];
       lastWarningsHints = list;
-      const gameId = lastLatest?.game_totals?.game_id;
-      const active = sortWarnings(warningsForDisplay(list), gameId);
-      const structKey = hintsStructKey(active);
+      const { all, shown, total } = warningsWidgetData(list);
+      const structKey = hintsStructKey(shown);
 
       const listEl = document.getElementById('warningList');
       if (structKey !== lastWarningsKey) {
         lastWarningsKey = structKey;
         capturePanelState();
-        listEl.innerHTML = active.length
-          ? active.map(h => warningRowHtml(h)).join('')
+        listEl.innerHTML = shown.length
+          ? shown.map(h => warningRowHtml(h)).join('')
           : '<p class="warn-empty">Nothing needs attention. Open <strong>Fixes</strong> for scripts and step-by-step guidance.</p>';
-        bindWarningActions(active);
+        bindWarningActions(shown);
         restorePanelState();
       }
+      updateWarningsMoreLink(total);
       updateWarningsFocusUI();
     }
 

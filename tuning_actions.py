@@ -351,4 +351,4 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             fix_script=script_balanced(),
         ))
 
-    return hints[:10]
+    return hints
