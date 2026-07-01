@@ -16,6 +16,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Stutter proxy detail** — taller widget; KPI subs, live status line, session avg/p95/rate under timeline, richer hitch tooltips and timeline meta (peak score, est. ms, last hitch).
 
 ### Fixed
+- **Dashboard boot** — removed duplicate `prefersReducedMotion` declaration (const + function) that caused a script parse error and left the entire UI stuck on “Connecting…” with no live data.
 - **Display stability** — EMA smoothing for session load index, league live bars, and chart series; tier badges only re-render when rank changes; util chart locked to 0–100% y-axis; bandwidth/I/O charts use slowly-adjusting axis max to prevent vertical jump.
 
 ### Changed

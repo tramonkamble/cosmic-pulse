@@ -3125,10 +3125,6 @@
       return hw.split(/\s+/).filter(Boolean).includes(hwFocus);
     }
 
-    function prefersReducedMotion() {
-      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    }
-
     function clearHwFilterHide(el) {
       const pending = hwFilterHideHandlers.get(el);
       if (!pending) return;
@@ -3156,7 +3152,7 @@
       if (el.classList.contains('hw-filtered-hidden')) return;
       if (el.classList.contains('hw-filtered-out') && hwFilterHideHandlers.has(el)) return;
       clearHwFilterHide(el);
-      if (prefersReducedMotion()) {
+      if (prefersReducedMotion) {
         el.classList.add('hw-filtered-out', 'hw-filtered-hidden');
         return;
       }
@@ -3280,7 +3276,7 @@
       nocEmptyTimer = setTimeout(() => {
         nocEmptyTimer = null;
         updateNocEmptyStates();
-      }, prefersReducedMotion() ? 0 : HW_FILTER_HIDE_MS);
+      }, prefersReducedMotion ? 0 : HW_FILTER_HIDE_MS);
     }
 
     function updateNocEmptyStates() {
