@@ -81,4 +81,12 @@ When shipping a user-visible change:
 
 1. Add bullets under **`[Unreleased]`** in the right category (`Added`, `Changed`, `Fixed`, `Removed`).
 2. On a meaningful batch (or end of session), rename `[Unreleased]` to a dated section (`## [YYYY-MM-DD]`) and open a fresh `[Unreleased]` section.
-3. Restart Pulse after UI/backend changes: `systemctl --user restart pulse`.
+3. Commit in git with a short message that matches the changelog entry (e.g. `feat: smoother meter easing`).
+4. Restart Pulse after UI/backend changes: `systemctl --user restart pulse`.
+
+### Local git (current)
+
+- Repo root: `/home/tkep/perf-dashboard` · branch **`main`**
+- Ignored: `pulse.db*`, `.tuning_log.json`, `.memory_cache.json`, `__pycache__/`, `.ruff_cache/`
+- Systemd unit lives at `~/.config/systemd/user/pulse.service` (not in repo); template at `deploy/pulse.service`
+- Remote not configured yet — add GitHub/GitLab when ready: `git remote add origin <url>` then `git push -u origin main`
