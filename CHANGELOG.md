@@ -8,7 +8,6 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Changed
-- **Space-maximized layout** — UI scale 1.5→1.18; summary + warnings side-by-side; live overview 3-across on wide screens; vh-capped widget heights; tighter header/padding/gauges.
 - **Summary hardware strip** — rig tiles slimmed down; temps/drives/network grouped into labeled status cards (no more cramped sensor pill grid).
 - **Label refinements** — summary tile **Pulse Index**; hardware **Class** (was Tier); **Game process** (was Game CPU); **Memory bus** merges VRAM bus/controller; backlog hidden from UI; profiling tools drill stands alone.
 - **Label pass (American English)** — GPU activity strip uses Shaders / Memory bus / Video; jargon trimmed across dashboard (stutter estimate, memory wait, GPU hotspot, vs typical/high-end PC, RAM bandwidth, etc.).
