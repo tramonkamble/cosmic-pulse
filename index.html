@@ -1274,6 +1274,8 @@
     .hw-icon-box.league { color: var(--purple); background: rgba(180,142,173,.12); border-color: rgba(180,142,173,.25); }
     .hw-icon-box.temp { color: #c49aef; background: rgba(180,142,173,.1); border-color: rgba(180,142,173,.22); }
     .hw-icon-box.stutter { color: var(--amber); background: rgba(233,184,114,.1); border-color: rgba(233,184,114,.25); }
+    .hw-icon-box.chassis { color: #7ec8e8; background: rgba(99,208,222,.09); border-color: rgba(99,208,222,.2); }
+    .hw-icon-box.storage { color: #c49aef; background: rgba(180,142,173,.1); border-color: rgba(180,142,173,.22); }
     .sum-head { display: flex; align-items: center; gap: .55rem; margin-bottom: .15rem; }
     .sum-head .sum-label { margin: 0; }
     .mfr-mark {
@@ -1343,37 +1345,67 @@
       min-width: 100%;
     }
     .rig-tile {
-      display: flex; flex-direction: column; align-items: flex-start; gap: .28rem;
-      padding: .68rem .82rem; border-radius: var(--radius); min-width: 0; width: 100%;
+      display: flex; flex-direction: column; align-items: flex-start; gap: .3rem;
+      padding: .62rem .78rem .68rem .86rem; border-radius: var(--radius); min-width: 0; width: 100%;
       border: 1px solid var(--line); background: var(--panel-solid);
       cursor: pointer; text-align: left; font-family: inherit; color: inherit;
       transition: border-color .2s, box-shadow .2s, transform .15s, background .2s;
       position: relative; overflow: hidden;
     }
     .rig-tile::before {
-      content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none;
-      background: linear-gradient(135deg, var(--rig-glow, var(--accent-soft)), transparent 72%);
+      content: ""; position: absolute; inset: 0; opacity: .32; pointer-events: none;
+      background: linear-gradient(128deg, var(--rig-glow, var(--accent-soft)), transparent 68%);
       transition: opacity .2s;
     }
+    .rig-tile::after {
+      content: ""; position: absolute; left: 0; top: 14%; bottom: 14%; width: 2px;
+      border-radius: 0 2px 2px 0; background: var(--rig-accent, var(--accent));
+      opacity: .42; pointer-events: none; transition: opacity .2s, top .2s, bottom .2s;
+    }
     .rig-tile:hover { border-color: rgba(255,255,255,.22); transform: translateY(-1px); }
-    .rig-tile:hover::before { opacity: 1; }
+    .rig-tile:hover::before { opacity: .72; }
+    .rig-tile:hover::after { opacity: .78; top: 10%; bottom: 10%; }
     .rig-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .rig-tile.active {
       border-color: var(--rig-accent, var(--accent));
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--rig-accent, var(--accent)) 35%, transparent), 0 10px 26px rgba(0,0,0,.22);
       background: color-mix(in srgb, var(--panel-solid) 88%, var(--rig-accent, var(--accent)) 12%);
     }
-    .rig-tile.active::before { opacity: 1; }
-    .rig-tile.chassis { --rig-accent: var(--blue); --rig-glow: rgba(99,208,222,.14); }
-    .rig-tile.cpu { --rig-accent: var(--blue); --rig-glow: rgba(99,208,222,.14); }
+    .rig-tile.active::before { opacity: .88; }
+    .rig-tile.active::after { opacity: .95; top: 8%; bottom: 8%; }
+    .rig-tile.chassis { --rig-accent: #63d0de; --rig-glow: rgba(99,208,222,.13); }
+    .rig-tile.cpu { --rig-accent: var(--blue); --rig-glow: rgba(98,160,234,.13); }
     .rig-tile.gpu { --rig-accent: var(--orange); --rig-glow: rgba(255,173,0,.14); }
     .rig-tile.memory { --rig-accent: var(--green); --rig-glow: rgba(146,206,155,.14); }
-    .rig-tile.storage { --rig-accent: var(--blue); --rig-glow: rgba(98,160,234,.12); }
+    .rig-tile.storage { --rig-accent: var(--purple); --rig-glow: rgba(180,142,173,.13); }
+    .rig-tile-top {
+      display: flex; align-items: center; gap: .4rem; width: 100%; min-width: 0;
+      position: relative; z-index: 1;
+    }
+    .rig-tile-icon.hw-icon-box {
+      width: 1.44rem; height: 1.44rem; border-radius: 7px; flex-shrink: 0;
+      background: color-mix(in srgb, var(--panel-solid) 55%, transparent);
+    }
+    .rig-tile-icon.hw-icon-box .hw-glyph svg { width: .84rem; height: .84rem; }
+    .rig-tile-watermark {
+      position: absolute; right: -.2rem; bottom: -.45rem; pointer-events: none; z-index: 0;
+      color: var(--rig-accent, var(--accent)); opacity: .06; transition: opacity .2s;
+    }
+    .rig-tile-watermark .hw-glyph svg { width: 3.4rem; height: 3.4rem; }
+    .rig-tile:hover .rig-tile-watermark { opacity: .1; }
+    .rig-tile.active .rig-tile-watermark { opacity: .13; }
     .rig-tile-type {
       font-size: .6rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
-      color: var(--muted); line-height: 1;
+      color: color-mix(in srgb, var(--rig-accent, var(--muted)) 38%, var(--muted));
+      line-height: 1;
     }
-    .rig-tile-head { display: flex; align-items: center; gap: .48rem; width: 100%; min-width: 0; }
+    .rig-tile.active .rig-tile-type {
+      color: color-mix(in srgb, var(--rig-accent) 52%, var(--text-secondary));
+    }
+    .rig-tile-head {
+      display: flex; align-items: center; gap: .48rem; width: 100%; min-width: 0;
+      position: relative; z-index: 1;
+    }
     .rig-tile-name {
       font-size: .86rem; font-weight: 600; color: var(--text); line-height: 1.25;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;
@@ -1382,6 +1414,7 @@
       font-size: .74rem; font-weight: 500; color: var(--text-secondary);
       font-variant-numeric: tabular-nums; line-height: 1.3;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+      position: relative; z-index: 1;
     }
     .rig-tile-hint { display: none; }
     .rig-focus-banner {
@@ -4287,6 +4320,7 @@
       activity: '<path d="M3.5 12h3.8l2.4-6.5 3.4 13 2.8-6.5H20.5"/>',
       stutter: '<path d="M3.5 12h3.5l2-5 3 10 2.5-6H20"/>',
       chip: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 3.5v2M15 3.5v2M9 18.5v2M15 18.5v2M3.5 9h2M3.5 15h2M18.5 9h2M18.5 15h2"/>',
+      chassis: '<rect x="7.5" y="4" width="9" height="16" rx="1.5"/><path d="M9.5 7.5h5M9.5 10.5h5"/><circle cx="12" cy="16.2" r="1"/>',
       power: '<path d="M13 2.8 4.8 13.8h6.8l-.9 7.4L19 10.2h-6.8z"/>',
       net: '<circle cx="12" cy="12" r="2"/><path d="M5.5 8.5a10 10 0 0 1 13 0M8 11a6.5 6.5 0 0 1 8 0"/>',
     };
@@ -4708,10 +4742,24 @@
       renderSparkChart();
     }
 
+    const RIG_TILE_GLYPHS = {
+      chassis: 'chassis', cpu: 'cpu', gpu: 'gpu', memory: 'ram', storage: 'storage',
+    };
+    const RIG_TILE_ICON_CLS = {
+      chassis: 'chassis', cpu: 'cpu', gpu: 'gpu', memory: 'mem', storage: 'storage',
+    };
+
     function rigTileHtml(t) {
+      const glyph = RIG_TILE_GLYPHS[t.kind] || 'chip';
+      const iconCls = RIG_TILE_ICON_CLS[t.kind] || t.kind;
+      const icon = hwIcon(glyph);
       return `<button type="button" class="rig-tile ${t.kind}${t.active ? ' active' : ''}" data-rig-id="${esc(t.id)}"
         data-hw-filter="${t.filter}" aria-pressed="${t.active ? 'true' : 'false'}" title="${esc(t.tooltip)}">
-        <span class="rig-tile-type">${esc(t.type)}</span>
+        <span class="rig-tile-watermark" aria-hidden="true">${icon}</span>
+        <span class="rig-tile-top">
+          <span class="rig-tile-icon hw-icon-box ${iconCls}" aria-hidden="true">${icon}</span>
+          <span class="rig-tile-type">${esc(t.type)}</span>
+        </span>
         <span class="rig-tile-head">${mfrMark(t.slug)}<span class="rig-tile-name">${esc(t.name)}</span></span>
         <span class="rig-tile-stat" data-rig-stat>${esc(t.stat)}</span>
         <span class="rig-tile-hint">${esc(t.hint)}</span>
