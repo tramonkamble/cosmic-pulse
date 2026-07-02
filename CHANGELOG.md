@@ -7,6 +7,9 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Changed
+- **Label pass (American English)** — GPU activity strip uses Shaders / Memory bus / Video; jargon trimmed across dashboard (stutter estimate, memory wait, GPU hotspot, vs typical/high-end PC, RAM bandwidth, etc.).
+
 ### Added
 - **GPU engine strip** — decode AMD `gpu_metrics` sysfs (GFX / VRAM / MM activity %) and show per-engine bars in the rig snapshot; falls back to `gpu_busy_percent` / `mem_busy_percent` when a counter is unavailable.
 - **Remediation policy** — Pulse never runs kill commands, sudo, or external apps. Fixes are copy-paste suggestions; **Fix** only applies safe user-owned config writes (none destructive today). Root scripts are labeled **Requires root**.

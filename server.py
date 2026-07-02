@@ -407,17 +407,17 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
     engines = [
         {
             "id": "gfx",
-            "label": "GFX",
+            "label": "Shaders",
             "pct": _engine_pct(engine_raw.get("gfx"), busy),
         },
         {
             "id": "vram",
-            "label": "VRAM",
+            "label": "Memory bus",
             "pct": _engine_pct(engine_raw.get("vram"), mem_busy),
         },
         {
             "id": "mm",
-            "label": "MM",
+            "label": "Video",
             "pct": _engine_pct(engine_raw.get("mm"), None),
         },
     ]

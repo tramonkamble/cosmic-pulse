@@ -1493,7 +1493,7 @@
                   <div class="rig-core-meta" id="rigCoreMeta" data-hw="cpu">—</div>
                 </div>
                 <div class="rig-driver-group" data-hw="gpu">
-                  <div class="stutter-side-label">GPU engines</div>
+                  <div class="stutter-side-label">GPU activity</div>
                   <div class="gpu-engine-strip" id="gpuEngineStrip" data-hw="gpu"></div>
                   <div class="rig-core-meta" id="rigGpuEngineMeta" data-hw="gpu">—</div>
                 </div>
@@ -1574,9 +1574,9 @@
                       <span class="s" id="indexSessionSub">pulse index</span>
                     </div>
                     <div class="stutter-kpi">
-                      <span class="k">vs avg</span>
+                      <span class="k">vs typical</span>
                       <span class="v" id="indexVsAvg">—</span>
-                      <span class="s" id="indexVsAvgSub">reference PC</span>
+                      <span class="s" id="indexVsAvgSub">average gaming PC</span>
                     </div>
                   </div>
                 </div>
@@ -1601,11 +1601,11 @@
           </div>
         </div>
         <div class="viz-block viz-area-stutter" id="stutterBlock">
-          <div class="viz-block-head"><span class="hw-icon-box stutter" data-glyph="stutter"></span><h3>Stutter proxy · 1% low estimate</h3></div>
+          <div class="viz-block-head"><span class="hw-icon-box stutter" data-glyph="stutter"></span><h3>Stutter estimate</h3></div>
           <div class="viz-block-body">
             <div class="stutter-layout">
               <div class="stutter-col stutter-drivers">
-                <div class="stutter-side-label">Hitch drivers</div>
+                <div class="stutter-side-label">What causes hitches</div>
                 <div class="metric-list metric-list-compact stutter-driver-bars" id="stutterComponents"></div>
               </div>
               <div class="stutter-col stutter-chart-col" data-hw-keep>
@@ -1629,7 +1629,7 @@
                     <div class="stutter-kpi">
                       <span class="k">1% low</span>
                       <span class="v" id="stutter1Pct">—</span>
-                      <span class="s" id="stutter1PctSub">session worst</span>
+                      <span class="s" id="stutter1PctSub">worst frame estimate</span>
                     </div>
                     <div class="stutter-kpi">
                       <span class="k">5m</span>
@@ -1640,7 +1640,7 @@
                 </div>
                 <div class="stutter-status ok" id="stutterStatus">—</div>
                 <div class="stutter-mix" id="stutterMix">
-                  <div class="stutter-mix-head"><span>Driver mix</span><span id="stutterMixHint">—</span></div>
+                  <div class="stutter-mix-head"><span>Hitch breakdown</span><span id="stutterMixHint">—</span></div>
                   <div class="stutter-mix-bar" id="stutterMixBar"></div>
                   <div class="stutter-mix-legend" id="stutterMixLegend"></div>
                 </div>
@@ -1783,7 +1783,7 @@
           <table class="rank-table">
             <thead>
               <tr>
-                <th>Part</th><th>Yours</th><th>Tier</th><th>Score</th><th>Live now</th><th>vs Avg PC</th><th>vs Enthusiast</th>
+                <th>Part</th><th>Yours</th><th>Tier</th><th>Score</th><th>Live now</th><th>vs typical PC</th><th>vs high-end PC</th>
               </tr>
             </thead>
             <tbody id="rankBody"></tbody>
@@ -2009,10 +2009,10 @@
         memory: 'Pulse Index · memory pressure',
       },
       'viz-area-stutter': {
-        default: 'Stutter proxy · 1% low estimate',
-        cpu: 'Stutter proxy · CPU & memory',
-        gpu: 'Stutter proxy · system hitch',
-        memory: 'Stutter proxy · memory drivers',
+        default: 'Stutter estimate',
+        cpu: 'Stutter estimate · CPU & memory',
+        gpu: 'Stutter estimate · system hitches',
+        memory: 'Stutter estimate · memory pressure',
       },
     };
     const VIZ_BLOCK_ICONS = {
@@ -2178,8 +2178,8 @@
     ];
     const bwDefs = [
       { key: 'vramBw', label: 'VRAM GB/s', color: CHART.vramBw, yAxis: 'y', pick: h => h.bandwidth?.gpu?.vram_est_gbps ?? 0 },
-      { key: 'dramBw', label: 'DRAM demand', color: CHART.dramBw, yAxis: 'y', pick: h => h.bandwidth?.memory?.dram_est_gbps ?? 0 },
-      { key: 'gtt', label: 'GTT MB/s', color: CHART.gtt, yAxis: 'y1', pick: h => h.bandwidth?.gpu?.gtt_rate_mbps ?? 0 },
+      { key: 'dramBw', label: 'RAM bandwidth', color: CHART.dramBw, yAxis: 'y', pick: h => h.bandwidth?.memory?.dram_est_gbps ?? 0 },
+      { key: 'gtt', label: 'Shared RAM', color: CHART.gtt, yAxis: 'y1', pick: h => h.bandwidth?.gpu?.gtt_rate_mbps ?? 0 },
     ];
     const ioDefs = [
       { key: 'netDn', label: 'Net ↓', color: CHART.netDn, pick: h => h.network.down_mbps },
@@ -2452,7 +2452,7 @@
           <div class="meter gpu"><span id="gpuBwMeterFill" style="width:0%"></span></div>
           <div class="bw-row">
             <div class="bw-kv"><span class="k">PCIe link</span><span class="v" id="gpuBwPcie">—</span></div>
-            <div class="bw-kv"><span class="k">GTT (shared RAM)</span><span class="v" id="gpuBwGtt">—</span></div>
+            <div class="bw-kv"><span class="k">Shared system RAM</span><span class="v" id="gpuBwGtt">—</span></div>
             <div class="bw-kv"><span class="k">VRAM fill</span><span class="v" id="gpuBwVramFill">—</span></div>
           </div>`;
         gpu.dataset.init = '1';
@@ -2467,7 +2467,7 @@
           <div class="meter-label"><span id="memBwMeterLbl">—</span><span id="memBwPsiLbl">—</span></div>
           <div class="meter mem"><span id="memBwMeterFill" style="width:0%"></span></div>
           <div class="bw-row">
-            <div class="bw-kv"><span class="k">Fault I/O proxy</span><span class="v" id="memBwFault">—</span></div>
+            <div class="bw-kv"><span class="k">Page fault estimate</span><span class="v" id="memBwFault">—</span></div>
             <div class="bw-kv"><span class="k">Page churn</span><span class="v" id="memBwPages">—</span></div>
             <div class="bw-kv"><span class="k">Swap I/O</span><span class="v" id="memBwSwap">—</span></div>
             <div class="bw-kv"><span class="k">Active / cached</span><span class="v" id="memBwActive">—</span></div>
@@ -2545,8 +2545,8 @@
         `${m.dram_est_gbps ?? '—'} <small style="font-size:1.15rem;color:var(--muted)">GB/s demand</small>`;
       document.getElementById('memBwSub').textContent =
         `${m.dram_util_pct ?? 0}% of ${m.dram_peak_gbps} GB/s ceiling · workload model (not a hw counter)`;
-      document.getElementById('memBwMeterLbl').textContent = `DRAM demand ${dramPct}%`;
-      document.getElementById('memBwPsiLbl').textContent = `PSI stall ${m.psi_avg10 ?? 0}%`;
+      document.getElementById('memBwMeterLbl').textContent = `RAM bandwidth ${dramPct}%`;
+      document.getElementById('memBwPsiLbl').textContent = `Memory wait ${m.psi_avg10 ?? 0}%`;
       setMeterWidth(document.getElementById('memBwMeterFill'), dramPct);
       document.getElementById('memBwFault').textContent =
         `${m.dram_fault_gbps ?? m.fault_proxy_gbps ?? 0} GB/s · ${(m.pgmajfault_per_s ?? 0).toLocaleString()}/s major faults`;
@@ -3054,28 +3054,28 @@
     ];
     const TEMP_SPECS = [
       { id: 'cpu-pkg', label: 'CPU package', icon: 'cpu', key: 'package', hw: 'cpu' },
-      { id: 'cpu-ccd0', label: 'CCD 1', icon: 'cpu', key: 'ccd0', hw: 'cpu' },
-      { id: 'cpu-ccd1', label: 'CCD 2', icon: 'cpu', key: 'ccd1', hw: 'cpu' },
-      { id: 'gpu-junc', label: 'GPU junction', icon: 'gpu', gpu: true, key: 'junction_c', hw: 'gpu' },
+      { id: 'cpu-ccd0', label: 'CPU die 1', icon: 'cpu', key: 'ccd0', hw: 'cpu' },
+      { id: 'cpu-ccd1', label: 'CPU die 2', icon: 'cpu', key: 'ccd1', hw: 'cpu' },
+      { id: 'gpu-junc', label: 'GPU hotspot', icon: 'gpu', gpu: true, key: 'junction_c', hw: 'gpu' },
       { id: 'gpu-mem', label: 'VRAM', icon: 'temp', gpu: true, key: 'mem_temp_c', hw: 'gpu' },
     ];
     const BW_SPECS = [
       { id: 'vram-bw', label: 'VRAM bus', icon: 'gpu', cls: 'bw-gpu', hw: 'gpu' },
-      { id: 'dram-bw', label: 'DRAM demand', icon: 'ram', cls: 'bw-mem', hw: 'memory' },
+      { id: 'dram-bw', label: 'RAM bandwidth', icon: 'ram', cls: 'bw-mem', hw: 'memory' },
       { id: 'vram-busy', label: 'VRAM controller', icon: 'gpu', cls: 'gpu', hw: 'gpu' },
-      { id: 'dram-psi', label: 'Memory stall', icon: 'cpu', cls: 'mem', hw: 'memory' },
+      { id: 'dram-psi', label: 'Memory wait', icon: 'cpu', cls: 'mem', hw: 'memory' },
     ];
     const STUTTER_COMP_SPECS = [
       { id: 'major_faults', label: 'Page faults', cls: 'stutter-faults', hw: 'cpu memory' },
-      { id: 'mem_stall', label: 'Mem stall', cls: 'stutter-mem', hw: 'memory' },
+      { id: 'mem_stall', label: 'Memory wait', cls: 'stutter-mem', hw: 'memory' },
       { id: 'io_stall', label: 'I/O stall', cls: 'stutter-io', hw: 'cpu memory' },
       { id: 'swap', label: 'Swap', cls: 'stutter-swap', hw: 'memory' },
       { id: 'disk_spike', label: 'Disk spike', cls: 'stutter-disk', hw: 'memory' },
     ];
     const STUTTER_CAUSE_LABELS = {
       major_faults: 'Major page faults',
-      mem_stall: 'Memory stall',
-      io_stall: 'I/O stall',
+      mem_stall: 'Memory wait',
+      io_stall: 'Disk I/O wait',
       swap: 'Swap activity',
       disk_spike: 'Disk spike',
     };
@@ -3087,9 +3087,9 @@
       disk_spike: 0.05,
     };
     const STUTTER_MIX_SHORT = {
-      major_faults: 'Faults',
-      mem_stall: 'Mem PSI',
-      io_stall: 'I/O PSI',
+      major_faults: 'Page faults',
+      mem_stall: 'Memory wait',
+      io_stall: 'Disk wait',
       swap: 'Swap',
       disk_spike: 'Disk',
     };
@@ -3220,7 +3220,7 @@
           coreMeta.textContent = '—';
         } else {
           const spread = Math.round(peakCore.pct - lowCore.pct);
-          coreMeta.textContent = `peak ${peakPct}% · core ${peakCore.id} · spread ${spread}%`;
+          coreMeta.textContent = `peak ${peakPct}% · core ${peakCore.id} · gap ${spread}%`;
         }
       }
 
@@ -3234,15 +3234,15 @@
           engineMeta.textContent = '—';
         } else {
           const peakEngPct = smoothDisplayPct('rig-peak-gpu-eng', peakEngine.pct ?? 0);
-          engineMeta.textContent = `peak ${peakEngPct}% · ${peakEngine.label}`;
+          engineMeta.textContent = `peak ${peakEngPct}% · ${gpuEngineLabel(peakEngine.id, peakEngine.label)}`;
         }
       }
 
       const tempCandidates = [
         { label: 'CPU pkg', v: c.temps?.package, hw: 'cpu' },
-        { label: 'CCD 1', v: c.temps?.ccd?.[0], hw: 'cpu' },
-        { label: 'CCD 2', v: c.temps?.ccd?.[1], hw: 'cpu' },
-        { label: 'GPU junc', v: g.junction_c, hw: 'gpu' },
+        { label: 'CPU die 1', v: c.temps?.ccd?.[0], hw: 'cpu' },
+        { label: 'CPU die 2', v: c.temps?.ccd?.[1], hw: 'cpu' },
+        { label: 'GPU hotspot', v: g.junction_c, hw: 'gpu' },
         { label: 'VRAM', v: g.mem_temp_c, hw: 'gpu' },
       ].filter(t => t.v != null && !isNaN(t.v));
       if (hwFocus) tempCandidates.sort((a, b) => (a.hw === hwFocus ? -1 : b.hw === hwFocus ? 1 : 0));
@@ -3253,7 +3253,7 @@
       const hotEl = document.getElementById('rigHottest');
       if (hotEl) {
         hotEl.textContent = hottest ? `${hottest.v}°` : '—';
-        const tc = hottest?.label?.includes('GPU junc') ? gpuJuncUiClass(hottest.v).trim() : tempClass(hottest?.v);
+        const tc = hottest?.label?.includes('GPU hotspot') ? gpuJuncUiClass(hottest.v).trim() : tempClass(hottest?.v);
         hotEl.className = `v ${tc === 'hot' ? 'severe' : tc === 'warn' ? 'moderate' : ''}`;
       }
       const hotSub = document.getElementById('rigHottestSub');
@@ -3516,7 +3516,7 @@
         const v = comp[s.id] ?? 0;
         let sub = '';
         if (s.id === 'major_faults') sub = `${dram.pgmajfault_per_s ?? 0}/s maj`;
-        else if (s.id === 'mem_stall') sub = `PSI ${dram.psi_avg10 ?? 0}%`;
+        else if (s.id === 'mem_stall') sub = `Wait ${dram.psi_avg10 ?? 0}%`;
         else if (s.id === 'io_stall') sub = `I/O ${dram.psi_io_avg10 ?? 0}%`;
         else if (s.id === 'swap') sub = `↓${dram.swap_in_kbps ?? 0} ↑${dram.swap_out_kbps ?? 0}`;
         else if (s.id === 'disk_spike') sub = `W ${l.disk?.write_mbps ?? 0} MB/s`;
@@ -3559,11 +3559,20 @@
       });
     }
 
-    const GPU_ENGINE_HINTS = {
-      gfx: 'Shader / graphics block',
-      vram: 'GDDR memory controller',
-      mm: 'Multimedia (encode / decode)',
+    const GPU_ENGINE_LABELS = {
+      gfx: 'Shaders',
+      vram: 'Memory bus',
+      mm: 'Video',
     };
+    const GPU_ENGINE_HINTS = {
+      gfx: 'Graphics and shader cores',
+      vram: 'VRAM memory controller — how busy the GDDR bus is',
+      mm: 'Video encode and decode block',
+    };
+
+    function gpuEngineLabel(id, fallback) {
+      return GPU_ENGINE_LABELS[id] || fallback || id;
+    }
 
     function renderGpuEngineStrip(engines) {
       const el = document.getElementById('gpuEngineStrip');
@@ -3571,11 +3580,11 @@
       if (!el.dataset.init) {
         el.innerHTML = engines.map(e => `
           <div class="gpu-engine-cell" data-engine="${e.id}">
-            <div class="core-strip-cell" title="${GPU_ENGINE_HINTS[e.id] || e.label}">
+            <div class="core-strip-cell" title="${GPU_ENGINE_HINTS[e.id] || gpuEngineLabel(e.id, e.label)}">
               <div class="core-strip-fill"></div>
             </div>
             <div class="gpu-engine-pct" data-engine-pct="${e.id}">—</div>
-            <div class="gpu-engine-label">${e.label}</div>
+            <div class="gpu-engine-label">${gpuEngineLabel(e.id, e.label)}</div>
           </div>`).join('');
         el.dataset.init = '1';
       }
@@ -3686,7 +3695,7 @@
 
     function indexRankFoot(spec, part) {
       if (!part) return '—';
-      const vs = part.vs_enthusiast_pct != null ? `vs enth ${vsFmt(part.vs_enthusiast_pct)}` : null;
+      const vs = part.vs_enthusiast_pct != null ? `vs high-end ${vsFmt(part.vs_enthusiast_pct)}` : null;
       if (spec.id === 'cpu') {
         const head = part.headroom_pct != null ? `${Math.round(part.headroom_pct)}% headroom` : null;
         return [vs, head].filter(Boolean).join(' · ') || '—';
@@ -3877,8 +3886,8 @@
       if (buildMeta) {
         const bits = [
           c.composite_tier != null ? `Composite ${Math.round(c.composite_tier)}/100` : null,
-          vsAvg != null ? `vs avg ${vsFmt(vsAvg)}` : null,
-          vsEnth != null ? `vs enth ${vsFmt(vsEnth)}` : null,
+          vsAvg != null ? `vs typical ${vsFmt(vsAvg)}` : null,
+          vsEnth != null ? `vs high-end ${vsFmt(vsEnth)}` : null,
         ].filter(Boolean);
         buildMeta.innerHTML = bits.join(' · ') || '—';
       }
@@ -3907,8 +3916,8 @@
       const statusEl = document.getElementById('indexStatus');
       if (statusEl) {
         const refBits = [
-          vsAvg != null ? `vs avg ${vsFmt(vsAvg)}` : null,
-          vsEnthVal != null ? `vs enth ${vsFmt(vsEnthVal)}` : null,
+          vsAvg != null ? `vs typical ${vsFmt(vsAvg)}` : null,
+          vsEnthVal != null ? `vs high-end ${vsFmt(vsEnthVal)}` : null,
         ].filter(Boolean);
         statusEl.innerHTML = [status.word, statusExtra, ...refBits].filter(Boolean).join(' · ');
         statusEl.className = `index-status ${status.cls}`;
@@ -3952,7 +3961,7 @@
       const items = [
         { icon: 'gpu', label: 'GPU', hw: 'gpu', val: `${g.power_w ?? '—'}W`, sub: `${g.gfx_mhz ?? '—'} MHz`, pct: Math.min(100, ((g.power_w || 0) / 355) * 100), cls: 'gpu' },
         { icon: 'fan', label: 'Fan', hw: 'gpu', val: `${g.fan_rpm ?? '—'}`, sub: 'rpm', pct: Math.min(100, ((g.fan_rpm || 0) / 2800) * 100), cls: 'gpu' },
-        { icon: 'temp', label: 'Junction', hw: 'gpu', val: junc != null ? `${junc}°` : '—', sub: gpuThermalProf().label || 'GPU', pct: gpuTempPct(junc), cls: `temp${gpuJuncUiClass(junc)}` },
+        { icon: 'temp', label: 'GPU hotspot', hw: 'gpu', val: junc != null ? `${junc}°` : '—', sub: gpuThermalProf().label || 'GPU', pct: gpuTempPct(junc), cls: `temp${gpuJuncUiClass(junc)}` },
         { icon: 'cpu', label: 'CPU', hw: 'cpu', val: pkg != null ? `${pkg}°` : '—', sub: 'package', pct: tempPct(pkg), cls: 'cpu' },
       ];
       const boxCls = { gpu: 'gpu', fan: 'gpu', temp: 'temp', cpu: 'cpu' };
@@ -4077,13 +4086,13 @@
       setMetricBar('bwMeters', 'vram-busy', bw.gpu?.vram_busy_pct ?? 0,
         `${bw.gpu?.vram_busy_pct ?? '—'}% busy`, `Engine ${bw.gpu?.engine_busy_pct ?? '—'}%`, 'gpu');
       setMetricBar('bwMeters', 'dram-psi', Math.min(100, (bw.memory?.psi_avg10 ?? 0) * 5),
-        `${bw.memory?.psi_avg10 ?? 0}% PSI`, `Page faults ${(bw.memory?.pgfault_per_s ?? 0).toLocaleString()}/s`, 'mem');
+        `${bw.memory?.psi_avg10 ?? 0}% wait`, `Page faults ${(bw.memory?.pgfault_per_s ?? 0).toLocaleString()}/s`, 'mem');
 
       renderCoreStrip(l.cpu.per_core || []);
       renderGpuEngineStrip(l.gpu?.discrete?.engines || [
-        { id: 'gfx', label: 'GFX', pct: g.busy_pct },
-        { id: 'vram', label: 'VRAM', pct: g.mem_busy_pct },
-        { id: 'mm', label: 'MM', pct: null },
+        { id: 'gfx', label: 'Shaders', pct: g.busy_pct },
+        { id: 'vram', label: 'Memory bus', pct: g.mem_busy_pct },
+        { id: 'mm', label: 'Video', pct: null },
       ]);
       renderRigInsight(l);
       renderQuickGlance(l);
@@ -4282,7 +4291,7 @@
       } else if (hwFocus === 'gpu') {
         const tp = s.gpu_thermal || g.thermal_profile || {};
         const arch = tp.label ? ` (${tp.label})` : '';
-        metaEl.textContent = `${rig.gpu?.model || s.gpu_model}${arch} · ${g.busy_pct ?? '—'}% · ${g.junction_c ?? '—'}°C junction · ${g.power_w ?? '—'} W`;
+        metaEl.textContent = `${rig.gpu?.model || s.gpu_model}${arch} · ${g.busy_pct ?? '—'}% · ${g.junction_c ?? '—'}°C hotspot · ${g.power_w ?? '—'} W`;
       } else if (hwFocus === 'memory') {
         metaEl.textContent = `${rig.memory?.kit || mem.label || 'RAM'} · ${l?.memory?.pct ?? '—'}% used · swap ${l?.memory?.swap_pct ?? '—'}%`;
       }
@@ -4599,7 +4608,7 @@
         const gpuName = r.gpu.board
           ? `${r.gpu.model} · ${r.gpu.board.replace(/^.*RX /i, 'RX ').slice(0, 36)}`
           : r.gpu.model;
-        const rdna3Note = tp.arch === 'rdna3' ? ' · junction 95–108°C normal for RDNA3' : '';
+        const rdna3Note = tp.arch === 'rdna3' ? ' · hotspot 95–108°C is normal on RDNA3' : '';
         tiles.push({
           id: 'gpu', filter: 'gpu', kind: 'gpu', slug: brandSlug(r.gpu.maker || r.gpu.brand || 'GPU'),
           type: 'Graphics', name: gpuName,
