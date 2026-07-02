@@ -44,6 +44,7 @@ FIX_REQUIRES_ROOT: dict[str, bool] = {
     "cpu-bound": True,
     "gpu-shader-bound": False,
     "cpu-ccd-spread": False,
+    "game-files-corrupt": False,
     "system-balanced": False,
 }
 
@@ -134,6 +135,31 @@ def _apply_vram_bandwidth(ctx: dict) -> dict:
     return {"ok": False, "message": "Game folder not found — change settings in-game."}
 
 
+def _apply_steam_verify(ctx: dict) -> dict:
+    appid = ctx.get("appid") or "730"
+    gname = ctx.get("name") or "game"
+    url = f"steam://validate/{appid}"
+    try:
+        subprocess.Popen(
+            ["xdg-open", url],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError:
+        return {
+            "ok": False,
+            "message": f"Could not open Steam verify — quit {gname}, then verify in Steam Properties.",
+        }
+    return {
+        "ok": True,
+        "message": (
+            f"Opened Steam file verification for {gname}. "
+            "Quit the game first if it's still running, then let verify and any update finish."
+        ),
+    }
+
+
 def _apply_page_faults(ctx: dict) -> dict:
     gname = ctx.get("name") or "game"
     if _open_game_path(ctx, "Saves", "save", "Save Games", "saved"):
@@ -168,6 +194,7 @@ def apply_fix(
         "gpu-gtt-churn": _apply_vram_bandwidth,
         "memory-page-faults": _apply_page_faults,
         "gpu-shader-bound": _apply_open_game,
+        "game-files-corrupt": _apply_steam_verify,
         "system-balanced": _apply_open_game,
     }
     handler = handlers.get(insight_id)
@@ -187,6 +214,6 @@ def fix_available(insight_id: str) -> bool:
     handlers = {
         "gpu-thermal-ceiling", "gpu-thermal-warm", "gpu-vram-bandwidth",
         "gpu-vram-full", "gpu-gtt-churn", "memory-page-faults",
-        "gpu-shader-bound", "system-balanced",
+        "gpu-shader-bound", "game-files-corrupt", "system-balanced",
     }
     return insight_id in handlers and not requires_root(insight_id)

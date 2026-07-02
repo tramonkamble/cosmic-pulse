@@ -11,7 +11,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from games import STEAM, game_name_for_appid, installed_appids
+from games import STEAM, game_name_for_appid, installed_appids, steam_install_health
 
 HOME = Path.home()
 STEAM_LOGS = STEAM / "logs"
@@ -250,6 +250,36 @@ def _scan_log_tail(path: Path, max_lines: int = 400) -> list[str]:
         return []
 
 
+def _check_steam_install_health(findings: list[dict]) -> None:
+    for appid in installed_appids():
+        health = steam_install_health(appid)
+        if not any((
+            health.get("files_corrupt"),
+            health.get("update_queued") and health.get("pending_download_bytes", 0) > 5_000_000,
+        )):
+            continue
+        name = game_name_for_appid(appid)
+        pending_mb = round(health["pending_download_bytes"] / 1024**2, 1)
+        parts: list[str] = []
+        if health.get("files_corrupt"):
+            parts.append("Steam flagged game files as corrupt")
+        if health.get("update_queued") and pending_mb > 0:
+            parts.append(f"{pending_mb} MB update still pending")
+        if health.get("update_suspended_while_running"):
+            parts.append("update paused while the game was running")
+        text = " · ".join(parts) or "Install health check failed"
+        sev = "hot" if health.get("files_corrupt") else "warn"
+        findings.append(_finding(
+            f"steam-install-{appid}",
+            "game",
+            sev,
+            f"{name}: verify game files",
+            text + " — common on Linux after patches; causes crashes, missing maps, or VAC errors.",
+            fix=f"Quit {name} → Steam → Properties → Installed Files → Verify · complete any pending update",
+            source=str(STEAM / "steamapps" / f"appmanifest_{appid}.acf"),
+        ))
+
+
 def _check_steam_logs(findings: list[dict]) -> None:
     if not STEAM.exists():
         findings.append(_finding(
@@ -401,6 +431,7 @@ def run_diagnostics() -> dict:
     _check_boot_and_kernel(findings)
     _check_updates_and_disk(findings)
     _check_steam_logs(findings)
+    _check_steam_install_health(findings)
     _check_game_prefixes(findings)
     _check_vulkan(findings)
 

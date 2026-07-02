@@ -565,6 +565,46 @@ fi
 """
 
 
+def script_steam_verify_files(
+    appid: str = "730",
+    game_name: str = "Counter-Strike 2",
+    *,
+    pending_mb: float = 0,
+    files_corrupt: bool = False,
+    **kwargs,
+) -> str:
+    steam_bin = shutil.which("steam") or str(HOME / ".local/share/Steam/ubuntu12_32/steam")
+    shader_cache = HOME / ".local/share/Steam/steamapps/shadercache" / str(appid)
+    reason = []
+    if files_corrupt:
+        reason.append("files flagged corrupt")
+    if pending_mb > 0:
+        reason.append(f"{pending_mb:.0f} MB update pending")
+    why = " · ".join(reason) or "install health check"
+    return _header("game-files-corrupt", f"{game_name} — repair install ({why})", "medium") + f"""
+log "Common Linux fix after CS2 / Steam updates — not rig-specific."
+log "Steam reported: {why}"
+log ""
+log "1) Quit {game_name} completely (exit to desktop, not just main menu)"
+log "2) Verify game files (opens Steam)"
+xdg-open "steam://validate/{appid}" 2>/dev/null || "{steam_bin}" "steam://validate/{appid}" &
+sleep 2
+log "3) Let any pending download finish before relaunching"
+log "4) Optional: clear stale shader cache if verify alone does not help"
+read -r -p "Clear shader cache for {game_name}? [y/N] " ans
+if [[ "$ans" =~ ^[Yy]$ ]]; then
+  rm -rf "{shader_cache}/fozpipelinesv6"/* 2>/dev/null || true
+  rm -rf "{shader_cache}/nvidiav1"/* 2>/dev/null || true
+  log "Shader cache cleared — first launch may hitch while rebuilding"
+fi
+log ""
+log "If problems persist after verify:"
+log "  • Steam → {game_name} → Properties → disable overlays temporarily"
+log "  • Lower MSAA / shader quality for one session"
+log "  • Check Pulse Guidance for GPU reset warnings (AMD mode1 reset)"
+"""
+
+
 def script_balanced(
     *,
     game_id: str | None = None,
@@ -598,6 +638,7 @@ SCRIPTS: dict[str, callable] = {
     "cpu-bound": script_cpu_bound,
     "gpu-shader-bound": script_gpu_shader,
     "cpu-ccd-spread": lambda: script_ccd_spread(0, 0),
+    "game-files-corrupt": lambda: script_steam_verify_files(),
     "system-balanced": script_balanced,
 }
 

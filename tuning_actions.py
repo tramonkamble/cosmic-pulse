@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from apply_fix import fix_available, requires_root
-from games import active_game_context
+from games import active_game_context, steam_install_health
 from gpu_thermal import gpu_thermal_state, profile_for_model
 from fix_scripts import (
     fan_tool_actions,
@@ -25,6 +25,7 @@ from fix_scripts import (
     script_swap_thrash,
     script_swappiness,
     script_vram_bandwidth,
+    script_steam_verify_files,
     script_stutter,
     script_vram_low,
 )
@@ -223,9 +224,50 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
     dram = bw.get("memory", {})
     cpu = snap["cpu"]
     hints: list[dict] = []
-    gctx = active_game_context(snap.get("game_totals"))
+    gt = snap.get("game_totals") or {}
+    gctx = active_game_context(gt)
     gname = gctx.get("name") or "your game"
     gk = _game_kwargs(snap)
+
+    active_appid = gctx.get("appid")
+    if active_appid and gt.get("running"):
+        health = steam_install_health(active_appid)
+        pending_mb = health.get("pending_download_bytes", 0) / 1024**2
+        if health.get("files_corrupt") or pending_mb > 50:
+            detail_parts = []
+            if health.get("files_corrupt"):
+                detail_parts.append("Steam flagged the install as corrupt")
+            if pending_mb > 50:
+                detail_parts.append(f"{pending_mb:.0f} MB patch still pending")
+            if health.get("update_suspended_while_running"):
+                detail_parts.append("the update paused because the game launched early")
+            hints.append(_hint(
+                "hot" if health.get("files_corrupt") else "warn",
+                f"{gname}: verify game files",
+                " · ".join(detail_parts).capitalize()
+                + " — common on Linux after updates; causes crashes, glitches, or failed loads.",
+                [
+                    _cmd(
+                        "Verify in Steam (quit game first)",
+                        f"xdg-open 'steam://validate/{active_appid}'",
+                        note="Steam → Properties → Installed Files → Verify integrity",
+                        kind="steam",
+                    ),
+                    _cmd(
+                        "Let pending update finish",
+                        "Exit the game and wait for Steam downloads to complete before relaunching",
+                        kind="game",
+                    ),
+                ],
+                insight_id="game-files-corrupt",
+                fix_script=script_steam_verify_files(
+                    active_appid,
+                    gname,
+                    pending_mb=pending_mb,
+                    files_corrupt=health.get("files_corrupt", False),
+                ),
+                games=[active_appid],
+            ))
 
     gov = ctx.get("governor")
     swap = ctx.get("swappiness")
@@ -368,7 +410,6 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
 
     st = snap.get("stutter") or {}
     sess = st.get("session") or {}
-    gt = snap.get("game_totals") or {}
     if gt.get("running") and (
         st.get("event")
         or st.get("score", 0) >= 42

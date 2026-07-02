@@ -49,7 +49,8 @@ AUXILIARY_EXES = frozenset({
 # Optional per-AppID detection tuning (main_exe / exclude_exe only — names from manifests).
 GAME_OVERRIDES: dict[str, dict] = {
     "730": {
-        "main_exe": frozenset({"cs2.exe"}),
+        "main_exe": frozenset({"cs2.exe", "cs2"}),
+        "short": "CS2",
     },
 }
 
@@ -150,6 +151,66 @@ def build_games_catalog() -> dict[str, dict]:
 
 def game_name_for_appid(appid: str) -> str:
     return game_meta(appid)["name"]
+
+
+_MANIFEST_INT = re.compile(r'"(\w+)"\s*"(\d+)"')
+_CONTENT_CORRUPT_RE = re.compile(r"AppID\s+(\d+)\s+state changed\s+:.*Files Corrupt", re.I)
+_CONTENT_SUSPENDED_RE = re.compile(
+    r"AppID\s+(\d+)\s+scheduler finished\s+:.*result Suspended", re.I,
+)
+
+
+def _tail_lines(path: Path, max_lines: int = 500) -> list[str]:
+    if not path.is_file():
+        return []
+    try:
+        return path.read_text(errors="replace").splitlines()[-max_lines:]
+    except OSError:
+        return []
+
+
+def steam_install_health(appid: str) -> dict:
+    """Parse Steam manifest + content_log for corrupt files / stalled updates."""
+    manifest_path = STEAM / "steamapps" / f"appmanifest_{appid}.acf"
+    ints: dict[str, int] = {}
+    if manifest_path.is_file():
+        try:
+            for key, val in _MANIFEST_INT.findall(manifest_path.read_text(errors="ignore")):
+                if key in {
+                    "BytesToDownload", "BytesDownloaded", "BytesToStage", "BytesStaged",
+                    "UpdateResult", "StateFlags",
+                }:
+                    ints[key] = int(val)
+        except OSError:
+            pass
+
+    to_dl = ints.get("BytesToDownload", 0)
+    downloaded = ints.get("BytesDownloaded", 0)
+    pending = max(0, to_dl - downloaded)
+
+    files_corrupt = False
+    update_suspended = False
+    recent = _tail_lines(STEAM / "logs" / "content_log.txt", 600)
+    for i, line in enumerate(recent):
+        if f"AppID {appid}" not in line:
+            continue
+        if _CONTENT_CORRUPT_RE.search(line):
+            files_corrupt = True
+        if "Files Corrupt" in line and "App Running" in line:
+            files_corrupt = True
+        if _CONTENT_SUSPENDED_RE.search(line):
+            window = recent[max(0, i - 8): i + 1]
+            if any("App Running" in w for w in window):
+                update_suspended = True
+
+    return {
+        "appid": appid,
+        "files_corrupt": files_corrupt,
+        "pending_download_bytes": pending,
+        "update_queued": pending > 0,
+        "update_suspended_while_running": update_suspended,
+        "update_result": ints.get("UpdateResult"),
+    }
 
 
 def game_install_dir(appid: str) -> Path:
