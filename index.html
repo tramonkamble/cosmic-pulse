@@ -590,6 +590,9 @@
       font-size: .64rem; color: var(--muted); text-align: right;
       margin-top: .12rem; font-variant-numeric: tabular-nums;
     }
+    @media (min-width: 1200px) {
+      .rig-detail-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
     @media (max-width: 1100px) {
       .rig-detail-grid { grid-template-columns: 1fr; }
     }
@@ -1067,6 +1070,9 @@
     .metric-bar-track.stutter-io > span { background: linear-gradient(90deg, #3a9fad, #63d0de); box-shadow: 0 0 12px rgba(99,208,222,.35); }
     .metric-bar-track.stutter-swap > span { background: linear-gradient(90deg, #b8863a, var(--amber)); box-shadow: 0 0 12px rgba(233,184,114,.35); }
     .metric-bar-track.stutter-disk > span { background: linear-gradient(90deg, #c43d32, #ed6a5a); box-shadow: 0 0 12px rgba(237,106,90,.4); }
+    .metric-bar-track.disk-read > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 10px rgba(106,201,141,.3); }
+    .metric-bar-track.disk-write > span { background: linear-gradient(90deg, #c43d32, #ed6a5a); box-shadow: 0 0 10px rgba(237,106,90,.35); }
+    .metric-bar-track.disk-busy > span { background: linear-gradient(90deg, #6a4f8e, var(--purple)); box-shadow: 0 0 10px rgba(180,142,173,.35); }
     .drill-stack { display: flex; flex-direction: column; gap: .65rem; }
     details.drill {
       border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel-solid);
@@ -1353,26 +1359,26 @@
       position: relative; overflow: hidden;
     }
     .rig-tile::before {
-      content: ""; position: absolute; inset: 0; opacity: .32; pointer-events: none;
-      background: linear-gradient(128deg, var(--rig-glow, var(--accent-soft)), transparent 68%);
-      transition: opacity .2s;
+      content: ""; position: absolute; inset: 0; opacity: 0; pointer-events: none;
+      background: linear-gradient(128deg, var(--rig-glow, var(--accent-soft)), transparent 72%);
+      transition: opacity .15s;
     }
     .rig-tile::after {
-      content: ""; position: absolute; left: 0; top: 14%; bottom: 14%; width: 2px;
+      content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 2px;
       border-radius: 0 2px 2px 0; background: var(--rig-accent, var(--accent));
-      opacity: .42; pointer-events: none; transition: opacity .2s, top .2s, bottom .2s;
+      opacity: .3; pointer-events: none; transition: opacity .15s;
     }
-    .rig-tile:hover { border-color: rgba(255,255,255,.22); transform: translateY(-1px); }
-    .rig-tile:hover::before { opacity: .72; }
-    .rig-tile:hover::after { opacity: .78; top: 10%; bottom: 10%; }
+    .rig-tile:hover { border-color: rgba(255,255,255,.18); }
+    .rig-tile:hover::before { opacity: .28; }
+    .rig-tile:hover::after { opacity: .48; }
     .rig-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .rig-tile.active {
-      border-color: var(--rig-accent, var(--accent));
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--rig-accent, var(--accent)) 35%, transparent), 0 10px 26px rgba(0,0,0,.22);
-      background: color-mix(in srgb, var(--panel-solid) 88%, var(--rig-accent, var(--accent)) 12%);
+      border-color: color-mix(in srgb, var(--rig-accent, var(--accent)) 55%, var(--line));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--rig-accent, var(--accent)) 22%, transparent);
+      background: color-mix(in srgb, var(--panel-solid) 94%, var(--rig-accent, var(--accent)) 6%);
     }
-    .rig-tile.active::before { opacity: .88; }
-    .rig-tile.active::after { opacity: .95; top: 8%; bottom: 8%; }
+    .rig-tile.active::before { opacity: .38; }
+    .rig-tile.active::after { opacity: .62; }
     .rig-tile.chassis { --rig-accent: #63d0de; --rig-glow: rgba(99,208,222,.13); }
     .rig-tile.cpu { --rig-accent: var(--blue); --rig-glow: rgba(98,160,234,.13); }
     .rig-tile.gpu { --rig-accent: var(--orange); --rig-glow: rgba(255,173,0,.14); }
@@ -1387,13 +1393,6 @@
       background: color-mix(in srgb, var(--panel-solid) 55%, transparent);
     }
     .rig-tile-icon.hw-icon-box .hw-glyph svg { width: .84rem; height: .84rem; }
-    .rig-tile-watermark {
-      position: absolute; right: -.2rem; bottom: -.45rem; pointer-events: none; z-index: 0;
-      color: var(--rig-accent, var(--accent)); opacity: .06; transition: opacity .2s;
-    }
-    .rig-tile-watermark .hw-glyph svg { width: 3.4rem; height: 3.4rem; }
-    .rig-tile:hover .rig-tile-watermark { opacity: .1; }
-    .rig-tile.active .rig-tile-watermark { opacity: .13; }
     .rig-tile-type {
       font-size: .6rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
       color: color-mix(in srgb, var(--rig-accent, var(--muted)) 38%, var(--muted));
@@ -1641,6 +1640,10 @@
                   <div class="rig-detail-col">
                     <div class="stutter-side-label">Bandwidth</div>
                     <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
+                  </div>
+                  <div class="rig-detail-col" data-hw="storage">
+                    <div class="stutter-side-label">Storage I/O</div>
+                    <div class="metric-list metric-list-compact stutter-driver-bars" id="ioMeters"></div>
                   </div>
                 </div>
               </div>
@@ -2092,8 +2095,8 @@
     let lastLatest = null;
     let lastComparison = null;
     let hwFocus = sessionStorage.getItem('pulse-hw-focus') || null;
-    if (!['cpu', 'gpu', 'memory'].includes(hwFocus)) hwFocus = null;
-    const HW_FOCUS_LABELS = { cpu: 'CPU', gpu: 'GPU', memory: 'Memory' };
+    if (!['cpu', 'gpu', 'memory', 'storage'].includes(hwFocus)) hwFocus = null;
+    const HW_FOCUS_LABELS = { cpu: 'CPU', gpu: 'GPU', memory: 'Memory', storage: 'Storage' };
     const INDEX_STATUS_SUBS = {
       default: 'How much of your build is in play',
       cpu: 'CPU load vs your tier',
@@ -2108,6 +2111,7 @@
         cpu: 'Rig snapshot · CPU focus',
         gpu: 'Rig snapshot · GPU focus',
         memory: 'Rig snapshot · memory focus',
+        storage: 'Rig snapshot · storage I/O',
       },
       'viz-area-index': {
         default: 'Pulse Index · session load',
@@ -2120,15 +2124,16 @@
         cpu: 'Stutter estimate · CPU & memory',
         gpu: 'Stutter estimate · system hitches',
         memory: 'Stutter estimate · memory pressure',
+        storage: 'Stutter estimate · I/O contention',
       },
     };
     const VIZ_BLOCK_ICONS = {
-      'viz-area-rig': { default: 'activity', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
-      'viz-area-index': { default: 'league', cpu: 'cpu', gpu: 'gpu', memory: 'mem' },
-      'viz-area-stutter': { default: 'stutter', cpu: 'stutter', gpu: 'stutter', memory: 'stutter' },
+      'viz-area-rig': { default: 'activity', cpu: 'cpu', gpu: 'gpu', memory: 'mem', storage: 'storage' },
+      'viz-area-index': { default: 'league', cpu: 'cpu', gpu: 'gpu', memory: 'mem', storage: 'storage' },
+      'viz-area-stutter': { default: 'stutter', cpu: 'stutter', gpu: 'stutter', memory: 'stutter', storage: 'stutter' },
     };
     const VIZ_ICON_BOX_CLS = {
-      cpu: 'cpu', gpu: 'gpu', mem: 'mem', temp: 'temp', storage: 'mem', league: 'league',
+      cpu: 'cpu', gpu: 'gpu', mem: 'mem', temp: 'temp', storage: 'storage', league: 'league',
       activity: 'game', fan: 'gpu', stutter: 'stutter',
     };
     const HW_FILTER_HIDE_MS = 350;
@@ -3164,12 +3169,19 @@
       { id: 'dram-bw', label: 'RAM bandwidth', icon: 'ram', cls: 'bw-mem', hw: 'memory' },
       { id: 'dram-psi', label: 'Memory wait', icon: 'cpu', cls: 'mem', hw: 'memory' },
     ];
+    const IO_SPECS = [
+      { id: 'disk-read', label: 'Read', icon: 'storage', cls: 'disk-read', hw: 'storage' },
+      { id: 'disk-write', label: 'Write', icon: 'storage', cls: 'disk-write', hw: 'storage' },
+      { id: 'io-stall', label: 'I/O wait', icon: 'cpu', cls: 'stutter-io', hw: 'storage' },
+      { id: 'disk-busy', label: 'Disk busy', icon: 'storage', cls: 'disk-busy', hw: 'storage' },
+    ];
+    const DISK_RATE_CEIL = 500;
     const STUTTER_COMP_SPECS = [
       { id: 'major_faults', label: 'Page faults', cls: 'stutter-faults', hw: 'cpu memory' },
       { id: 'mem_stall', label: 'Memory wait', cls: 'stutter-mem', hw: 'memory' },
-      { id: 'io_stall', label: 'I/O stall', cls: 'stutter-io', hw: 'cpu memory' },
+      { id: 'io_stall', label: 'I/O stall', cls: 'stutter-io', hw: 'cpu memory storage' },
       { id: 'swap', label: 'Swap', cls: 'stutter-swap', hw: 'memory' },
-      { id: 'disk_spike', label: 'Disk spike', cls: 'stutter-disk', hw: 'memory' },
+      { id: 'disk_spike', label: 'Disk spike', cls: 'stutter-disk', hw: 'memory storage' },
     ];
     const STUTTER_CAUSE_LABELS = {
       major_faults: 'Major page faults',
@@ -3268,6 +3280,8 @@
         { key: 'cpu', label: 'CPU', pick: p => avg(p, h => h.cpu.overall_pct), color: CHART.cpu, focus: ['cpu'] },
         { key: 'gpu', label: 'GPU', pick: p => avg(p, h => h.gpu.discrete.busy_pct ?? 0), color: CHART.gpu, focus: ['gpu'] },
         { key: 'ram', label: 'RAM', pick: p => avg(p, h => h.memory.pct), color: CHART.ram, focus: ['memory'] },
+        { key: 'diskR', label: 'Disk R', pick: p => avg(p, h => h.disk?.read_mbps ?? 0), color: CHART.diskR, focus: ['storage'] },
+        { key: 'diskW', label: 'Disk W', pick: p => avg(p, h => h.disk?.write_mbps ?? 0), color: CHART.diskW, focus: ['storage'] },
       ];
       const activeSpark = sparkDefs.filter(d => !hwFocus || d.focus.includes(hwFocus));
       const newDatasets = activeSpark.map(d => {
@@ -4181,14 +4195,45 @@
       </div>`;
     }
 
-    function renderSensorStrip(sensors) {
+    function buildIoStatusGroup(l) {
+      const disk = l?.disk || {};
+      const psiIo = l?.bandwidth?.memory?.psi_io_avg10;
+      const busy = disk.busy_pct;
+      return [
+        {
+          id: 'io_read', display: 'Read', icon: 'storage', iconCls: 'storage', hw: 'storage',
+          tooltip: 'Aggregate disk read throughput',
+          sensor: { value: disk.read_mbps, unit: ' MB/s', kind: 'rate' },
+        },
+        {
+          id: 'io_write', display: 'Write', icon: 'storage', iconCls: 'storage', hw: 'storage',
+          tooltip: 'Aggregate disk write throughput',
+          sensor: { value: disk.write_mbps, unit: ' MB/s', kind: 'rate' },
+        },
+        {
+          id: 'io_stall', display: 'I/O wait', icon: 'cpu', iconCls: 'storage', hw: 'storage',
+          tooltip: 'PSI I/O pressure — tasks waiting on storage',
+          sensor: { value: psiIo, unit: '%', kind: 'psi' },
+          warnAt: 12, hotAt: 25,
+        },
+        {
+          id: 'io_busy', display: 'Busy', icon: 'storage', iconCls: 'storage', hw: 'storage',
+          tooltip: 'Time disk queue was busy',
+          sensor: { value: busy, unit: '%', kind: 'pct' },
+          warnAt: 70, hotAt: 90,
+        },
+      ];
+    }
+
+    function renderSensorStrip(sensors, l) {
       const groups = buildHwStatusGroups(sensors);
-      const flat = [...groups.temps, ...groups.storage, ...groups.network];
+      const io = buildIoStatusGroup(l);
+      const flat = [...groups.temps, ...io, ...groups.storage, ...groups.network];
       const sig = JSON.stringify(flat.map(i => [i.id, i.sensor?.value, i.sensor?.unit]));
       const el = document.getElementById('sensorStrip');
       if (!flat.length) {
         if (el.dataset.mode !== 'empty') {
-          el.innerHTML = '<div class="hw-status-empty">No live temperature sensors</div>';
+          el.innerHTML = '<div class="hw-status-empty">No live hardware sensors</div>';
           el.dataset.mode = 'empty';
           delete el.dataset.structKey;
         }
@@ -4199,6 +4244,7 @@
         el.dataset.structKey = structKey;
         el.innerHTML =
           renderHwStatusRow('Temps', groups.temps)
+          + renderHwStatusRow('I/O', io)
           + renderHwStatusRow('Drives', groups.storage)
           + renderHwStatusRow('Network', groups.network);
         el.dataset.mode = 'live';
@@ -4214,6 +4260,9 @@
         if (s?.kind === 'temp') {
           const tc = item.isGpuJunc ? gpuJuncUiClass(s.value).trim() : tempClass(s.value);
           if (tc) card.classList.add(tc);
+        } else if (s?.value != null) {
+          if (item.hotAt != null && s.value >= item.hotAt) card.classList.add('hot');
+          else if (item.warnAt != null && s.value >= item.warnAt) card.classList.add('warn');
         }
         const valEl = card.querySelector('[data-sval]');
         if (valEl) {
@@ -4231,9 +4280,12 @@
       syncMetricHwTags('tempMeters', tempSpecs);
       ensureMetricList('bwMeters', BW_SPECS);
       syncMetricHwTags('bwMeters', BW_SPECS);
+      ensureMetricList('ioMeters', IO_SPECS);
+      syncMetricHwTags('ioMeters', IO_SPECS);
 
       const c = l.cpu, m = l.memory, g = l.gpu.discrete, gt = l.game_totals;
       const bw = l.bandwidth || {};
+      const disk = l.disk || {};
 
       setMetricBar('utilMeters', 'cpu', c.overall_pct, `${c.overall_pct}%`, `Load ${c.load?.join(' / ') ?? '—'}`, 'cpu');
       setMetricBar('utilMeters', 'ram', m.pct, `${m.pct}%`, `${m.used_gb} / ${m.total_gb} GB used`, 'mem');
@@ -4273,6 +4325,19 @@
       setMetricBar('bwMeters', 'dram-psi', Math.min(100, (bw.memory?.psi_avg10 ?? 0) * 5),
         `${bw.memory?.psi_avg10 ?? 0}% wait`, `Page faults ${(bw.memory?.pgfault_per_s ?? 0).toLocaleString()}/s`, 'mem');
 
+      const diskRead = disk.read_mbps ?? 0;
+      const diskWrite = disk.write_mbps ?? 0;
+      const psiIo = bw.memory?.psi_io_avg10 ?? 0;
+      const diskBusy = disk.busy_pct ?? 0;
+      setMetricBar('ioMeters', 'disk-read', Math.min(100, (diskRead / DISK_RATE_CEIL) * 100),
+        `${diskRead || '—'} MB/s`, 'Aggregate read throughput', '', 'disk-read');
+      setMetricBar('ioMeters', 'disk-write', Math.min(100, (diskWrite / DISK_RATE_CEIL) * 100),
+        `${diskWrite || '—'} MB/s`, 'Aggregate write throughput', '', 'disk-write');
+      setMetricBar('ioMeters', 'io-stall', Math.min(100, psiIo * 5),
+        `${psiIo}% wait`, 'PSI I/O — tasks stalled on storage', '', 'stutter-io');
+      setMetricBar('ioMeters', 'disk-busy', diskBusy,
+        `${diskBusy}%`, 'Disk queue busy time', '', 'disk-busy');
+
       renderCoreStrip(l.cpu.per_core || []);
       renderGpuEngineStrip(l.gpu?.discrete?.engines || [
         { id: 'gfx', label: 'Shaders', pct: g.busy_pct },
@@ -4282,7 +4347,7 @@
       renderRigInsight(l);
       renderQuickGlance(l);
       renderPulseIndexViz(comparison);
-      renderSensorStrip(l.sensors || []);
+      renderSensorStrip(l.sensors || [], l);
       renderStutterViz(l);
       renderSparkChart();
     }
@@ -4453,6 +4518,10 @@
       } else if (hwFocus === 'memory') {
         Object.assign(enabled.util, utilOff, { ram: true, swap: true });
         Object.assign(enabled.bw, bwOff, { dramBw: true });
+      } else if (hwFocus === 'storage') {
+        Object.assign(enabled.util, utilOff);
+        Object.assign(enabled.bw, bwOff);
+        Object.assign(enabled.io, { netDn: false, netUp: false, diskR: true, diskW: true });
       }
       syncChipToggles();
     }
@@ -4481,6 +4550,14 @@
         metaEl.textContent = `${rig.gpu?.model || s.gpu_model}${arch} · ${g.busy_pct ?? '—'}% · ${g.junction_c ?? '—'}°C hotspot · ${g.power_w ?? '—'} W`;
       } else if (hwFocus === 'memory') {
         metaEl.textContent = `${rig.memory?.kit || mem.label || 'RAM'} · ${l?.memory?.pct ?? '—'}% used · swap ${l?.memory?.swap_pct ?? '—'}%`;
+      } else if (hwFocus === 'storage') {
+        const disk = l?.disk || {};
+        const psiIo = l?.bandwidth?.memory?.psi_io_avg10 ?? '—';
+        const drives = rig.storage || s.storage || [];
+        const driveLabel = drives.length === 1
+          ? (drives[0].model || drives[0].brand || 'NVMe')
+          : `${drives.length} NVMe drives`;
+        metaEl.textContent = `${driveLabel} · R ${disk.read_mbps ?? '—'} · W ${disk.write_mbps ?? '—'} MB/s · ${psiIo}% I/O wait`;
       }
     }
 
@@ -4587,6 +4664,7 @@
       if (/gpu|vram|gtt|junction|shader|radeon|geforce|amdgpu/.test(blob)) tags.add('gpu');
       if (/\bgpu\b.*thermal|thermal.*\bgpu\b|overheating|getting warm/.test(blob)) tags.add('gpu');
       if (/memory|ram|swap|dram|expo|page.?fault|swappiness/.test(blob)) tags.add('memory');
+      if (/disk|nvme|storage|i\/o wait|io stall/.test(blob)) tags.add('storage');
       if (/stutter|hitch/.test(blob)) {
         tags.add('cpu');
         tags.add('memory');
@@ -4720,7 +4798,7 @@
     }
 
     function setHwFocus(part) {
-      const next = part && ['cpu', 'gpu', 'memory'].includes(part) ? part : null;
+      const next = part && ['cpu', 'gpu', 'memory', 'storage'].includes(part) ? part : null;
       if (next === hwFocus) {
         hwFocus = null;
         sessionStorage.removeItem('pulse-hw-focus');
@@ -4755,7 +4833,6 @@
       const icon = hwIcon(glyph);
       return `<button type="button" class="rig-tile ${t.kind}${t.active ? ' active' : ''}" data-rig-id="${esc(t.id)}"
         data-hw-filter="${t.filter}" aria-pressed="${t.active ? 'true' : 'false'}" title="${esc(t.tooltip)}">
-        <span class="rig-tile-watermark" aria-hidden="true">${icon}</span>
         <span class="rig-tile-top">
           <span class="rig-tile-icon hw-icon-box ${iconCls}" aria-hidden="true">${icon}</span>
           <span class="rig-tile-type">${esc(t.type)}</span>
@@ -4770,10 +4847,6 @@
       el.querySelectorAll('[data-rig-id]').forEach(btn => {
         btn.onclick = () => {
           const f = btn.dataset.hwFilter;
-          if (f === 'storage') {
-            jumpTo('drill-storage');
-            return;
-          }
           if (f === 'chassis') setHwFocus(null);
           else setHwFocus(f);
         };
@@ -4828,13 +4901,16 @@
       }
       const drives = r.storage || s.storage || [];
       if (drives.length) {
+        const disk = l?.disk || {};
+        const psiIo = l?.bandwidth?.memory?.psi_io_avg10;
         const nvmeTemps = (l?.sensors || []).filter(s => s.id?.startsWith('nvme_'));
         const tempByName = {};
         nvmeTemps.forEach(s => { tempByName[s.drive?.name || s.id] = s.value; });
-        const driveStats = drives.map(d => {
-          const temp = tempByName[d.name];
-          return temp != null ? `${temp}°C` : (d.size || '—');
-        });
+        const ioStat = `R ${disk.read_mbps ?? '—'} · W ${disk.write_mbps ?? '—'} MB/s · ${psiIo ?? '—'}% wait`;
+        const tempParts = drives.map(d => tempByName[d.name]).filter(v => v != null);
+        const stat = tempParts.length
+          ? `${Math.max(...tempParts)}°C · ${ioStat}`
+          : ioStat;
         tiles.push({
           id: 'storage', filter: 'storage', kind: 'storage', slug: brandSlug(drives[0].brand || 'NVMe'),
           type: 'Storage',
@@ -4843,10 +4919,10 @@
               ? shortDriveLabel(nvmeTemps[0])
               : (drives[0].model || drives[0].brand || 'NVMe').slice(0, 22))
             : `${drives.length} NVMe drives`,
-          stat: driveStats.join(' · '),
-          hint: 'Open drives & history',
+          stat,
+          hint: 'Filter storage I/O',
           tooltip: drives.map(d => `${d.brand} ${d.model} (${d.size})`).join('\n'),
-          active: false,
+          active: hwFocus === 'storage',
         });
       }
       return tiles;
