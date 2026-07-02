@@ -1460,7 +1460,7 @@
           <span class="sum-detail" id="sumGameSub">—</span>
         </button>
         <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="pulseIndexBlock" data-hw-keep>
-          <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">Index</span></div>
+          <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">Pulse Index</span></div>
           <div class="sum-body">
             <span class="sum-value" id="sumLeagueVal">—</span>
             <div class="sum-foot">
@@ -1783,7 +1783,7 @@
           <table class="rank-table">
             <thead>
               <tr>
-                <th>Part</th><th>Yours</th><th>Tier</th><th>Score</th><th>Live now</th><th>vs typical PC</th><th>vs high-end PC</th>
+                <th>Part</th><th>Yours</th><th>Class</th><th>Score</th><th>Live now</th><th>vs typical PC</th><th>vs high-end PC</th>
               </tr>
             </thead>
             <tbody id="rankBody"></tbody>
@@ -1861,12 +1861,9 @@
       </details>
 
       <details class="drill" id="drill-admin" data-open-key="drill-admin">
-        <summary><span class="drill-title">Backlog & tools</span><span class="drill-rollup" id="drillAdminSum">—</span></summary>
+        <summary><span class="drill-title">Profiling tools</span><span class="drill-rollup" id="drillAdminSum">—</span></summary>
         <div class="drill-body">
-          <h2 style="margin:0 0 1rem;font-size:1.1rem">Backlog</h2>
-          <div class="backlog" id="backlogList"></div>
-          <h2 style="margin:1.5rem 0 1rem;font-size:1.1rem">Profiling tools</h2>
-          <p class="section-lead">Optional packages that improve what Cosmic Pulse can see.</p>
+          <p class="section-lead" style="margin-top:0">Optional packages that improve what Cosmic Pulse can see.</p>
           <div class="backlog" id="toolsList"></div>
         </div>
       </details>
@@ -2174,7 +2171,7 @@
       { key: 'gpu', label: 'GPU %', color: CHART.gpu, pick: h => h.gpu.discrete.busy_pct ?? 0 },
       { key: 'ram', label: 'RAM %', color: CHART.ram, pick: h => h.memory.pct },
       { key: 'swap', label: 'Swap %', color: CHART.swap, pick: h => h.memory.swap_pct },
-      { key: 'gameCpu', label: 'Game CPU', color: CHART.gameCpu, pick: h => h.game_totals?.cpu_pct ?? 0 },
+      { key: 'gameCpu', label: 'Game process', color: CHART.gameCpu, pick: h => h.game_totals?.cpu_pct ?? 0 },
     ];
     const bwDefs = [
       { key: 'vramBw', label: 'VRAM GB/s', color: CHART.vramBw, yAxis: 'y', pick: h => h.bandwidth?.gpu?.vram_est_gbps ?? 0 },
@@ -2532,8 +2529,9 @@
         `${g.vram_est_gbps ?? '—'} <small style="font-size:1.15rem;color:var(--muted)">GB/s</small>`;
       document.getElementById('gpuBwSub').textContent =
         `Peak ~${g.vram_peak_gbps} GB/s · MCLK ${g.mclk_mhz ?? '—'} MHz`;
-      document.getElementById('gpuBwMeterLbl').textContent = `VRAM controller ${vramPct}% busy`;
-      document.getElementById('gpuBwEngineLbl').textContent = `Engine ${g.engine_busy_pct ?? '—'}%`;
+      document.getElementById('gpuBwMeterLbl').textContent = `Memory bus ${vramPct}% busy`;
+      document.getElementById('gpuBwEngineLbl').textContent =
+        `${g.vram_est_gbps ?? '—'} GB/s · MCLK ${g.mclk_mhz ?? '—'} MHz`;
       setMeterWidth(document.getElementById('gpuBwMeterFill'), vramPct);
       document.getElementById('gpuBwPcie').textContent = g.pcie_link || '—';
       document.getElementById('gpuBwGtt').textContent =
@@ -2816,18 +2814,8 @@
     document.getElementById('pulseIndexBlock')?.addEventListener('click', () => jumpTo('drill-league'));
     setTab(activeTab);
 
-    function renderBacklog(items) {
-      const open = (items || []).filter(b => b.priority !== 'done');
-      document.getElementById('backlogList').innerHTML = open.length
-        ? open.map(b => `
-          <div class="bl-item">
-            <span class="bl-pri ${b.priority}">${hwIcon(b.priority === 'done' ? 'ok' : b.priority === 'high' ? 'hot' : 'info', 'hw-pill-glyph')}${b.priority}</span>
-            <div><strong>${b.title}</strong><div class="sub" style="margin:.15rem 0 0">${b.notes}</div></div>
-          </div>`).join('')
-        : '<div class="sub">Backlog empty</div>';
-      const high = open.filter(b => b.priority === 'high').length;
-      document.getElementById('drillAdminSum').textContent =
-        `${open.length} backlog item${open.length === 1 ? '' : 's'}${high ? ` · ${high} high` : ''}`;
+    function renderBacklog(_items) {
+      /* Backlog is dev-only — not shown in the dashboard UI. */
     }
 
     const DRILL_IDS = new Set([
@@ -2928,8 +2916,10 @@
           </div>
         </div>`).join('');
       const adminSum = document.getElementById('drillAdminSum');
-      const base = adminSum.textContent || '';
-      if (missing) adminSum.textContent = `${base} · ${missing} tool${missing === 1 ? '' : 's'} missing`;
+      const installed = rec.length - missing;
+      adminSum.textContent = missing
+        ? `${installed}/${rec.length} installed · ${missing} missing`
+        : `${rec.length} installed`;
     }
 
     function renderSummaryBar(l, hints, comparison) {
@@ -3000,14 +2990,14 @@
         document.getElementById('sumLeagueVal').textContent = `${liveSmooth}%`;
         setTierBadge(document.getElementById('sumLeagueBadge'), part?.tier_rank);
         document.getElementById('sumLeagueSub').textContent =
-          `Tier ${part?.tier_score ?? '—'}/100 · ${HW_FOCUS_LABELS[hwFocus]} live`;
+          `Class ${part?.tier_rank ?? '—'} · score ${part?.tier_score ?? '—'}/100`;
         setMeterWidth(document.getElementById('sumLeagueMeter'), liveSmooth);
       } else {
         document.getElementById('sumLeagueVal').textContent = comparison ? `${leagueIdx}/100` : '—/100';
         setTierBadge(document.getElementById('sumLeagueBadge'), comparison?.composite_rank);
         document.getElementById('sumLeagueSub').textContent =
-          comparison?.composite_tier != null
-            ? `Tier ${comparison.composite_tier}/100 · session load`
+          comparison?.composite_rank != null
+            ? `Class ${comparison.composite_rank} · session ${leagueIdx}/100`
             : '—';
         setMeterWidth(document.getElementById('sumLeagueMeter'), leagueIdx);
       }
@@ -3050,7 +3040,7 @@
       { id: 'gpu', label: 'GPU', icon: 'gpu', cls: 'gpu', hw: 'gpu' },
       { id: 'vram', label: 'VRAM', icon: 'gpu', cls: 'vram', hw: 'gpu' },
       { id: 'swap', label: 'Swap', icon: 'ram', cls: 'swap', hw: 'memory' },
-      { id: 'game', label: 'Game CPU', icon: 'game', cls: 'game', hw: 'cpu gpu' },
+      { id: 'game', label: 'Game process', icon: 'game', cls: 'game', hw: 'cpu gpu' },
     ];
     const TEMP_SPECS = [
       { id: 'cpu-pkg', label: 'CPU package', icon: 'cpu', key: 'package', hw: 'cpu' },
@@ -3060,9 +3050,8 @@
       { id: 'gpu-mem', label: 'VRAM', icon: 'temp', gpu: true, key: 'mem_temp_c', hw: 'gpu' },
     ];
     const BW_SPECS = [
-      { id: 'vram-bw', label: 'VRAM bus', icon: 'gpu', cls: 'bw-gpu', hw: 'gpu' },
+      { id: 'vram-bw', label: 'Memory bus', icon: 'gpu', cls: 'bw-gpu', hw: 'gpu' },
       { id: 'dram-bw', label: 'RAM bandwidth', icon: 'ram', cls: 'bw-mem', hw: 'memory' },
-      { id: 'vram-busy', label: 'VRAM controller', icon: 'gpu', cls: 'gpu', hw: 'gpu' },
       { id: 'dram-psi', label: 'Memory wait', icon: 'cpu', cls: 'mem', hw: 'memory' },
     ];
     const STUTTER_COMP_SPECS = [
@@ -3733,7 +3722,7 @@
             <div class="index-rank-name" data-rank-name>—</div>
             <div class="index-rank-bars">
               <div class="index-rank-bar-row">
-                <span class="lbl">Tier</span>
+                <span class="lbl">Class</span>
                 <div class="rank-bar tier"><span data-tier-fill style="width:0%"></span></div>
                 <span class="val" data-tier-val>—</span>
               </div>
@@ -4079,12 +4068,10 @@
 
       const vramPeak = bw.gpu?.vram_peak_gbps || 1;
       const dramPeak = bw.memory?.dram_peak_gbps || 1;
-      setMetricBar('bwMeters', 'vram-bw', ((bw.gpu?.vram_est_gbps ?? 0) / vramPeak) * 100,
-        `${bw.gpu?.vram_est_gbps ?? '—'} GB/s`, `Peak ${vramPeak} GB/s · MCLK ${bw.gpu?.mclk_mhz ?? '—'}`, '', 'bw-gpu');
+      setMetricBar('bwMeters', 'vram-bw', bw.gpu?.vram_busy_pct ?? ((bw.gpu?.vram_est_gbps ?? 0) / vramPeak) * 100,
+        `${bw.gpu?.vram_est_gbps ?? '—'} GB/s`, `${bw.gpu?.vram_busy_pct ?? '—'}% busy · peak ${vramPeak} GB/s`, '', 'bw-gpu');
       setMetricBar('bwMeters', 'dram-bw', bw.memory?.dram_util_pct ?? ((bw.memory?.dram_est_gbps ?? 0) / dramPeak) * 100,
         `${bw.memory?.dram_est_gbps ?? '—'} GB/s`, `${bw.memory?.dram_util_pct ?? 0}% demand · ${bw.memory?.spec_label || 'DDR5'} ${dramPeak} peak`, '', 'bw-mem');
-      setMetricBar('bwMeters', 'vram-busy', bw.gpu?.vram_busy_pct ?? 0,
-        `${bw.gpu?.vram_busy_pct ?? '—'}% busy`, `Engine ${bw.gpu?.engine_busy_pct ?? '—'}%`, 'gpu');
       setMetricBar('bwMeters', 'dram-psi', Math.min(100, (bw.memory?.psi_avg10 ?? 0) * 5),
         `${bw.memory?.psi_avg10 ?? 0}% wait`, `Page faults ${(bw.memory?.pgfault_per_s ?? 0).toLocaleString()}/s`, 'mem');
 
@@ -4745,7 +4732,7 @@
 
       const gameDef = utilDefs.find(d => d.key === 'gameCpu');
       if (gameDef) {
-        gameDef.label = gt.running ? `${short} CPU` : 'Game CPU';
+        gameDef.label = gt.running ? short : 'Game process';
         const chip = document.querySelector('.chip[data-g="util"][data-k="gameCpu"]');
         if (chip) chip.textContent = gameDef.label;
       }
@@ -5164,7 +5151,7 @@
           tension: 0.2,
         },
         {
-          label: 'Game CPU',
+          label: 'Game process',
           data: points.map(p => p.game_cpu ?? null),
           borderColor: CHART.cpu,
           backgroundColor: 'transparent',
@@ -5192,7 +5179,7 @@
             { k: 'Rating', v: last.rating, s: RATING_TIER_LABEL[tier] || tier, cls: tier },
             { k: 'Smooth', v: `${last.smoothness_avg ?? '—'}%`, s: fmtDuration(last.duration_sec), cls: '' },
             { k: '1% low', v: `${last.hitch_ms_1pct ?? '—'}ms`, s: `${last.hitch_events ?? 0} hitches`, cls: '' },
-            { k: 'Game CPU', v: `${last.game_cpu_avg ?? '—'}%`, s: 'session avg', cls: '' },
+            { k: 'Game process', v: `${last.game_cpu_avg ?? '—'}%`, s: 'session avg', cls: '' },
             { k: 'GPU', v: `${last.gpu_busy_avg ?? '—'}%`, s: 'session avg', cls: '' },
           ].map(it =>
             `<div class="game-perf-kpi"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.v}</span><span class="s">${it.s}</span></div>`
@@ -5210,7 +5197,7 @@
         }
         el.innerHTML = [
           { k: 'Status', v: 'Loading', s: `${remain}s until recording`, cls: '' },
-          { k: 'Game CPU', v: `${gt?.cpu_pct ?? '—'}%`, s: 'live (not scored yet)', cls: '' },
+          { k: 'Game process', v: `${gt?.cpu_pct ?? '—'}%`, s: 'live (not scored yet)', cls: '' },
           { k: 'Grace', v: `${gp.load_grace_sec ?? 45}s`, s: 'skip menus / boot', cls: '' },
         ].map(it =>
           `<div class="game-perf-kpi"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.v}</span><span class="s">${it.s}</span></div>`
@@ -5227,7 +5214,7 @@
         { k: 'Smooth', v: `${gp.smoothness_avg ?? '—'}%`, s: 'session avg', cls: '' },
         { k: '1% low', v: `${gp.hitch_ms_1pct ?? '—'}ms`, s: 'worst hitch est.', cls: (gp.hitch_ms_1pct || 0) >= 50 ? 'poor' : 'ok' },
         { k: 'Hitches', v: gp.hitch_events ?? 0, s: `${sess.hitch_rate_per_min ?? 0}/min (5m)`, cls: (gp.hitch_events || 0) >= 5 ? 'fair' : 'ok' },
-        { k: 'Game CPU', v: `${gp.game_cpu_avg ?? '—'}%`, s: `now ${gt?.cpu_pct ?? '—'}%`, cls: '' },
+        { k: 'Game process', v: `${gp.game_cpu_avg ?? '—'}%`, s: `now ${gt?.cpu_pct ?? '—'}%`, cls: '' },
         { k: 'GPU', v: `${gp.gpu_busy_avg ?? '—'}%`, s: 'session avg', cls: '' },
       ];
       el.innerHTML = items.map(it =>

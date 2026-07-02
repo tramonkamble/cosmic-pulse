@@ -47,7 +47,7 @@ METRICS: dict[str, str] = {
     "psi_mem": "PSI memory (10s avg)",
     "psi_io": "PSI I/O (10s avg)",
     "dram_util_pct": "DRAM util est. %",
-    "game_cpu_pct": "Game CPU %",
+    "game_cpu_pct": "Game process %",
     "game_rss_mb": "Game RSS MB",
     "session_index": "Session load index",
     "active_issues": "Active issue count",
