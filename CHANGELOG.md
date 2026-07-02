@@ -8,6 +8,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **GPU engine strip** — decode AMD `gpu_metrics` sysfs (GFX / VRAM / MM activity %) and show per-engine bars in the rig snapshot; falls back to `gpu_busy_percent` / `mem_busy_percent` when a counter is unavailable.
 - **Remediation policy** — Pulse never runs kill commands, sudo, or external apps. Fixes are copy-paste suggestions; **Fix** only applies safe user-owned config writes (none destructive today). Root scripts are labeled **Requires root**.
 - **Warnings panel** — cleaner card layout, hides healthy “ok” hints, instant hardware-focus filter (no collapse glitch), session-aware sorting.
 - **Game context** — active game name in header/meta, warnings “Monitoring …” chip, dynamic Game CPU chart label, CS2/Cities II proc table text.

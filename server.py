@@ -50,6 +50,7 @@ from store import (
     update_settings,
 )
 from apply_fix import apply_fix
+from gpu_metrics import read_gpu_engines
 from gpu_thermal import gpu_thermal_state, profile_for_model
 from hardware_profiles import detect_gpu_spec
 from pulse_config import get_suppressed_insights, load_config
@@ -355,6 +356,11 @@ def vram_peak_gbps() -> float:
     return float(_gpu_spec.get("vram_peak_gbps") or VRAM_PEAK_GBPS)
 
 
+def _engine_pct(metrics_val: int | None, sysfs_fallback: int | None) -> float | None:
+    val = metrics_val if metrics_val is not None else sysfs_fallback
+    return round(float(val), 1) if val is not None else None
+
+
 def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = True) -> dict:
     hw = gpu_hwmon(base)
     sens = parse_sensors()
@@ -397,10 +403,29 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
         junction = read_int(hw / "temp2_input", 1000)
     if mem_temp is None and hw:
         mem_temp = read_int(hw / "temp3_input", 1000)
+    engine_raw = read_gpu_engines(base) or {}
+    engines = [
+        {
+            "id": "gfx",
+            "label": "GFX",
+            "pct": _engine_pct(engine_raw.get("gfx"), busy),
+        },
+        {
+            "id": "vram",
+            "label": "VRAM",
+            "pct": _engine_pct(engine_raw.get("vram"), mem_busy),
+        },
+        {
+            "id": "mm",
+            "label": "MM",
+            "pct": _engine_pct(engine_raw.get("mm"), None),
+        },
+    ]
     return {
         "label": label,
         "busy_pct": busy,
         "mem_busy_pct": mem_busy,
+        "engines": engines,
         "vram_used_mb": vram_used,
         "vram_total_mb": vram_total,
         "vram_pct": round(100 * vram_used / vram_total, 1) if vram_used and vram_total else None,
