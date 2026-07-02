@@ -8,6 +8,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Changed
+- **Live overview order** — Stutter estimate now appears above Pulse Index.
 - **Summary widget layout** — tetris 4×2 metric grid (tall Health + Pulse Index); flat rig strip; hardware status cards fill each row evenly. Reverted global 3-across dashboard compaction.
 - **Summary hardware strip** — rig tiles slimmed down; temps/drives/network grouped into labeled status cards (no more cramped sensor pill grid).
 - **Label refinements** — summary tile **Pulse Index**; hardware **Class** (was Tier); **Game process** (was Game CPU); **Memory bus** merges VRAM bus/controller; backlog hidden from UI; profiling tools drill stands alone.

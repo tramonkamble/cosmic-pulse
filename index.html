@@ -478,8 +478,8 @@
       grid-template-columns: repeat(4, 1fr);
       grid-template-areas:
         "rig rig rig rig"
-        "index index index index"
-        "stutter stutter stutter stutter";
+        "stutter stutter stutter stutter"
+        "index index index index";
       gap: .85rem;
       align-items: stretch;
     }
@@ -498,14 +498,14 @@
         grid-template-columns: repeat(2, 1fr);
         grid-template-areas:
           "rig rig"
-          "index index"
-          "stutter stutter";
+          "stutter stutter"
+          "index index";
       }
     }
     @media (max-width: 600px) {
       .viz-grid {
         grid-template-columns: 1fr;
-        grid-template-areas: "rig" "index" "stutter";
+        grid-template-areas: "rig" "stutter" "index";
       }
     }
     .viz-block {
