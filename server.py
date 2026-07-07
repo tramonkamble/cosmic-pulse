@@ -1040,12 +1040,21 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
         elif path == "/api/metrics":
+            bootstrap = (qs.get("bootstrap") or ["0"])[0] in ("1", "true", "yes")
             with _lock:
-                payload = json.dumps({
-                    "static": _static,
-                    "latest": _latest_full,
-                    "history": _history,
-                }).encode()
+                if bootstrap:
+                    body = {
+                        "static": _static,
+                        "latest": _latest_full,
+                        "history": _history,
+                    }
+                else:
+                    body = {
+                        "latest": _latest_full,
+                        "point": _history[-1] if _history else slim_history_point(_latest_full),
+                        "cosmic_theme": _static.get("cosmic_theme"),
+                    }
+                payload = json.dumps(body).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")

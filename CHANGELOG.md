@@ -15,6 +15,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Label pass (American English)** — GPU activity strip uses Shaders / Memory bus / Video; jargon trimmed across dashboard (stutter estimate, memory wait, GPU hotspot, vs typical/high-end PC, RAM bandwidth, etc.).
 
 ### Changed
+- **Metrics polling** — first load uses `/api/metrics?bootstrap=1` (static + full history); each 1s tick fetches latest + one slim history point only (~310 KB vs re-downloading the full buffer).
 - **Metrics payload** — history ring buffer stores slim chart samples (~5 KB/point) instead of full dashboard snapshots (~310 KB/point); `/api/metrics` no longer ships duplicated fix scripts and per-game issues 600×.
 
 ### Added

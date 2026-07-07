@@ -2083,7 +2083,7 @@
       System: s => /psi|swap|ctx|intr|procs|threads|uptime|load|ram|disk/i.test(s.label),
       Other: s => true,
     };
-    let spanSec = 300, globalRollup = 1, rawHistory = [];
+    let spanSec = 300, globalRollup = 1, rawHistory = [], metricsBootstrapped = false;
     const chartRollup = { util: null, bw: null, io: null };
     const DEFAULT_ENABLED = {
       util: { cpu: true, gpu: true, ram: true, swap: false, gameCpu: true },
@@ -5805,15 +5805,31 @@
     });
     fetchStore();
 
+    function appendHistoryPoint(point) {
+      if (!point || point.ts == null) return;
+      const prev = rawHistory.at(-1);
+      if (prev && prev.ts === point.ts) return;
+      rawHistory.push(point);
+      const maxLen = lastStatic?.history_max_sec || 600;
+      if (rawHistory.length > maxLen) rawHistory.splice(0, rawHistory.length - maxLen);
+    }
+
     async function tick() {
       try {
-        const data = await (await fetch('/api/metrics')).json();
-        rawHistory = data.history;
-        const l = data.latest, s = data.static;
-        lastStatic = s;
+        const url = metricsBootstrapped ? '/api/metrics' : '/api/metrics?bootstrap=1';
+        const data = await (await fetch(url)).json();
+        if (!metricsBootstrapped) {
+          rawHistory = data.history || [];
+          lastStatic = data.static || lastStatic;
+          metricsBootstrapped = true;
+        } else {
+          appendHistoryPoint(data.point);
+          if (data.cosmic_theme && lastStatic) lastStatic.cosmic_theme = data.cosmic_theme;
+        }
+        const l = data.latest, s = lastStatic;
         lastLatest = l;
         lastComparison = l.comparison;
-        const themeChanged = applyCosmicTheme(s.cosmic_theme);
+        const themeChanged = applyCosmicTheme(s?.cosmic_theme);
         const mem = s.memory || {};
         const rig = s.rig || {};
         document.getElementById('clock').textContent = fmtTime(l.ts);
@@ -5855,6 +5871,7 @@
         document.getElementById('liveDot').style.background = 'var(--lime)';
         document.getElementById('liveLabel').textContent = 'Online';
       } catch {
+        metricsBootstrapped = false;
         document.getElementById('liveDot').style.background = 'var(--hot)';
         document.getElementById('liveLabel').textContent = 'Offline';
       }
