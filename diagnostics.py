@@ -11,7 +11,13 @@ import subprocess
 import time
 from pathlib import Path
 
-from games import STEAM, game_name_for_appid, installed_appids, steam_install_health
+from games import (
+    STEAM,
+    game_name_for_appid,
+    installed_appids,
+    steam_install_health,
+    steam_update_needs_attention,
+)
 
 HOME = Path.home()
 STEAM_LOGS = STEAM / "logs"
@@ -253,31 +259,44 @@ def _scan_log_tail(path: Path, max_lines: int = 400) -> list[str]:
 def _check_steam_install_health(findings: list[dict]) -> None:
     for appid in installed_appids():
         health = steam_install_health(appid)
-        if not any((
-            health.get("files_corrupt"),
-            health.get("update_queued") and health.get("pending_download_bytes", 0) > 5_000_000,
-        )):
-            continue
         name = game_name_for_appid(appid)
-        pending_mb = round(health["pending_download_bytes"] / 1024**2, 1)
-        parts: list[str] = []
+        manifest = str(STEAM / "steamapps" / f"appmanifest_{appid}.acf")
+
         if health.get("files_corrupt"):
-            parts.append("Steam flagged game files as corrupt")
-        if health.get("update_queued") and pending_mb > 0:
-            parts.append(f"{pending_mb} MB update still pending")
-        if health.get("update_suspended_while_running"):
-            parts.append("update paused while the game was running")
-        text = " · ".join(parts) or "Install health check failed"
-        sev = "hot" if health.get("files_corrupt") else "warn"
-        findings.append(_finding(
-            f"steam-install-{appid}",
-            "game",
-            sev,
-            f"{name}: verify game files",
-            text + " — common on Linux after patches; causes crashes, missing maps, or VAC errors.",
-            fix=f"Quit {name} → Steam → Properties → Installed Files → Verify · complete any pending update",
-            source=str(STEAM / "steamapps" / f"appmanifest_{appid}.acf"),
-        ))
+            findings.append(_finding(
+                f"steam-corrupt-{appid}",
+                "game",
+                "hot",
+                f"{name}: verify game files",
+                "Steam flagged game files as corrupt — common on Linux after patches; "
+                "causes crashes, missing maps, or VAC errors.",
+                fix=f"Quit {name} → Steam → Properties → Installed Files → Verify integrity",
+                source=manifest,
+            ))
+
+        if steam_update_needs_attention(health, running=False):
+            pending_mb = round(health["pending_download_bytes"] / 1024**2, 1)
+            stage_mb = round(health.get("pending_stage_bytes", 0) / 1024**2, 1)
+            shader_mb = round(health.get("shader_cache_bytes", 0) / 1024**2, 1)
+            parts: list[str] = []
+            if health.get("update_suspended_while_running"):
+                parts.append("update paused while the game was running")
+            if pending_mb > 0:
+                parts.append(f"{pending_mb} MB download still pending")
+            if stage_mb > 0:
+                parts.append(f"{stage_mb} MB still staging")
+            if shader_mb > 200:
+                parts.append(f"{shader_mb} MB shader cache")
+            text = " · ".join(parts) or "Steam update incomplete"
+            findings.append(_finding(
+                f"steam-update-{appid}",
+                "game",
+                "warn",
+                f"{name}: finish pending update",
+                text + " — half-patched builds cause hitches and shader rebuild stutter.",
+                fix=f"Quit {name} → Steam → Downloads → resume · optional shadercache/{appid} clear",
+                source=manifest,
+            ))
 
 
 def _check_steam_logs(findings: list[dict]) -> None:

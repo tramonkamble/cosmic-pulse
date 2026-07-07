@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from apply_fix import fix_available, requires_root
-from games import active_game_context, steam_install_health
+from games import active_game_context, steam_install_health, steam_update_needs_attention
 from hardware_probe import primary_display_refresh_hz
 from gpu_thermal import gpu_thermal_state, profile_for_model
 from fix_scripts import (
@@ -30,6 +30,7 @@ from fix_scripts import (
     script_swap_thrash,
     script_swappiness,
     script_vram_bandwidth,
+    script_steam_update_shader,
     script_steam_verify_files,
     script_stutter,
     script_vram_low,
@@ -244,19 +245,15 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
     if active_appid and gt.get("running"):
         health = steam_install_health(active_appid)
         pending_mb = health.get("pending_download_bytes", 0) / 1024**2
-        if health.get("files_corrupt") or pending_mb > 50:
-            detail_parts = []
-            if health.get("files_corrupt"):
-                detail_parts.append("Steam flagged the install as corrupt")
-            if pending_mb > 50:
-                detail_parts.append(f"{pending_mb:.0f} MB patch still pending")
-            if health.get("update_suspended_while_running"):
-                detail_parts.append("the update paused because the game launched early")
+        stage_mb = health.get("pending_stage_bytes", 0) / 1024**2
+        shader_mb = health.get("shader_cache_bytes", 0) / 1024**2
+
+        if health.get("files_corrupt"):
             hints.append(_hint(
-                "hot" if health.get("files_corrupt") else "warn",
+                "hot",
                 f"{gname}: verify game files",
-                " · ".join(detail_parts).capitalize()
-                + " — common on Linux after updates; causes crashes, glitches, or failed loads.",
+                "Steam flagged the install as corrupt — common on Linux after patches; "
+                "causes crashes, missing maps, or failed loads.",
                 [
                     _cmd(
                         "Verify in Steam (quit game first)",
@@ -264,20 +261,54 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
                         note="Steam → Properties → Installed Files → Verify integrity",
                         kind="steam",
                     ),
+                ],
+                insight_id="game-files-corrupt",
+                fix_script=script_steam_verify_files(active_appid, gname),
+                games=[active_appid],
+                bucket="steam",
+            ))
+
+        if steam_update_needs_attention(health, running=True):
+            update_parts = []
+            if health.get("update_suspended_while_running"):
+                update_parts.append("the patch paused because the game launched early")
+            if pending_mb > 5:
+                update_parts.append(f"{pending_mb:.0f} MB download still pending")
+            if stage_mb > 5:
+                update_parts.append(f"{stage_mb:.0f} MB still staging")
+            update_text = " · ".join(update_parts).capitalize() or "A Steam update is incomplete"
+            if shader_mb > 200:
+                update_text += f" · {shader_mb:.0f} MB shader cache on disk"
+            hints.append(_hint(
+                "warn",
+                f"{gname}: finish pending update",
+                update_text
+                + " — playing on a half-patched build causes hitches, shader rebuilds, or odd crashes.",
+                [
                     _cmd(
-                        "Let pending update finish",
-                        "Exit the game and wait for Steam downloads to complete before relaunching",
+                        "Open Steam Downloads",
+                        "xdg-open 'steam://open/downloads'",
+                        note="Exit the game first, then let the download finish",
+                        kind="steam",
+                    ),
+                    _cmd(
+                        "Clear shader cache (optional)",
+                        f"rm -rf ~/.local/share/Steam/steamapps/shadercache/{active_appid}/fozpipelinesv6/*",
+                        note="First launch after clear will hitch while shaders rebuild",
                         kind="game",
                     ),
                 ],
-                insight_id="game-files-corrupt",
-                fix_script=script_steam_verify_files(
+                insight_id="game-update-pending",
+                fix_script=script_steam_update_shader(
                     active_appid,
                     gname,
                     pending_mb=pending_mb,
-                    files_corrupt=health.get("files_corrupt", False),
+                    stage_mb=stage_mb,
+                    suspended=health.get("update_suspended_while_running", False),
+                    shader_mb=shader_mb,
                 ),
                 games=[active_appid],
+                bucket="steam",
             ))
 
     gov = ctx.get("governor")

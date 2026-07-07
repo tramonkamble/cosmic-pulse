@@ -49,6 +49,7 @@ FIX_REQUIRES_ROOT: dict[str, bool] = {
     "resolution-cpu-perf": True,
     "cpu-ccd-spread": False,
     "game-files-corrupt": False,
+    "game-update-pending": False,
     "system-balanced": False,
 }
 
@@ -139,6 +140,24 @@ def _apply_vram_bandwidth(ctx: dict) -> dict:
     return {"ok": False, "message": "Game folder not found — change settings in-game."}
 
 
+def _apply_steam_downloads(ctx: dict) -> dict:
+    gname = ctx.get("name") or "game"
+    url = "steam://open/downloads"
+    try:
+        subprocess.Popen(
+            ["xdg-open", url],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return {
+            "ok": True,
+            "message": f"Opened Steam Downloads — exit {gname} and let any patch finish.",
+        }
+    except OSError as exc:
+        return {"ok": False, "message": f"Could not open Steam: {exc}"}
+
+
 def _apply_steam_verify(ctx: dict) -> dict:
     appid = ctx.get("appid") or "730"
     gname = ctx.get("name") or "game"
@@ -199,6 +218,7 @@ def apply_fix(
         "memory-page-faults": _apply_page_faults,
         "gpu-shader-bound": _apply_open_game,
         "game-files-corrupt": _apply_steam_verify,
+        "game-update-pending": _apply_steam_downloads,
         "system-balanced": _apply_open_game,
     }
     handler = handlers.get(insight_id)
@@ -218,6 +238,6 @@ def fix_available(insight_id: str) -> bool:
     handlers = {
         "gpu-thermal-ceiling", "gpu-thermal-warm", "gpu-vram-bandwidth",
         "gpu-vram-full", "gpu-gtt-churn", "memory-page-faults",
-        "gpu-shader-bound", "game-files-corrupt", "system-balanced",
+        "gpu-shader-bound", "game-files-corrupt", "game-update-pending", "system-balanced",
     }
     return insight_id in handlers and not requires_root(insight_id)

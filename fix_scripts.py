@@ -662,39 +662,73 @@ def script_steam_verify_files(
     appid: str = "730",
     game_name: str = "Counter-Strike 2",
     *,
-    pending_mb: float = 0,
-    files_corrupt: bool = False,
+    files_corrupt: bool = True,
     **kwargs,
 ) -> str:
     steam_bin = shutil.which("steam") or str(HOME / ".local/share/Steam/ubuntu12_32/steam")
-    shader_cache = HOME / ".local/share/Steam/steamapps/shadercache" / str(appid)
-    reason = []
-    if files_corrupt:
-        reason.append("files flagged corrupt")
-    if pending_mb > 0:
-        reason.append(f"{pending_mb:.0f} MB update pending")
-    why = " · ".join(reason) or "install health check"
-    return _header("game-files-corrupt", f"{game_name} — repair install ({why})", "medium") + f"""
-log "Common Linux fix after CS2 / Steam updates — not rig-specific."
+    why = "files flagged corrupt" if files_corrupt else "install health check"
+    return _header("game-files-corrupt", f"{game_name} — verify install ({why})", "medium") + f"""
+log "Common Linux fix after Steam patches — not rig-specific."
 log "Steam reported: {why}"
 log ""
 log "1) Quit {game_name} completely (exit to desktop, not just main menu)"
 log "2) Verify game files (opens Steam)"
 xdg-open "steam://validate/{appid}" 2>/dev/null || "{steam_bin}" "steam://validate/{appid}" &
 sleep 2
-log "3) Let any pending download finish before relaunching"
-log "4) Optional: clear stale shader cache if verify alone does not help"
-read -r -p "Clear shader cache for {game_name}? [y/N] " ans
-if [[ "$ans" =~ ^[Yy]$ ]]; then
-  rm -rf "{shader_cache}/fozpipelinesv6"/* 2>/dev/null || true
-  rm -rf "{shader_cache}/nvidiav1"/* 2>/dev/null || true
-  log "Shader cache cleared — first launch may hitch while rebuilding"
-fi
+log "3) Let Steam finish any downloads before relaunching"
 log ""
 log "If problems persist after verify:"
 log "  • Steam → {game_name} → Properties → disable overlays temporarily"
-log "  • Lower MSAA / shader quality for one session"
+log "  • Check Pulse Guidance for pending-update or shader-cache hints"
 log "  • Check Pulse Guidance for GPU reset warnings (AMD mode1 reset)"
+"""
+
+
+def script_steam_update_shader(
+    appid: str = "730",
+    game_name: str = "Counter-Strike 2",
+    *,
+    pending_mb: float = 0,
+    stage_mb: float = 0,
+    suspended: bool = False,
+    shader_mb: float = 0,
+    **kwargs,
+) -> str:
+    steam_bin = shutil.which("steam") or str(HOME / ".local/share/Steam/ubuntu12_32/steam")
+    shader_cache = HOME / ".local/share/Steam/steamapps/shadercache" / str(appid)
+    reason = []
+    if suspended:
+        reason.append("update suspended while game was running")
+    if pending_mb > 0:
+        reason.append(f"{pending_mb:.0f} MB download pending")
+    if stage_mb > 0:
+        reason.append(f"{stage_mb:.0f} MB still staging")
+    why = " · ".join(reason) or "pending Steam update"
+    shader_note = f" ({shader_mb:.0f} MB cached)" if shader_mb > 0 else ""
+    return _header("game-update-pending", f"{game_name} — finish update ({why})", "medium") + f"""
+log "Steam update / shader cache playbook — common on Linux when a patch drops mid-session."
+log "Steam reported: {why}"
+log ""
+log "1) Exit {game_name} to desktop (do not relaunch yet)"
+log "2) Open Steam Downloads and let the patch finish"
+xdg-open "steam://open/downloads" 2>/dev/null || "{steam_bin}" "steam://open/downloads" &
+sleep 2
+log "3) Wait until download + install complete (no progress bar on the game)"
+log "4) Relaunch — first load may hitch while shaders rebuild"
+log ""
+log "Shader cache for {game_name}{shader_note}: {shader_cache}"
+read -r -p "Clear shader cache before relaunch? [y/N] " ans
+if [[ "$ans" =~ ^[Yy]$ ]]; then
+  rm -rf "{shader_cache}/fozpipelinesv6"/* 2>/dev/null || true
+  rm -rf "{shader_cache}/nvidiav1"/* 2>/dev/null || true
+  log "Shader cache cleared — expect extra hitching on first launch"
+else
+  log "Skipped shader cache clear"
+fi
+log ""
+log "If hitching persists after a clean update:"
+log "  • Lower shader / texture quality for one session"
+log "  • Pulse Guidance → verify game files if crashes or missing assets appear"
 """
 
 
@@ -736,6 +770,7 @@ SCRIPTS: dict[str, callable] = {
     "resolution-cpu-perf": lambda: script_resolution_cpu_perf(75, "powersave"),
     "cpu-ccd-spread": lambda: script_ccd_spread(0, 0),
     "game-files-corrupt": lambda: script_steam_verify_files(),
+    "game-update-pending": lambda: script_steam_update_shader(),
     "system-balanced": script_balanced,
 }
 

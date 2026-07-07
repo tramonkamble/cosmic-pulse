@@ -21,6 +21,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Metrics payload** — history ring buffer stores slim chart samples (~5 KB/point) instead of full dashboard snapshots (~310 KB/point); `/api/metrics` no longer ships duplicated fix scripts and per-game issues 600×.
 
 ### Added
+- **Steam pending update (Guidance)** — `game-update-pending` insight when the active game has a suspended patch or incomplete download/stage; fix script opens Downloads and optionally clears `shadercache/<appid>`. Split from `game-files-corrupt` (verify-only).
 - **Possible resolutions (Guidance)** — separate section for low-risk pattern matches (`bucket: resolutions`). First insight: **gpu-fps-cap** when GPU ≥85% busy on a ≤75 Hz display while a game runs.
 - **More resolution patterns** — mild swap + stutter → free RAM; load page faults → wait 30s; CPU-bound + power-save governor → performance mode.
 - **GPU engine strip** — decode AMD `gpu_metrics` sysfs (GFX / VRAM / MM activity %) and show per-engine bars in the rig snapshot; falls back to `gpu_busy_percent` / `mem_busy_percent` when a counter is unavailable.

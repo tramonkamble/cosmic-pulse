@@ -169,6 +169,33 @@ def _tail_lines(path: Path, max_lines: int = 500) -> list[str]:
         return []
 
 
+def _dir_size_bytes(path: Path) -> int:
+    if not path.is_dir():
+        return 0
+    total = 0
+    try:
+        for entry in path.rglob("*"):
+            if entry.is_file():
+                total += entry.stat().st_size
+    except OSError:
+        pass
+    return total
+
+
+def shader_cache_dir(appid: str) -> Path:
+    return STEAM / "steamapps" / "shadercache" / str(appid)
+
+
+def steam_update_needs_attention(health: dict, *, running: bool = False) -> bool:
+    """True when a download/stage is pending or Steam suspended an update mid-session."""
+    if health.get("update_suspended_while_running"):
+        return True
+    threshold = 5 if running else 20
+    pending_mb = health.get("pending_download_bytes", 0) / 1024**2
+    stage_mb = health.get("pending_stage_bytes", 0) / 1024**2
+    return pending_mb > threshold or stage_mb > threshold
+
+
 def steam_install_health(appid: str) -> dict:
     """Parse Steam manifest + content_log for corrupt files / stalled updates."""
     manifest_path = STEAM / "steamapps" / f"appmanifest_{appid}.acf"
@@ -187,6 +214,11 @@ def steam_install_health(appid: str) -> dict:
     to_dl = ints.get("BytesToDownload", 0)
     downloaded = ints.get("BytesDownloaded", 0)
     pending = max(0, to_dl - downloaded)
+    to_stage = ints.get("BytesToStage", 0)
+    staged = ints.get("BytesStaged", 0)
+    pending_stage = max(0, to_stage - staged)
+    shader_path = shader_cache_dir(appid)
+    shader_bytes = _dir_size_bytes(shader_path)
 
     files_corrupt = False
     update_suspended = False
@@ -207,9 +239,12 @@ def steam_install_health(appid: str) -> dict:
         "appid": appid,
         "files_corrupt": files_corrupt,
         "pending_download_bytes": pending,
-        "update_queued": pending > 0,
+        "pending_stage_bytes": pending_stage,
+        "update_queued": pending > 0 or pending_stage > 0,
         "update_suspended_while_running": update_suspended,
         "update_result": ints.get("UpdateResult"),
+        "shader_cache_bytes": shader_bytes,
+        "shader_cache_path": str(shader_path) if shader_path.is_dir() else None,
     }
 
 
