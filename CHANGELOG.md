@@ -8,6 +8,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Changed
+- **Lazy per-game issues** — `issues_by_game` ships on bootstrap and via `GET /api/issues-by-game` when guidance structure changes; steady-state polls omit the ~70 KB block (live/running flags patched client-side from `games`).
 - **Live overview order** — Stutter estimate now appears above Pulse Index.
 - **Summary widget layout** — tetris 4×2 metric grid (tall Health + Pulse Index); flat rig strip; hardware status cards fill each row evenly. Reverted global 3-across dashboard compaction.
 - **Summary hardware strip** — rig tiles slimmed down; temps/drives/network grouped into labeled status cards (no more cramped sensor pill grid).
@@ -36,6 +37,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Stutter proxy detail** — taller widget; KPI subs, live status line, session avg/p95/rate under timeline, richer hitch tooltips and timeline meta (peak score, est. ms, last hitch).
 
 ### Fixed
+- **RDNA3 tuning hints** — `warm_c` is intentionally `None` on RDNA3; FPS-cap hint no longer crashes the sampler when junction is high.
 - **Dashboard boot** — removed duplicate `prefersReducedMotion` declaration (const + function) that caused a script parse error and left the entire UI stuck on “Connecting…” with no live data.
 - **Display stability** — EMA smoothing for session load index, league live bars, and chart series; tier badges only re-render when rank changes; util chart locked to 0–100% y-axis; bandwidth/I/O charts use slowly-adjusting axis max to prevent vertical jump.
 

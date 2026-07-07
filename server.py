@@ -74,7 +74,7 @@ def _strip_hints(hints: list) -> list:
     return [_strip_hint(h) for h in hints]
 
 
-def latest_for_api(latest: dict) -> dict:
+def latest_for_api(latest: dict, *, include_game_issues: bool = True) -> dict:
     """Drop bulky fix_script bodies from hints sent to the browser."""
     if not latest:
         return latest
@@ -83,18 +83,21 @@ def latest_for_api(latest: dict) -> dict:
         out["tuning"] = _strip_hints(out["tuning"])
     if isinstance(out.get("tuning_active"), list):
         out["tuning_active"] = _strip_hints(out["tuning_active"])
-    by_game = out.get("issues_by_game")
-    if isinstance(by_game, dict):
-        stripped = {}
-        for gid, block in by_game.items():
-            if not isinstance(block, dict):
-                stripped[gid] = block
-                continue
-            entry = dict(block)
-            if isinstance(entry.get("issues"), list):
-                entry["issues"] = _strip_hints(entry["issues"])
-            stripped[gid] = entry
-        out["issues_by_game"] = stripped
+    if include_game_issues:
+        by_game = out.get("issues_by_game")
+        if isinstance(by_game, dict):
+            stripped = {}
+            for gid, block in by_game.items():
+                if not isinstance(block, dict):
+                    stripped[gid] = block
+                    continue
+                entry = dict(block)
+                if isinstance(entry.get("issues"), list):
+                    entry["issues"] = _strip_hints(entry["issues"])
+                stripped[gid] = entry
+            out["issues_by_game"] = stripped
+    else:
+        out.pop("issues_by_game", None)
     return out
 
 
@@ -1079,7 +1082,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/metrics":
             bootstrap = (qs.get("bootstrap") or ["0"])[0] in ("1", "true", "yes")
             with _lock:
-                latest = latest_for_api(_latest_full)
+                latest = latest_for_api(
+                    _latest_full,
+                    include_game_issues=bootstrap,
+                )
                 if bootstrap:
                     body = {
                         "static": _static,
@@ -1100,6 +1106,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
+        elif path == "/api/issues-by-game":
+            with _lock:
+                latest = latest_for_api(_latest_full)
+                by_game = latest.get("issues_by_game") or {}
+            self._json({"issues_by_game": by_game})
         elif path == "/api/fix-script":
             insight_id = (qs.get("insight_id") or [""])[0].strip()
             if not insight_id:

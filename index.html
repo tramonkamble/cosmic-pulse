@@ -2767,6 +2767,7 @@
     const KIND_LABEL = { cmd: 'Terminal', game: 'In-game', steam: 'Steam', bios: 'BIOS', file: 'File' };
     const openPanels = new Set();
     let lastWarningsKey = '', lastFixesKey = '', lastGameIssuesKey = '', lastSensorKey = '';
+    let cachedIssuesByGame = null, lastIssuesFetchKey = '';
     let lastActiveGameId = null;
     let lastWarningsPillsKey = '', lastMemProbeKey = '', lastProcKey = '', lastSensorStripKey = '';
     let panelScrollState = {};
@@ -5524,13 +5525,35 @@
       restorePanelState();
     }
 
+    function patchIssuesRunning(byGame, games) {
+      if (!byGame) return byGame;
+      const running = new Set(
+        Object.entries(games || {}).filter(([, g]) => g?.running).map(([id]) => id),
+      );
+      const out = {};
+      for (const [gid, block] of Object.entries(byGame)) {
+        const entry = { ...block, running: running.has(gid) };
+        if (entry.issue_count > 0 || entry.running) out[gid] = entry;
+      }
+      return out;
+    }
+
+    async function refreshIssuesByGame(tuningHints) {
+      const key = hintsStructKey(tuningHints);
+      if (key === lastIssuesFetchKey && cachedIssuesByGame) return cachedIssuesByGame;
+      try {
+        const res = await fetch('/api/issues-by-game');
+        const data = await res.json();
+        cachedIssuesByGame = data.issues_by_game || {};
+        lastIssuesFetchKey = key;
+      } catch (_) { /* keep cached snapshot */ }
+      return cachedIssuesByGame;
+    }
+
     function renderGameIssues(byGame) {
       const blocks = Object.values(byGame || {}).filter(g => g.issue_count > 0 || g.running);
       const structKey = JSON.stringify(blocks.map(g => [g.id, g.running, g.issue_count, hintsStructKey(g.issues)]));
-      if (structKey === lastGameIssuesKey) {
-        blocks.forEach(g => updateRecMetas(g.issues));
-        return;
-      }
+      if (structKey === lastGameIssuesKey) return;
       lastGameIssuesKey = structKey;
       capturePanelState();
 
@@ -5992,7 +6015,8 @@
       try {
         const url = metricsBootstrapped ? '/api/metrics' : '/api/metrics?bootstrap=1';
         const data = await (await fetch(url)).json();
-        if (!metricsBootstrapped) {
+        const wasBootstrap = !metricsBootstrapped;
+        if (wasBootstrap) {
           rawHistory = data.history || [];
           lastStatic = data.static || lastStatic;
           metricsBootstrapped = true;
@@ -6001,6 +6025,13 @@
           if (data.cosmic_theme && lastStatic) lastStatic.cosmic_theme = data.cosmic_theme;
         }
         const l = data.latest, s = lastStatic;
+        if (wasBootstrap || l.issues_by_game) {
+          cachedIssuesByGame = l.issues_by_game || cachedIssuesByGame;
+          lastIssuesFetchKey = hintsStructKey(l.tuning);
+        } else if (hintsStructKey(l.tuning) !== lastIssuesFetchKey) {
+          await refreshIssuesByGame(l.tuning);
+        }
+        const issuesByGame = patchIssuesRunning(cachedIssuesByGame, l.games);
         lastLatest = l;
         lastComparison = l.comparison;
         const themeChanged = applyCosmicTheme(s?.cosmic_theme);
@@ -6019,7 +6050,7 @@
         renderWarnings(l.tuning);
         syncHwFocusDOM();
         renderFixes(l.tuning);
-        renderGameIssues(l.issues_by_game);
+        renderGameIssues(issuesByGame);
         renderBacklog(s.backlog);
         renderTools(s.tools);
         const sh = l.sensor_health;

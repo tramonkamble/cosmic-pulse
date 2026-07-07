@@ -515,7 +515,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
     refresh_hz = primary_display_refresh_hz()
     cap_hz = int(round(refresh_hz)) if refresh_hz else 60
     junc = g.get("junction_c")
-    warm_c = thermal_profile.get("warm_c", 90)
+    warm_c = thermal_profile.get("warm_c")  # None for RDNA3 (by-design thermals)
     st_block = snap.get("stutter") or {}
     st_score = float(st_block.get("score") or 0)
     if (
@@ -525,7 +525,7 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
         and refresh_hz <= 75
     ):
         warm_note = ""
-        if junc is not None and junc >= warm_c:
+        if junc is not None and warm_c is not None and junc >= warm_c:
             warm_note = f" Junction is {junc}°C — capping also trims heat."
         elif st_score >= 25:
             warm_note = " Hitching is elevated — wasted frames above refresh often make this worse."
