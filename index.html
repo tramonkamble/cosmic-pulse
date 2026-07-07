@@ -1411,12 +1411,35 @@
     .rig-tile-brand.amd { --brand-color: #e85d67; }
     .rig-tile-brand.intel { --brand-color: #4da3ff; }
     .rig-tile-brand.nvidia { --brand-color: #8fd14f; }
-    .rig-tile.active .rig-tile-brand {
+    .rig-tile-brand.system76 {
+      --brand-color: #6aabdc;
+      background: linear-gradient(92deg, #6aabdc 38%, color-mix(in srgb, var(--orange) 72%, #6aabdc) 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .rig-tile-brand.neutral {
+      --brand-color: var(--text-secondary);
+      font-weight: 650; letter-spacing: .06em; text-transform: none;
+      color: var(--text-secondary);
+    }
+    .rig-tile.active .rig-tile-brand:not(.system76):not(.neutral) {
       color: color-mix(in srgb, var(--brand-color, var(--text)) 88%, var(--text));
     }
+    .rig-tile.active .rig-tile-brand.system76 { opacity: .95; }
     .rig-tile.brand-amd { --rig-accent: #e85d67; --rig-glow: rgba(232,93,103,.14); }
     .rig-tile.brand-intel { --rig-accent: #4da3ff; --rig-glow: rgba(77,163,255,.14); }
     .rig-tile.brand-nvidia { --rig-accent: #8fd14f; --rig-glow: rgba(143,209,79,.15); }
+    .rig-tile.brand-system76 {
+      --rig-accent: #6aabdc;
+      --rig-glow: rgba(106,171,220,.14);
+    }
+    .rig-tile.brand-system76::before {
+      background: linear-gradient(
+        128deg,
+        rgba(106,171,220,.14),
+        color-mix(in srgb, var(--orange) 18%, transparent) 48%,
+        transparent 72%
+      );
+    }
     .rig-tile-art .rig-brand-mark {
       position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
       font-size: 1.55rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
@@ -4500,6 +4523,17 @@
       asus: 'ASUS', msi: 'MSI', corsair: 'CORSAIR', generic: 'HW',
     };
 
+    const RIG_MEMORY_BRANDS = { gskill: 'G.SKILL', corsair: 'Corsair', kingston: 'Kingston', crucial: 'Crucial' };
+    const RIG_STORAGE_BRANDS = {
+      samsung: 'Samsung', wd: 'WD', toshiba: 'Toshiba', crucial: 'Crucial',
+      kingston: 'Kingston', sandisk: 'SanDisk', seagate: 'Seagate', skhynix: 'SK hynix',
+    };
+
+    function rigNeutralBrand(slug, label) {
+      if (!label) return null;
+      return { slug: slug || 'generic', label, neutral: true };
+    }
+
     function rigTopBrand(kind, part) {
       if (!part) return null;
       if (kind === 'cpu') {
@@ -4512,17 +4546,41 @@
         if (hay.includes('nvidia') || hay.includes('geforce')) return { slug: 'nvidia', label: 'NVIDIA' };
         if (hay.includes('amd') || hay.includes('radeon') || /\brx\s*\d/.test(hay)) return { slug: 'amd', label: 'AMD' };
       }
+      if (kind === 'chassis' && part.brand) {
+        const slug = brandSlug(part.brand);
+        if (slug === 'system76') return { slug: 'system76', label: 'System76', mark: 'S76' };
+        return rigNeutralBrand(slug, String(part.brand).trim());
+      }
+      if (kind === 'memory' && part.brand) {
+        const slug = brandSlug(part.brand);
+        const label = RIG_MEMORY_BRANDS[slug] || String(part.brand).trim();
+        return rigNeutralBrand(slug, label);
+      }
+      if (kind === 'storage' && part.brand) {
+        const n = String(part.brand).toLowerCase();
+        let slug = brandSlug(part.brand);
+        if (n.includes('samsung')) slug = 'samsung';
+        else if (n.includes('western') || n === 'wd') slug = 'wd';
+        else if (n.includes('toshiba')) slug = 'toshiba';
+        else if (n.includes('sandisk')) slug = 'sandisk';
+        else if (n.includes('seagate')) slug = 'seagate';
+        else if (n.includes('hynix')) slug = 'skhynix';
+        const label = RIG_STORAGE_BRANDS[slug] || String(part.brand).trim();
+        return rigNeutralBrand(slug, label);
+      }
       return null;
     }
 
     function rigBrandHtml(brand) {
       if (!brand?.label) return '';
-      return `<span class="rig-tile-brand ${esc(brand.slug)}">${esc(brand.label)}</span>`;
+      const cls = `${esc(brand.slug)}${brand.neutral ? ' neutral' : ''}`;
+      return `<span class="rig-tile-brand ${cls}">${esc(brand.label)}</span>`;
     }
 
     function rigBrandMarkHtml(brand) {
-      if (!brand?.label) return '';
-      return `<span class="rig-brand-mark">${esc(brand.label)}</span>`;
+      if (!brand?.label || brand.neutral) return '';
+      const text = brand.mark || brand.label;
+      return `<span class="rig-brand-mark">${esc(text)}</span>`;
     }
 
     function brandSlug(name) {
@@ -4913,7 +4971,7 @@
       const iconCls = RIG_TILE_ICON_CLS[t.kind] || t.kind;
       const icon = hwIcon(glyph, `rig-art-glyph ${iconCls}`);
       const brandHtml = rigBrandHtml(t.brand);
-      const brandCls = t.brand?.slug ? ` brand-${t.brand.slug}` : '';
+      const brandCls = t.brand?.slug && !t.brand.neutral ? ` brand-${t.brand.slug}` : '';
       const brandMark = rigBrandMarkHtml(t.brand);
       return `<button type="button" class="rig-tile ${t.kind}${brandCls}${t.active ? ' active' : ''}" data-rig-id="${esc(t.id)}"
         data-hw-filter="${t.filter}" aria-pressed="${t.active ? 'true' : 'false'}" title="${esc(t.tooltip)}">
@@ -4945,6 +5003,7 @@
         tiles.push({
           id: 'chassis', filter: 'chassis', kind: 'chassis',
           type: 'Chassis', name: r.chassis.model || r.chassis.label,
+          brand: rigTopBrand('chassis', r.chassis),
           tooltip: hwFocus
             ? `${r.chassis.label} · Click to show all components`
             : `${r.chassis.label} · Full rig view`,
@@ -4975,6 +5034,7 @@
         tiles.push({
           id: 'memory', filter: 'memory', kind: 'memory',
           type: 'Memory', name: r.memory.kit || r.memory.label || 'RAM',
+          brand: rigTopBrand('memory', r.memory),
           tooltip: `${r.memory.label} · Filter memory & bandwidth`,
           active: hwFocus === 'memory',
         });
@@ -4987,6 +5047,7 @@
         tiles.push({
           id: 'storage', filter: 'storage', kind: 'storage',
           type: 'Storage', name,
+          brand: rigTopBrand('storage', drives[0]),
           tooltip: `${drives.map(d => `${d.brand} ${d.model} (${d.size})`).join('\n')} · Filter storage I/O`,
           active: hwFocus === 'storage',
         });
