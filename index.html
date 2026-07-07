@@ -1388,7 +1388,10 @@
     .rig-tile.storage { --rig-accent: var(--purple); --rig-glow: rgba(180,142,173,.13); }
     .rig-tile-body {
       flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
-      gap: .3rem; padding: .72rem .85rem .74rem 1rem; position: relative; z-index: 1;
+      gap: .34rem; padding: .72rem .85rem .74rem 1rem; position: relative; z-index: 1;
+    }
+    .rig-tile-meta {
+      display: flex; align-items: center; gap: .5rem; min-width: 0; flex-wrap: wrap;
     }
     .rig-tile-type {
       font-size: .56rem; font-weight: 650; letter-spacing: .12em; text-transform: uppercase;
@@ -1397,6 +1400,25 @@
     }
     .rig-tile.active .rig-tile-type {
       color: color-mix(in srgb, var(--rig-accent) 58%, var(--text-secondary));
+    }
+    .rig-tile-brand {
+      font-size: .6rem; font-weight: 700; letter-spacing: .08em; line-height: 1;
+      text-transform: uppercase; white-space: nowrap;
+      padding-left: .48rem;
+      border-left: 1px solid color-mix(in srgb, var(--brand-color, var(--line)) 40%, var(--line));
+      color: color-mix(in srgb, var(--brand-color, var(--muted)) 82%, var(--text-secondary));
+    }
+    .rig-tile-brand.amd { --brand-color: #e85d67; }
+    .rig-tile-brand.intel { --brand-color: #4da3ff; }
+    .rig-tile-brand.nvidia { --brand-color: #8fd14f; }
+    .rig-tile-brand.system76 { --brand-color: #6ba4d6; }
+    .rig-tile-brand.neutral {
+      --brand-color: var(--text-secondary);
+      font-weight: 650; letter-spacing: .06em; text-transform: none;
+      color: var(--text-secondary);
+    }
+    .rig-tile.active .rig-tile-brand {
+      color: color-mix(in srgb, var(--brand-color, var(--text)) 88%, var(--text));
     }
     .rig-tile-name {
       font-size: .9rem; font-weight: 600; color: var(--text); line-height: 1.22;
@@ -4475,6 +4497,41 @@
       asus: 'ASUS', msi: 'MSI', corsair: 'CORSAIR', generic: 'HW',
     };
 
+    function rigTopBrand(kind, part) {
+      if (!part) return null;
+      if (kind === 'cpu') {
+        const b = part.brand;
+        if (b === 'AMD') return { slug: 'amd', label: 'AMD' };
+        if (b === 'Intel') return { slug: 'intel', label: 'Intel' };
+      }
+      if (kind === 'gpu') {
+        const maker = String(part.maker || part.brand || '').toLowerCase();
+        if (maker.includes('nvidia') || maker.includes('geforce')) return { slug: 'nvidia', label: 'NVIDIA' };
+        if (maker.includes('amd') || maker.includes('radeon')) return { slug: 'amd', label: 'AMD' };
+      }
+      if (kind === 'chassis' && part.brand) {
+        const slug = brandSlug(part.brand);
+        if (slug === 'system76') return { slug: 'system76', label: 'System76' };
+      }
+      if (kind === 'memory' && part.brand) {
+        const slug = brandSlug(part.brand);
+        if (slug === 'gskill') return { slug: 'gskill', label: 'G.SKILL', neutral: true };
+        if (slug === 'corsair') return { slug: 'corsair', label: 'Corsair', neutral: true };
+      }
+      if (kind === 'storage' && part.brand) {
+        const n = String(part.brand).toLowerCase();
+        if (n.includes('samsung')) return { slug: 'samsung', label: 'Samsung', neutral: true };
+        if (n.includes('western') || n === 'wd') return { slug: 'wd', label: 'WD', neutral: true };
+      }
+      return null;
+    }
+
+    function rigBrandHtml(brand) {
+      if (!brand?.label) return '';
+      const cls = `${esc(brand.slug)}${brand.neutral ? ' neutral' : ''}`;
+      return `<span class="rig-tile-brand ${cls}">${esc(brand.label)}</span>`;
+    }
+
     function brandSlug(name) {
       if (!name) return 'generic';
       const n = String(name).toLowerCase();
@@ -4862,10 +4919,14 @@
       const glyph = RIG_TILE_GLYPHS[t.kind] || 'chip';
       const iconCls = RIG_TILE_ICON_CLS[t.kind] || t.kind;
       const icon = hwIcon(glyph, `rig-art-glyph ${iconCls}`);
+      const brandHtml = rigBrandHtml(t.brand);
       return `<button type="button" class="rig-tile ${t.kind}${t.active ? ' active' : ''}" data-rig-id="${esc(t.id)}"
         data-hw-filter="${t.filter}" aria-pressed="${t.active ? 'true' : 'false'}" title="${esc(t.tooltip)}">
         <span class="rig-tile-body">
-          <span class="rig-tile-type">${esc(t.type)}</span>
+          <span class="rig-tile-meta">
+            <span class="rig-tile-type">${esc(t.type)}</span>
+            ${brandHtml}
+          </span>
           <span class="rig-tile-name">${esc(t.name)}</span>
         </span>
         <span class="rig-tile-art" aria-hidden="true">${icon}</span>
@@ -4889,6 +4950,7 @@
         tiles.push({
           id: 'chassis', filter: 'chassis', kind: 'chassis',
           type: 'Chassis', name: r.chassis.model || r.chassis.label,
+          brand: rigTopBrand('chassis', r.chassis),
           tooltip: hwFocus
             ? `${r.chassis.label} · Click to show all components`
             : `${r.chassis.label} · Full rig view`,
