@@ -2893,6 +2893,7 @@
       document.querySelectorAll('.warn-list.stable-scroll, .diag-list.stable-scroll').forEach(el => {
         if (el.id && panelScrollState[`scroll:${el.id}`] != null) el.scrollTop = panelScrollState[`scroll:${el.id}`];
       });
+      hydrateScriptPanels();
     }
 
     function bindScrollContainment() {
@@ -5204,6 +5205,29 @@
       }
     }
 
+    async function loadScriptIntoPre(pre, insightId) {
+      if (!pre || !insightId) return;
+      if (pre.dataset.loaded === '1' && pre.textContent && pre.textContent !== 'Loading script…') return;
+      const cached = fixScriptCache.get(insightId);
+      if (cached) {
+        pre.textContent = cached;
+        pre.dataset.loaded = '1';
+        return;
+      }
+      pre.textContent = 'Loading script…';
+      const script = await fetchFixScript(insightId);
+      pre.textContent = script || 'No script available for this insight.';
+      pre.dataset.loaded = '1';
+    }
+
+    function hydrateScriptPanels(root = document) {
+      root.querySelectorAll('details.rec-more[data-script-iid]').forEach(det => {
+        if (!det.open) return;
+        const pre = det.querySelector('[data-script-pre]');
+        if (pre) loadScriptIntoPre(pre, det.dataset.scriptIid);
+      });
+    }
+
     function recCardHtml(h, idPrefix = '', rank = 0) {
       const lv = h.level || 'info';
       const stale = h.active === false;
@@ -5225,8 +5249,9 @@
           ? `<span class="fix-root-note">Requires root</span>`
           : '';
       const scriptTools = hasScript ? `
-          <button class="script-btn sec" type="button" data-script-iid="${esc(sid)}">Copy script</button>
+          <button class="script-btn sec" type="button" data-copy-script-iid="${esc(sid)}">Copy script</button>
           <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>` : '';
+      const cachedScript = fixScriptCache.get(sid);
       const scriptBlock = (fixPrimary || hasScript) ? `
         <div class="rec-action-bar">
           <span class="rec-action-label">Actions</span>
@@ -5237,7 +5262,7 @@
           </div>
           ${hasScript ? `<details class="rec-more" data-open-key="hint-${domId}-script" data-script-iid="${esc(sid)}">
             <summary>View script</summary>
-            <pre class="script-pre" data-script-pre>Loading script…</pre>
+            <pre class="script-pre" data-script-pre${cachedScript ? ' data-loaded="1"' : ''}>${cachedScript ? esc(cachedScript) : 'Loading script…'}</pre>
           </details>` : ''}
         </div>` : '';
       const stepsBlock = steps ? `
@@ -5301,12 +5326,12 @@
       el.querySelectorAll('[data-apply-iid]').forEach(btn => {
         btn.onclick = () => runApplyFix(btn.dataset.applyIid, btn);
       });
-      el.querySelectorAll('[data-script-iid]').forEach(btn => {
+      el.querySelectorAll('button[data-copy-script-iid]').forEach(btn => {
         btn.onclick = async () => {
           const prev = btn.textContent;
           btn.disabled = true;
           btn.textContent = 'Loading…';
-          const script = await fetchFixScript(btn.dataset.scriptIid);
+          const script = await fetchFixScript(btn.dataset.copyScriptIid);
           btn.disabled = false;
           btn.textContent = prev;
           if (script) copyText(script, btn);
@@ -5325,18 +5350,16 @@
         };
       });
       el.querySelectorAll('details.rec-more[data-script-iid]').forEach(det => {
-        det.addEventListener('toggle', async () => {
+        det.addEventListener('toggle', () => {
           if (!det.open) return;
           const pre = det.querySelector('[data-script-pre]');
-          if (!pre || pre.dataset.loaded) return;
-          const script = await fetchFixScript(det.dataset.scriptIid);
-          pre.textContent = script || 'No script available for this insight.';
-          pre.dataset.loaded = '1';
+          if (pre) loadScriptIntoPre(pre, det.dataset.scriptIid);
         });
       });
       el.querySelectorAll('.script-btn, .copy-btn, .fix-btn').forEach(btn => {
         btn.addEventListener('click', e => e.stopPropagation());
       });
+      hydrateScriptPanels(el);
     }
 
     function warningRowHtml(h) {
