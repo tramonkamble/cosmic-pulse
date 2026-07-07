@@ -8,6 +8,7 @@ from pathlib import Path
 
 from apply_fix import fix_available, requires_root
 from games import active_game_context, steam_install_health
+from hardware_probe import primary_display_refresh_hz
 from gpu_thermal import gpu_thermal_state, profile_for_model
 from fix_scripts import (
     fan_tool_actions,
@@ -17,7 +18,11 @@ from fix_scripts import (
     script_dram_stall,
     script_expo_verify,
     script_governor,
+    script_gpu_fps_cap,
     script_gpu_shader,
+    script_resolution_cpu_perf,
+    script_resolution_load_settle,
+    script_resolution_swap_stutter,
     script_gpu_thermal,
     script_gpu_warm,
     script_gtt,
@@ -44,9 +49,10 @@ def _hint(
     fix_script: str,
     games: list[str] | None = None,
     needs_root: bool | None = None,
+    bucket: str | None = None,
 ) -> dict:
     root = requires_root(insight_id) if needs_root is None else needs_root
-    return {
+    out = {
         "level": level,
         "title": title,
         "text": text,
@@ -57,6 +63,9 @@ def _hint(
         "requires_root": root,
         "fixable": fix_available(insight_id) and not root,
     }
+    if bucket:
+        out["bucket"] = bucket
+    return out
 
 
 def _cmd(label: str, cmd: str, note: str = "", kind: str = "cmd") -> dict:
@@ -468,6 +477,134 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             ],
             insight_id="gpu-shader-bound",
             fix_script=script_gpu_shader(**gk),
+        ))
+
+    refresh_hz = primary_display_refresh_hz()
+    cap_hz = int(round(refresh_hz)) if refresh_hz else 60
+    junc = g.get("junction_c")
+    warm_c = thermal_profile.get("warm_c", 90)
+    st_block = snap.get("stutter") or {}
+    st_score = float(st_block.get("score") or 0)
+    if (
+        gt.get("running")
+        and busy >= 85
+        and refresh_hz
+        and refresh_hz <= 75
+    ):
+        warm_note = ""
+        if junc is not None and junc >= warm_c:
+            warm_note = f" Junction is {junc}°C — capping also trims heat."
+        elif st_score >= 25:
+            warm_note = " Hitching is elevated — wasted frames above refresh often make this worse."
+        hints.append(_hint(
+            "info",
+            "Cap FPS to your display refresh",
+            (
+                f"GPU is {busy:.0f}% busy on a {cap_hz} Hz display while {gname} runs. "
+                f"Frames above {cap_hz} FPS won't appear on screen but still burn GPU time.{warm_note}"
+            ),
+            [
+                _cmd(
+                    f"In-game: cap at {cap_hz} FPS",
+                    f"{gname} → Options → Graphics → Frame rate limit → {cap_hz}",
+                    kind="game",
+                ),
+                _cmd(
+                    "Optional: cap slightly above refresh",
+                    f"Use {min(cap_hz + 30, 120)} only if you want a little headroom and thermals stay cool",
+                    kind="game",
+                ),
+            ],
+            insight_id="gpu-fps-cap",
+            fix_script=script_gpu_fps_cap(
+                busy_pct=busy,
+                refresh_hz=cap_hz,
+                junction_c=junc,
+                **gk,
+            ),
+            games=[gt["game_id"]] if gt.get("game_id") else None,
+            bucket="resolutions",
+        ))
+
+    swap_pct = float(mem.get("swap_pct") or 0)
+    if (
+        gt.get("running")
+        and 10 <= swap_pct < 25
+        and 20 <= st_score < 42
+    ):
+        hints.append(_hint(
+            "info",
+            "Free RAM — swap and hitches are rising",
+            (
+                f"Swap is {swap_pct:.0f}% and stutter proxy is {st_score:.0f}/100 while {gname} runs. "
+                "Close browser tabs and other heavy apps before lowering graphics settings."
+            ),
+            [
+                _cmd("See what is using RAM", "ps aux --sort=-%mem | head -15"),
+                _cmd("Close Brave — copy & run", "flatpak kill com.brave.Browser", note="You run this; Pulse never does"),
+                _cmd("Lower swappiness — copy & run", "sudo sysctl vm.swappiness=10", note="Needs sudo; Pulse never does"),
+            ],
+            insight_id="resolution-swap-stutter",
+            fix_script=script_resolution_swap_stutter(
+                swap_pct=swap_pct,
+                stutter_score=st_score,
+                **gk,
+            ),
+            games=[gt["game_id"]] if gt.get("game_id") else None,
+            bucket="resolutions",
+        ))
+
+    fault_rate = int(dram.get("pgmajfault_per_s") or 0)
+    if gt.get("running") and 10 <= fault_rate < 20:
+        hints.append(_hint(
+            "info",
+            "Let the save finish loading",
+            (
+                f"{fault_rate}/s major page faults while {gname} runs — assets are still streaming from disk. "
+                "Stay paused ~30s after load before unpausing or panning the camera."
+            ),
+            [
+                _cmd("Wait after load", "Stay paused 30s after the loading bar finishes", kind="game"),
+                _cmd("Avoid alt-tab during catch-up", "Let RAM fill before heavy camera moves", kind="game"),
+            ],
+            insight_id="resolution-load-settle",
+            fix_script=script_resolution_load_settle(fault_rate, **gk),
+            games=[gt["game_id"]] if gt.get("game_id") else None,
+            bucket="resolutions",
+        ))
+
+    gov = ctx.get("governor")
+    cpu_pct = float(cpu.get("overall_pct") or 0)
+    if (
+        gt.get("running")
+        and gov == "powersave"
+        and busy < 70
+        and cpu_pct > 75
+    ):
+        hints.append(_hint(
+            "info",
+            "CPU-bound — turn on performance governor",
+            (
+                f"GPU has headroom but CPU is {cpu_pct:.0f}% busy while governor is '{gov}'. "
+                f"Simulation-heavy scenes in {gname} benefit from performance mode."
+            ),
+            [
+                _cmd(
+                    "Set performance governor (until reboot)",
+                    "echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor",
+                ),
+                _cmd(
+                    "Steam launch: add GameMode",
+                    "gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%",
+                    kind="steam",
+                    note="Steam → game → Properties → Launch Options",
+                ),
+            ],
+            insight_id="resolution-cpu-perf",
+            fix_script=script_resolution_cpu_perf(cpu_pct, gov, **gk),
+            games=[gt["game_id"]] if gt.get("game_id") else None,
+            bucket="resolutions",
+            needs_root=True,
         ))
 
     ccds = cpu.get("temps", {}).get("ccd") or []

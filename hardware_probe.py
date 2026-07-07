@@ -373,3 +373,49 @@ def enrich_memory_spec(spec: dict) -> dict:
         spec["label"] = f"{mfr} · {spec.get('label', 'System RAM')}"
 
     return spec
+
+
+_display_refresh_cache: tuple[float, float | None] = (0.0, None)
+
+
+def primary_display_refresh_hz(max_age_sec: float = 120.0) -> float | None:
+    """Primary monitor refresh rate (Hz) from xrandr; cached briefly."""
+    global _display_refresh_cache
+    import time as _time
+
+    now = _time.time()
+    if now - _display_refresh_cache[0] < max_age_sec and _display_refresh_cache[1]:
+        return _display_refresh_cache[1]
+
+    hz: float | None = None
+    try:
+        out = subprocess.run(
+            ["xrandr", "--current"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=False,
+        )
+        if out.returncode == 0:
+            for line in out.stdout.splitlines():
+                if " connected " not in line:
+                    continue
+                primary = "primary" in line
+                if not primary and hz is not None:
+                    continue
+                m = re.search(r"(\d+(?:\.\d+)?)\*\+?\s*$", line)
+                if m:
+                    hz = float(m.group(1))
+                    if primary:
+                        break
+            if hz is None:
+                for line in out.stdout.splitlines():
+                    m = re.search(r"(\d+(?:\.\d+)?)\*\+?\s*$", line)
+                    if m:
+                        hz = float(m.group(1))
+                        break
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        pass
+
+    _display_refresh_cache = (now, hz)
+    return hz

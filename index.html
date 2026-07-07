@@ -1995,6 +1995,11 @@
         <p class="guidance-section-lead" id="guidanceMeta">Sorted by impact — cross-game issues rank highest.</p>
         <div class="rec-list" id="tuningHints"></div>
       </div>
+      <div class="guidance-section" id="guidanceResolutionsWrap" hidden>
+        <h3 class="guidance-section-title">Possible resolutions</h3>
+        <p class="guidance-section-lead" id="guidanceResolutionsMeta">Quick wins when metrics match a known pattern — try these before deeper tuning.</p>
+        <div class="rec-list" id="tuningResolutions"></div>
+      </div>
       <details class="rec-cleared" id="guidanceClearedWrap" hidden data-open-key="guidance-cleared">
         <summary id="guidanceClearedSum">Cleared issues</summary>
         <div class="rec-list" id="tuningCleared"></div>
@@ -2155,6 +2160,10 @@
       'stutter-proxy': ['cpu', 'gpu', 'memory'],
       'cpu-bound': ['cpu'],
       'gpu-shader-bound': ['gpu'],
+      'gpu-fps-cap': ['gpu'],
+      'resolution-swap-stutter': ['memory'],
+      'resolution-load-settle': ['memory'],
+      'resolution-cpu-perf': ['cpu'],
       'cpu-ccd-spread': ['cpu'],
       'game-files-corrupt': ['cpu', 'gpu', 'memory'],
       'system-balanced': ['cpu', 'gpu', 'memory'],
@@ -5291,25 +5300,39 @@
     function renderFixes(hints) {
       const list = hints || [];
       const active = list.filter(h => h.active !== false);
-      const priority = sortWarningsByPriority(active.filter(h => h.level !== 'ok'));
-      const okOnly = active.filter(h => h.level === 'ok');
+      const resolutionHints = sortWarningsByPriority(
+        active.filter(h => h.bucket === 'resolutions' && h.level !== 'ok'),
+      );
+      const priorityPool = active.filter(h => h.bucket !== 'resolutions');
+      const priority = sortWarningsByPriority(priorityPool.filter(h => h.level !== 'ok'));
+      const okOnly = priorityPool.filter(h => h.level === 'ok');
       const display = priority.length ? priority : okOnly;
       const cleared = list.filter(h => h.active === false);
       const structKey = hintsStructKey(list);
       if (structKey === lastFixesKey) {
         updateRecMetas(list);
-        updateGuidanceSummary(priority);
+        updateGuidanceSummary(priority.concat(resolutionHints));
         return;
       }
       lastFixesKey = structKey;
       capturePanelState();
-      updateGuidanceSummary(priority);
+      updateGuidanceSummary(priority.concat(resolutionHints));
 
       const el = document.getElementById('tuningHints');
       el.innerHTML = display.length
         ? display.map((h, i) => recCardHtml(h, '', priority.length ? i + 1 : 0)).join('')
         : '<p class="sub" style="margin:0">Play a session — issues show up here when something needs attention.</p>';
       bindHintActions(el, display);
+
+      const resWrap = document.getElementById('guidanceResolutionsWrap');
+      const resEl = document.getElementById('tuningResolutions');
+      if (resWrap && resEl) {
+        resWrap.hidden = !resolutionHints.length;
+        resEl.innerHTML = resolutionHints.length
+          ? resolutionHints.map(h => recCardHtml(h, '', 0)).join('')
+          : '';
+        bindHintActions(resEl, resolutionHints);
+      }
 
       const clearedWrap = document.getElementById('guidanceClearedWrap');
       const clearedSum = document.getElementById('guidanceClearedSum');

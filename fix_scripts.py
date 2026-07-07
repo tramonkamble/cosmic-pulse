@@ -530,6 +530,99 @@ log "Governor set to performance"
 """
 
 
+def script_resolution_swap_stutter(
+    swap_pct: float,
+    stutter_score: float,
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
+    gname = ctx["name"]
+    return _header("resolution-swap-stutter", "Free RAM before tuning graphics", "low") + f"""
+cat <<'PLAYBOOK'
+
+  Swap is {swap_pct:.0f}% and stutter proxy is {stutter_score:.0f}/100 while {gname} runs.
+  This is not full swap thrash yet — closing memory hogs often fixes hitches before you change game settings.
+
+  Quick wins:
+    • Close browser tabs and other heavy apps
+    • Check top RAM users: ps aux --sort=-%mem | head -15
+    • Optional (needs sudo): sudo sysctl vm.swappiness=10
+
+PLAYBOOK
+{_open_dir_cmd(ctx)}
+"""
+
+
+def script_resolution_load_settle(
+    fault_rate: int,
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    return script_page_faults(fault_rate, game_id=game_id, game_name=game_name, **kwargs)
+
+
+def script_resolution_cpu_perf(
+    cpu_pct: float,
+    governor: str,
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    gname = _game_ctx(game_id, game_name, **kwargs)["name"]
+    return _header("resolution-cpu-perf", "CPU-bound — switch off power-save governor", "low") + f"""
+cat <<'PLAYBOOK'
+
+  {gname} is CPU-limited ({cpu_pct:.0f}% game CPU) while the governor is "{governor}".
+  Cores may not boost fast enough for simulation-heavy scenes.
+
+  Until reboot (needs sudo):
+    echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+
+  Optional Steam launch option:
+    gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+
+PLAYBOOK
+"""
+
+
+def script_gpu_fps_cap(
+    busy_pct: float = 95,
+    refresh_hz: int = 60,
+    junction_c: float | None = None,
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
+    gname = ctx["name"]
+    temp = f" Junction was {junction_c}°C." if junction_c else ""
+    return _header("gpu-fps-cap", f"Cap FPS to {refresh_hz} Hz display", "low") + f"""
+cat <<'PLAYBOOK'
+
+  GPU was ~{busy_pct:.0f}% busy on a {refresh_hz} Hz display.{temp}
+  Rendering far above {refresh_hz} FPS wastes GPU time and heat — you cannot see those frames.
+
+  {gname} → Options → Graphics:
+    • Frame rate limit → {refresh_hz}
+    • Keep VSync off if you prefer; the in-game cap is enough
+
+  After capping, watch Pulse:
+    • GPU busy% should drop (often 75–90% instead of 98–100%)
+    • Junction temp should ease over a few minutes
+    • Stutter proxy should improve if swap is not the main issue
+
+PLAYBOOK
+{_open_dir_cmd(ctx)}
+"""
+
+
 def script_gpu_shader(
     *,
     game_id: str | None = None,
@@ -637,6 +730,10 @@ SCRIPTS: dict[str, callable] = {
     "memory-page-faults": lambda: script_page_faults(20),
     "cpu-bound": script_cpu_bound,
     "gpu-shader-bound": script_gpu_shader,
+    "gpu-fps-cap": script_gpu_fps_cap,
+    "resolution-swap-stutter": lambda: script_resolution_swap_stutter(15, 30),
+    "resolution-load-settle": lambda: script_resolution_load_settle(15),
+    "resolution-cpu-perf": lambda: script_resolution_cpu_perf(75, "powersave"),
     "cpu-ccd-spread": lambda: script_ccd_spread(0, 0),
     "game-files-corrupt": lambda: script_steam_verify_files(),
     "system-balanced": script_balanced,
