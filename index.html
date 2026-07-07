@@ -4508,9 +4508,9 @@
         if (b === 'Intel') return { slug: 'intel', label: 'Intel' };
       }
       if (kind === 'gpu') {
-        const maker = String(part.maker || part.brand || '').toLowerCase();
-        if (maker.includes('nvidia') || maker.includes('geforce')) return { slug: 'nvidia', label: 'NVIDIA' };
-        if (maker.includes('amd') || maker.includes('radeon')) return { slug: 'amd', label: 'AMD' };
+        const hay = `${part.maker || ''} ${part.brand || ''} ${part.model || ''}`.toLowerCase();
+        if (hay.includes('nvidia') || hay.includes('geforce')) return { slug: 'nvidia', label: 'NVIDIA' };
+        if (hay.includes('amd') || hay.includes('radeon') || /\brx\s*\d/.test(hay)) return { slug: 'amd', label: 'AMD' };
       }
       return null;
     }
