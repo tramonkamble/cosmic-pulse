@@ -14,6 +14,9 @@ Dates use the machine local timezone (EDT unless noted).
 - **Label refinements** — summary tile **Pulse Index**; hardware **Class** (was Tier); **Game process** (was Game CPU); **Memory bus** merges VRAM bus/controller; backlog hidden from UI; profiling tools drill stands alone.
 - **Label pass (American English)** — GPU activity strip uses Shaders / Memory bus / Video; jargon trimmed across dashboard (stutter estimate, memory wait, GPU hotspot, vs typical/high-end PC, RAM bandwidth, etc.).
 
+### Changed
+- **Metrics payload** — history ring buffer stores slim chart samples (~5 KB/point) instead of full dashboard snapshots (~310 KB/point); `/api/metrics` no longer ships duplicated fix scripts and per-game issues 600×.
+
 ### Added
 - **Possible resolutions (Guidance)** — separate section for low-risk pattern matches (`bucket: resolutions`). First insight: **gpu-fps-cap** when GPU ≥85% busy on a ≤75 Hz display while a game runs.
 - **More resolution patterns** — mild swap + stutter → free RAM; load page faults → wait 30s; CPU-bound + power-save governor → performance mode.

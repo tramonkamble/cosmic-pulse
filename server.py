@@ -61,6 +61,41 @@ HISTORY_LEN = 600  # 10 minutes at 1 Hz
 ROOT = Path(__file__).resolve().parent
 
 
+def slim_history_point(snap: dict) -> dict:
+    """Ring-buffer entry for charts and stutter session stats — not full dashboard state."""
+    comp = snap.get("comparison") or {}
+    cpu_c = comp.get("cpu") or {}
+    gpu_c = comp.get("gpu") or {}
+    mem_c = comp.get("memory") or {}
+    cpu = snap.get("cpu") or {}
+    mem = snap.get("memory") or {}
+    dgpu = (snap.get("gpu") or {}).get("discrete") or {}
+    gt = snap.get("game_totals") or {}
+    slim_gt = {}
+    if gt:
+        slim_gt = {
+            "game_id": gt.get("game_id"),
+            "cpu_pct": gt.get("cpu_pct"),
+            "running": gt.get("running"),
+        }
+    return {
+        "ts": snap.get("ts"),
+        "cpu": {"overall_pct": cpu.get("overall_pct")},
+        "memory": {"pct": mem.get("pct"), "swap_pct": mem.get("swap_pct")},
+        "gpu": {"discrete": {"busy_pct": dgpu.get("busy_pct")}},
+        "disk": snap.get("disk"),
+        "bandwidth": snap.get("bandwidth"),
+        "stutter": snap.get("stutter"),
+        "game_totals": slim_gt,
+        "comparison": {
+            "session_index": comp.get("session_index"),
+            "cpu": {"live_pct": cpu_c.get("live_pct")},
+            "gpu": {"live_pct": gpu_c.get("live_pct")},
+            "memory": {"live_pressure_pct": mem_c.get("live_pressure_pct")},
+        },
+    }
+
+
 _lock = threading.Lock()
 _history: list[dict] = []
 _static: dict = {}
@@ -948,7 +983,7 @@ def sampler():
         _static["cosmic_theme"] = get_cosmic_theme()
         snap = collect_metrics()
         with _lock:
-            _history.append(snap)
+            _history.append(slim_history_point(snap))
             if len(_history) > HISTORY_LEN:
                 _history.pop(0)
         try:
