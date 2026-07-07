@@ -98,6 +98,7 @@ def slim_history_point(snap: dict) -> dict:
 
 _lock = threading.Lock()
 _history: list[dict] = []
+_latest_full: dict = {}
 _static: dict = {}
 _prev_net: dict[str, tuple[int, int, float]] = {}
 _prev_disk: tuple[int, int, float] | None = None
@@ -921,7 +922,7 @@ def cpu_temps() -> dict:
 
 
 def sampler():
-    global _history, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS, _gpu_session_peak_mhz
+    global _history, _latest_full, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS, _gpu_session_peak_mhz
     from hardware_probe import _drm_cache, _storage_cache
     _drm_cache = None
     _storage_cache = None
@@ -983,6 +984,7 @@ def sampler():
         _static["cosmic_theme"] = get_cosmic_theme()
         snap = collect_metrics()
         with _lock:
+            _latest_full = snap
             _history.append(slim_history_point(snap))
             if len(_history) > HISTORY_LEN:
                 _history.pop(0)
@@ -1041,7 +1043,7 @@ class Handler(BaseHTTPRequestHandler):
             with _lock:
                 payload = json.dumps({
                     "static": _static,
-                    "latest": _history[-1] if _history else {},
+                    "latest": _latest_full,
                     "history": _history,
                 }).encode()
             self.send_response(200)
@@ -1102,7 +1104,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": "insight_id required"}, status=400)
                 return
             with _lock:
-                latest = _history[-1] if _history else {}
+                latest = _latest_full
             gt = latest.get("game_totals") or {}
             result = apply_fix(
                 insight_id.strip(),
