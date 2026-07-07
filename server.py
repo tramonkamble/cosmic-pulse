@@ -54,11 +54,48 @@ from gpu_metrics import read_gpu_engines
 from gpu_thermal import gpu_thermal_state, profile_for_model
 from hardware_profiles import detect_gpu_spec
 from pulse_config import get_suppressed_insights, load_config
-from tuning_actions import build_tuning_hints, system_context
+from tuning_actions import build_tuning_hints, fix_script_for_insight, system_context
 
 PORT = 8765
 HISTORY_LEN = 600  # 10 minutes at 1 Hz
 ROOT = Path(__file__).resolve().parent
+
+
+def _strip_hint(h: dict) -> dict:
+    out = dict(h)
+    if "fix_script" in out:
+        if "has_fix_script" not in out:
+            out["has_fix_script"] = bool(out.get("fix_script"))
+        del out["fix_script"]
+    return out
+
+
+def _strip_hints(hints: list) -> list:
+    return [_strip_hint(h) for h in hints]
+
+
+def latest_for_api(latest: dict) -> dict:
+    """Drop bulky fix_script bodies from hints sent to the browser."""
+    if not latest:
+        return latest
+    out = dict(latest)
+    if isinstance(out.get("tuning"), list):
+        out["tuning"] = _strip_hints(out["tuning"])
+    if isinstance(out.get("tuning_active"), list):
+        out["tuning_active"] = _strip_hints(out["tuning_active"])
+    by_game = out.get("issues_by_game")
+    if isinstance(by_game, dict):
+        stripped = {}
+        for gid, block in by_game.items():
+            if not isinstance(block, dict):
+                stripped[gid] = block
+                continue
+            entry = dict(block)
+            if isinstance(entry.get("issues"), list):
+                entry["issues"] = _strip_hints(entry["issues"])
+            stripped[gid] = entry
+        out["issues_by_game"] = stripped
+    return out
 
 
 def slim_history_point(snap: dict) -> dict:
@@ -1042,15 +1079,16 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/metrics":
             bootstrap = (qs.get("bootstrap") or ["0"])[0] in ("1", "true", "yes")
             with _lock:
+                latest = latest_for_api(_latest_full)
                 if bootstrap:
                     body = {
                         "static": _static,
-                        "latest": _latest_full,
+                        "latest": latest,
                         "history": _history,
                     }
                 else:
                     body = {
-                        "latest": _latest_full,
+                        "latest": latest,
                         "point": _history[-1] if _history else slim_history_point(_latest_full),
                         "cosmic_theme": _static.get("cosmic_theme"),
                     }
@@ -1062,6 +1100,23 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
             self.wfile.write(payload)
+        elif path == "/api/fix-script":
+            insight_id = (qs.get("insight_id") or [""])[0].strip()
+            if not insight_id:
+                self._json({"ok": False, "error": "insight_id required"}, status=400)
+                return
+            with _lock:
+                script = fix_script_for_insight(
+                    insight_id,
+                    _latest_full,
+                    _mem_spec,
+                    history=_tuning_history,
+                )
+            self._json({
+                "ok": bool(script),
+                "insight_id": insight_id,
+                "script": script,
+            })
         elif path == "/api/diagnostics":
             self._json(get_diagnostics())
         elif path == "/api/store":

@@ -2857,7 +2857,7 @@
     function hintsStructKey(hints) {
       return JSON.stringify((hints || []).map(h => [
         h.insight_id, h.active, h.level, h.title, h.text,
-        h.games_affected, h.multi_game, !!(h.fix_script), !!h.requires_root, !!h.fixable,
+        h.games_affected, h.multi_game, !!h.has_fix_script, !!h.requires_root, !!h.fixable,
         (h.actions || []).map(a => [a.label, a.cmd, a.note, a.kind || '']),
       ]));
     }
@@ -5078,6 +5078,22 @@
       return (list || []).find(h => h.insight_id === iid);
     }
 
+    const fixScriptCache = new Map();
+
+    async function fetchFixScript(insightId) {
+      if (!insightId) return '';
+      if (fixScriptCache.has(insightId)) return fixScriptCache.get(insightId);
+      try {
+        const res = await fetch(`/api/fix-script?insight_id=${encodeURIComponent(insightId)}`);
+        const data = await res.json();
+        const script = data.script || '';
+        if (script) fixScriptCache.set(insightId, script);
+        return script;
+      } catch {
+        return '';
+      }
+    }
+
     function recCardHtml(h, idPrefix = '', rank = 0) {
       const lv = h.level || 'info';
       const stale = h.active === false;
@@ -5092,16 +5108,16 @@
           ${a.note ? `<div class="rec-step-note">${esc(a.note)}</div>` : ''}
           ${a.cmd ? `<button class="copy-btn" type="button" data-iid="${esc(sid)}" data-a="${ai}">Copy</button>` : ''}
         </div>`).join('');
-      const script = h.fix_script || '';
+      const hasScript = !!h.has_fix_script;
       const fixPrimary = h.fixable
         ? `<button class="fix-btn" type="button" data-apply-iid="${esc(sid)}">Fix</button>`
-        : (h.requires_root && script)
+        : (h.requires_root && hasScript)
           ? `<span class="fix-root-note">Requires root</span>`
           : '';
-      const scriptTools = script ? `
+      const scriptTools = hasScript ? `
           <button class="script-btn sec" type="button" data-script-iid="${esc(sid)}">Copy script</button>
           <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>` : '';
-      const scriptBlock = (fixPrimary || script) ? `
+      const scriptBlock = (fixPrimary || hasScript) ? `
         <div class="rec-action-bar">
           <span class="rec-action-label">Actions</span>
           <div class="rec-actions" data-fix-row="${esc(sid)}">
@@ -5109,9 +5125,9 @@
             ${scriptTools}
             <p class="fix-result" data-fix-result hidden></p>
           </div>
-          ${script ? `<details class="rec-more" data-open-key="hint-${domId}-script">
+          ${hasScript ? `<details class="rec-more" data-open-key="hint-${domId}-script" data-script-iid="${esc(sid)}">
             <summary>View script</summary>
-            <pre class="script-pre">${esc(script)}</pre>
+            <pre class="script-pre" data-script-pre>Loading script…</pre>
           </details>` : ''}
         </div>` : '';
       const stepsBlock = steps ? `
@@ -5176,12 +5192,37 @@
         btn.onclick = () => runApplyFix(btn.dataset.applyIid, btn);
       });
       el.querySelectorAll('[data-script-iid]').forEach(btn => {
-        const h = hintById(list, btn.dataset.scriptIid);
-        if (h?.fix_script) btn.onclick = () => copyText(h.fix_script, btn);
+        btn.onclick = async () => {
+          const prev = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Loading…';
+          const script = await fetchFixScript(btn.dataset.scriptIid);
+          btn.disabled = false;
+          btn.textContent = prev;
+          if (script) copyText(script, btn);
+        };
       });
       el.querySelectorAll('[data-dl-iid]').forEach(btn => {
-        const h = hintById(list, btn.dataset.dlIid);
-        if (h?.fix_script) btn.onclick = e => { e.stopPropagation(); downloadScript(h.insight_id || 'fix', h.fix_script); };
+        btn.onclick = async e => {
+          e.stopPropagation();
+          const prev = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = 'Loading…';
+          const script = await fetchFixScript(btn.dataset.dlIid);
+          btn.disabled = false;
+          btn.textContent = prev;
+          if (script) downloadScript(btn.dataset.dlIid || 'fix', script);
+        };
+      });
+      el.querySelectorAll('details.rec-more[data-script-iid]').forEach(det => {
+        det.addEventListener('toggle', async () => {
+          if (!det.open) return;
+          const pre = det.querySelector('[data-script-pre]');
+          if (!pre || pre.dataset.loaded) return;
+          const script = await fetchFixScript(det.dataset.scriptIid);
+          pre.textContent = script || 'No script available for this insight.';
+          pre.dataset.loaded = '1';
+        });
       });
       el.querySelectorAll('.script-btn, .copy-btn, .fix-btn').forEach(btn => {
         btn.addEventListener('click', e => e.stopPropagation());

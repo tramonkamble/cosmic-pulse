@@ -52,13 +52,15 @@ def _hint(
     bucket: str | None = None,
 ) -> dict:
     root = requires_root(insight_id) if needs_root is None else needs_root
+    script = fix_script.strip()
     out = {
         "level": level,
         "title": title,
         "text": text,
         "actions": actions,
         "insight_id": insight_id,
-        "fix_script": fix_script.strip(),
+        "fix_script": script,
+        "has_fix_script": bool(script),
         "games": games or ["all"],
         "requires_root": root,
         "fixable": fix_available(insight_id) and not root,
@@ -634,3 +636,31 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
         ))
 
     return hints
+
+
+def fix_script_for_insight(
+    insight_id: str,
+    snap: dict,
+    mem_spec: dict,
+    ctx: dict | None = None,
+    history: list[dict] | None = None,
+) -> str:
+    """Regenerate or recall a fix script for an insight (lazy API load)."""
+    ctx = ctx or system_context()
+    for h in build_tuning_hints(snap, mem_spec, ctx):
+        if h.get("insight_id") == insight_id:
+            return h.get("fix_script") or ""
+    if history:
+        for item in history:
+            if item.get("insight_id") == insight_id:
+                cached = item.get("fix_script") or ""
+                if cached:
+                    return cached
+    gctx = active_game_context(snap.get("game_totals") or {})
+    from fix_scripts import get_fix_script
+
+    return get_fix_script(
+        insight_id,
+        game_id=gctx.get("appid"),
+        game_name=gctx.get("name"),
+    )
