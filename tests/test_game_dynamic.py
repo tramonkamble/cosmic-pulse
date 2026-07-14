@@ -136,6 +136,68 @@ def test_lib_apt_install_built_from_findings():
     assert "add-architecture i386" in script
 
 
+def test_idle_game_scoped_fix_script_skips_stale_history():
+    from tuning_actions import fix_script_for_insight
+
+    snap = _snap(game_totals={"running": False, "game_id": None, "game_name": None})
+    history = [
+        {
+            "insight_id": "game-files-corrupt",
+            "fix_script": '# CS2 stale\nsteam://validate/730\nCounter-Strike 2',
+        }
+    ]
+    script = fix_script_for_insight(
+        "game-files-corrupt",
+        snap,
+        {},
+        history=history,
+    )
+    assert "Counter-Strike" not in script
+    assert "steam://validate/730" not in script
+    assert "No active AppID" in script or "your game" in script
+
+
+def test_prefix_reset_requires_running_game():
+    snap = _snap(
+        game_totals={"running": False, "game_id": None},
+        load_phase={"phase": "idle", "in_grace": False, "suppress_page_fault_warn": True},
+    )
+    _, emitted_ids = evaluate_rule_packs(snap, {}, {"governor": "performance"})
+    assert "game-prefix-reset" not in emitted_ids
+
+
+def test_no_game_metrics_context():
+    from rule_packs import flatten_metrics
+
+    snap = _snap(game_totals={"running": False, "game_id": None, "game_name": None})
+    metrics = flatten_metrics(snap, {}, {"governor": "performance"})
+    assert metrics["game"]["running"] is False
+    assert metrics["game"]["appid"] is None
+    kw = game_context_kwargs(metrics)
+    assert kw["appid"] is None
+
+
+def test_legacy_game_id_normalized():
+    from games import normalize_game_id
+
+    assert normalize_game_id("cities2") == "949230"
+    assert normalize_game_id("949230") == "949230"
+
+
+def test_resolve_swappiness_script_non_empty():
+    from rule_packs import resolve_fix_script_for_insight
+
+    snap = _snap(game_totals={"running": False, "game_id": None})
+    script = resolve_fix_script_for_insight(
+        "vm-swappiness-high",
+        snap,
+        {},
+        {"governor": "powersave", "swappiness": 180},
+    )
+    assert "180" in script
+    assert "swappiness" in script.lower()
+
+
 def test_rule_pack_game_fix_script_gets_appid():
     snap = _snap()
     snap["steam"] = {"files_corrupt": True}
@@ -166,5 +228,10 @@ if __name__ == "__main__":
     test_fix_script_uses_active_appid_not_cs2_default()
     test_game_context_kwargs_from_metrics()
     test_lib_apt_install_built_from_findings()
+    test_idle_game_scoped_fix_script_skips_stale_history()
+    test_prefix_reset_requires_running_game()
+    test_no_game_metrics_context()
+    test_legacy_game_id_normalized()
+    test_resolve_swappiness_script_non_empty()
     test_rule_pack_game_fix_script_gets_appid()
     print("all ok")

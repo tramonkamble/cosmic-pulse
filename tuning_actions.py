@@ -12,6 +12,12 @@ from fix_scripts import (
 from games import active_game_context
 from rule_packs import evaluate_rule_packs, resolve_fix_script_for_insight
 
+_GAME_SCOPED_INSIGHTS = frozenset({
+    "game-files-corrupt",
+    "game-update-pending",
+    "game-prefix-reset",
+})
+
 
 def _hint(
     level: str,
@@ -127,19 +133,21 @@ def fix_script_for_insight(
 ) -> str:
     """Regenerate or recall a fix script for an insight (lazy API load)."""
     ctx = ctx or system_context()
+    gctx = active_game_context(snap.get("game_totals") or {})
+    active_appid = gctx.get("appid")
+    game_scoped = insight_id in _GAME_SCOPED_INSIGHTS
     for h in build_tuning_hints(snap, mem_spec, ctx):
         if h.get("insight_id") == insight_id:
             return h.get("fix_script") or ""
-    if history:
+    pack_script = resolve_fix_script_for_insight(insight_id, snap, mem_spec, ctx)
+    if pack_script:
+        return pack_script
+    if history and not (game_scoped and not active_appid):
         for item in history:
             if item.get("insight_id") == insight_id:
                 cached = item.get("fix_script") or ""
                 if cached:
                     return cached
-    pack_script = resolve_fix_script_for_insight(insight_id, snap, mem_spec, ctx)
-    if pack_script:
-        return pack_script
-    gctx = active_game_context(snap.get("game_totals") or {})
     extra: dict = {
         "appid": gctx.get("appid"),
         "game_name": gctx.get("name"),

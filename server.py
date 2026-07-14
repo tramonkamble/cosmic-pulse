@@ -74,7 +74,7 @@ from store import (
 from stutter import attach_stutter
 from tuning_actions import build_tuning_hints, fix_script_for_insight, system_context
 
-PORT = 8765
+PORT = int(os.environ.get("PULSE_PORT", "8765"))
 HISTORY_LEN = 600  # 10 minutes at 1 Hz
 ROOT = Path(__file__).resolve().parent
 
