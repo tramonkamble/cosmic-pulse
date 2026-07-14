@@ -15,7 +15,6 @@ from stutter import (
     attach_stutter,
     compute_stutter,
     reset_stutter_state,
-    session_stats,
 )
 
 

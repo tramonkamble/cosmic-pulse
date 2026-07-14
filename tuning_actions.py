@@ -5,12 +5,12 @@
 from __future__ import annotations
 
 from apply_fix import fix_available, requires_root
-from games import active_game_context
-from rule_packs import evaluate_rule_packs, resolve_fix_script_for_insight
 from fix_scripts import (
     get_fix_script,
     script_balanced,
 )
+from games import active_game_context
+from rule_packs import evaluate_rule_packs, resolve_fix_script_for_insight
 
 
 def _hint(
@@ -64,7 +64,9 @@ def system_context() -> dict:
 
     ctx: dict = {}
     try:
-        ctx["governor"] = Path("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor").read_text().strip()
+        ctx["governor"] = (
+            Path("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor").read_text().strip()
+        )
     except OSError:
         ctx["governor"] = None
     try:
@@ -74,7 +76,9 @@ def system_context() -> dict:
     try:
         avail = [
             g.read_text().strip()
-            for g in Path("/sys/devices/system/cpu/cpu0/cpufreq/").glob("scaling_available_governors")
+            for g in Path("/sys/devices/system/cpu/cpu0/cpufreq/").glob(
+                "scaling_available_governors"
+            )
         ]
         ctx["governors_avail"] = avail[0].split() if avail else []
     except OSError:
@@ -94,22 +98,24 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
 
     gctx = active_game_context(snap.get("game_totals") or {})
     gk = _game_kwargs(snap)
-    return [_hint(
-        "ok",
-        "Looking good",
-        "No major issues right now. Check again when game load or mods increase.",
-        [
-            *([_open_game_action(gctx)] if _open_game_action(gctx) else []),
-            _cmd(
-                "Steam launch options (keep Wayland fix)",
-                "PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%",
-                kind="steam",
-                note="Steam → game → Properties → Launch Options",
-            ),
-        ],
-        insight_id="system-balanced",
-        fix_script=script_balanced(**gk),
-    )]
+    return [
+        _hint(
+            "ok",
+            "Looking good",
+            "No major issues right now. Check again when game load or mods increase.",
+            [
+                *([_open_game_action(gctx)] if _open_game_action(gctx) else []),
+                _cmd(
+                    "Steam launch options (keep Wayland fix)",
+                    "PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%",
+                    kind="steam",
+                    note="Steam → game → Properties → Launch Options",
+                ),
+            ],
+            insight_id="system-balanced",
+            fix_script=script_balanced(**gk),
+        )
+    ]
 
 
 def fix_script_for_insight(
@@ -144,15 +150,18 @@ def fix_script_for_insight(
         try:
             from diagnostics import get_diagnostics
             from rule_packs import _LIB_FINDING_RE, _lib_install_context
+
             findings = (get_diagnostics() or {}).get("findings") or []
             lib_hits = [f for f in findings if _LIB_FINDING_RE.match(f["id"])]
             if lib_hits:
                 lib_ctx = _lib_install_context(lib_hits)
-                extra.update({
-                    "lib_findings": lib_hits,
-                    "multilib": lib_ctx["lib_multilib_needed"],
-                    "apt_packages": lib_ctx["lib_apt_packages"],
-                })
+                extra.update(
+                    {
+                        "lib_findings": lib_hits,
+                        "multilib": lib_ctx["lib_multilib_needed"],
+                        "apt_packages": lib_ctx["lib_apt_packages"],
+                    }
+                )
         except Exception:
             pass
     return get_fix_script(insight_id, **extra)

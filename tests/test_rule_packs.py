@@ -94,12 +94,18 @@ def test_resolution_swap_stutter_requires_game_running():
 def test_eval_condition_all_and_any():
     metrics = flatten_metrics(_snap(memory={"swap_pct": 30}), {}, {"governor": "performance"})
     assert eval_condition({"metric": "memory.swap_pct", "gt": 25}, metrics)
-    assert eval_condition({
-        "all": [
-            {"metric": "memory.swap_pct", "gte": 10},
-            {"metric": "memory.swap_pct", "lt": 25},
-        ],
-    }, metrics) is False
+    assert (
+        eval_condition(
+            {
+                "all": [
+                    {"metric": "memory.swap_pct", "gte": 10},
+                    {"metric": "memory.swap_pct", "lt": 25},
+                ],
+            },
+            metrics,
+        )
+        is False
+    )
 
 
 def test_render_template_formats_numbers():

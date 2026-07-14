@@ -20,12 +20,26 @@ Cosmic Pulse uses standard local git practices. Remote (GitHub/GitLab) can be ad
 5. **Clean working tree** — finish a task with `git status` clean (or WIP on a branch, not half-applied on `main`).
 6. **`main` is always runnable** — each commit should leave Cosmic Pulse in a working state.
 
+## Lint & format
+
+Before committing Python changes:
+
+```bash
+cd pulse   # your clone directory
+ruff check . --fix
+ruff format .
+python3 tests/test_*.py   # or: pytest tests/ if installed
+```
+
+Ruff config lives in `pyproject.toml`. Install: `snap install ruff` or `pip install ruff`.
+
 ## Typical flow
 
 ```bash
 cd pulse   # your clone directory
 
 # edit files …
+# ruff check . --fix && ruff format .
 # update CHANGELOG.md [Unreleased] …
 
 git add <files>

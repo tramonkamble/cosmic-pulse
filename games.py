@@ -34,24 +34,61 @@ GAME_BINARY_SUFFIXES = (".exe", ".x86_64", ".x86", ".bin")
 MANIFEST_NAME_RE = re.compile(r'"name"\s*"([^"]+)"')
 MANIFEST_DIR_RE = re.compile(r'"installdir"\s*"([^"]+)"')
 
-SKIP_PROCS = frozenset({
-    "wineserver", "winedevice.exe", "wineboot.exe", "wine64-preloader", "wine-preloader",
-    "crashpad_handler", "crashpad_handle", "xalia.exe", "steam.exe", "steamwebhelper",
-    "fossilize_replay.exe", "reaper", "explorer.exe", "tabtip.exe", "sh", "python3",
-    "python", "systemd", "gamemoded", "gamemoderun", "srt-bwrap", "rpcss.exe",
-    "services.exe", "svchost.exe", "plugplay.exe", "tabtip.exe", "steam-runtime",
-    "pv-adverb", "steam-launch-wrapper", "proton", "pressure-vessel", "srt-logger",
-})
+SKIP_PROCS = frozenset(
+    {
+        "wineserver",
+        "winedevice.exe",
+        "wineboot.exe",
+        "wine64-preloader",
+        "wine-preloader",
+        "crashpad_handler",
+        "crashpad_handle",
+        "xalia.exe",
+        "steam.exe",
+        "steamwebhelper",
+        "fossilize_replay.exe",
+        "reaper",
+        "explorer.exe",
+        "tabtip.exe",
+        "sh",
+        "python3",
+        "python",
+        "systemd",
+        "gamemoded",
+        "gamemoderun",
+        "srt-bwrap",
+        "rpcss.exe",
+        "services.exe",
+        "svchost.exe",
+        "plugplay.exe",
+        "steam-runtime",
+        "pv-adverb",
+        "steam-launch-wrapper",
+        "proton",
+        "pressure-vessel",
+        "srt-logger",
+    }
+)
 
-LAUNCHER_EXES = frozenset({
-    "dowser.exe", "launcher.exe", "launch.exe", "unityplayer.exe",
-})
+LAUNCHER_EXES = frozenset(
+    {
+        "dowser.exe",
+        "launcher.exe",
+        "launch.exe",
+        "unityplayer.exe",
+    }
+)
 
 # Helpers / crash reporters — never meter as the game.
-AUXILIARY_EXES = frozenset({
-    "unitycrashhandler64.exe", "unitycrashhandler.exe",
-    "crashpad_handler.exe", "crashpad_handler.dll", "gameoverlayui",
-})
+AUXILIARY_EXES = frozenset(
+    {
+        "unitycrashhandler64.exe",
+        "unitycrashhandler.exe",
+        "crashpad_handler.exe",
+        "crashpad_handler.dll",
+        "gameoverlayui",
+    }
+)
 
 # Populated from rule packs (see get_game_overrides / get_legacy_game_ids).
 _GAME_OVERRIDE_CACHE: dict[str, dict] | None = None
@@ -64,6 +101,7 @@ def _load_legacy_game_ids() -> dict[str, str]:
         return _LEGACY_ID_CACHE
     try:
         from rule_packs import get_legacy_game_ids
+
         _LEGACY_ID_CACHE = get_legacy_game_ids()
     except Exception:
         return {}
@@ -76,6 +114,7 @@ def _load_game_overrides() -> dict[str, dict]:
         return _GAME_OVERRIDE_CACHE
     try:
         from rule_packs import get_game_overrides
+
         _GAME_OVERRIDE_CACHE = get_game_overrides()
     except Exception:
         return {}
@@ -212,11 +251,14 @@ def build_games_catalog() -> dict[str, dict]:
             }
     for appid in GAME_OVERRIDES:
         meta = game_meta(appid)
-        catalog.setdefault(appid, {
-            "name": meta["name"],
-            "short": meta["short"],
-            "appid": appid,
-        })
+        catalog.setdefault(
+            appid,
+            {
+                "name": meta["name"],
+                "short": meta["short"],
+                "appid": appid,
+            },
+        )
     return catalog
 
 
@@ -228,13 +270,16 @@ _MANIFEST_INT = re.compile(r'"(\w+)"\s*"(\d+)"')
 _CONTENT_LOG_TAIL = 1200
 _CONTENT_SUSPENDED_LOOKBACK = 8
 _STATE_CORRUPT_RE = re.compile(
-    rf"AppID\s+(\d+)\s+state changed\s+:.*Files Corrupt", re.I,
+    r"AppID\s+(\d+)\s+state changed\s+:.*Files Corrupt",
+    re.I,
 )
 _STATE_RUNNING_RE = re.compile(
-    rf"AppID\s+(\d+)\s+state changed\s+:.*App Running", re.I,
+    r"AppID\s+(\d+)\s+state changed\s+:.*App Running",
+    re.I,
 )
 _SCHEDULER_SUSPENDED_RE = re.compile(
-    r"AppID\s+(\d+)\s+scheduler finished\s+:.*result Suspended", re.I,
+    r"AppID\s+(\d+)\s+scheduler finished\s+:.*result Suspended",
+    re.I,
 )
 _STATE_CHANGED_RE = re.compile(r"AppID\s+(\d+)\s+state changed\s*:(.*)", re.I)
 _UPDATE_BUSY_RE = re.compile(
@@ -243,7 +288,8 @@ _UPDATE_BUSY_RE = re.compile(
     re.I,
 )
 _SCHEDULER_MISSING_RE = re.compile(
-    r"AppID\s+(\d+)\s+scheduler finished\s+:.*Missing game files", re.I,
+    r"AppID\s+(\d+)\s+scheduler finished\s+:.*Missing game files",
+    re.I,
 )
 
 
@@ -341,7 +387,7 @@ def _content_log_suspended(line: str, appid: str) -> bool:
 def _same_app_running_near(lines: list[str], idx: int, appid: str) -> bool:
     """True when this AppID was running near a scheduler Suspended line (not another game)."""
     start = max(0, idx - _CONTENT_SUSPENDED_LOOKBACK)
-    for w in lines[start: idx + 1]:
+    for w in lines[start : idx + 1]:
         m = _STATE_RUNNING_RE.search(w)
         if m and m.group(1) == appid:
             return True
@@ -381,8 +427,7 @@ def parse_content_log(appid: str, lines: list[str]) -> dict[str, bool]:
             if state and state.group(1) == appid:
                 last_state = state.group(2)
                 if (
-                    "Update Running" in last_state
-                    or "Update Started" in last_state
+                    "Update Running" in last_state or "Update Started" in last_state
                 ) and i > last_success:
                     update_active = True
 
@@ -474,8 +519,12 @@ def steam_install_health(appid: str, *, cache: bool = True) -> dict:
         try:
             for key, val in _MANIFEST_INT.findall(manifest_path.read_text(errors="ignore")):
                 if key in {
-                    "BytesToDownload", "BytesDownloaded", "BytesToStage", "BytesStaged",
-                    "UpdateResult", "StateFlags",
+                    "BytesToDownload",
+                    "BytesDownloaded",
+                    "BytesToStage",
+                    "BytesStaged",
+                    "UpdateResult",
+                    "StateFlags",
                 }:
                     ints[key] = int(val)
         except OSError:
@@ -624,13 +673,15 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
             if gid_m and pid_m:
                 overlay_map.setdefault(gid_m.group(1), set()).add(int(pid_m.group(1)))
 
-        rows.append({
-            "pid": pid,
-            "name": name,
-            "cmd": cmd,
-            "memory_info": mi,
-            "raw_cpu": raw_cpu,
-        })
+        rows.append(
+            {
+                "pid": pid,
+                "name": name,
+                "cmd": cmd,
+                "memory_info": mi,
+                "raw_cpu": raw_cpu,
+            }
+        )
 
     return active_appids, overlay_map, rows
 
@@ -656,7 +707,7 @@ def _proc_steam_appid(pid: int) -> str | None:
             continue
         for prefix in STEAM_ENV_APPID_KEYS:
             if entry.startswith(prefix):
-                val = entry[len(prefix):].decode("utf-8", errors="ignore").strip()
+                val = entry[len(prefix) :].decode("utf-8", errors="ignore").strip()
                 if val.isdigit():
                     return val
     return None
@@ -924,7 +975,12 @@ def detect_games() -> dict[str, dict]:
     out: dict[str, dict] = {}
     for appid, meta in metas.items():
         rows = buckets[appid]
-        rows.sort(key=lambda x: (0 if x["tier"] == "main" else 1 if x["tier"] == "child" else 2, -x["rss_mb"]))
+        rows.sort(
+            key=lambda x: (
+                0 if x["tier"] == "main" else 1 if x["tier"] == "child" else 2,
+                -x["rss_mb"],
+            )
+        )
         require_main = bool(GAME_OVERRIDES.get(appid, {}).get("main_exe"))
         primary = _pick_primary(rows, require_main=require_main)
         out[appid] = {

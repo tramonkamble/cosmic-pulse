@@ -29,9 +29,27 @@ MEM_TIERS: list[dict] = [
     {"name": "DDR5-4800 dual", "mts": 4800, "channels": 2, "peak_gbps": 76.8, "class": "entry"},
     {"name": "DDR5-5200 dual", "mts": 5200, "channels": 2, "peak_gbps": 83.2, "class": "mid"},
     {"name": "DDR5-5600 dual", "mts": 5600, "channels": 2, "peak_gbps": 89.6, "class": "upper"},
-    {"name": "DDR5-6000 dual", "mts": 6000, "channels": 2, "peak_gbps": 96.0, "class": "enthusiast"},
-    {"name": "G.Skill Flare X5 6000", "mts": 6000, "channels": 2, "peak_gbps": 96.0, "class": "enthusiast"},
-    {"name": "DDR5-6400 dual", "mts": 6400, "channels": 2, "peak_gbps": 102.4, "class": "enthusiast"},
+    {
+        "name": "DDR5-6000 dual",
+        "mts": 6000,
+        "channels": 2,
+        "peak_gbps": 96.0,
+        "class": "enthusiast",
+    },
+    {
+        "name": "G.Skill Flare X5 6000",
+        "mts": 6000,
+        "channels": 2,
+        "peak_gbps": 96.0,
+        "class": "enthusiast",
+    },
+    {
+        "name": "DDR5-6400 dual",
+        "mts": 6400,
+        "channels": 2,
+        "peak_gbps": 102.4,
+        "class": "enthusiast",
+    },
     {"name": "DDR5-7200 dual", "mts": 7200, "channels": 2, "peak_gbps": 115.2, "class": "flagship"},
 ]
 
@@ -51,8 +69,6 @@ CPU_ALIASES = {
     "14900k": "Core i9-14900K",
     "13700k": "Core i7-13700K",
 }
-
-
 
 
 def dram_peak_gbps(mts: int, channels: int = 2) -> float:
@@ -92,9 +108,7 @@ def cpu_identity(cpu_model: str) -> dict:
 def memory_identity(mem_spec: dict) -> dict:
     brand = mem_spec.get("manufacturer") or mem_spec.get("brand")
     kit = mem_spec.get("kit")
-    label = mem_spec.get("label") or (
-        f"{brand} {kit}".strip() if brand or kit else "System RAM"
-    )
+    label = mem_spec.get("label") or (f"{brand} {kit}".strip() if brand or kit else "System RAM")
     return {
         "brand": brand,
         "kit": kit,
@@ -105,8 +119,19 @@ def memory_identity(mem_spec: dict) -> dict:
 
 
 _S76_PRODUCTS = (
-    "thelio", "meerkat", "lemp", "lemur", "galago", "oryx", "darter",
-    "pangolin", "bonobo", "serval", "addax", "kudu", "slimbook",
+    "thelio",
+    "meerkat",
+    "lemp",
+    "lemur",
+    "galago",
+    "oryx",
+    "darter",
+    "pangolin",
+    "bonobo",
+    "serval",
+    "addax",
+    "kudu",
+    "slimbook",
 )
 
 
@@ -209,7 +234,9 @@ def hardware_comparison(
         1,
     )
 
-    composite_tier = round(cpu_t["score"] * 0.4 + gpu_t["score"] * 0.45 + min(100, mem_peak / 1.15) * 0.15, 1)
+    composite_tier = round(
+        cpu_t["score"] * 0.4 + gpu_t["score"] * 0.45 + min(100, mem_peak / 1.15) * 0.15, 1
+    )
 
     return {
         "session_index": session_index,

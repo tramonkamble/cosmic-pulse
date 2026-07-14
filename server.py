@@ -16,7 +16,22 @@ from urllib.parse import parse_qs, urlparse
 
 import psutil
 
+from apply_fix import apply_fix
 from benchmarks import chassis_identity, cpu_identity, hardware_comparison, memory_identity
+from cosmic_theme import get_cosmic_theme
+from diagnostics import get_diagnostics, invalidate_diagnostics_cache
+from game_performance import seed_last_session, tick_game_performance
+from games import (
+    LEGACY_GAME_IDS,
+    build_games_catalog,
+    detect_games,
+    primary_active_game,
+    prime_game_cpu,
+    running_game_ids,
+)
+from gpu_metrics import read_gpu_engines
+from gpu_thermal import gpu_thermal_state, profile_for_model
+from guidance_auto import seed_clear_timers, tick_auto_resolve
 from hardware_probe import (
     discover_drm_cards,
     enrich_memory_spec,
@@ -28,21 +43,18 @@ from hardware_probe import (
     nvme_sensor_tiles,
     probe_storage,
 )
-from cosmic_theme import get_cosmic_theme
-from diagnostics import get_diagnostics, invalidate_diagnostics_cache
-from game_performance import seed_last_session, tick_game_performance
-from load_phase import tick_load_phase
-from games import (
-    LEGACY_GAME_IDS,
-    build_games_catalog,
-    detect_games,
-    primary_active_game,
-    prime_game_cpu,
-    running_game_ids,
-)
+from hardware_profiles import detect_gpu_spec
 from issue_aggregate import _games_for_active, build_issue_views, merge_games_seen
+from load_phase import tick_load_phase
 from probe_memory import infer_fallback
-from stutter import attach_stutter
+from pulse_config import (
+    get_insight_pref_sets,
+    get_resolved_insights,
+    get_suppressed_insights,
+    load_config,
+    resolve_insight,
+    unresolve_insight,
+)
 from store import (
     correlate,
     init_db,
@@ -54,22 +66,12 @@ from store import (
     record_session_marker,
     save_game_session,
     series,
-    stats as store_stats,
     update_settings,
 )
-from apply_fix import apply_fix
-from gpu_metrics import read_gpu_engines
-from gpu_thermal import gpu_thermal_state, profile_for_model
-from hardware_profiles import detect_gpu_spec
-from guidance_auto import seed_clear_timers, tick_auto_resolve
-from pulse_config import (
-    get_insight_pref_sets,
-    get_resolved_insights,
-    get_suppressed_insights,
-    load_config,
-    resolve_insight,
-    unresolve_insight,
+from store import (
+    stats as store_stats,
 )
+from stutter import attach_stutter
 from tuning_actions import build_tuning_hints, fix_script_for_insight, system_context
 
 PORT = 8765
@@ -474,14 +476,29 @@ def vmstat_rates() -> dict:
             if k in keys:
                 cur[k] = int(v)
     except OSError:
-        return {"pgfault_per_s": 0, "pgmajfault_per_s": 0, "refault_file_per_s": 0, "refault_anon_per_s": 0}
+        return {
+            "pgfault_per_s": 0,
+            "pgmajfault_per_s": 0,
+            "refault_file_per_s": 0,
+            "refault_anon_per_s": 0,
+        }
     prev = _prev_vmstat
     _prev_vmstat = (cur, now)
     if not prev:
-        return {"pgfault_per_s": 0, "pgmajfault_per_s": 0, "refault_file_per_s": 0, "refault_anon_per_s": 0}
+        return {
+            "pgfault_per_s": 0,
+            "pgmajfault_per_s": 0,
+            "refault_file_per_s": 0,
+            "refault_anon_per_s": 0,
+        }
     dt = now - prev[1]
     if dt <= 0:
-        return {"pgfault_per_s": 0, "pgmajfault_per_s": 0, "refault_file_per_s": 0, "refault_anon_per_s": 0}
+        return {
+            "pgfault_per_s": 0,
+            "pgmajfault_per_s": 0,
+            "refault_file_per_s": 0,
+            "refault_anon_per_s": 0,
+        }
     if dt < 0.5:
         return {
             "pgfault_per_s": int(_rate_smooth.get("vmstat:pgfault", 0)),
@@ -490,10 +507,36 @@ def vmstat_rates() -> dict:
             "refault_anon_per_s": int(_rate_smooth.get("vmstat:refault_anon", 0)),
         }
     return {
-        "pgfault_per_s": int(ema_rate("vmstat:pgfault", (cur.get("pgfault", 0) - prev[0].get("pgfault", 0)) / dt, cap=80_000)),
-        "pgmajfault_per_s": int(ema_rate("vmstat:pgmajfault", (cur.get("pgmajfault", 0) - prev[0].get("pgmajfault", 0)) / dt, cap=10_000)),
-        "refault_file_per_s": int(ema_rate("vmstat:refault_file", (cur.get("workingset_refault_file", 0) - prev[0].get("workingset_refault_file", 0)) / dt, cap=50_000)),
-        "refault_anon_per_s": int(ema_rate("vmstat:refault_anon", (cur.get("workingset_refault_anon", 0) - prev[0].get("workingset_refault_anon", 0)) / dt, cap=50_000)),
+        "pgfault_per_s": int(
+            ema_rate(
+                "vmstat:pgfault",
+                (cur.get("pgfault", 0) - prev[0].get("pgfault", 0)) / dt,
+                cap=80_000,
+            )
+        ),
+        "pgmajfault_per_s": int(
+            ema_rate(
+                "vmstat:pgmajfault",
+                (cur.get("pgmajfault", 0) - prev[0].get("pgmajfault", 0)) / dt,
+                cap=10_000,
+            )
+        ),
+        "refault_file_per_s": int(
+            ema_rate(
+                "vmstat:refault_file",
+                (cur.get("workingset_refault_file", 0) - prev[0].get("workingset_refault_file", 0))
+                / dt,
+                cap=50_000,
+            )
+        ),
+        "refault_anon_per_s": int(
+            ema_rate(
+                "vmstat:refault_anon",
+                (cur.get("workingset_refault_anon", 0) - prev[0].get("workingset_refault_anon", 0))
+                / dt,
+                cap=50_000,
+            )
+        ),
     }
 
 
@@ -639,36 +682,192 @@ def sensor_wall(dgpu: dict | None = None, igpu: dict | None = None) -> list[dict
         *nvme_tiles,
         {"id": "nic_phy", "label": "NIC PHY", "value": pick("PHY"), "unit": "°C", "kind": "temp"},
         {"id": "nic_mac", "label": "NIC MAC", "value": pick("MAC"), "unit": "°C", "kind": "temp"},
-        {"id": "wifi", "label": "WiFi Radio", "value": pick("iwlwifi"), "unit": "°C", "kind": "temp"},
-        {"id": "gpu_edge", "label": "GPU Edge", "value": dgpu.get("temp_c") or pick(dgpu_prefix, "edge", match_all=True), "unit": "°C", "kind": "temp"},
-        {"id": "gpu_junc", "label": "GPU Junction", "value": dgpu.get("junction_c") or pick(dgpu_prefix, "junction", match_all=True), "unit": "°C", "kind": "temp"},
-        {"id": "gpu_memt", "label": "VRAM Temp", "value": dgpu.get("mem_temp_c") or pick(dgpu_prefix, "mem", match_all=True), "unit": "°C", "kind": "temp"},
-        {"id": "igpu_edge", "label": "iGPU Edge", "value": pick(igpu_prefix, "edge", match_all=True), "unit": "°C", "kind": "temp"},
-        {"id": "cpu_pkg", "label": "CPU Package", "value": pick("k10temp", "Tctl"), "unit": "°C", "kind": "temp"},
-        {"id": "ccd1", "label": "CCD1 Die", "value": pick("k10temp", "Tccd1"), "unit": "°C", "kind": "temp"},
-        {"id": "ccd2", "label": "CCD2 Die", "value": pick("k10temp", "Tccd2"), "unit": "°C", "kind": "temp"},
-        {"id": "cpu_mhz", "label": "CPU Avg CLK", "value": round(freq.current, 0) if freq else None, "unit": "MHz", "kind": "freq"},
-        {"id": "gpu_clk", "label": "GPU GFX CLK", "value": dgpu.get("gfx_mhz"), "unit": "MHz", "kind": "freq"},
-        {"id": "gpu_vram", "label": "VRAM Load", "value": dgpu.get("vram_pct"), "unit": "%", "kind": "pct"},
-        {"id": "gpu_mbusy", "label": "VRAM Busy", "value": dgpu.get("mem_busy_pct"), "unit": "%", "kind": "pct"},
-        {"id": "gpu_fan", "label": "GPU Fan", "value": dgpu.get("fan_rpm"), "unit": "rpm", "kind": "rate"},
-        {"id": "gpu_pwr", "label": "GPU PPT", "value": dgpu.get("power_w"), "unit": "W", "kind": "rate"},
-        {"id": "igpu_pwr", "label": "iGPU PPT", "value": igpu.get("power_w"), "unit": "W", "kind": "rate"},
-        {"id": "case_cpu", "label": "Case CPUF", "value": pick("system76_io", "CPUF", match_all=True), "unit": "rpm", "kind": "rate"},
-        {"id": "case_int", "label": "Case INTF", "value": pick("system76_io", "INTF", match_all=True), "unit": "rpm", "kind": "rate"},
-        {"id": "ram_avail", "label": "RAM Avail", "value": round(vm.available / 1024**3, 1), "unit": "GB", "kind": "info"},
+        {
+            "id": "wifi",
+            "label": "WiFi Radio",
+            "value": pick("iwlwifi"),
+            "unit": "°C",
+            "kind": "temp",
+        },
+        {
+            "id": "gpu_edge",
+            "label": "GPU Edge",
+            "value": dgpu.get("temp_c") or pick(dgpu_prefix, "edge", match_all=True),
+            "unit": "°C",
+            "kind": "temp",
+        },
+        {
+            "id": "gpu_junc",
+            "label": "GPU Junction",
+            "value": dgpu.get("junction_c") or pick(dgpu_prefix, "junction", match_all=True),
+            "unit": "°C",
+            "kind": "temp",
+        },
+        {
+            "id": "gpu_memt",
+            "label": "VRAM Temp",
+            "value": dgpu.get("mem_temp_c") or pick(dgpu_prefix, "mem", match_all=True),
+            "unit": "°C",
+            "kind": "temp",
+        },
+        {
+            "id": "igpu_edge",
+            "label": "iGPU Edge",
+            "value": pick(igpu_prefix, "edge", match_all=True),
+            "unit": "°C",
+            "kind": "temp",
+        },
+        {
+            "id": "cpu_pkg",
+            "label": "CPU Package",
+            "value": pick("k10temp", "Tctl"),
+            "unit": "°C",
+            "kind": "temp",
+        },
+        {
+            "id": "ccd1",
+            "label": "CCD1 Die",
+            "value": pick("k10temp", "Tccd1"),
+            "unit": "°C",
+            "kind": "temp",
+        },
+        {
+            "id": "ccd2",
+            "label": "CCD2 Die",
+            "value": pick("k10temp", "Tccd2"),
+            "unit": "°C",
+            "kind": "temp",
+        },
+        {
+            "id": "cpu_mhz",
+            "label": "CPU Avg CLK",
+            "value": round(freq.current, 0) if freq else None,
+            "unit": "MHz",
+            "kind": "freq",
+        },
+        {
+            "id": "gpu_clk",
+            "label": "GPU GFX CLK",
+            "value": dgpu.get("gfx_mhz"),
+            "unit": "MHz",
+            "kind": "freq",
+        },
+        {
+            "id": "gpu_vram",
+            "label": "VRAM Load",
+            "value": dgpu.get("vram_pct"),
+            "unit": "%",
+            "kind": "pct",
+        },
+        {
+            "id": "gpu_mbusy",
+            "label": "VRAM Busy",
+            "value": dgpu.get("mem_busy_pct"),
+            "unit": "%",
+            "kind": "pct",
+        },
+        {
+            "id": "gpu_fan",
+            "label": "GPU Fan",
+            "value": dgpu.get("fan_rpm"),
+            "unit": "rpm",
+            "kind": "rate",
+        },
+        {
+            "id": "gpu_pwr",
+            "label": "GPU PPT",
+            "value": dgpu.get("power_w"),
+            "unit": "W",
+            "kind": "rate",
+        },
+        {
+            "id": "igpu_pwr",
+            "label": "iGPU PPT",
+            "value": igpu.get("power_w"),
+            "unit": "W",
+            "kind": "rate",
+        },
+        {
+            "id": "case_cpu",
+            "label": "Case CPUF",
+            "value": pick("system76_io", "CPUF", match_all=True),
+            "unit": "rpm",
+            "kind": "rate",
+        },
+        {
+            "id": "case_int",
+            "label": "Case INTF",
+            "value": pick("system76_io", "INTF", match_all=True),
+            "unit": "rpm",
+            "kind": "rate",
+        },
+        {
+            "id": "ram_avail",
+            "label": "RAM Avail",
+            "value": round(vm.available / 1024**3, 1),
+            "unit": "GB",
+            "kind": "info",
+        },
         {"id": "load1", "label": "Load 1m", "value": round(load1, 2), "unit": "", "kind": "info"},
         {"id": "disk_use", "label": "Root Disk", "value": du.percent, "unit": "%", "kind": "pct"},
-        {"id": "uptime", "label": "Uptime", "value": uptime_s // 3600, "unit": "hrs", "kind": "info"},
+        {
+            "id": "uptime",
+            "label": "Uptime",
+            "value": uptime_s // 3600,
+            "unit": "hrs",
+            "kind": "info",
+        },
         {"id": "procs", "label": "Processes", "value": procs, "unit": "", "kind": "info"},
         {"id": "threads", "label": "Threads", "value": threads, "unit": "", "kind": "info"},
-        {"id": "swap_in", "label": "Swap In", "value": sw["in_kbps"], "unit": "KB/s", "kind": "rate"},
-        {"id": "swap_out", "label": "Swap Out", "value": sw["out_kbps"], "unit": "KB/s", "kind": "rate"},
-        {"id": "ctx", "label": "Ctx Switches", "value": ctx["ctx_per_s"], "unit": "/s", "kind": "rate"},
-        {"id": "intr", "label": "Interrupts", "value": ctx["intr_per_s"], "unit": "/s", "kind": "rate"},
-        {"id": "psi_cpu", "label": "PSI CPU", "value": psi_cpu["avg10"] if psi_cpu else None, "unit": "%", "kind": "psi"},
-        {"id": "psi_mem", "label": "PSI Memory", "value": psi_mem["avg10"] if psi_mem else None, "unit": "%", "kind": "psi"},
-        {"id": "psi_io", "label": "PSI I/O", "value": psi_io["avg10"] if psi_io else None, "unit": "%", "kind": "psi"},
+        {
+            "id": "swap_in",
+            "label": "Swap In",
+            "value": sw["in_kbps"],
+            "unit": "KB/s",
+            "kind": "rate",
+        },
+        {
+            "id": "swap_out",
+            "label": "Swap Out",
+            "value": sw["out_kbps"],
+            "unit": "KB/s",
+            "kind": "rate",
+        },
+        {
+            "id": "ctx",
+            "label": "Ctx Switches",
+            "value": ctx["ctx_per_s"],
+            "unit": "/s",
+            "kind": "rate",
+        },
+        {
+            "id": "intr",
+            "label": "Interrupts",
+            "value": ctx["intr_per_s"],
+            "unit": "/s",
+            "kind": "rate",
+        },
+        {
+            "id": "psi_cpu",
+            "label": "PSI CPU",
+            "value": psi_cpu["avg10"] if psi_cpu else None,
+            "unit": "%",
+            "kind": "psi",
+        },
+        {
+            "id": "psi_mem",
+            "label": "PSI Memory",
+            "value": psi_mem["avg10"] if psi_mem else None,
+            "unit": "%",
+            "kind": "psi",
+        },
+        {
+            "id": "psi_io",
+            "label": "PSI I/O",
+            "value": psi_io["avg10"] if psi_io else None,
+            "unit": "%",
+            "kind": "psi",
+        },
     ]
     return tiles
 
@@ -787,11 +986,23 @@ def memory_bandwidth(cpu_pct: float = 0.0, game_cpu_pct: float = 0.0) -> dict:
 
 def tools_status() -> dict:
     recommended = [
-        {"bin": "corectrl", "pkg": "corectrl", "note": "AMD GPU fan curves, power limits, per-app profiles"},
+        {
+            "bin": "corectrl",
+            "pkg": "corectrl",
+            "note": "AMD GPU fan curves, power limits, per-app profiles",
+        },
         {"bin": "nvtop", "pkg": "nvtop", "note": "GPU util, VRAM, power, clocks"},
         {"bin": "radeontop", "pkg": "radeontop", "note": "Lightweight AMD GPU stats"},
-        {"bin": "turbostat", "pkg": "linux-tools-common linux-tools-generic", "note": "CPU power, C-states, DRAM hints (needs sudo)"},
-        {"bin": "perf", "pkg": "linux-tools-common linux-tools-generic", "note": "Kernel perf counters & profiling"},
+        {
+            "bin": "turbostat",
+            "pkg": "linux-tools-common linux-tools-generic",
+            "note": "CPU power, C-states, DRAM hints (needs sudo)",
+        },
+        {
+            "bin": "perf",
+            "pkg": "linux-tools-common linux-tools-generic",
+            "note": "Kernel perf counters & profiling",
+        },
         {"bin": "iotop", "pkg": "iotop", "note": "Per-process disk I/O"},
         {"bin": "nethogs", "pkg": "nethogs", "note": "Per-process network usage"},
         {"bin": "smartctl", "pkg": "smartmontools", "note": "NVMe/SATA health & wear"},
@@ -837,7 +1048,9 @@ def _migrate_tuning_history() -> None:
                 item["games"] = normed
                 changed = True
         for legacy, canonical in LEGACY_GAME_IDS.items():
-            if canonical in (item.get("games_seen") or {}) and legacy in (item.get("games_seen") or {}):
+            if canonical in (item.get("games_seen") or {}) and legacy in (
+                item.get("games_seen") or {}
+            ):
                 item["games_seen"].pop(legacy, None)
                 changed = True
         if item.get("active") is False:
@@ -852,11 +1065,7 @@ def _migrate_tuning_history() -> None:
 
 def _rebuild_tuning_index() -> None:
     global _tuning_by_id
-    _tuning_by_id = {
-        item["insight_id"]: item
-        for item in _tuning_history
-        if item.get("insight_id")
-    }
+    _tuning_by_id = {item["insight_id"]: item for item in _tuning_history if item.get("insight_id")}
 
 
 def _find_tuning_item(iid: str | None, title: str) -> dict | None:
@@ -922,23 +1131,25 @@ def update_tuning_history(
         hit = _find_tuning_item(iid, h["title"])
         game_hits = _games_for_active(h, running_ids)
         if hit:
-            hit.update({
-                "level": h["level"],
-                "title": h["title"],
-                "text": h["text"],
-                "actions": h.get("actions", []),
-                "insight_id": iid,
-                "fix_script": h.get("fix_script"),
-                "has_fix_script": h.get("has_fix_script"),
-                "requires_root": h.get("requires_root"),
-                "fixable": h.get("fixable"),
-                "games": h.get("games", ["all"]),
-                "bucket": h.get("bucket"),
-                "last_seen": now,
-                "count": hit.get("count", 1) + 1,
-                "active": True,
-                "condition_live": True,
-            })
+            hit.update(
+                {
+                    "level": h["level"],
+                    "title": h["title"],
+                    "text": h["text"],
+                    "actions": h.get("actions", []),
+                    "insight_id": iid,
+                    "fix_script": h.get("fix_script"),
+                    "has_fix_script": h.get("has_fix_script"),
+                    "requires_root": h.get("requires_root"),
+                    "fixable": h.get("fixable"),
+                    "games": h.get("games", ["all"]),
+                    "bucket": h.get("bucket"),
+                    "last_seen": now,
+                    "count": hit.get("count", 1) + 1,
+                    "active": True,
+                    "condition_live": True,
+                }
+            )
             merge_games_seen(hit, game_hits, now)
             if iid:
                 _tuning_by_id[iid] = hit
@@ -962,9 +1173,14 @@ def update_tuning_history(
             item["condition_live"] = iid in active_ids
         item["active"] = True
     if seed_clear_timers(
-        _tuning_history, active_ids, resolved_ids, suppressed_ids, now,
+        _tuning_history,
+        active_ids,
+        resolved_ids,
+        suppressed_ids,
+        now,
     ):
         _tuning_dirty = True
+
     def _fresh_active_ids() -> set[str]:
         invalidate_diagnostics_cache()
         base = snap if snap is not None else _latest_full or {}
@@ -1000,12 +1216,14 @@ def _tuning_context() -> dict:
     ctx = system_context()
     drm = discover_drm_cards()
     dpath = drm["discrete"]["device_path"]
-    ctx.update({
-        "gpu_model": _gpu_spec.get("model", ""),
-        "gpu_card": drm["discrete"].get("card", "card1"),
-        "gpu_sysfs": str(dpath),
-        "gpu_sensor": f"amdgpu-pci-{gpu_sensor_prefix()}",
-    })
+    ctx.update(
+        {
+            "gpu_model": _gpu_spec.get("model", ""),
+            "gpu_card": drm["discrete"].get("card", "card1"),
+            "gpu_sysfs": str(dpath),
+            "gpu_sensor": f"amdgpu-pci-{gpu_sensor_prefix()}",
+        }
+    )
     _tuning_ctx_cache = (now, ctx)
     return dict(ctx)
 
@@ -1051,8 +1269,8 @@ def collect_metrics() -> dict:
         gpu_sensor_prefix(),
     )
     global _gpu_peak_by_game
-    thermal_profile = (
-        _gpu_spec.get("thermal_profile") or profile_for_model(_gpu_spec.get("model", ""))
+    thermal_profile = _gpu_spec.get("thermal_profile") or profile_for_model(
+        _gpu_spec.get("model", "")
     )
     dgpu["thermal_profile"] = thermal_profile
     gfx_mhz = dgpu.get("gfx_mhz")
@@ -1071,7 +1289,11 @@ def collect_metrics() -> dict:
         igpu_sensor_prefix(),
     )
     overall_cpu = round(sum(cpu_pct) / len(cpu_pct), 1) if cpu_pct else 0.0
-    game_cpu = (primary_game or {}).get("cpu_pct", 0.0) if primary_game and primary_game.get("running") else 0.0
+    game_cpu = (
+        (primary_game or {}).get("cpu_pct", 0.0)
+        if primary_game and primary_game.get("running")
+        else 0.0
+    )
     mem_bw = memory_bandwidth(overall_cpu, game_cpu)
     gtt = dgpu.get("gtt") or {}
 
@@ -1159,9 +1381,10 @@ def cpu_temps() -> dict:
 
 def sampler():
     global _history, _latest_full, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS, _gpu_peak_by_game
-    from hardware_probe import _drm_cache, _storage_cache
-    _drm_cache = None
-    _storage_cache = None
+    import hardware_probe as hp
+
+    hp._drm_cache = None
+    hp._storage_cache = None
 
     _mem_spec = load_memory_spec()
     _gpu_spec = detect_gpu_spec()
@@ -1260,11 +1483,14 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
         elif path == "/api/probe-memory":
             import subprocess as sp
+
             payload = {"ok": False, "message": "Run: sudo python3 probe_memory.py"}
             try:
                 raw = sp.check_output(
                     ["sudo", "-n", "python3", str(ROOT / "probe_memory.py")],
-                    text=True, timeout=8, stderr=sp.DEVNULL,
+                    text=True,
+                    timeout=8,
+                    stderr=sp.DEVNULL,
                 )
                 global _mem_spec
                 _mem_spec = load_memory_spec()
@@ -1324,11 +1550,13 @@ class Handler(BaseHTTPRequestHandler):
                     _mem_spec,
                     history=_tuning_history,
                 )
-            self._json({
-                "ok": bool(script),
-                "insight_id": insight_id,
-                "script": script,
-            })
+            self._json(
+                {
+                    "ok": bool(script),
+                    "insight_id": insight_id,
+                    "script": script,
+                }
+            )
         elif path == "/api/diagnostics":
             from rule_packs import evaluate_rule_packs, scan_findings_for_guidance
 
@@ -1354,13 +1582,15 @@ class Handler(BaseHTTPRequestHandler):
             hours = float((qs.get("hours") or ["24"])[0])
             bucket = int((qs.get("bucket") or ["60"])[0])
             game_id = (qs.get("game") or [None])[0]
-            self._json({
-                "metric": metric,
-                "hours": hours,
-                "bucket_sec": bucket,
-                "game_id": game_id,
-                "points": series(metric, hours, bucket, game_id),
-            })
+            self._json(
+                {
+                    "metric": metric,
+                    "hours": hours,
+                    "bucket_sec": bucket,
+                    "game_id": game_id,
+                    "points": series(metric, hours, bucket, game_id),
+                }
+            )
         elif path == "/api/correlation":
             a = (qs.get("a") or ["swap_pct"])[0]
             b = (qs.get("b") or ["pgfault_per_s"])[0]
@@ -1370,12 +1600,14 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/game-sessions":
             game_id = (qs.get("game") or [None])[0]
             days = float((qs.get("days") or ["30"])[0])
-            self._json({
-                "game_id": game_id,
-                "days": days,
-                "sessions": list_game_sessions(game_id, days),
-                "markers": list_session_markers(game_id, days),
-            })
+            self._json(
+                {
+                    "game_id": game_id,
+                    "days": days,
+                    "sessions": list_game_sessions(game_id, days),
+                    "markers": list_session_markers(game_id, days),
+                }
+            )
         else:
             self.send_response(404)
             self.end_headers()
@@ -1420,7 +1652,9 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     int(body["retention_days"])
                 except (TypeError, ValueError):
-                    self._json({"ok": False, "error": "retention_days must be an integer"}, status=400)
+                    self._json(
+                        {"ok": False, "error": "retention_days must be an integer"}, status=400
+                    )
                     return
             self._json(update_settings(body))
             return

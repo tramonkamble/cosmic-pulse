@@ -68,6 +68,7 @@ def _open_subdir_cmd(ctx: dict, sub: str) -> str:
 def _gpu_sysfs() -> str:
     try:
         from hardware_probe import gpu_device_path
+
         return str(gpu_device_path())
     except Exception:
         return "/sys/class/drm/card1/device"
@@ -76,6 +77,7 @@ def _gpu_sysfs() -> str:
 def _gpu_sensor_chip() -> str:
     try:
         from hardware_probe import gpu_sensor_prefix
+
         return f"amdgpu-pci-{gpu_sensor_prefix()}"
     except Exception:
         return "amdgpu-pci-0300"
@@ -85,9 +87,7 @@ def _fan_tool_hint(*, profile: dict | None = None) -> str:
     prof = profile or {}
     if not prof.get("fan_curve_helpful", True):
         arch = prof.get("label", "GPU")
-        return (
-            f'log "{arch} rarely needs a fan curve — lower in-game settings if clocks drop"\n'
-        )
+        return f'log "{arch} rarely needs a fan curve — lower in-game settings if clocks drop"\n'
     chunks: list[str] = []
     for tool in iter_fix_tools(prof):
         spec = FIX_TOOL_SPECS.get(tool, {})
@@ -103,8 +103,7 @@ def _fan_tool_hint(*, profile: dict | None = None) -> str:
             )
         else:
             chunks.append(
-                f'log "Optional: {label} for fan curve GUI"\n'
-                f'log "  {spec.get("install", "")}"\n'
+                f'log "Optional: {label} for fan curve GUI"\nlog "  {spec.get("install", "")}"\n'
             )
         if note:
             chunks.append(f'log "  ({note})"\n')
@@ -146,33 +145,39 @@ def fan_tool_actions(profile: dict, sysfs: str) -> list[dict]:
         binary = spec.get("binary", "")
         label = spec.get("label", tool)
         if binary and shutil.which(binary):
-            actions.append({
-                "label": f"Open {label}",
-                "kind": "cmd",
-                "cmd": binary,
-                "note": spec.get("note", ""),
-            })
+            actions.append(
+                {
+                    "label": f"Open {label}",
+                    "kind": "cmd",
+                    "cmd": binary,
+                    "note": spec.get("note", ""),
+                }
+            )
             launched = True
             break
     if not launched and prof.get("vendor") == "amd":
-        actions.append({
-            "label": "Raise GPU fan (amdgpu sysfs)",
-            "kind": "cmd",
-            "cmd": (
-                f"echo manual | sudo tee {sysfs}/pp_power_profile_mode 2>/dev/null; "
-                f"echo 1 | sudo tee {sysfs}/hwmon/hwmon*/pwm1_enable 2>/dev/null"
-            ),
-            "note": spec.get("install", "Or install CoreCtrl: sudo apt install corectrl")
-            if (spec := FIX_TOOL_SPECS.get("corectrl"))
-            else "Or install CoreCtrl: sudo apt install corectrl",
-        })
+        actions.append(
+            {
+                "label": "Raise GPU fan (amdgpu sysfs)",
+                "kind": "cmd",
+                "cmd": (
+                    f"echo manual | sudo tee {sysfs}/pp_power_profile_mode 2>/dev/null; "
+                    f"echo 1 | sudo tee {sysfs}/hwmon/hwmon*/pwm1_enable 2>/dev/null"
+                ),
+                "note": spec.get("install", "Or install CoreCtrl: sudo apt install corectrl")
+                if (spec := FIX_TOOL_SPECS.get("corectrl"))
+                else "Or install CoreCtrl: sudo apt install corectrl",
+            }
+        )
     elif not launched and prof.get("vendor") == "nvidia":
-        actions.append({
-            "label": "Install CoolerControl (NVIDIA fan curves)",
-            "kind": "cmd",
-            "cmd": FIX_TOOL_SPECS["coolercontrol"]["install"],
-            "note": FIX_TOOL_SPECS["coolercontrol"]["note"],
-        })
+        actions.append(
+            {
+                "label": "Install CoolerControl (NVIDIA fan curves)",
+                "kind": "cmd",
+                "cmd": FIX_TOOL_SPECS["coolercontrol"]["install"],
+                "note": FIX_TOOL_SPECS["coolercontrol"]["note"],
+            }
+        )
     return actions
 
 
@@ -218,7 +223,11 @@ need_root() {{
 
 
 def script_governor() -> str:
-    return _header("cpu-governor-powersave", "Switch CPU governor to performance (gaming session)", "low") + """
+    return (
+        _header(
+            "cpu-governor-powersave", "Switch CPU governor to performance (gaming session)", "low"
+        )
+        + """
 log "Current governor:"
 cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor || true
 log "Available:"
@@ -235,10 +244,13 @@ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 log "Done. Reverts on reboot."
 log "Rollback: sudo bash -c 'echo powersave > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor' (repeat per core or use tee wildcard)"
 """
+    )
 
 
 def script_swappiness(current: int = 60, **kwargs) -> str:
-    return _header("vm-swappiness-high", f"Lower swappiness from {current} for gaming", "low") + f"""
+    return (
+        _header("vm-swappiness-high", f"Lower swappiness from {current} for gaming", "low")
+        + f"""
 TARGET="${{1:-10}}"
 log "Current swappiness: $(cat /proc/sys/vm/swappiness)"
 
@@ -254,6 +266,7 @@ fi
 sysctl --system 2>/dev/null | grep swappiness || true
 log "Rollback: sudo sysctl vm.swappiness={current} && sudo rm -f $CONF"
 """
+    )
 
 
 def script_expo_verify(
@@ -264,11 +277,13 @@ def script_expo_verify(
     **kwargs,
 ) -> str:
     kit = part.strip() or "your memory kit"
-    return _header(
-        "ram-expo-verify",
-        f"Verify DDR{configured_mts} EXPO/XMP is active in firmware",
-        "low",
-    ) + f"""
+    return (
+        _header(
+            "ram-expo-verify",
+            f"Verify DDR{configured_mts} EXPO/XMP is active in firmware",
+            "low",
+        )
+        + f"""
 log "=== dmidecode memory speeds ==="
 if command -v dmidecode >/dev/null; then
   need_root
@@ -289,6 +304,7 @@ log "  1. Reboot → BIOS/UEFI"
 log "  2. Enable EXPO/XMP profile for {kit}"
 log "  3. Re-run this script"
 """
+    )
 
 
 def script_gpu_thermal(junction: float, *, profile: dict | None = None) -> str:
@@ -298,18 +314,22 @@ def script_gpu_thermal(junction: float, *, profile: dict | None = None) -> str:
     temp_key = prof.get("primary_temp", "junction")
     if prof.get("arch") == "rdna3":
         target_line = (
-            f"log \"RDNA3 runs {temp_key} near {throttle}°C by design — only worry if clocks drop\"\n"
+            f'log "RDNA3 runs {temp_key} near {throttle}°C by design — only worry if clocks drop"\n'
         )
     else:
         target_line = (
-            f"log \"Re-check {temp_key} on dashboard — target well below {throttle}°C sustained\"\n"
+            f'log "Re-check {temp_key} on dashboard — target well below {throttle}°C sustained"\n'
         )
     fan_note = prof.get("fan_curve_note") or prof.get("design_note", "")
     fan_block = _fan_tool_hint(profile=prof)
     if fan_note:
         fan_block += f'log "Note: {fan_note}"\n'
     return (
-        _header("gpu-thermal-ceiling", f"Cool-down playbook ({arch}, {temp_key} was {junction}°C)", "medium")
+        _header(
+            "gpu-thermal-ceiling",
+            f"Cool-down playbook ({arch}, {temp_key} was {junction}°C)",
+            "medium",
+        )
         + _gpu_telemetry_block(profile=prof)
         + """
 log "=== In-game (manual) ==="
@@ -350,10 +370,12 @@ def script_vram_bandwidth(
 ) -> str:
     ctx = _game_ctx(game_id, game_name, **kwargs)
     gname = ctx["name"]
-    return _header("gpu-vram-bandwidth", f"Reduce VRAM bandwidth load ({pct}% busy)", "low") + f"""
+    return (
+        _header("gpu-vram-bandwidth", f"Reduce VRAM bandwidth load ({pct}% busy)", "low")
+        + f"""
 log "VRAM controller busy: {pct}% (~{est} GB/s est.)"
 log "Opening game folders for {gname}..."
-{_open_subdir_cmd(ctx, '.cache/Mods')}
+{_open_subdir_cmd(ctx, ".cache/Mods")}
 sleep 1
 {_open_dir_cmd(ctx)}
 cat <<'PLAYBOOK'
@@ -366,6 +388,7 @@ cat <<'PLAYBOOK'
 PLAYBOOK
 log "Monitor mem_busy% on dashboard — aim for under 50% in normal play"
 """
+    )
 
 
 def script_vram_low(
@@ -378,7 +401,9 @@ def script_vram_low(
 ) -> str:
     ctx = _game_ctx(game_id, game_name, **kwargs)
     gname = ctx["name"]
-    return _header("gpu-vram-full", f"Free VRAM headroom ({pct}% used)", "low") + f"""
+    return (
+        _header("gpu-vram-full", f"Free VRAM headroom ({pct}% used)", "low")
+        + f"""
 log "VRAM {pct}% used ({used} MB)"
 {_open_dir_cmd(ctx)}
 cat <<'PLAYBOOK'
@@ -390,6 +415,7 @@ cat <<'PLAYBOOK'
 
 PLAYBOOK
 """
+    )
 
 
 def script_gtt(
@@ -400,20 +426,25 @@ def script_gtt(
     **kwargs,
 ) -> str:
     ctx = _game_ctx(game_id, game_name, **kwargs)
-    return _header("gpu-gtt-churn", f"Reduce shared GPU memory traffic ({rate} MB/s GTT)", "low") + f"""
+    return (
+        _header("gpu-gtt-churn", f"Reduce shared GPU memory traffic ({rate} MB/s GTT)", "low")
+        + f"""
 log "GTT churn: {rate} MB/s"
 cat {_gpu_sysfs()}/mem_info_gtt_used {_gpu_sysfs()}/mem_info_gtt_total 2>/dev/null || true
-{_open_subdir_cmd(ctx, '.cache/Mods')}
+{_open_subdir_cmd(ctx, ".cache/Mods")}
 cat <<'PLAYBOOK'
 
   Keep VRAM under 80% — lower textures/resolution before adding mods.
 
 PLAYBOOK
 """
+    )
 
 
 def script_swap_thrash(swap_pct: float) -> str:
-    return _header("memory-swap-thrash", f"Stop swap thrash (swap {swap_pct}% used)", "medium") + """
+    return (
+        _header("memory-swap-thrash", f"Stop swap thrash (swap {swap_pct}% used)", "medium")
+        + """
 log "=== Memory before ==="
 free -h
 log "swappiness: $(cat /proc/sys/vm/swappiness)"
@@ -437,10 +468,13 @@ free -h
 log "Close browsers/Discord before gaming. Reboot if swap stays high."
 log "Rollback swappiness: sudo sysctl vm.swappiness=180"
 """
+    )
 
 
 def script_dram_stall(psi: float) -> str:
-    return _header("memory-dram-stall", f"Reduce DRAM stall pressure (PSI {psi}%)", "medium") + """
+    return (
+        _header("memory-dram-stall", f"Reduce DRAM stall pressure (PSI {psi}%)", "medium")
+        + """
 log "=== Top memory ==="
 ps aux --sort=-%mem | head -20
 log "=== Top CPU ==="
@@ -461,6 +495,7 @@ log "  flatpak kill com.brave.Browser"
 log "  pkill -x firefox"
 log "  pkill -x discord"
 """
+    )
 
 
 def script_stutter(
@@ -474,11 +509,13 @@ def script_stutter(
 ) -> str:
     cause_txt = ", ".join(causes) if causes else "memory pressure"
     gname = _game_ctx(game_id, game_name, **kwargs)["name"]
-    return _header(
-        "stutter-proxy",
-        f"Reduce hitches (score {score}, ~{est_ms}ms est.)",
-        "low",
-    ) + f"""
+    return (
+        _header(
+            "stutter-proxy",
+            f"Reduce hitches (score {score}, ~{est_ms}ms est.)",
+            "low",
+        )
+        + f"""
 log "Cosmic Pulse stutter proxy — likely causes: {cause_txt}"
 log "=== Memory / swap ==="
 free -h
@@ -506,6 +543,7 @@ if [[ "${{ans,,}}" == "y" ]]; then
   echo 'vm.swappiness=10' > /etc/sysctl.d/99-gaming-swappiness.conf
 fi
 """
+    )
 
 
 def script_page_faults(
@@ -517,7 +555,9 @@ def script_page_faults(
 ) -> str:
     ctx = _game_ctx(game_id, game_name, **kwargs)
     gname = ctx["name"]
-    return _header("memory-page-faults", f"Reduce major page faults ({rate}/s)", "low") + f"""
+    return (
+        _header("memory-page-faults", f"Reduce major page faults ({rate}/s)", "low")
+        + f"""
 log "Major faults indicate disk/swap backed loads."
 cat <<'PLAYBOOK'
 
@@ -529,8 +569,9 @@ cat <<'PLAYBOOK'
 
 PLAYBOOK
 log "Opening save folder..."
-{_open_subdir_cmd(ctx, 'Saves')}
+{_open_subdir_cmd(ctx, "Saves")}
 """
+    )
 
 
 def script_cpu_bound(
@@ -540,7 +581,9 @@ def script_cpu_bound(
     **kwargs,
 ) -> str:
     gname = _game_ctx(game_id, game_name, **kwargs)["name"]
-    return _header("cpu-bound", "CPU-bound — boost clocks and trim background load", "low") + f"""
+    return (
+        _header("cpu-bound", "CPU-bound — boost clocks and trim background load", "low")
+        + f"""
 log "=== CPU ==="
 grep . /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 ps aux --sort=-%cpu | head -15
@@ -560,6 +603,7 @@ cat <<'PLAYBOOK'
 PLAYBOOK
 log "Governor set to performance"
 """
+    )
 
 
 def script_resolution_swap_stutter(
@@ -572,7 +616,9 @@ def script_resolution_swap_stutter(
 ) -> str:
     ctx = _game_ctx(game_id, game_name, **kwargs)
     gname = ctx["name"]
-    return _header("resolution-swap-stutter", "Free RAM before tuning graphics", "low") + f"""
+    return (
+        _header("resolution-swap-stutter", "Free RAM before tuning graphics", "low")
+        + f"""
 cat <<'PLAYBOOK'
 
   Swap is {swap_pct:.0f}% and stutter proxy is {stutter_score:.0f}/100 while {gname} runs.
@@ -586,6 +632,7 @@ cat <<'PLAYBOOK'
 PLAYBOOK
 {_open_dir_cmd(ctx)}
 """
+    )
 
 
 def script_resolution_load_settle(
@@ -607,7 +654,9 @@ def script_resolution_cpu_perf(
     **kwargs,
 ) -> str:
     gname = _game_ctx(game_id, game_name, **kwargs)["name"]
-    return _header("resolution-cpu-perf", "CPU-bound — switch off power-save governor", "low") + f"""
+    return (
+        _header("resolution-cpu-perf", "CPU-bound — switch off power-save governor", "low")
+        + f"""
 cat <<'PLAYBOOK'
 
   {gname} is CPU-limited ({cpu_pct:.0f}% game CPU) while the governor is "{governor}".
@@ -621,6 +670,7 @@ cat <<'PLAYBOOK'
 
 PLAYBOOK
 """
+    )
 
 
 def script_gpu_fps_cap(
@@ -635,7 +685,9 @@ def script_gpu_fps_cap(
     ctx = _game_ctx(game_id, game_name, **kwargs)
     gname = ctx["name"]
     temp = f" Junction was {junction_c}°C." if junction_c else ""
-    return _header("gpu-fps-cap", f"Cap FPS to {refresh_hz} Hz display", "low") + f"""
+    return (
+        _header("gpu-fps-cap", f"Cap FPS to {refresh_hz} Hz display", "low")
+        + f"""
 cat <<'PLAYBOOK'
 
   GPU was ~{busy_pct:.0f}% busy on a {refresh_hz} Hz display.{temp}
@@ -653,6 +705,7 @@ cat <<'PLAYBOOK'
 PLAYBOOK
 {_open_dir_cmd(ctx)}
 """
+    )
 
 
 def script_gpu_shader(
@@ -663,7 +716,9 @@ def script_gpu_shader(
 ) -> str:
     ctx = _game_ctx(game_id, game_name, **kwargs)
     gname = ctx["name"]
-    return _header("gpu-shader-bound", "GPU shader bound — favor resolution over textures", "low") + f"""
+    return (
+        _header("gpu-shader-bound", "GPU shader bound — favor resolution over textures", "low")
+        + f"""
 cat <<'PLAYBOOK'
 
   You are GPU compute bound (not VRAM bandwidth bound).
@@ -675,11 +730,14 @@ cat <<'PLAYBOOK'
 PLAYBOOK
 {_open_dir_cmd(ctx)}
 """
+    )
 
 
 def script_ccd_spread(t1: float = 0, t2: float = 0, *, cpu_model: str = "", **kwargs) -> str:
     cpu_note = cpu_model.strip() or "multi-CCD Ryzen CPUs"
-    return _header("cpu-ccd-spread", f"CCD thermal spread {t1}°C vs {t2}°C", "low") + f"""
+    return (
+        _header("cpu-ccd-spread", f"CCD thermal spread {t1}°C vs {t2}°C", "low")
+        + f"""
 log "Normal on {cpu_note} — game threads often favor one CCD."
 sensors k10temp-pci-00c3 2>/dev/null | grep -i tccd || true
 log "Optional monitoring (5s sample, Ctrl+C to stop):"
@@ -689,6 +747,7 @@ else
   log "Install: sudo apt install linux-tools-common linux-tools-$(uname -r)"
 fi
 """
+    )
 
 
 def script_steam_verify_files(
@@ -703,13 +762,15 @@ def script_steam_verify_files(
     steam = steam_root()
     steam_bin = shutil.which("steam") or str(steam / "ubuntu12_32/steam")
     why = "files flagged corrupt" if files_corrupt else "install health check"
-    return _header("game-files-corrupt", f"{game_name} — verify install ({why})", "medium") + f"""
+    return (
+        _header("game-files-corrupt", f"{game_name} — verify install ({why})", "medium")
+        + f"""
 log "Common Linux fix after Steam patches — not rig-specific."
 log "Steam reported: {why}"
 log ""
 log "1) Quit {game_name} completely (exit to desktop, not just main menu)"
 log "2) Verify game files (opens Steam)"
-if [[ -n "{appid or ''}" ]]; then
+if [[ -n "{appid or ""}" ]]; then
   xdg-open "steam://validate/{appid}" 2>/dev/null || "{steam_bin}" "steam://validate/{appid}" &
   sleep 2
 else
@@ -722,6 +783,7 @@ log "  • Steam → {game_name} → Properties → disable overlays temporarily
 log "  • Check Pulse Guidance for pending-update or shader-cache hints"
 log "  • Check Pulse Guidance for GPU reset warnings (AMD mode1 reset)"
 """
+    )
 
 
 def script_steam_update_shader(
@@ -739,7 +801,9 @@ def script_steam_update_shader(
     steam = steam_root()
     steam_bin = shutil.which("steam") or str(steam / "ubuntu12_32/steam")
     if not appid:
-        return _header("game-update-pending", f"{game_name} — finish pending update", "medium") + f"""
+        return (
+            _header("game-update-pending", f"{game_name} — finish pending update", "medium")
+            + f"""
 log "No active AppID — use Steam manually:"
 log "  1) Exit {game_name} to desktop"
 log "  2) Steam → Downloads — let any patch finish"
@@ -749,6 +813,7 @@ log "  3) Relaunch after download completes"
 log "To clear shader cache: Steam → game → Properties → clear shader cache, or delete:"
 log "  {steam}/steamapps/shadercache/<AppID>/fozpipelinesv6/"
 """
+        )
     shader_cache = steam / "steamapps/shadercache" / str(appid)
     reason = []
     if suspended:
@@ -759,7 +824,9 @@ log "  {steam}/steamapps/shadercache/<AppID>/fozpipelinesv6/"
         reason.append(f"{stage_mb:.0f} MB still staging")
     why = " · ".join(reason) or "pending Steam update"
     shader_note = f" ({shader_mb:.0f} MB cached)" if shader_mb > 0 else ""
-    return _header("game-update-pending", f"{game_name} — finish update ({why})", "medium") + f"""
+    return (
+        _header("game-update-pending", f"{game_name} — finish update ({why})", "medium")
+        + f"""
 log "Steam update / shader cache playbook — common on Linux when a patch drops mid-session."
 log "Steam reported: {why}"
 log ""
@@ -784,6 +851,7 @@ log "If hitching persists after a clean update:"
 log "  • Lower shader / texture quality for one session"
 log "  • Pulse Guidance → verify game files if crashes or missing assets appear"
 """
+    )
 
 
 def script_game_libs_missing(
@@ -815,23 +883,29 @@ sudo apt update
     if pkgs:
         body += f"""
 log "Step 2 — install missing gaming libraries"
-sudo apt install {' '.join(pkgs)}
+sudo apt install {" ".join(pkgs)}
 """
     else:
         body += """
 log "Install common Steam / Proton dependencies:"
 sudo apt install libvulkan1 mesa-vulkan-drivers libgl1 libgamemode0 libldap2 libgpg-error0
 """
-    return _header("game-libs-missing", "Missing gaming libraries", "medium") + body + """
+    return (
+        _header("game-libs-missing", "Missing gaming libraries", "medium")
+        + body
+        + """
 log "Step 3 — verify Vulkan"
 vulkaninfo --summary 2>/dev/null | head -20 || log "Install: sudo apt install vulkan-tools"
 log "Relaunch the game from Steam"
 """
+    )
 
 
 def script_steam_disk_low(free_gb: float = 10.0, **kwargs) -> str:
     steam = steam_root()
-    return _header("steam-disk-low", f"Low Steam disk space ({free_gb:.1f} GB free)", "medium") + f"""
+    return (
+        _header("steam-disk-low", f"Low Steam disk space ({free_gb:.1f} GB free)", "medium")
+        + f"""
 log "Steam volume: {steam}"
 log "Free space: ~{free_gb:.1f} GB — updates and Proton prefixes need headroom"
 log ""
@@ -850,10 +924,13 @@ if [[ -n "$sid" && -d "{steam}/steamapps/shadercache/$sid" ]]; then
 fi
 log "Aim for at least 15–20 GB free before large patches"
 """
+    )
 
 
 def script_vulkan_broken(**kwargs) -> str:
-    return _header("vulkan-broken", "Vulkan not working", "high") + """
+    return (
+        _header("vulkan-broken", "Vulkan not working", "high")
+        + """
 log "Games using Proton/DXVK need a working Vulkan stack"
 log ""
 log "1) Reinstall Mesa Vulkan drivers"
@@ -864,6 +941,7 @@ log "3) If laptop/hybrid GPU, test discrete GPU:"
 DRI_PRIME=1 vulkaninfo --summary 2>&1 | head -40
 log "Reboot if drivers were upgraded"
 """
+    )
 
 
 def script_game_bad_exit(
@@ -878,13 +956,15 @@ def script_game_bad_exit(
     steam = steam_root()
     compat = steam / "steamapps/compatdata" / str(appid or "")
     steam_bin = shutil.which("steam") or str(steam / "ubuntu12_32/steam")
-    return _header("game-prefix-reset", f"{game_name} — crash / bad exit ({codes})", "high") + f"""
+    return (
+        _header("game-prefix-reset", f"{game_name} — crash / bad exit ({codes})", "high")
+        + f"""
 log "Recent Steam exit codes: {codes}"
 log "137 = killed · 139 = segfault · 127/126 = missing binary or library"
 log ""
 log "Try in order:"
 log "1) Verify game files"
-if [[ -n "{appid or ''}" ]]; then
+if [[ -n "{appid or ""}" ]]; then
   xdg-open "steam://validate/{appid}" 2>/dev/null || "{steam_bin}" "steam://validate/{appid}" &
   sleep 2
 else
@@ -908,10 +988,13 @@ else
 fi
 log "4) Try Proton Experimental or another Proton build in Steam → Properties → Compatibility"
 """
+    )
 
 
 def script_mangohud_recommended(**kwargs) -> str:
-    return _header("mangohud-recommended", "Install MangoHud (optional)", "low") + """
+    return (
+        _header("mangohud-recommended", "Install MangoHud (optional)", "low")
+        + """
 log "MangoHud adds an in-game overlay and CSV frametime logs"
 sudo apt install -y mangohud
 log ""
@@ -923,10 +1006,13 @@ echo 'output_folder=$HOME/mangohud-logs'
 echo 'autostart_log=5'
 log "Flatpak Steam may need: flatpak override --user --env=MANGOHUD=1 com.valvesoftware.Steam"
 """
+    )
 
 
 def script_gamemode_recommended(**kwargs) -> str:
-    return _header("gamemode-recommended", "Install GameMode (optional)", "low") + """
+    return (
+        _header("gamemode-recommended", "Install GameMode (optional)", "low")
+        + """
 log "GameMode requests lower latency while a game runs"
 sudo apt install -y gamemode
 log ""
@@ -937,6 +1023,7 @@ log "Ensure gamemoded is running:"
 systemctl --user enable --now gamemoded 2>/dev/null || true
 gamemoded -t 2>/dev/null || log "Start gamemoded after install if needed"
 """
+    )
 
 
 def script_balanced(
@@ -946,7 +1033,9 @@ def script_balanced(
     **kwargs,
 ) -> str:
     ctx = _game_ctx(game_id, game_name, **kwargs)
-    return _header("system-balanced", "System healthy — maintenance checklist", "low") + f"""
+    return (
+        _header("system-balanced", "System healthy — maintenance checklist", "low")
+        + f"""
 log "No critical insights. Maintenance:"
 log "  • Steam launch options:"
 echo '    PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%'
@@ -955,6 +1044,7 @@ echo '    gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIV
 {_open_dir_cmd(ctx)}
 log "Dashboard: http://localhost:8765"
 """
+    )
 
 
 SCRIPTS: dict[str, callable] = {

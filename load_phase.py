@@ -76,9 +76,7 @@ def tick_load_phase(snap: dict) -> dict[str, Any]:
     in_grace = elapsed < LOAD_GRACE_SEC
     io_pressure = pgmaj >= PGMAJ_LOAD_MIN or disk_read >= DISK_READ_LOAD_MBPS
     loading = gpu_busy < GPU_LOAD_MAX and io_pressure and swap_pct < SWAP_LOAD_MAX
-    playing = gpu_busy >= GPU_PLAY_MIN or (
-        elapsed >= LOAD_GRACE_SEC and gpu_busy >= GPU_SETTLE_MIN
-    )
+    playing = gpu_busy >= GPU_PLAY_MIN or (elapsed >= LOAD_GRACE_SEC and gpu_busy >= GPU_SETTLE_MIN)
 
     if loading and (in_grace or io_pressure):
         phase = "loading"

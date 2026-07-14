@@ -51,14 +51,16 @@ def parse_dmidecode(text: str) -> dict:
         speed = s.get("Configured Memory Speed") or s.get("Speed") or ""
         mts_m = re.search(r"(\d+)\s*MT/s", speed) or re.search(r"(\d+)\s*MHz", speed)
         mts = int(mts_m.group(1)) if mts_m else 0
-        populated.append({
-            "size_gb": gb,
-            "mts": mts,
-            "type": s.get("Type", "DDR5"),
-            "manufacturer": s.get("Manufacturer", ""),
-            "part": s.get("Part Number", "").strip(),
-            "locator": s.get("Locator", ""),
-        })
+        populated.append(
+            {
+                "size_gb": gb,
+                "mts": mts,
+                "type": s.get("Type", "DDR5"),
+                "manufacturer": s.get("Manufacturer", ""),
+                "part": s.get("Part Number", "").strip(),
+                "locator": s.get("Locator", ""),
+            }
+        )
 
     total_gb = sum(x["size_gb"] for x in populated)
     mts_vals = [x["mts"] for x in populated if x["mts"]]

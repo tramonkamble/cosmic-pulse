@@ -11,14 +11,16 @@ AUTO_RESOLVE_CLEAR_SEC = 60
 CLEAR_SINCE_KEY = "_clear_since"
 
 # Hints backed by diagnostics — re-verify with a fresh scan before auto-resolving.
-DIAG_BACKED_INSIGHTS = frozenset({
-    "game-libs-missing",
-    "steam-disk-low",
-    "vulkan-broken",
-    "game-files-corrupt",
-    "game-update-pending",
-    "game-prefix-reset",
-})
+DIAG_BACKED_INSIGHTS = frozenset(
+    {
+        "game-libs-missing",
+        "steam-disk-low",
+        "vulkan-broken",
+        "game-files-corrupt",
+        "game-update-pending",
+        "game-prefix-reset",
+    }
+)
 
 
 def seed_clear_timers(

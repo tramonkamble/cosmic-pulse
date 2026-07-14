@@ -10,11 +10,13 @@ import subprocess
 from pathlib import Path
 
 # AMD Raphael / Phoenix integrated graphics PCI device IDs (uppercase hex).
-_IGPU_PCI_IDS = frozenset({
-    "1002:164E",  # Raphael iGPU
-    "1002:15BF",  # Phoenix / Hawk Point
-    "1002:1900",  # Van Gogh (Steam Deck class)
-})
+_IGPU_PCI_IDS = frozenset(
+    {
+        "1002:164E",  # Raphael iGPU
+        "1002:15BF",  # Phoenix / Hawk Point
+        "1002:1900",  # Van Gogh (Steam Deck class)
+    }
+)
 
 # Known NVMe vendor strings embedded in model fields from sysfs/lsblk.
 _NVME_VENDOR_HINTS: tuple[tuple[str, str], ...] = (
@@ -115,7 +117,7 @@ def _parse_nvme_model(raw: str) -> tuple[str, str, str]:
         product = re.sub(r"\s+NVMe.*", "", text, flags=re.I).strip()
     else:
         product = text
-        for hint, name in _NVME_VENDOR_HINTS:
+        for hint, _name in _NVME_VENDOR_HINTS:
             product = re.sub(re.escape(hint), "", product, flags=re.I).strip()
 
     product = re.sub(r"\s+", " ", product).strip(" -")
@@ -182,7 +184,15 @@ def probe_storage() -> list[dict]:
         brand, model, label = _parse_nvme_model(model_raw or lsblk.get(name, {}).get("model", ""))
         if pci_bdf and pci_bdf in controllers and brand == "NVMe":
             ctrl = controllers[pci_bdf]
-            for vendor in ("Samsung", "Toshiba", "Kioxia", "Western Digital", "Seagate", "Crucial", "Intel"):
+            for vendor in (
+                "Samsung",
+                "Toshiba",
+                "Kioxia",
+                "Western Digital",
+                "Seagate",
+                "Crucial",
+                "Intel",
+            ):
                 if vendor.lower() in ctrl.lower():
                     brand = vendor
                     break
@@ -192,19 +202,21 @@ def probe_storage() -> list[dict]:
         sensor_suffix = pci_to_sensor_suffix(pci_bdf) if pci_bdf else ""
         sensor_chip = f"nvme-pci-{sensor_suffix}" if sensor_suffix else ""
 
-        drives.append({
-            "id": name,
-            "name": name,
-            "brand": brand,
-            "model": model,
-            "label": label,
-            "size": size,
-            "pci_bdf": pci_bdf,
-            "sensor_chip": sensor_chip,
-            "sensor_suffix": sensor_suffix,
-            "controller": controllers.get(pci_bdf, ""),
-            "tran": "nvme",
-        })
+        drives.append(
+            {
+                "id": name,
+                "name": name,
+                "brand": brand,
+                "model": model,
+                "label": label,
+                "size": size,
+                "pci_bdf": pci_bdf,
+                "sensor_chip": sensor_chip,
+                "sensor_suffix": sensor_suffix,
+                "controller": controllers.get(pci_bdf, ""),
+                "tran": "nvme",
+            }
+        )
 
     _storage_cache = drives
     return drives
@@ -232,16 +244,18 @@ def discover_drm_cards() -> dict:
             if driver not in ("amdgpu", "nvidia", "i915", "xe"):
                 continue
             device_path = entry / "device"
-            cards.append({
-                "card": entry.name,
-                "device_path": device_path,
-                "driver": driver,
-                "pci_id": pci_id,
-                "pci_bdf": pci_bdf,
-                "sensor_suffix": pci_to_sensor_suffix(pci_bdf) if pci_bdf else "",
-                "vram_bytes": _vram_bytes(device_path),
-                "igpu": _is_igpu(pci_id),
-            })
+            cards.append(
+                {
+                    "card": entry.name,
+                    "device_path": device_path,
+                    "driver": driver,
+                    "pci_id": pci_id,
+                    "pci_bdf": pci_bdf,
+                    "sensor_suffix": pci_to_sensor_suffix(pci_bdf) if pci_bdf else "",
+                    "vram_bytes": _vram_bytes(device_path),
+                    "igpu": _is_igpu(pci_id),
+                }
+            )
 
     igpu = next((c for c in cards if c["igpu"]), None)
     discrete_candidates = [c for c in cards if not c["igpu"]]
@@ -253,7 +267,8 @@ def discover_drm_cards() -> dict:
     fallback_igpu = Path("/sys/class/drm/card0/device")
 
     result = {
-        "discrete": discrete or {
+        "discrete": discrete
+        or {
             "card": "card1",
             "device_path": fallback_discrete,
             "driver": "amdgpu",
@@ -263,7 +278,8 @@ def discover_drm_cards() -> dict:
             "vram_bytes": 0,
             "igpu": False,
         },
-        "igpu": igpu or {
+        "igpu": igpu
+        or {
             "card": "card0",
             "device_path": fallback_igpu,
             "driver": "amdgpu",
@@ -331,15 +347,17 @@ def nvme_sensor_tiles(sens: dict, drives: list[dict] | None = None) -> list[dict
         short = drive.get("label") or drive.get("model") or f"NVMe {i + 1}"
         if len(short) > 42:
             short = f"{drive.get('brand', 'NVMe')} {drive.get('model', '')[:28]}".strip()
-        tiles.append({
-            "id": f"nvme_{drive.get('name', i)}",
-            "label": short,
-            "value": temp,
-            "unit": "°C",
-            "kind": "temp",
-            "hw": "storage",
-            "drive": drive,
-        })
+        tiles.append(
+            {
+                "id": f"nvme_{drive.get('name', i)}",
+                "label": short,
+                "value": temp,
+                "unit": "°C",
+                "kind": "temp",
+                "hw": "storage",
+                "drive": drive,
+            }
+        )
     return tiles
 
 

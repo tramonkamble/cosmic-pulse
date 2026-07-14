@@ -17,8 +17,8 @@ from pulse_config import (
     RETENTION_MIN_DAYS,
     RETENTION_PRESETS,
     estimate_max_mb,
-    get_retention_days,
     get_resolved_insights,
+    get_retention_days,
     get_suppressed_insights,
     resolve_insight,
     save_config,
@@ -286,7 +286,7 @@ def _pearson(xs: list[float], ys: list[float]) -> float | None:
         return None
     mx = sum(xs) / n
     my = sum(ys) / n
-    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
     dx = math.sqrt(sum((x - mx) ** 2 for x in xs))
     dy = math.sqrt(sum((y - my) ** 2 for y in ys))
     if dx == 0 or dy == 0:
@@ -400,15 +400,19 @@ def list_game_sessions(game_id: str | None = None, days: float = 30) -> list[dic
     if game_id:
         params.append(game_id)
     with _lock:
-        rows = _get_conn().execute(
-            f"""
+        rows = (
+            _get_conn()
+            .execute(
+                f"""
             SELECT * FROM game_sessions
             WHERE ended_ts >= ? {clause}
             ORDER BY ended_ts DESC
             LIMIT 200
             """,
-            params,
-        ).fetchall()
+                params,
+            )
+            .fetchall()
+        )
     return [_decode_session(r) for r in rows]
 
 
@@ -418,15 +422,19 @@ def latest_game_session(game_id: str | None = None) -> dict | None:
     if game_id:
         params.append(game_id)
     with _lock:
-        row = _get_conn().execute(
-            f"""
+        row = (
+            _get_conn()
+            .execute(
+                f"""
             SELECT * FROM game_sessions
             WHERE 1=1 {clause}
             ORDER BY ended_ts DESC
             LIMIT 1
             """,
-            params,
-        ).fetchone()
+                params,
+            )
+            .fetchone()
+        )
     return _decode_session(row) if row else None
 
 
@@ -437,16 +445,20 @@ def list_session_markers(game_id: str | None = None, days: float = 30) -> list[d
     if game_id:
         params.append(game_id)
     with _lock:
-        rows = _get_conn().execute(
-            f"""
+        rows = (
+            _get_conn()
+            .execute(
+                f"""
             SELECT id, ts, game_id, kind, label, insight_id, meta
             FROM session_markers
             WHERE ts >= ? {clause}
             ORDER BY ts DESC
             LIMIT 100
             """,
-            params,
-        ).fetchall()
+                params,
+            )
+            .fetchall()
+        )
     return [dict(r) for r in rows]
 
 

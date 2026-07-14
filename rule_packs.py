@@ -117,9 +117,7 @@ def _render_actions(actions: list[dict] | None, metrics: dict) -> list[dict]:
 
 _LIB_FINDING_RE = re.compile(r"^lib-missing-|lib-multilib-missing")
 
-_DEFAULT_LIB_PKGS = (
-    "libvulkan1 mesa-vulkan-drivers libgl1 libgamemode0 libldap2 libgpg-error0"
-)
+_DEFAULT_LIB_PKGS = "libvulkan1 mesa-vulkan-drivers libgl1 libgamemode0 libldap2 libgpg-error0"
 
 
 def _lib_install_context(lib_hits: list[dict]) -> dict[str, Any]:
@@ -135,9 +133,7 @@ def _lib_install_context(lib_hits: list[dict]) -> dict[str, Any]:
             pkgs.extend(fix.replace("sudo apt install ", "").split())
     pkgs = list(dict.fromkeys(pkgs))
     apt_install = (
-        f"sudo apt install {' '.join(pkgs)}"
-        if pkgs
-        else f"sudo apt install {_DEFAULT_LIB_PKGS}"
+        f"sudo apt install {' '.join(pkgs)}" if pkgs else f"sudo apt install {_DEFAULT_LIB_PKGS}"
     )
     return {
         "lib_multilib_needed": multilib,
@@ -154,15 +150,18 @@ def _flatten_diag(findings: list[dict], active_appid: str | None, running: bool)
     disk_hit = next((f for f in findings if f["id"] == "disk-steam-low"), None)
     corrupt_hit = (
         next((f for f in findings if f["id"] == f"steam-corrupt-{active_appid}"), None)
-        if active_appid else None
+        if active_appid
+        else None
     )
     update_hit = (
         next((f for f in findings if f["id"] == f"steam-update-{active_appid}"), None)
-        if active_appid else None
+        if active_appid
+        else None
     )
     exit_hit = (
         next((f for f in findings if f["id"] == f"game-exit-{active_appid}"), None)
-        if active_appid else None
+        if active_appid
+        else None
     )
 
     def promoted(hit: dict | None) -> bool:
@@ -181,7 +180,8 @@ def _flatten_diag(findings: list[dict], active_appid: str | None, running: bool)
         **lib_ctx,
         "steam_disk_low": promoted(disk_hit),
         "disk_free_gb": float(re.search(r"([\d.]+)\s*GB free", disk_hit["title"]).group(1))
-        if disk_hit and re.search(r"([\d.]+)\s*GB free", disk_hit["title"]) else 0.0,
+        if disk_hit and re.search(r"([\d.]+)\s*GB free", disk_hit["title"])
+        else 0.0,
         "disk_title": (disk_hit or {}).get("title", ""),
         "disk_text": (disk_hit or {}).get("text", ""),
         "disk_severity": (disk_hit or {}).get("severity", "warn"),
@@ -200,11 +200,11 @@ def _flatten_diag(findings: list[dict], active_appid: str | None, running: bool)
         "exit_text": (exit_hit or {}).get("text", ""),
         "exit_codes": (
             re.search(r"codes (\[[^\]]+\])", exit_hit["text"]).group(1)
-            if exit_hit and re.search(r"codes (\[[^\]]+\])", exit_hit["text"]) else "[]"
+            if exit_hit and re.search(r"codes (\[[^\]]+\])", exit_hit["text"])
+            else "[]"
         ),
         "exit_severe": bool(
-            exit_hit
-            and ("139" in exit_hit.get("text", "") or "137" in exit_hit.get("text", ""))
+            exit_hit and ("139" in exit_hit.get("text", "") or "137" in exit_hit.get("text", ""))
         ),
         "bin_missing_mangohud": any(f["id"] == "bin-missing-mangohud" for f in findings),
         "bin_missing_gamemoded": any(f["id"] == "bin-missing-gamemoded" for f in findings),
@@ -270,7 +270,9 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
     warm_c = thermal_profile.get("warm_c")
     fan_help = bool(thermal_profile.get("fan_curve_helpful", True))
     thermal_state = g.get("thermal_state") or gpu_thermal_state(
-        g, thermal_profile, ctx.get("gpu_session_peak_mhz"),
+        g,
+        thermal_profile,
+        ctx.get("gpu_session_peak_mhz"),
     )
     causes = st.get("causes") or []
     cause_labels = st.get("cause_labels") or {}
@@ -280,6 +282,7 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
 
     try:
         from diagnostics import get_diagnostics
+
         findings = (get_diagnostics() or {}).get("findings") or []
     except Exception:
         findings = []
@@ -302,7 +305,9 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
         "cpu": {
             "overall_pct": cpu_pct,
             "ccd0_c": (cpu.get("temps", {}).get("ccd") or [None, None])[0],
-            "ccd1_c": (cpu.get("temps", {}).get("ccd") or [None, None])[1] if len(cpu.get("temps", {}).get("ccd") or []) > 1 else None,
+            "ccd1_c": (cpu.get("temps", {}).get("ccd") or [None, None])[1]
+            if len(cpu.get("temps", {}).get("ccd") or []) > 1
+            else None,
         },
         "gpu": {
             "busy_pct": busy,
@@ -350,12 +355,12 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
             "warm_c": warm_c if warm_c is not None else -1,
             "is_hot": junc is not None and float(junc) >= hot_c,
             "is_warm": (
-                warm_c is not None
-                and junc is not None
-                and float(warm_c) <= float(junc) < hot_c
+                warm_c is not None and junc is not None and float(warm_c) <= float(junc) < hot_c
             ),
             "gfx_mhz": g.get("gfx_mhz") or 0,
-            "peak_mhz": thermal_state.get("observed_peak_mhz") or thermal_state.get("session_peak_mhz") or 0,
+            "peak_mhz": thermal_state.get("observed_peak_mhz")
+            or thermal_state.get("session_peak_mhz")
+            or 0,
             "arch_label": thermal_profile.get("label", "GPU"),
             "design_note": thermal_profile.get("design_note", ""),
         },
@@ -387,7 +392,10 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
 def _ldconfig_quick() -> str:
     try:
         import subprocess
-        return subprocess.check_output(["ldconfig", "-p"], text=True, timeout=5, stderr=subprocess.STDOUT)
+
+        return subprocess.check_output(
+            ["ldconfig", "-p"], text=True, timeout=5, stderr=subprocess.STDOUT
+        )
     except Exception:
         return ""
 
@@ -573,7 +581,9 @@ def promoted_finding_skip_ids(
     if "steam-disk-low" in emitted:
         skip.add("disk-steam-low")
     if "vulkan-broken" in emitted:
-        skip.update(f["id"] for f in findings if f["id"] in ("vulkaninfo-error", "vulkan-device-mismatch"))
+        skip.update(
+            f["id"] for f in findings if f["id"] in ("vulkaninfo-error", "vulkan-device-mismatch")
+        )
     if active_appid:
         if "game-files-corrupt" in emitted:
             skip.add(f"steam-corrupt-{active_appid}")
@@ -596,7 +606,10 @@ def scan_findings_for_guidance(
     running: bool,
 ) -> list[dict]:
     skip = promoted_finding_skip_ids(
-        emitted, findings, active_appid=active_appid, running=running,
+        emitted,
+        findings,
+        active_appid=active_appid,
+        running=running,
     )
     return scan_findings(findings, skip_ids=skip)
 
@@ -652,21 +665,24 @@ def _load_packs(force: bool = False) -> list[dict]:
             for inline in pack.get("inline_rules") or []:
                 if isinstance(inline, dict):
                     rules.append(inline)
-            packs.append({
-                "id": pack_id,
-                "name": pack.get("name", pack_id),
-                "version": pack.get("version", "0"),
-                "priority": int(pack.get("priority") or 0),
-                "dir": pack_dir,
-                "manifest": pack,
-                "rules": rules,
-            })
+            packs.append(
+                {
+                    "id": pack_id,
+                    "name": pack.get("name", pack_id),
+                    "version": pack.get("version", "0"),
+                    "priority": int(pack.get("priority") or 0),
+                    "dir": pack_dir,
+                    "manifest": pack,
+                    "rules": rules,
+                }
+            )
 
     packs.sort(key=lambda p: p["priority"], reverse=True)
     _PACK_CACHE["mtime"] = latest
     _PACK_CACHE["packs"] = packs
     try:
         from games import reload_game_pack_data
+
         reload_game_pack_data()
     except Exception:
         pass
@@ -734,8 +750,6 @@ def game_context_kwargs(metrics: dict) -> dict[str, Any]:
 
 
 def list_packs() -> list[dict]:
-    overrides = get_game_overrides()
-    legacy = get_legacy_game_ids()
     return [
         {
             "id": p["id"],
@@ -800,14 +814,16 @@ def evaluate_rule_packs(
                 continue
             actions = _render_actions(rule.get("actions"), metrics)
             fix_script = _resolve_fix_script(emit, metrics, pack["dir"], game_kwargs)
-            hints.append(_pack_hint(
-                emit,
-                actions,
-                fix_script,
-                metrics,
-                pack_id=pack["id"],
-                rule_id=rule_id,
-            ))
+            hints.append(
+                _pack_hint(
+                    emit,
+                    actions,
+                    fix_script,
+                    metrics,
+                    pack_id=pack["id"],
+                    rule_id=rule_id,
+                )
+            )
             emitted.add(insight_id)
 
     return hints, emitted

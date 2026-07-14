@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import subprocess
@@ -24,6 +23,7 @@ HOME = Path.home()
 
 def _steam_logs() -> Path:
     return steam_root() / "logs"
+
 
 # journal / dmesg lines matching these are ignored (cosmetic or benign)
 _NOISE_PATTERNS = re.compile(
@@ -113,7 +113,10 @@ def _finding(
 def _run(cmd: list[str], timeout: float = 8.0) -> str:
     try:
         return subprocess.check_output(
-            cmd, text=True, stderr=subprocess.STDOUT, timeout=timeout,
+            cmd,
+            text=True,
+            stderr=subprocess.STDOUT,
+            timeout=timeout,
         )
     except (subprocess.SubprocessError, OSError):
         return ""
@@ -143,19 +146,21 @@ def _foreign_architectures() -> set[str]:
 def _check_multilib(findings: list[dict]) -> None:
     arches = _foreign_architectures()
     if "i386" not in arches:
-        findings.append(_finding(
-            "lib-multilib-missing",
-            "libraries",
-            "warn",
-            "32-bit multilib not enabled",
-            "Steam and Proton need i386 libraries for many Windows games. "
-            "Enable the architecture once, then install common 32-bit packages.",
-            fix=(
-                "sudo dpkg --add-architecture i386 && sudo apt update && "
-                "sudo apt install libgl1:i386 libvulkan1:i386 libldap2:i386"
-            ),
-            source="dpkg",
-        ))
+        findings.append(
+            _finding(
+                "lib-multilib-missing",
+                "libraries",
+                "warn",
+                "32-bit multilib not enabled",
+                "Steam and Proton need i386 libraries for many Windows games. "
+                "Enable the architecture once, then install common 32-bit packages.",
+                fix=(
+                    "sudo dpkg --add-architecture i386 && sudo apt update && "
+                    "sudo apt install libgl1:i386 libvulkan1:i386 libldap2:i386"
+                ),
+                source="dpkg",
+            )
+        )
         return
     libs = _ldconfig_map()
     missing_i386: list[tuple[str, str, str]] = []
@@ -163,15 +168,17 @@ def _check_multilib(findings: list[dict]) -> None:
         if not _ldconfig_has_i386_soname(libs, soname):
             missing_i386.append((soname, pkg, desc))
     for soname, pkg, desc in missing_i386:
-        findings.append(_finding(
-            f"lib-missing-i386-{soname.replace('.', '-')}",
-            "libraries",
-            "warn",
-            f"Missing 32-bit library: {desc}",
-            f"`{soname}` (i386) not found — Proton games may fail to start or show a blank window.",
-            fix=f"sudo apt install {pkg}",
-            source="ldconfig-i386",
-        ))
+        findings.append(
+            _finding(
+                f"lib-missing-i386-{soname.replace('.', '-')}",
+                "libraries",
+                "warn",
+                f"Missing 32-bit library: {desc}",
+                f"`{soname}` (i386) not found — Proton games may fail to start or show a blank window.",
+                fix=f"sudo apt install {pkg}",
+                source="ldconfig-i386",
+            )
+        )
 
 
 def _check_libraries(findings: list[dict]) -> None:
@@ -185,55 +192,63 @@ def _check_libraries(findings: list[dict]) -> None:
             missing_required.append((soname, pkg, desc))
 
     for soname, pkg, desc in missing_required:
-        findings.append(_finding(
-            f"lib-missing-{soname.replace('.', '-')}",
-            "libraries",
-            "hot" if soname.startswith("libvulkan") or soname == "libGL.so.1" else "warn",
-            f"Missing library: {desc}",
-            f"`{soname}` not found via ldconfig — games may fail to start or render.",
-            fix=f"sudo apt install {pkg}",
-            source="ldconfig",
-        ))
+        findings.append(
+            _finding(
+                f"lib-missing-{soname.replace('.', '-')}",
+                "libraries",
+                "hot" if soname.startswith("libvulkan") or soname == "libGL.so.1" else "warn",
+                f"Missing library: {desc}",
+                f"`{soname}` not found via ldconfig — games may fail to start or render.",
+                fix=f"sudo apt install {pkg}",
+                source="ldconfig",
+            )
+        )
 
     if "libdxvk" not in libs and "libvulkan_radeon.so" in libs:
-        findings.append(_finding(
-            "lib-dxvk-bundled",
-            "libraries",
-            "info",
-            "DXVK not in system path",
-            "Normal with Proton — DXVK is usually bundled per game prefix.",
-            source="ldconfig",
-        ))
+        findings.append(
+            _finding(
+                "lib-dxvk-bundled",
+                "libraries",
+                "info",
+                "DXVK not in system path",
+                "Normal with Proton — DXVK is usually bundled per game prefix.",
+                source="ldconfig",
+            )
+        )
 
     for bin_name, pkg, note in _OPTIONAL_BINS:
         if bin_name == "steam" and steam_root().exists():
             continue
         if not shutil.which(bin_name):
-            findings.append(_finding(
-                f"bin-missing-{bin_name}",
-                "libraries",
-                "info",
-                f"Optional tool missing: {bin_name}",
-                note,
-                fix=f"sudo apt install {pkg}",
-                source="PATH",
-            ))
+            findings.append(
+                _finding(
+                    f"bin-missing-{bin_name}",
+                    "libraries",
+                    "info",
+                    f"Optional tool missing: {bin_name}",
+                    note,
+                    fix=f"sudo apt install {pkg}",
+                    source="PATH",
+                )
+            )
 
 
 def _check_boot_and_kernel(findings: list[dict]) -> None:
     failed = _run(["systemctl", "--failed", "--no-legend", "--plain"], timeout=5).strip()
     if failed:
         units = [ln.split()[0] for ln in failed.splitlines() if ln.strip()]
-        findings.append(_finding(
-            "systemd-failed",
-            "boot",
-            "warn",
-            f"Failed systemd units ({len(units)})",
-            "Services did not start cleanly this boot: " + ", ".join(units[:6]),
-            detail=failed[:1200],
-            fix="systemctl --failed · journalctl -u UNIT -b",
-            source="systemctl",
-        ))
+        findings.append(
+            _finding(
+                "systemd-failed",
+                "boot",
+                "warn",
+                f"Failed systemd units ({len(units)})",
+                "Services did not start cleanly this boot: " + ", ".join(units[:6]),
+                detail=failed[:1200],
+                fix="systemctl --failed · journalctl -u UNIT -b",
+                source="systemctl",
+            )
+        )
 
     err_log = _run(["journalctl", "-b", "-p", "err", "--no-pager", "-n", "80"], timeout=10)
     err_lines = []
@@ -244,19 +259,23 @@ def _check_boot_and_kernel(findings: list[dict]) -> None:
             err_lines.append(line)
     if err_lines:
         uniq = list(dict.fromkeys(err_lines))[:8]
-        findings.append(_finding(
-            "boot-journal-errors",
-            "boot",
-            "warn" if len(uniq) > 3 else "info",
-            f"Boot journal errors ({len(uniq)} unique)",
-            "Non-fatal errors since last boot — review if games crash or hardware acts up.",
-            detail="\n".join(uniq)[:2000],
-            fix="journalctl -b -p err --no-pager | less",
-            source="journalctl",
-        ))
+        findings.append(
+            _finding(
+                "boot-journal-errors",
+                "boot",
+                "warn" if len(uniq) > 3 else "info",
+                f"Boot journal errors ({len(uniq)} unique)",
+                "Non-fatal errors since last boot — review if games crash or hardware acts up.",
+                detail="\n".join(uniq)[:2000],
+                fix="journalctl -b -p err --no-pager | less",
+                source="journalctl",
+            )
+        )
 
     gpu_warn = []
-    for line in _run(["journalctl", "-b", "-k", "--no-pager", "-n", "200"], timeout=10).splitlines():
+    for line in _run(
+        ["journalctl", "-b", "-k", "--no-pager", "-n", "200"], timeout=10
+    ).splitlines():
         if _NOISE_PATTERNS.search(line):
             continue
         if re.search(r"amdgpu|gpu|drm|vulkan|ring", line, re.I) and re.search(
@@ -264,16 +283,18 @@ def _check_boot_and_kernel(findings: list[dict]) -> None:
         ):
             gpu_warn.append(line)
     if gpu_warn:
-        findings.append(_finding(
-            "kernel-gpu-warnings",
-            "driver",
-            "warn",
-            f"Kernel GPU messages ({len(gpu_warn)})",
-            " AMDGPU / DRM warnings this boot — can cause crashes or stutter.",
-            detail="\n".join(list(dict.fromkeys(gpu_warn))[:6])[:1500],
-            fix="journalctl -b -k | grep -iE 'amdgpu|drm|gpu' | tail -50",
-            source="journalctl -k",
-        ))
+        findings.append(
+            _finding(
+                "kernel-gpu-warnings",
+                "driver",
+                "warn",
+                f"Kernel GPU messages ({len(gpu_warn)})",
+                " AMDGPU / DRM warnings this boot — can cause crashes or stutter.",
+                detail="\n".join(list(dict.fromkeys(gpu_warn))[:6])[:1500],
+                fix="journalctl -b -k | grep -iE 'amdgpu|drm|gpu' | tail -50",
+                source="journalctl -k",
+            )
+        )
 
 
 def _check_updates_and_disk(findings: list[dict]) -> None:
@@ -282,30 +303,34 @@ def _check_updates_and_disk(findings: list[dict]) -> None:
         lines = [ln for ln in upgradable.splitlines() if ln and not ln.startswith("Listing")]
         n = len(lines)
         if n >= 5:
-            findings.append(_finding(
-                "apt-upgrades-pending",
-                "updates",
-                "info" if n < 30 else "warn",
-                f"{n} package updates available",
-                "Pending apt upgrades — kernel/mesa updates often fix gaming issues.",
-                detail="\n".join(lines[:12]) + ("\n…" if n > 12 else ""),
-                fix="sudo apt update && sudo apt upgrade",
-                source="apt",
-            ))
+            findings.append(
+                _finding(
+                    "apt-upgrades-pending",
+                    "updates",
+                    "info" if n < 30 else "warn",
+                    f"{n} package updates available",
+                    "Pending apt upgrades — kernel/mesa updates often fix gaming issues.",
+                    detail="\n".join(lines[:12]) + ("\n…" if n > 12 else ""),
+                    fix="sudo apt update && sudo apt upgrade",
+                    source="apt",
+                )
+            )
 
     try:
         usage = shutil.disk_usage(steam_root())
         free_gb = usage.free / 1024**3
         if free_gb < 15:
-            findings.append(_finding(
-                "disk-steam-low",
-                "storage",
-                "warn" if free_gb < 8 else "info",
-                f"Low disk space on Steam volume ({free_gb:.1f} GB free)",
-                "Less than 15 GB free — game updates and Proton prefixes can fail.",
-                fix="Clear old Proton prefixes · Steam → Settings → Storage",
-                source=str(steam_root()),
-            ))
+            findings.append(
+                _finding(
+                    "disk-steam-low",
+                    "storage",
+                    "warn" if free_gb < 8 else "info",
+                    f"Low disk space on Steam volume ({free_gb:.1f} GB free)",
+                    "Less than 15 GB free — game updates and Proton prefixes can fail.",
+                    fix="Clear old Proton prefixes · Steam → Settings → Storage",
+                    source=str(steam_root()),
+                )
+            )
     except OSError:
         pass
 
@@ -327,16 +352,18 @@ def _check_steam_install_health(findings: list[dict]) -> None:
         manifest = str(steam_root() / "steamapps" / f"appmanifest_{appid}.acf")
 
         if health.get("files_corrupt"):
-            findings.append(_finding(
-                f"steam-corrupt-{appid}",
-                "game",
-                "hot",
-                f"{name}: verify game files",
-                "Steam flagged game files as corrupt — common on Linux after patches; "
-                "causes crashes, missing maps, or VAC errors.",
-                fix=f"Quit {name} → Steam → Properties → Installed Files → Verify integrity",
-                source=manifest,
-            ))
+            findings.append(
+                _finding(
+                    f"steam-corrupt-{appid}",
+                    "game",
+                    "hot",
+                    f"{name}: verify game files",
+                    "Steam flagged game files as corrupt — common on Linux after patches; "
+                    "causes crashes, missing maps, or VAC errors.",
+                    fix=f"Quit {name} → Steam → Properties → Installed Files → Verify integrity",
+                    source=manifest,
+                )
+            )
 
         if steam_update_needs_attention(health, running=False):
             from games import steam_update_summary_parts
@@ -346,29 +373,33 @@ def _check_steam_install_health(findings: list[dict]) -> None:
             if shader_mb > 200:
                 parts.append(f"{shader_mb} MB shader cache")
             text = " · ".join(parts) or "Steam update incomplete"
-            findings.append(_finding(
-                f"steam-update-{appid}",
-                "game",
-                "warn",
-                f"{name}: finish pending update",
-                text + " — half-patched builds cause hitches and shader rebuild stutter.",
-                fix=f"Quit {name} → Steam → Downloads → resume · optional shadercache/{appid} clear",
-                source=manifest,
-            ))
+            findings.append(
+                _finding(
+                    f"steam-update-{appid}",
+                    "game",
+                    "warn",
+                    f"{name}: finish pending update",
+                    text + " — half-patched builds cause hitches and shader rebuild stutter.",
+                    fix=f"Quit {name} → Steam → Downloads → resume · optional shadercache/{appid} clear",
+                    source=manifest,
+                )
+            )
 
 
 def _check_steam_logs(findings: list[dict]) -> None:
     steam = steam_root()
     if not steam.exists():
-        findings.append(_finding(
-            "steam-missing",
-            "steam",
-            "hot",
-            "Steam not found",
-            f"Expected Steam at {steam}",
-            fix="Install Steam from Pop!_Shop or https://store.steampowered.com",
-            source="path",
-        ))
+        findings.append(
+            _finding(
+                "steam-missing",
+                "steam",
+                "hot",
+                "Steam not found",
+                f"Expected Steam at {steam}",
+                fix="Install Steam from Pop!_Shop or https://store.steampowered.com",
+                source="path",
+            )
+        )
         return
 
     # Game crash / bad exit codes from gameprocess log
@@ -385,15 +416,17 @@ def _check_steam_logs(findings: list[dict]) -> None:
     for appid, codes in bad_exits.items():
         game_name = game_name_for_appid(appid)
         recent = codes[-5:]
-        findings.append(_finding(
-            f"game-exit-{appid}",
-            "game",
-            "warn" if 139 in recent or 137 in recent else "info",
-            f"{game_name} abnormal exits",
-            f"Recent process exits with codes {recent} — may indicate crash or failed load.",
-            fix=f"Check Steam → {game_name} → Properties → verify files · see Proton log",
-            source="gameprocess_log.txt",
-        ))
+        findings.append(
+            _finding(
+                f"game-exit-{appid}",
+                "game",
+                "warn" if 139 in recent or 137 in recent else "info",
+                f"{game_name} abnormal exits",
+                f"Recent process exits with codes {recent} — may indicate crash or failed load.",
+                fix=f"Check Steam → {game_name} → Properties → verify files · see Proton log",
+                source="gameprocess_log.txt",
+            )
+        )
 
     # Error lines from steam logs
     for log_name in _STEAM_LOG_FILES:
@@ -407,16 +440,18 @@ def _check_steam_logs(findings: list[dict]) -> None:
             hits.append(line.strip())
         uniq = list(dict.fromkeys(hits))[-6:]
         if len(uniq) >= 2:
-            findings.append(_finding(
-                f"steam-log-{log_name.replace('.', '-')}",
-                "steam",
-                "info",
-                f"Steam log: {log_name}",
-                f"{len(uniq)} recent error-like lines — skim if launches fail.",
-                detail="\n".join(uniq)[:1800],
-                fix=f"less {path}",
-                source=str(path),
-            ))
+            findings.append(
+                _finding(
+                    f"steam-log-{log_name.replace('.', '-')}",
+                    "steam",
+                    "info",
+                    f"Steam log: {log_name}",
+                    f"{len(uniq)} recent error-like lines — skim if launches fail.",
+                    detail="\n".join(uniq)[:1800],
+                    fix=f"less {path}",
+                    source=str(path),
+                )
+            )
 
 
 def _check_game_prefixes(findings: list[dict]) -> None:
@@ -425,28 +460,32 @@ def _check_game_prefixes(findings: list[dict]) -> None:
         meta_name = game_name_for_appid(appid)
         prefix = compat_root / appid
         if not prefix.is_dir():
-            findings.append(_finding(
-                f"prefix-missing-{appid}",
-                "game",
-                "info",
-                f"{meta_name}: no Proton prefix yet",
-                "First launch will create compatdata — errors before that are normal.",
-                source=str(prefix),
-            ))
+            findings.append(
+                _finding(
+                    f"prefix-missing-{appid}",
+                    "game",
+                    "info",
+                    f"{meta_name}: no Proton prefix yet",
+                    "First launch will create compatdata — errors before that are normal.",
+                    source=str(prefix),
+                )
+            )
             continue
         ver_file = prefix / "version"
         if ver_file.is_file():
             try:
                 ver = ver_file.read_text().strip()
                 if ver and "proton" not in ver.lower() and "steam" not in ver.lower():
-                    findings.append(_finding(
-                        f"prefix-version-{appid}",
-                        "game",
-                        "info",
-                        f"{meta_name} prefix version",
-                        f"compatdata version: {ver}",
-                        source=str(ver_file),
-                    ))
+                    findings.append(
+                        _finding(
+                            f"prefix-version-{appid}",
+                            "game",
+                            "info",
+                            f"{meta_name} prefix version",
+                            f"compatdata version: {ver}",
+                            source=str(ver_file),
+                        )
+                    )
             except OSError:
                 pass
 
@@ -456,20 +495,23 @@ def _check_game_prefixes(findings: list[dict]) -> None:
                 if log_path.stat().st_size > 5_000_000:
                     continue
                 err_lines = [
-                    ln.strip() for ln in _scan_log_tail(log_path, 80)
+                    ln.strip()
+                    for ln in _scan_log_tail(log_path, 80)
                     if _ERROR_LINE.search(ln) and not _NOISE_PATTERNS.search(ln)
                 ]
                 if len(err_lines) >= 3:
-                    findings.append(_finding(
-                        f"game-log-{appid}-{log_path.name}",
-                        "game",
-                        "info",
-                        f"{game_name_for_appid(appid)} log errors",
-                        f"Errors in {log_path.relative_to(prefix)}",
-                        detail="\n".join(list(dict.fromkeys(err_lines))[-5:])[:1200],
-                        fix=f"xdg-open '{log_path.parent}'",
-                        source=str(log_path),
-                    ))
+                    findings.append(
+                        _finding(
+                            f"game-log-{appid}-{log_path.name}",
+                            "game",
+                            "info",
+                            f"{game_name_for_appid(appid)} log errors",
+                            f"Errors in {log_path.relative_to(prefix)}",
+                            detail="\n".join(list(dict.fromkeys(err_lines))[-5:])[:1200],
+                            fix=f"xdg-open '{log_path.parent}'",
+                            source=str(log_path),
+                        )
+                    )
                     break
 
 
@@ -480,27 +522,31 @@ def _check_vulkan(findings: list[dict]) -> None:
     if not out:
         return
     if "ERROR" in out or "Cannot" in out:
-        findings.append(_finding(
-            "vulkaninfo-error",
-            "driver",
-            "hot",
-            "Vulkan not working",
-            "vulkaninfo reported errors — games using Vulkan/Proton may fail.",
-            detail=out[:1500],
-            fix="sudo apt install mesa-vulkan-drivers libvulkan1 · reboot",
-            source="vulkaninfo",
-        ))
+        findings.append(
+            _finding(
+                "vulkaninfo-error",
+                "driver",
+                "hot",
+                "Vulkan not working",
+                "vulkaninfo reported errors — games using Vulkan/Proton may fail.",
+                detail=out[:1500],
+                fix="sudo apt install mesa-vulkan-drivers libvulkan1 · reboot",
+                source="vulkaninfo",
+            )
+        )
     elif "deviceName" not in out and "deviceType" not in out and "GPU" not in out:
-        findings.append(_finding(
-            "vulkan-device-mismatch",
-            "driver",
-            "warn",
-            "Vulkan GPU not detected",
-            "vulkaninfo ran but no discrete GPU device was reported.",
-            detail=out[:800],
-            fix="DRI_PRIME=1 vulkaninfo --summary",
-            source="vulkaninfo",
-        ))
+        findings.append(
+            _finding(
+                "vulkan-device-mismatch",
+                "driver",
+                "warn",
+                "Vulkan GPU not detected",
+                "vulkaninfo ran but no discrete GPU device was reported.",
+                detail=out[:800],
+                fix="DRI_PRIME=1 vulkaninfo --summary",
+                source="vulkaninfo",
+            )
+        )
 
 
 def run_diagnostics() -> dict:
@@ -521,14 +567,16 @@ def run_diagnostics() -> dict:
         counts[f["severity"]] = counts.get(f["severity"], 0) + 1
 
     if not findings:
-        findings.append(_finding(
-            "all-clear",
-            "system",
-            "ok",
-            "No issues detected",
-            "Boot, libraries, Steam logs, and Vulkan look clean.",
-            source="pulse",
-        ))
+        findings.append(
+            _finding(
+                "all-clear",
+                "system",
+                "ok",
+                "No issues detected",
+                "Boot, libraries, Steam logs, and Vulkan look clean.",
+                source="pulse",
+            )
+        )
         counts["ok"] = 1
 
     return {

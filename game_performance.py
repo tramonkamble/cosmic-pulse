@@ -135,13 +135,15 @@ class GameSessionTracker:
         acc["gpu_busy_sum"] += float(dgpu.get("busy_pct") or 0)
         mem = snap.get("memory") or {}
         acc["ram_pct_sum"] += float(mem.get("pct") or 0)
-        acc.setdefault("trend_points", []).append({
-            "ts": ts,
-            "smoothness": st.get("smoothness"),
-            "stutter_score": st.get("score"),
-            "game_cpu": gt.get("cpu_pct"),
-            "gpu_busy": dgpu.get("busy_pct"),
-        })
+        acc.setdefault("trend_points", []).append(
+            {
+                "ts": ts,
+                "smoothness": st.get("smoothness"),
+                "stutter_score": st.get("score"),
+                "game_cpu": gt.get("cpu_pct"),
+                "gpu_busy": dgpu.get("busy_pct"),
+            }
+        )
 
     def _store_finished(self, row: dict[str, Any]) -> None:
         self._last_session = row

@@ -9,16 +9,23 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from guidance_auto import AUTO_RESOLVE_CLEAR_SEC, CLEAR_SINCE_KEY, seed_clear_timers, tick_auto_resolve
+from guidance_auto import (
+    AUTO_RESOLVE_CLEAR_SEC,
+    CLEAR_SINCE_KEY,
+    seed_clear_timers,
+    tick_auto_resolve,
+)
 
 
 def test_auto_resolve_after_sustained_clear():
     resolved: list[str] = []
-    history = [{
-        "insight_id": "swap-thrash",
-        "title": "Swap thrash",
-        "condition_live": False,
-    }]
+    history = [
+        {
+            "insight_id": "swap-thrash",
+            "title": "Swap thrash",
+            "condition_live": False,
+        }
+    ]
     now = 1000.0
     tick_auto_resolve(history, set(), set(), set(), now, resolved.append)
     assert CLEAR_SINCE_KEY in history[0]
@@ -52,7 +59,10 @@ def test_seed_clear_timers_uses_last_seen():
     assert history[0][CLEAR_SINCE_KEY] == 100.0
     resolved: list[str] = []
     tick_auto_resolve(
-        history, set(), set(), set(),
+        history,
+        set(),
+        set(),
+        set(),
         100.0 + AUTO_RESOLVE_CLEAR_SEC,
         resolved.append,
     )
@@ -61,11 +71,13 @@ def test_seed_clear_timers_uses_last_seen():
 
 def test_auto_resolve_skips_when_live_again():
     resolved: list[str] = []
-    history = [{
-        "insight_id": "gpu-thermal-warn",
-        "title": "GPU hot",
-        CLEAR_SINCE_KEY: 500.0,
-    }]
+    history = [
+        {
+            "insight_id": "gpu-thermal-warn",
+            "title": "GPU hot",
+            CLEAR_SINCE_KEY: 500.0,
+        }
+    ]
     tick_auto_resolve(
         history,
         {"gpu-thermal-warn"},

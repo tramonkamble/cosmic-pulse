@@ -84,12 +84,14 @@ def build_issue_views(
     """Build overall prioritized list and per-game issue sections."""
     active_ids = {h["insight_id"] for h in active if h.get("insight_id")}
     resolved_ids, suppressed_ids = get_insight_pref_sets()
-    enrich = lambda item: enrich_hint(
-        item,
-        live_ids=active_ids,
-        resolved_ids=resolved_ids,
-        suppressed_ids=suppressed_ids,
-    )
+
+    def enrich(item):
+        return enrich_hint(
+            item,
+            live_ids=active_ids,
+            resolved_ids=resolved_ids,
+            suppressed_ids=suppressed_ids,
+        )
 
     outstanding_map: dict[str, dict] = {}
     for item in history:
@@ -100,11 +102,18 @@ def build_issue_views(
 
     for h in active:
         iid = h.get("insight_id")
-        if iid and iid not in outstanding_map and iid not in resolved_ids and iid not in suppressed_ids:
-            outstanding_map[iid] = enrich({
-                **h,
-                "games_seen": {g: time.time() for g in _games_for_active(h, running_ids)},
-            })
+        if (
+            iid
+            and iid not in outstanding_map
+            and iid not in resolved_ids
+            and iid not in suppressed_ids
+        ):
+            outstanding_map[iid] = enrich(
+                {
+                    **h,
+                    "games_seen": {g: time.time() for g in _games_for_active(h, running_ids)},
+                }
+            )
 
     outstanding = sorted(
         outstanding_map.values(),
@@ -129,7 +138,7 @@ def build_issue_views(
             if norm:
                 game_ids.add(norm)
     for item in outstanding:
-        for gid in (item.get("games_seen") or {}):
+        for gid in item.get("games_seen") or {}:
             norm = normalize_game_id(gid)
             if norm:
                 game_ids.add(norm)
@@ -140,11 +149,7 @@ def build_issue_views(
     by_game: dict[str, dict] = {}
     for gid in sorted(game_ids, key=lambda x: (x not in norm_running, x)):
         legacy_gid = next((k for k, v in LEGACY_GAME_IDS.items() if v == gid), None)
-        src = (
-            (games_state or {}).get(gid)
-            or (games_state or {}).get(legacy_gid)
-            or game_meta(gid)
-        )
+        src = (games_state or {}).get(gid) or (games_state or {}).get(legacy_gid) or game_meta(gid)
         game_issues: list[dict] = []
         for item in outstanding:
             if not hint_applies_to(item, gid):

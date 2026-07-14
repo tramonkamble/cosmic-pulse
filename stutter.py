@@ -181,6 +181,4 @@ def session_stats(snap: dict, history: list) -> dict:
 def attach_stutter(snap: dict, history: list) -> None:
     snap["stutter"] = compute_stutter(snap)
     snap["stutter"]["session"] = session_stats(snap, history)
-    snap["stutter"]["cause_labels"] = {
-        k: CAUSE_LABELS.get(k, k) for k in snap["stutter"]["causes"]
-    }
+    snap["stutter"]["cause_labels"] = {k: CAUSE_LABELS.get(k, k) for k in snap["stutter"]["causes"]}

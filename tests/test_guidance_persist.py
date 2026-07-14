@@ -18,7 +18,9 @@ from issue_aggregate import build_issue_views
 
 def test_config_cache_avoids_repeat_reads(tmp_path, monkeypatch):
     cfg_path = tmp_path / ".pulse_config.json"
-    cfg_path.write_text(json.dumps({"retention_days": 7, "suppressed_insights": [], "resolved_insights": []}))
+    cfg_path.write_text(
+        json.dumps({"retention_days": 7, "suppressed_insights": [], "resolved_insights": []})
+    )
     monkeypatch.setattr(pulse_config, "CONFIG_PATH", cfg_path)
     pulse_config.invalidate_config_cache()
 
@@ -39,15 +41,17 @@ def test_config_cache_avoids_repeat_reads(tmp_path, monkeypatch):
 
 
 def test_by_game_skips_idle_titles_without_issues():
-    history = [{
-        "insight_id": "cpu-governor-powersave",
-        "level": "warn",
-        "title": "CPU power-save",
-        "text": "test",
-        "games_seen": {"949230": time.time()},
-        "last_seen": time.time(),
-        "condition_live": True,
-    }]
+    history = [
+        {
+            "insight_id": "cpu-governor-powersave",
+            "level": "warn",
+            "title": "CPU power-save",
+            "text": "test",
+            "games_seen": {"949230": time.time()},
+            "last_seen": time.time(),
+            "condition_live": True,
+        }
+    ]
     active = [history[0]]
     empty_prefs = (set(), set())
     with mock.patch("issue_aggregate.get_insight_pref_sets", return_value=empty_prefs):

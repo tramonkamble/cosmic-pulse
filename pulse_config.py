@@ -154,7 +154,9 @@ def resolve_insight(insight_id: str) -> list[str]:
     if iid not in resolved:
         resolved.append(iid)
     suppressed = [x for x in cfg["suppressed_insights"] if x != iid]
-    return save_config(resolved_insights=resolved, suppressed_insights=suppressed)["resolved_insights"]
+    return save_config(resolved_insights=resolved, suppressed_insights=suppressed)[
+        "resolved_insights"
+    ]
 
 
 def unresolve_insight(insight_id: str) -> list[str]:

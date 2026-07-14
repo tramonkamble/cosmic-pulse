@@ -276,9 +276,17 @@ def apply_fix(
 
 def fix_available(insight_id: str) -> bool:
     handlers = {
-        "gpu-thermal-ceiling", "gpu-thermal-warm", "gpu-vram-bandwidth",
-        "gpu-vram-full", "gpu-gtt-churn", "memory-page-faults",
-        "gpu-shader-bound", "game-files-corrupt", "game-update-pending",
-        "steam-disk-low", "game-prefix-reset", "system-balanced",
+        "gpu-thermal-ceiling",
+        "gpu-thermal-warm",
+        "gpu-vram-bandwidth",
+        "gpu-vram-full",
+        "gpu-gtt-churn",
+        "memory-page-faults",
+        "gpu-shader-bound",
+        "game-files-corrupt",
+        "game-update-pending",
+        "steam-disk-low",
+        "game-prefix-reset",
+        "system-balanced",
     }
     return insight_id in handlers and not requires_root(insight_id)

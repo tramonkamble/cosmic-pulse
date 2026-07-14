@@ -91,7 +91,9 @@ def _palette_color(text: str, key: str) -> str | None:
 def load_cosmic_theme() -> dict:
     """Return CSS-ready COSMIC theme tokens, or available=False."""
     mode_dir = COSMIC_ROOT / "com.system76.CosmicTheme.Mode" / "v1"
-    is_dark = _parse_bool(_read_text(mode_dir / "is_dark")) if (mode_dir / "is_dark").exists() else True
+    is_dark = (
+        _parse_bool(_read_text(mode_dir / "is_dark")) if (mode_dir / "is_dark").exists() else True
+    )
     theme_name = "Dark" if is_dark else "Light"
     base = COSMIC_ROOT / f"com.system76.CosmicTheme.{theme_name}" / "v1"
     if not base.is_dir():
@@ -113,7 +115,11 @@ def load_cosmic_theme() -> dict:
         or _nested_color(primary_txt, "component", "base")
         or "#40434a"
     )
-    panel_hover = _nested_color(bg_txt, "component", "hover") or _nested_color(primary_txt, "component", "hover") or panel
+    panel_hover = (
+        _nested_color(bg_txt, "component", "hover")
+        or _nested_color(primary_txt, "component", "hover")
+        or panel
+    )
     panel_elevated = _nested_color(primary_txt, "component", "hover") or panel_hover
     text = _pick_color(bg_txt, "on") or _pick_color(primary_txt, "on") or "#d8e0ef"
     divider = _pick_color(bg_txt, "divider") or "rgba(255,255,255,0.12)"
