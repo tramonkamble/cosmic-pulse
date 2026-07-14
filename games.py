@@ -6,17 +6,24 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from functools import lru_cache
 from pathlib import Path
 
 import psutil
+
+_STEAM_HEALTH_CACHE: dict[str, tuple[float, dict]] = {}
+_CONTENT_LOG_CACHE: tuple[float, list[str]] = (0.0, [])
+_SHADER_SIZE_CACHE: dict[str, tuple[float, int]] = {}
+_STEAM_HEALTH_TTL = 45.0
+_CONTENT_LOG_TTL = 30.0
+_SHADER_SIZE_TTL = 300.0
 
 HOME = Path.home()
 
 APPID_RE = re.compile(r"AppId=(\d+)", re.I)
 COMPAT_RE = re.compile(r"compatdata/(\d+)", re.I)
 GAMEID_RE = re.compile(r"-gameid\s+(\d+)", re.I)
-OVERLAY_GAMEID_RE = re.compile(r"-gameid\s+(\d+)", re.I)
 OVERLAY_PID_RE = re.compile(r"-pid\s+(\d+)", re.I)
 STEAM_ENV_APPID_KEYS = (
     b"STEAM_COMPAT_APP_ID=",
@@ -46,25 +53,91 @@ AUXILIARY_EXES = frozenset({
     "crashpad_handler.exe", "crashpad_handler.dll", "gameoverlayui",
 })
 
-# Optional per-AppID detection tuning (main_exe / exclude_exe only — names from manifests).
-GAME_OVERRIDES: dict[str, dict] = {
-    "730": {
-        "main_exe": frozenset({"cs2.exe", "cs2"}),
-        "short": "CS2",
-    },
-}
+# Populated from rule packs (see get_game_overrides / get_legacy_game_ids).
+_GAME_OVERRIDE_CACHE: dict[str, dict] | None = None
+_LEGACY_ID_CACHE: dict[str, str] | None = None
 
-# Back-compat alias for diagnostics and docs.
-GAMES: dict[str, dict] = {
-    appid: {
-        "id": appid,
-        "appid": appid,
-        "name": meta.get("name") or f"AppID {appid}",
-        "short": meta.get("short") or f"AppID {appid}",
-        "compat": f"compatdata/{appid}",
-    }
-    for appid, meta in GAME_OVERRIDES.items()
-}
+
+def _load_legacy_game_ids() -> dict[str, str]:
+    global _LEGACY_ID_CACHE
+    if _LEGACY_ID_CACHE is not None:
+        return _LEGACY_ID_CACHE
+    try:
+        from rule_packs import get_legacy_game_ids
+        _LEGACY_ID_CACHE = get_legacy_game_ids()
+    except Exception:
+        return {}
+    return _LEGACY_ID_CACHE
+
+
+def _load_game_overrides() -> dict[str, dict]:
+    global _GAME_OVERRIDE_CACHE
+    if _GAME_OVERRIDE_CACHE is not None:
+        return _GAME_OVERRIDE_CACHE
+    try:
+        from rule_packs import get_game_overrides
+        _GAME_OVERRIDE_CACHE = get_game_overrides()
+    except Exception:
+        return {}
+    return _GAME_OVERRIDE_CACHE
+
+
+class _LazyDict:
+    """Dict-like view loaded from rule packs on first access."""
+
+    __slots__ = ("_loader", "_cache")
+
+    def __init__(self, loader):
+        self._loader = loader
+        self._cache: dict | None = None
+
+    def _data(self) -> dict:
+        if self._cache is None:
+            self._cache = self._loader()
+        return self._cache
+
+    def get(self, key, default=None):
+        return self._data().get(key, default)
+
+    def __getitem__(self, key):
+        return self._data()[key]
+
+    def keys(self):
+        return self._data().keys()
+
+    def items(self):
+        return self._data().items()
+
+    def values(self):
+        return self._data().values()
+
+    def __iter__(self):
+        return iter(self._data())
+
+    def __contains__(self, key):
+        return key in self._data()
+
+    def __len__(self):
+        return len(self._data())
+
+
+LEGACY_GAME_IDS = _LazyDict(_load_legacy_game_ids)
+GAME_OVERRIDES = _LazyDict(_load_game_overrides)
+
+
+def reload_game_pack_data() -> None:
+    """Invalidate cached pack-derived game tables (pack hot-reload / tests)."""
+    global _GAME_OVERRIDE_CACHE, _LEGACY_ID_CACHE
+    _GAME_OVERRIDE_CACHE = None
+    _LEGACY_ID_CACHE = None
+    LEGACY_GAME_IDS._cache = None
+    GAME_OVERRIDES._cache = None
+
+
+def normalize_game_id(game_id: str | None) -> str | None:
+    if not game_id:
+        return None
+    return _load_legacy_game_ids().get(game_id, game_id)
 
 
 def steam_root() -> Path:
@@ -83,9 +156,6 @@ def steam_root() -> Path:
     return HOME / ".local/share/Steam"
 
 
-STEAM = steam_root()
-
-
 def _short_name(name: str) -> str:
     words = (name or "").split()
     if len(words) <= 3:
@@ -95,7 +165,7 @@ def _short_name(name: str) -> str:
 
 @lru_cache(maxsize=256)
 def _read_manifest(appid: str) -> dict[str, str]:
-    path = STEAM / "steamapps" / f"appmanifest_{appid}.acf"
+    path = steam_root() / "steamapps" / f"appmanifest_{appid}.acf"
     if not path.is_file():
         return {}
     try:
@@ -113,6 +183,7 @@ def _read_manifest(appid: str) -> dict[str, str]:
 
 
 def game_meta(appid: str) -> dict:
+    appid = normalize_game_id(appid) or appid
     manifest = _read_manifest(appid)
     override = GAME_OVERRIDES.get(appid, {})
     name = override.get("name") or manifest.get("name") or f"AppID {appid}"
@@ -129,7 +200,7 @@ def game_meta(appid: str) -> dict:
 
 def build_games_catalog() -> dict[str, dict]:
     catalog: dict[str, dict] = {}
-    steamapps = STEAM / "steamapps"
+    steamapps = steam_root() / "steamapps"
     if steamapps.is_dir():
         for path in steamapps.glob("appmanifest_*.acf"):
             appid = path.name.removeprefix("appmanifest_").removesuffix(".acf")
@@ -154,51 +225,250 @@ def game_name_for_appid(appid: str) -> str:
 
 
 _MANIFEST_INT = re.compile(r'"(\w+)"\s*"(\d+)"')
-_CONTENT_CORRUPT_RE = re.compile(r"AppID\s+(\d+)\s+state changed\s+:.*Files Corrupt", re.I)
-_CONTENT_SUSPENDED_RE = re.compile(
+_CONTENT_LOG_TAIL = 1200
+_CONTENT_SUSPENDED_LOOKBACK = 8
+_STATE_CORRUPT_RE = re.compile(
+    rf"AppID\s+(\d+)\s+state changed\s+:.*Files Corrupt", re.I,
+)
+_STATE_RUNNING_RE = re.compile(
+    rf"AppID\s+(\d+)\s+state changed\s+:.*App Running", re.I,
+)
+_SCHEDULER_SUSPENDED_RE = re.compile(
     r"AppID\s+(\d+)\s+scheduler finished\s+:.*result Suspended", re.I,
+)
+_STATE_CHANGED_RE = re.compile(r"AppID\s+(\d+)\s+state changed\s*:(.*)", re.I)
+_UPDATE_BUSY_RE = re.compile(
+    r"AppID\s+(\d+)\s+(?:App|Shader) update changed\s*:.*"
+    r"(?:Downloading|Staging|Preallocating|Verifying|Committing)",
+    re.I,
+)
+_SCHEDULER_MISSING_RE = re.compile(
+    r"AppID\s+(\d+)\s+scheduler finished\s+:.*Missing game files", re.I,
 )
 
 
-def _tail_lines(path: Path, max_lines: int = 500) -> list[str]:
+def clear_steam_health_caches() -> None:
+    """Reset cached Steam health reads (tests / forced diagnostics refresh)."""
+    global _CONTENT_LOG_CACHE
+    _STEAM_HEALTH_CACHE.clear()
+    _CONTENT_LOG_CACHE = (0.0, [])
+    _SHADER_SIZE_CACHE.clear()
+
+
+def _tail_lines(path: Path, max_lines: int = 500, *, tail_bytes: int = 384 * 1024) -> list[str]:
+    """Read only the tail of a log file (content_log can grow for months)."""
     if not path.is_file():
         return []
     try:
-        return path.read_text(errors="replace").splitlines()[-max_lines:]
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - tail_bytes))
+            data = handle.read().decode("utf-8", errors="replace")
+        return data.splitlines()[-max_lines:]
     except OSError:
         return []
+
+
+def _cached_content_log_lines(max_lines: int = _CONTENT_LOG_TAIL) -> list[str]:
+    global _CONTENT_LOG_CACHE
+    now = time.monotonic()
+    if now - _CONTENT_LOG_CACHE[0] < _CONTENT_LOG_TTL:
+        return _CONTENT_LOG_CACHE[1]
+    lines = _tail_lines(steam_root() / "logs" / "content_log.txt", max_lines)
+    _CONTENT_LOG_CACHE = (now, lines)
+    return lines
 
 
 def _dir_size_bytes(path: Path) -> int:
     if not path.is_dir():
         return 0
     total = 0
-    try:
-        for entry in path.rglob("*"):
-            if entry.is_file():
-                total += entry.stat().st_size
-    except OSError:
-        pass
+    stack = [path]
+    while stack:
+        cur = stack.pop()
+        try:
+            with os.scandir(cur) as entries:
+                for entry in entries:
+                    try:
+                        if entry.is_file(follow_symlinks=False):
+                            total += entry.stat(follow_symlinks=False).st_size
+                        elif entry.is_dir(follow_symlinks=False):
+                            stack.append(Path(entry.path))
+                    except OSError:
+                        continue
+        except OSError:
+            continue
     return total
 
 
+def _shader_cache_bytes(appid: str) -> int:
+    now = time.monotonic()
+    cached = _SHADER_SIZE_CACHE.get(appid)
+    if cached and now - cached[0] < _SHADER_SIZE_TTL:
+        return cached[1]
+    size = _dir_size_bytes(shader_cache_dir(appid))
+    _SHADER_SIZE_CACHE[appid] = (now, size)
+    return size
+
+
 def shader_cache_dir(appid: str) -> Path:
-    return STEAM / "steamapps" / "shadercache" / str(appid)
+    return steam_root() / "steamapps" / "shadercache" / str(appid)
+
+
+def _content_log_success(line: str, appid: str) -> bool:
+    if f"AppID {appid}" not in line:
+        return False
+    if "finished update" in line:
+        return True
+    return (
+        "scheduler finished" in line
+        and "result No Error" in line
+        and "removed from schedule" in line
+    )
+
+
+def _content_log_corrupt(line: str, appid: str) -> bool:
+    m = _STATE_CORRUPT_RE.search(line)
+    return bool(m and m.group(1) == appid)
+
+
+def _content_log_suspended(line: str, appid: str) -> bool:
+    m = _SCHEDULER_SUSPENDED_RE.search(line)
+    return bool(m and m.group(1) == appid)
+
+
+def _same_app_running_near(lines: list[str], idx: int, appid: str) -> bool:
+    """True when this AppID was running near a scheduler Suspended line (not another game)."""
+    start = max(0, idx - _CONTENT_SUSPENDED_LOOKBACK)
+    for w in lines[start: idx + 1]:
+        m = _STATE_RUNNING_RE.search(w)
+        if m and m.group(1) == appid:
+            return True
+    return False
+
+
+def parse_content_log(appid: str, lines: list[str]) -> dict[str, bool]:
+    """Derive install/update signals for one AppID from content_log lines."""
+    last_success = -1
+    corrupt_idx: int | None = None
+    suspended_idx: int | None = None
+    missing_idx: int | None = None
+    update_active = False
+    last_state = ""
+
+    for i, line in enumerate(lines):
+        if f"AppID {appid}" not in line:
+            continue
+        if _content_log_success(line, appid):
+            last_success = i
+            corrupt_idx = None
+            suspended_idx = None
+            missing_idx = None
+            update_active = False
+        elif _content_log_corrupt(line, appid):
+            corrupt_idx = i
+        elif _content_log_suspended(line, appid) and _same_app_running_near(lines, i, appid):
+            suspended_idx = i
+        else:
+            busy = _UPDATE_BUSY_RE.search(line)
+            if busy and busy.group(1) == appid and i > last_success:
+                update_active = True
+            missing = _SCHEDULER_MISSING_RE.search(line)
+            if missing and missing.group(1) == appid:
+                missing_idx = i
+            state = _STATE_CHANGED_RE.search(line)
+            if state and state.group(1) == appid:
+                last_state = state.group(2)
+                if (
+                    "Update Running" in last_state
+                    or "Update Started" in last_state
+                ) and i > last_success:
+                    update_active = True
+
+    files_corrupt = corrupt_idx is not None and corrupt_idx > last_success
+    update_suspended = suspended_idx is not None and suspended_idx > last_success
+    missing_game_files = missing_idx is not None and missing_idx > last_success
+    update_delayed = "Update delayed for" in last_state
+    manifest_pending_stale = (
+        last_success >= 0
+        and "Fully Installed" in last_state
+        and "Update Running" not in last_state
+        and "Update Started" not in last_state
+        and not update_active
+    )
+
+    return {
+        "files_corrupt": files_corrupt,
+        "update_suspended_while_running": update_suspended,
+        "update_active": update_active,
+        "update_delayed": update_delayed,
+        "manifest_pending_stale": manifest_pending_stale,
+        "missing_game_files": missing_game_files,
+    }
+
+
+def content_log_health(appid: str, lines: list[str]) -> tuple[bool, bool]:
+    """Return (files_corrupt, update_suspended_while_running) from content_log lines."""
+    parsed = parse_content_log(appid, lines)
+    return parsed["files_corrupt"], parsed["update_suspended_while_running"]
+
+
+def _effective_pending_bytes(health: dict) -> tuple[int, int]:
+    """Manifest pending bytes adjusted using content_log (stale counters are common)."""
+    if health.get("manifest_pending_stale"):
+        return 0, 0
+    return (
+        int(health.get("pending_download_bytes") or 0),
+        int(health.get("pending_stage_bytes") or 0),
+    )
 
 
 def steam_update_needs_attention(health: dict, *, running: bool = False) -> bool:
-    """True when a download/stage is pending or Steam suspended an update mid-session."""
+    """True when a real in-progress or broken update needs user action."""
+    if health.get("missing_game_files"):
+        return True
     if health.get("update_suspended_while_running"):
         return True
+    if health.get("update_delayed") and not health.get("update_active"):
+        return False
     threshold = 5 if running else 20
-    pending_mb = health.get("pending_download_bytes", 0) / 1024**2
-    stage_mb = health.get("pending_stage_bytes", 0) / 1024**2
-    return pending_mb > threshold or stage_mb > threshold
+    pending, stage = _effective_pending_bytes(health)
+    pending_mb = pending / 1024**2
+    stage_mb = stage / 1024**2
+    if pending_mb <= threshold and stage_mb <= threshold:
+        return False
+    if health.get("update_active"):
+        return True
+    return not health.get("manifest_pending_stale")
 
 
-def steam_install_health(appid: str) -> dict:
+def steam_update_summary_parts(health: dict) -> list[str]:
+    """Human-readable update issue fragments (generic, any AppID)."""
+    parts: list[str] = []
+    if health.get("update_suspended_while_running"):
+        parts.append("update paused while the game was running")
+    if health.get("missing_game_files"):
+        parts.append("Steam reported missing game files on the last update attempt")
+    pending, stage = _effective_pending_bytes(health)
+    pending_mb = pending / 1024**2
+    stage_mb = stage / 1024**2
+    if pending_mb > 0:
+        parts.append(f"{pending_mb:.0f} MB download still pending")
+    if stage_mb > 0:
+        parts.append(f"{stage_mb:.0f} MB still staging")
+    return parts
+
+
+def steam_install_health(appid: str, *, cache: bool = True) -> dict:
     """Parse Steam manifest + content_log for corrupt files / stalled updates."""
-    manifest_path = STEAM / "steamapps" / f"appmanifest_{appid}.acf"
+    now = time.monotonic()
+    if cache:
+        hit = _STEAM_HEALTH_CACHE.get(appid)
+        if hit and now - hit[0] < _STEAM_HEALTH_TTL:
+            return hit[1]
+
+    manifest_path = steam_root() / "steamapps" / f"appmanifest_{appid}.acf"
     ints: dict[str, int] = {}
     if manifest_path.is_file():
         try:
@@ -218,46 +488,45 @@ def steam_install_health(appid: str) -> dict:
     staged = ints.get("BytesStaged", 0)
     pending_stage = max(0, to_stage - staged)
     shader_path = shader_cache_dir(appid)
-    shader_bytes = _dir_size_bytes(shader_path)
+    shader_bytes = _shader_cache_bytes(appid)
 
-    files_corrupt = False
-    update_suspended = False
-    recent = _tail_lines(STEAM / "logs" / "content_log.txt", 600)
-    for i, line in enumerate(recent):
-        if f"AppID {appid}" not in line:
-            continue
-        if _CONTENT_CORRUPT_RE.search(line):
-            files_corrupt = True
-        if "Files Corrupt" in line and "App Running" in line:
-            files_corrupt = True
-        if _CONTENT_SUSPENDED_RE.search(line):
-            window = recent[max(0, i - 8): i + 1]
-            if any("App Running" in w for w in window):
-                update_suspended = True
+    recent = _cached_content_log_lines()
+    log_flags = parse_content_log(appid, recent)
+    eff_pending = 0 if log_flags["manifest_pending_stale"] else pending
+    eff_stage = 0 if log_flags["manifest_pending_stale"] else pending_stage
 
-    return {
+    result = {
         "appid": appid,
-        "files_corrupt": files_corrupt,
+        "files_corrupt": log_flags["files_corrupt"],
         "pending_download_bytes": pending,
         "pending_stage_bytes": pending_stage,
-        "update_queued": pending > 0 or pending_stage > 0,
-        "update_suspended_while_running": update_suspended,
+        "effective_pending_download_bytes": eff_pending,
+        "effective_pending_stage_bytes": eff_stage,
+        "update_queued": eff_pending > 0 or eff_stage > 0,
+        "update_active": log_flags["update_active"],
+        "update_delayed": log_flags["update_delayed"],
+        "manifest_pending_stale": log_flags["manifest_pending_stale"],
+        "missing_game_files": log_flags["missing_game_files"],
+        "update_suspended_while_running": log_flags["update_suspended_while_running"],
         "update_result": ints.get("UpdateResult"),
         "shader_cache_bytes": shader_bytes,
         "shader_cache_path": str(shader_path) if shader_path.is_dir() else None,
     }
+    if cache:
+        _STEAM_HEALTH_CACHE[appid] = (now, result)
+    return result
 
 
 def game_install_dir(appid: str) -> Path:
     meta = game_meta(appid)
     idir = (meta.get("installdir") or "").strip()
     if idir:
-        return STEAM / "steamapps" / "common" / idir
-    return STEAM / "steamapps" / "common"
+        return steam_root() / "steamapps" / "common" / idir
+    return steam_root() / "steamapps" / "common"
 
 
 def game_compat_dir(appid: str) -> Path:
-    return STEAM / "steamapps" / "compatdata" / appid
+    return steam_root() / "steamapps" / "compatdata" / appid
 
 
 def game_proton_userdata_dirs(appid: str) -> list[Path]:
@@ -318,50 +587,62 @@ def active_game_context(game_totals: dict | None) -> dict:
     return paths
 
 
-ALL_GAME_IDS = list(build_games_catalog().keys())
-
-
 def _norm_cpu(raw: float) -> float:
     threads = psutil.cpu_count(logical=True) or 1
     return round(min(100.0, raw / threads), 1)
 
 
-def scan_active_appids() -> set[str]:
-    appids: set[str] = set()
-    for proc in psutil.process_iter(["cmdline"]):
+def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dict]]:
+    """Single psutil pass: active AppIDs, overlay PID map, rows for classification."""
+    active_appids: set[str] = set()
+    overlay_map: dict[str, set[int]] = {}
+    rows: list[dict] = []
+
+    for proc in psutil.process_iter(["pid", "name", "memory_info", "cmdline"]):
         try:
+            pid = proc.info["pid"]
+            name = proc.info["name"] or ""
             cmd = " ".join(proc.info["cmdline"] or [])
+            mi = proc.info["memory_info"]
+            raw_cpu = proc.cpu_percent(interval=None)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-        if not cmd:
-            continue
-        for match in APPID_RE.finditer(cmd):
-            appids.add(match.group(1))
-        compat = COMPAT_RE.search(cmd)
-        if compat:
-            appids.add(compat.group(1))
-        overlay = GAMEID_RE.search(cmd)
-        if overlay:
-            appids.add(overlay.group(1))
-    return appids
+
+        if cmd:
+            for match in APPID_RE.finditer(cmd):
+                active_appids.add(match.group(1))
+            compat = COMPAT_RE.search(cmd)
+            if compat:
+                active_appids.add(compat.group(1))
+            gid = GAMEID_RE.search(cmd)
+            if gid:
+                active_appids.add(gid.group(1))
+
+        if "gameoverlayui" in name.lower() and cmd:
+            gid_m = GAMEID_RE.search(cmd)
+            pid_m = OVERLAY_PID_RE.search(cmd)
+            if gid_m and pid_m:
+                overlay_map.setdefault(gid_m.group(1), set()).add(int(pid_m.group(1)))
+
+        rows.append({
+            "pid": pid,
+            "name": name,
+            "cmd": cmd,
+            "memory_info": mi,
+            "raw_cpu": raw_cpu,
+        })
+
+    return active_appids, overlay_map, rows
+
+
+def scan_active_appids() -> set[str]:
+    active, _, _ = _collect_process_snapshot()
+    return active
 
 
 def scan_overlay_game_pids() -> dict[str, set[int]]:
-    """Map AppID -> game PIDs from Steam gameoverlayui (-gameid / -pid)."""
-    out: dict[str, set[int]] = {}
-    for proc in psutil.process_iter(["name", "cmdline"]):
-        try:
-            name = (proc.info["name"] or "").lower()
-            if "gameoverlayui" not in name:
-                continue
-            cmd = " ".join(proc.info["cmdline"] or [])
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-        gid_m = OVERLAY_GAMEID_RE.search(cmd)
-        pid_m = OVERLAY_PID_RE.search(cmd)
-        if gid_m and pid_m:
-            out.setdefault(gid_m.group(1), set()).add(int(pid_m.group(1)))
-    return out
+    _, overlay_map, _ = _collect_process_snapshot()
+    return overlay_map
 
 
 def _proc_steam_appid(pid: int) -> str | None:
@@ -514,6 +795,57 @@ def _classify_proc(
     return "main"
 
 
+def _candidate_appids_for_proc(
+    cmd: str,
+    pid: int,
+    exe_l: str,
+    active_appids: set[str],
+    overlay_map: dict[str, set[int]],
+    metas: dict[str, dict],
+    env_cache: dict[int, str | None],
+    cwd_cache: dict[int, str | None],
+) -> set[str]:
+    """Narrow AppID checks before expensive classify (env/cwd reads)."""
+    candidates: set[str] = set()
+    cl = cmd.lower().replace("\\", "/")
+    cl_compact = cl.replace(" ", "")
+
+    for appid in active_appids:
+        aid = appid.lower()
+        if f"compatdata/{aid}" in cl or f"appid={aid}" in cl_compact:
+            candidates.add(appid)
+            continue
+        installdir = metas.get(appid, {}).get("installdir", "")
+        if installdir:
+            idir = installdir.lower().replace("\\", "/")
+            if f"common/{idir}" in cl:
+                candidates.add(appid)
+                continue
+        override = GAME_OVERRIDES.get(appid, {})
+        main_exes = override.get("main_exe")
+        if main_exes and exe_l in main_exes:
+            candidates.add(appid)
+            continue
+        if overlay_map.get(appid) and pid in overlay_map[appid]:
+            candidates.add(appid)
+
+    if pid not in env_cache:
+        env_cache[pid] = _proc_steam_appid(pid)
+    env_appid = env_cache[pid]
+    if env_appid and env_appid in active_appids:
+        candidates.add(env_appid)
+
+    if _is_game_binary(exe_l):
+        if pid not in cwd_cache:
+            cwd_cache[pid] = _proc_cwd(pid)
+        cwd = cwd_cache[pid]
+        if cwd:
+            for appid, meta in metas.items():
+                if _cwd_matches_installdir(cwd, meta.get("installdir", "")):
+                    candidates.add(appid)
+    return candidates
+
+
 def _pick_primary(rows: list[dict], *, require_main: bool = False) -> dict | None:
     if not rows:
         return None
@@ -533,48 +865,61 @@ def _pick_primary(rows: list[dict], *, require_main: bool = False) -> dict | Non
 
 def detect_games() -> dict[str, dict]:
     """Return per-AppID running state for Steam-launched games."""
-    active_appids = scan_active_appids()
+    active_appids, overlay_map, proc_rows = _collect_process_snapshot()
     if not active_appids:
         return {}
 
     buckets: dict[str, list[dict]] = {appid: [] for appid in active_appids}
     metas = {appid: game_meta(appid) for appid in active_appids}
-    overlay_map = scan_overlay_game_pids()
     env_cache: dict[int, str | None] = {}
     cwd_cache: dict[int, str | None] = {}
 
-    for proc in psutil.process_iter(["pid", "name", "memory_info", "cmdline"]):
-        try:
-            pid = proc.info["pid"]
-            name = proc.info["name"] or ""
-            cmd = " ".join(proc.info["cmdline"] or [])
-            mi = proc.info["memory_info"]
-            raw_cpu = proc.cpu_percent(interval=None)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+    for row in proc_rows:
+        pid = row["pid"]
+        name = row["name"]
+        cmd = row["cmd"]
+        mi = row["memory_info"]
+        raw_cpu = row["raw_cpu"]
+        name_l = name.lower()
+        exe_l = _effective_exe_name(name, cmd)
+        if name_l in SKIP_PROCS or exe_l in SKIP_PROCS or exe_l in AUXILIARY_EXES:
             continue
 
-        for appid, meta in metas.items():
+        candidates = _candidate_appids_for_proc(
+            cmd,
+            pid,
+            exe_l,
+            active_appids,
+            overlay_map,
+            metas,
+            env_cache,
+            cwd_cache,
+        )
+        if not candidates:
+            continue
+
+        display_name = exe_l if _is_game_binary(exe_l) else name
+        proc_row = {
+            "pid": pid,
+            "name": display_name,
+            "cpu_threads_pct": round(raw_cpu, 1),
+            "cpu_pct": _norm_cpu(raw_cpu),
+            "rss_mb": round(mi.rss / 1024**2, 1) if mi else 0,
+        }
+
+        for appid in candidates:
             tier = _classify_proc(
                 appid,
                 name,
                 cmd,
-                meta,
+                metas[appid],
                 pid=pid,
                 overlay_pids=overlay_map.get(appid),
                 env_cache=env_cache,
                 cwd_cache=cwd_cache,
             )
-            if not tier:
-                continue
-            display_name = _effective_exe_name(name, cmd)
-            buckets[appid].append({
-                "pid": proc.info["pid"],
-                "name": display_name if _is_game_binary(display_name) else name,
-                "tier": tier,
-                "cpu_threads_pct": round(raw_cpu, 1),
-                "cpu_pct": _norm_cpu(raw_cpu),
-                "rss_mb": round(mi.rss / 1024**2, 1) if mi else 0,
-            })
+            if tier:
+                buckets[appid].append({**proc_row, "tier": tier})
 
     out: dict[str, dict] = {}
     for appid, meta in metas.items():
@@ -597,33 +942,8 @@ def detect_games() -> dict[str, dict]:
 
 
 def prime_game_cpu() -> None:
-    active = scan_active_appids()
-    if not active:
-        return
-    metas = {appid: game_meta(appid) for appid in active}
-    overlay_map = scan_overlay_game_pids()
-    env_cache: dict[int, str | None] = {}
-    cwd_cache: dict[int, str | None] = {}
-    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
-        try:
-            pid = proc.info["pid"]
-            name = proc.info["name"] or ""
-            cmd = " ".join(proc.info["cmdline"] or [])
-            for appid, meta in metas.items():
-                if _classify_proc(
-                    appid,
-                    name,
-                    cmd,
-                    meta,
-                    pid=pid,
-                    overlay_pids=overlay_map.get(appid),
-                    env_cache=env_cache,
-                    cwd_cache=cwd_cache,
-                ):
-                    proc.cpu_percent(interval=None)
-                    break
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
+    """Warm psutil cpu_percent baseline for game processes (one detect_games pass)."""
+    detect_games()
 
 
 def running_game_ids(state: dict[str, dict]) -> list[str]:
@@ -638,7 +958,7 @@ def primary_active_game(state: dict[str, dict]) -> dict | None:
 
 
 def installed_appids() -> list[str]:
-    steamapps = STEAM / "steamapps"
+    steamapps = steam_root() / "steamapps"
     if not steamapps.is_dir():
         return list(GAME_OVERRIDES.keys())
     ids = [

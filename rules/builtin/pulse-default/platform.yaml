@@ -1,0 +1,56 @@
+# Platform tuning — governor, swappiness
+rules:
+  - id: cpu-governor-powersave
+    detect:
+      metric: ctx.governor
+      eq: powersave
+    emit:
+      insight_id: cpu-governor-powersave
+      level: warn
+      title: CPU stuck in power-save mode
+      text: >-
+        Governor is '{ctx.governor}' — cores may not boost fast enough while gaming.
+        Switch to performance for game sessions.
+      fix_script: cpu-governor-powersave
+    actions:
+      - label: Set performance governor (until reboot)
+        kind: cmd
+        cmd: echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+      - label: Check available governors
+        kind: cmd
+        cmd: cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+      - label: "Steam launch: add GameMode"
+        kind: steam
+        cmd: gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+        note: Steam → game → Properties → Launch Options
+
+  - id: vm-swappiness-high
+    detect:
+      all:
+        - metric: ctx.swappiness
+          exists: true
+        - metric: ctx.swappiness
+          gt: 60
+    emit:
+      insight_id: vm-swappiness-high
+      level: warn
+      title: Swappiness too high for gaming
+      text: >-
+        vm.swappiness={ctx.swappiness} — the kernel swaps aggressively when RAM fills up,
+        which causes hitches in any game.
+      fix_script: vm-swappiness-high
+      fix_kwargs:
+        current: ctx.swappiness
+    actions:
+      - label: Lower swappiness for this boot
+        kind: cmd
+        cmd: sudo sysctl vm.swappiness=10
+      - label: Persist lower swappiness
+        kind: cmd
+        cmd: echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-gaming.conf && sudo sysctl --system
+      - label: Check current value
+        kind: cmd
+        cmd: cat /proc/sys/vm/swappiness
+      - label: See what is using RAM
+        kind: cmd
+        cmd: ps aux --sort=-%mem | head -20

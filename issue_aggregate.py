@@ -6,41 +6,73 @@ from __future__ import annotations
 
 import time
 
-from games import game_meta
+from games import LEGACY_GAME_IDS, game_meta, normalize_game_id
+from pulse_config import get_insight_pref_sets
 
 LEVEL_SCORE = {"hot": 100, "warn": 70, "info": 40, "ok": 10}
 MULTI_GAME_BOOST = 22  # extra priority per additional game affected
 
 
 def hint_applies_to(hint: dict, game_id: str) -> bool:
+    game_id = normalize_game_id(game_id) or game_id
     scope = hint.get("games") or ["all"]
     if "all" in scope:
         return True
-    return game_id in scope
+    normed = {normalize_game_id(g) for g in scope if normalize_game_id(g)}
+    return game_id in normed
 
 
 def _games_for_active(hint: dict, running_ids: list[str]) -> list[str]:
     return [gid for gid in running_ids if hint_applies_to(hint, gid)]
 
 
-def enrich_hint(item: dict) -> dict:
+def enrich_hint(
+    item: dict,
+    *,
+    live_ids: set[str] | None = None,
+    resolved_ids: set[str] | None = None,
+    suppressed_ids: set[str] | None = None,
+) -> dict:
     games_seen = item.get("games_seen") or {}
     game_list = sorted(games_seen.keys())
     game_count = len(game_list)
     level = item.get("level", "info")
     score = LEVEL_SCORE.get(level, 40) + max(0, game_count - 1) * MULTI_GAME_BOOST
+    iid = item.get("insight_id") or ""
+    live = live_ids or set()
+    resolved = resolved_ids or set()
+    suppressed = suppressed_ids or set()
     out = dict(item)
     out["game_count"] = game_count
     out["games_affected"] = game_list
     out["priority_score"] = score
     out["multi_game"] = game_count > 1
+    out["condition_live"] = bool(iid and iid in live)
+    if iid in suppressed:
+        out["user_status"] = "ignored"
+    elif iid in resolved:
+        out["user_status"] = "resolved"
+    else:
+        out["user_status"] = "outstanding"
+    out["active"] = out["user_status"] == "outstanding"
     return out
 
 
 def merge_games_seen(history_item: dict, game_ids: list[str], now: float) -> None:
     seen = history_item.setdefault("games_seen", {})
     for gid in game_ids:
-        seen[gid] = now
+        norm = normalize_game_id(gid)
+        if norm:
+            seen[norm] = max(seen.get(norm, 0), now)
+
+
+def _normalize_games_seen(seen: dict) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for gid, ts in (seen or {}).items():
+        norm = normalize_game_id(gid)
+        if norm:
+            out[norm] = max(out.get(norm, 0), float(ts or 0))
+    return out
 
 
 def build_issue_views(
@@ -51,54 +83,82 @@ def build_issue_views(
 ) -> dict:
     """Build overall prioritized list and per-game issue sections."""
     active_ids = {h["insight_id"] for h in active if h.get("insight_id")}
+    resolved_ids, suppressed_ids = get_insight_pref_sets()
+    enrich = lambda item: enrich_hint(
+        item,
+        live_ids=active_ids,
+        resolved_ids=resolved_ids,
+        suppressed_ids=suppressed_ids,
+    )
 
-    # Overall: active insights enriched with cross-game weight
-    overall_map: dict[str, dict] = {}
+    outstanding_map: dict[str, dict] = {}
     for item in history:
         iid = item.get("insight_id")
-        if not iid or not item.get("active"):
+        if not iid or iid in resolved_ids or iid in suppressed_ids:
             continue
-        overall_map[iid] = enrich_hint(item)
+        outstanding_map[iid] = enrich(item)
 
-    # Active but not yet in history (edge case)
     for h in active:
         iid = h.get("insight_id")
-        if iid and iid not in overall_map:
-            overall_map[iid] = enrich_hint({**h, "games_seen": {g: time.time() for g in _games_for_active(h, running_ids)}})
+        if iid and iid not in outstanding_map and iid not in resolved_ids and iid not in suppressed_ids:
+            outstanding_map[iid] = enrich({
+                **h,
+                "games_seen": {g: time.time() for g in _games_for_active(h, running_ids)},
+            })
 
-    overall_active = sorted(
-        overall_map.values(),
-        key=lambda x: (-x["priority_score"], -x.get("last_seen", 0)),
+    outstanding = sorted(
+        outstanding_map.values(),
+        key=lambda x: (
+            not x.get("condition_live"),
+            -x["priority_score"],
+            -x.get("last_seen", 0),
+        ),
     )
-    inactive = [
-        enrich_hint(item)
-        for item in history
-        if not item.get("active") and item.get("insight_id") and item["insight_id"] not in overall_map
-    ]
-    overall = overall_active + inactive
+    resolved = sorted(
+        [enrich(item) for item in history if item.get("insight_id") in resolved_ids],
+        key=lambda x: -x.get("last_seen", 0),
+    )
+    overall = outstanding + resolved
 
-    # Per-game: running titles plus any game that accumulated issues this session.
-    game_ids: set[str] = set(running_ids)
+    # Per-game: running titles + games referenced by outstanding issues.
+    norm_running = {normalize_game_id(g) for g in running_ids if normalize_game_id(g)}
+    game_ids: set[str] = set(norm_running)
     if games_state:
-        game_ids.update(games_state.keys())
-    for item in history:
-        game_ids.update((item.get("games_seen") or {}).keys())
+        for gid in games_state:
+            norm = normalize_game_id(gid)
+            if norm:
+                game_ids.add(norm)
+    for item in outstanding:
+        for gid in (item.get("games_seen") or {}):
+            norm = normalize_game_id(gid)
+            if norm:
+                game_ids.add(norm)
+    for legacy, canonical in LEGACY_GAME_IDS.items():
+        if canonical in game_ids:
+            game_ids.discard(legacy)
 
     by_game: dict[str, dict] = {}
-    for gid in sorted(game_ids, key=lambda x: (x not in running_ids, x)):
-        src = (games_state or {}).get(gid) or game_meta(gid)
+    for gid in sorted(game_ids, key=lambda x: (x not in norm_running, x)):
+        legacy_gid = next((k for k, v in LEGACY_GAME_IDS.items() if v == gid), None)
+        src = (
+            (games_state or {}).get(gid)
+            or (games_state or {}).get(legacy_gid)
+            or game_meta(gid)
+        )
         game_issues: list[dict] = []
-        for item in overall:
+        for item in outstanding:
             if not hint_applies_to(item, gid):
                 continue
-            seen = item.get("games_seen") or {}
-            if gid in seen or (gid in running_ids and item.get("insight_id") in active_ids):
+            seen = _normalize_games_seen(item.get("games_seen") or {})
+            if gid in seen or (gid in norm_running and item.get("insight_id") in active_ids):
                 game_issues.append(item)
+        if not game_issues and gid not in norm_running:
+            continue
         by_game[gid] = {
             "id": gid,
             "name": src.get("name", f"AppID {gid}"),
             "short": src.get("short", src.get("name", gid)),
-            "running": gid in running_ids,
+            "running": gid in norm_running,
             "issues": game_issues,
             "issue_count": len(game_issues),
         }

@@ -18,10 +18,13 @@ from pulse_config import (
     RETENTION_PRESETS,
     estimate_max_mb,
     get_retention_days,
+    get_resolved_insights,
     get_suppressed_insights,
+    resolve_insight,
     save_config,
     save_retention_days,
     suppress_insight,
+    unresolve_insight,
     unsuppress_insight,
 )
 
@@ -518,6 +521,12 @@ def update_settings(body: dict) -> dict:
     if "unsuppress_insight" in body and isinstance(body["unsuppress_insight"], str):
         unsuppress_insight(body["unsuppress_insight"].strip())
         acted = True
+    if "resolve_insight" in body and isinstance(body["resolve_insight"], str):
+        resolve_insight(body["resolve_insight"].strip())
+        acted = True
+    if "unresolve_insight" in body and isinstance(body["unresolve_insight"], str):
+        unresolve_insight(body["unresolve_insight"].strip())
+        acted = True
     if not updates and not acted:
         out = stats()
         out["ok"] = False
@@ -532,4 +541,5 @@ def update_settings(body: dict) -> dict:
     out["ok"] = True
     out["pruned"] = pruned
     out["suppressed_insights"] = get_suppressed_insights()
+    out["resolved_insights"] = get_resolved_insights()
     return out

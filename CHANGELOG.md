@@ -7,6 +7,10 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Added
+- **De-hardcode initiative** — game overrides and legacy AppIDs live in `rules/builtin/pulse-default/pack.yaml`; fix scripts use active `appid` (no CS2 `730` fallbacks); dynamic lib-install lines from diagnostics; `{steam.root}` templates in Steam rules; `legacy_game_ids` on static API; `tests/test_game_dynamic.py`.
+- **Linting** — Ruff config in `pyproject.toml`; documented in `CONTRIBUTING.md`.
+
 ### Changed
 - **Lazy per-game issues** — `issues_by_game` ships on bootstrap and via `GET /api/issues-by-game` when guidance structure changes; steady-state polls omit the ~70 KB block (live/running flags patched client-side from `games`).
 - **Live overview order** — Stutter estimate now appears above Pulse Index.

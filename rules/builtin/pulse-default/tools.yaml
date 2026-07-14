@@ -1,0 +1,56 @@
+# Recommended optional gaming tools
+rules:
+  - id: mangohud-recommended
+    detect:
+      all:
+        - metric: tools.mangohud
+          eq: false
+        - metric: diag.bin_missing_mangohud
+          eq: true
+    emit:
+      insight_id: mangohud-recommended
+      level: info
+      title: Install MangoHud for real frametime
+      text: >-
+        MangoHud is optional but gives true in-game FPS and frametime logging.
+        Pulse stutter score is a kernel proxy until MangoHud logging is enabled.
+      fix_script: mangohud-recommended
+      bucket: tools
+      condition_live: true
+    actions:
+      - label: Install MangoHud
+        kind: cmd
+        cmd: sudo apt install mangohud
+      - label: Steam launch option
+        kind: steam
+        cmd: mangohud %command%
+        note: Steam → game → Properties → Launch Options
+      - label: Or with GameMode
+        kind: steam
+        cmd: gamemoderun mangohud %command%
+
+  - id: gamemode-recommended
+    detect:
+      all:
+        - metric: tools.gamemoded
+          eq: false
+        - metric: diag.bin_missing_gamemoded
+          eq: true
+    emit:
+      insight_id: gamemode-recommended
+      level: info
+      title: Install GameMode for launch tuning
+      text: >-
+        GameMode asks the kernel for lower latency while a game runs.
+        Wrap Steam launches with gamemoderun for an easy performance boost.
+      fix_script: gamemode-recommended
+      bucket: tools
+      condition_live: true
+    actions:
+      - label: Install GameMode
+        kind: cmd
+        cmd: sudo apt install gamemode
+      - label: Steam launch option
+        kind: steam
+        cmd: gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+        note: Steam → game → Properties → Launch Options

@@ -1,0 +1,79 @@
+# Live session performance while a game runs
+rules:
+  - id: stutter-proxy
+    detect:
+      all:
+        - metric: game.running
+          eq: true
+        - any:
+            - metric: stutter.event
+              eq: true
+            - metric: stutter.score
+              gte: 42
+            - metric: stutter.session_events
+              gte: 3
+    emit:
+      insight_id: stutter-proxy
+      level_when:
+        detect:
+          any:
+            - metric: stutter_detail.severity
+              eq: moderate
+            - metric: stutter_detail.severity
+              eq: severe
+        then: warn
+        else: info
+      title: Hitching detected (stutter proxy)
+      text: >-
+        ~{stutter_detail.est_ms}ms est. hitch · score {stutter.score:.0f}/100 ·
+        {stutter.session_events} events in 5m · 1% low proxy ~{stutter_detail.hitch_ms_1pct}ms.
+        Likely: {stutter_detail.cause_text}.
+      fix_script: stutter-proxy
+      game_context: true
+      fix_kwargs:
+        score: stutter.score
+        est_ms: stutter_detail.est_ms
+        causes: stutter_detail.cause_text
+      games: active
+      condition_live: true
+    actions:
+      - label: List memory hogs
+        kind: cmd
+        cmd: ps aux --sort=-%mem | head -20
+      - label: Close Brave — copy & run
+        kind: cmd
+        cmd: flatpak kill com.brave.Browser
+        note: You run this; Pulse never does
+      - label: Lower swappiness — copy & run
+        kind: cmd
+        cmd: sudo sysctl vm.swappiness=10
+        note: Needs sudo; Pulse never does
+      - label: Let load finish
+        kind: game
+        cmd: Stay paused 30s after save load before unpausing
+
+  - id: cpu-bound
+    detect:
+      all:
+        - metric: gpu.busy_pct
+          lt: 70
+        - metric: cpu.overall_pct
+          gt: 75
+    emit:
+      insight_id: cpu-bound
+      level: info
+      title: CPU is the limit
+      text: >-
+        GPU has headroom but the CPU is maxed — common in CPU-heavy scenes in {game.name}.
+      fix_script: cpu-bound
+      game_context: true
+    actions:
+      - label: "In-game: lower simulation load"
+        kind: game
+        cmd: "{game.name} → reduce simulation speed, crowd, or AI detail"
+      - label: Set performance governor
+        kind: cmd
+        cmd: echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+      - label: Close background CPU users
+        kind: cmd
+        cmd: ps aux --sort=-%cpu | head -15

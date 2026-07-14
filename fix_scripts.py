@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from games import game_data_paths
+from games import game_data_paths, game_meta, steam_root
 from hardware_profiles import FIX_TOOL_SPECS, iter_fix_tools
 
 HOME = Path.home()
@@ -16,11 +16,27 @@ ROOT = Path(__file__).resolve().parent
 PROBE = ROOT / "probe_memory.py"
 
 
-def _game_ctx(game_id: str | None = None, game_name: str | None = None, **kwargs) -> dict:
-    appid = game_id or kwargs.get("game_id")
-    ctx = game_data_paths(appid)
+def _resolve_appid(**kwargs) -> str | None:
+    appid = kwargs.get("appid") or kwargs.get("game_id")
+    if appid is not None:
+        return str(appid)
+    return None
+
+
+def _resolve_game_name(appid: str | None, game_name: str | None = None) -> str:
     if game_name:
-        ctx["name"] = game_name
+        return game_name
+    if appid:
+        return game_meta(appid).get("name") or f"AppID {appid}"
+    return "your game"
+
+
+def _game_ctx(game_id: str | None = None, game_name: str | None = None, **kwargs) -> dict:
+    appid = _resolve_appid(game_id=game_id, game_name=game_name, **kwargs)
+    ctx = game_data_paths(appid)
+    ctx["name"] = _resolve_game_name(appid, game_name or kwargs.get("game_name"))
+    if appid:
+        ctx["appid"] = appid
     return ctx
 
 
@@ -182,9 +198,13 @@ def _header(insight_id: str, title: str, risk: str = "low") -> str:
 # Cosmic Pulse · {insight_id}
 # {title}
 # Risk: {risk} · Review before running · Generated for {HOME}
-# Usage:  chmod +x fix.sh && sudo ./fix.sh
-#         — or —  bash fix.sh        (if no sudo lines)
+# Usage:  sudo bash fix.sh
+#         — or —  chmod +x fix.sh && sudo ./fix.sh
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [ -z "${{BASH_VERSION:-}}" ]; then
+  echo "This script needs bash (not sh/dash). Re-run: sudo bash $0"
+  exit 1
+fi
 set -euo pipefail
 
 log() {{ printf '▸ %s\\n' "$*"; }}
@@ -217,7 +237,7 @@ log "Rollback: sudo bash -c 'echo powersave > /sys/devices/system/cpu/cpu0/cpufr
 """
 
 
-def script_swappiness(current: int) -> str:
+def script_swappiness(current: int = 60, **kwargs) -> str:
     return _header("vm-swappiness-high", f"Lower swappiness from {current} for gaming", "low") + f"""
 TARGET="${{1:-10}}"
 log "Current swappiness: $(cat /proc/sys/vm/swappiness)"
@@ -236,8 +256,19 @@ log "Rollback: sudo sysctl vm.swappiness={current} && sudo rm -f $CONF"
 """
 
 
-def script_expo_verify() -> str:
-    return _header("ram-expo-verify", "Verify DDR5-6000 EXPO is active in firmware", "low") + f"""
+def script_expo_verify(
+    *,
+    spd_mts: int = 4800,
+    configured_mts: int = 6000,
+    part: str = "",
+    **kwargs,
+) -> str:
+    kit = part.strip() or "your memory kit"
+    return _header(
+        "ram-expo-verify",
+        f"Verify DDR{configured_mts} EXPO/XMP is active in firmware",
+        "low",
+    ) + f"""
 log "=== dmidecode memory speeds ==="
 if command -v dmidecode >/dev/null; then
   need_root
@@ -252,9 +283,10 @@ if [[ -f '{PROBE}' ]]; then
   python3 '{PROBE}' || sudo python3 '{PROBE}'
 fi
 
-log "If Configured Memory Speed shows 4800 not 6000:"
+log "Expected: Configured Memory Speed near {configured_mts} MT/s (SPD often {spd_mts})"
+log "If Configured shows {spd_mts} instead of {configured_mts}:"
 log "  1. Reboot → BIOS/UEFI"
-log "  2. Enable AMD EXPO profile for G.Skill F5-6000J3038F16G"
+log "  2. Enable EXPO/XMP profile for {kit}"
 log "  3. Re-run this script"
 """
 
@@ -645,9 +677,10 @@ PLAYBOOK
 """
 
 
-def script_ccd_spread(t1: float, t2: float) -> str:
+def script_ccd_spread(t1: float = 0, t2: float = 0, *, cpu_model: str = "", **kwargs) -> str:
+    cpu_note = cpu_model.strip() or "multi-CCD Ryzen CPUs"
     return _header("cpu-ccd-spread", f"CCD thermal spread {t1}°C vs {t2}°C", "low") + f"""
-log "Normal on Ryzen 7900X — game threads often favor one CCD."
+log "Normal on {cpu_note} — game threads often favor one CCD."
 sensors k10temp-pci-00c3 2>/dev/null | grep -i tccd || true
 log "Optional monitoring (5s sample, Ctrl+C to stop):"
 if command -v turbostat >/dev/null; then
@@ -659,13 +692,16 @@ fi
 
 
 def script_steam_verify_files(
-    appid: str = "730",
-    game_name: str = "Counter-Strike 2",
     *,
+    appid: str | None = None,
+    game_name: str | None = None,
     files_corrupt: bool = True,
     **kwargs,
 ) -> str:
-    steam_bin = shutil.which("steam") or str(HOME / ".local/share/Steam/ubuntu12_32/steam")
+    appid = _resolve_appid(appid=appid, **kwargs)
+    game_name = _resolve_game_name(appid, game_name or kwargs.get("game_name"))
+    steam = steam_root()
+    steam_bin = shutil.which("steam") or str(steam / "ubuntu12_32/steam")
     why = "files flagged corrupt" if files_corrupt else "install health check"
     return _header("game-files-corrupt", f"{game_name} — verify install ({why})", "medium") + f"""
 log "Common Linux fix after Steam patches — not rig-specific."
@@ -673,8 +709,12 @@ log "Steam reported: {why}"
 log ""
 log "1) Quit {game_name} completely (exit to desktop, not just main menu)"
 log "2) Verify game files (opens Steam)"
-xdg-open "steam://validate/{appid}" 2>/dev/null || "{steam_bin}" "steam://validate/{appid}" &
-sleep 2
+if [[ -n "{appid or ''}" ]]; then
+  xdg-open "steam://validate/{appid}" 2>/dev/null || "{steam_bin}" "steam://validate/{appid}" &
+  sleep 2
+else
+  log "No active AppID — Steam → game → Properties → Installed Files → Verify"
+fi
 log "3) Let Steam finish any downloads before relaunching"
 log ""
 log "If problems persist after verify:"
@@ -685,17 +725,31 @@ log "  • Check Pulse Guidance for GPU reset warnings (AMD mode1 reset)"
 
 
 def script_steam_update_shader(
-    appid: str = "730",
-    game_name: str = "Counter-Strike 2",
     *,
+    appid: str | None = None,
+    game_name: str | None = None,
     pending_mb: float = 0,
     stage_mb: float = 0,
     suspended: bool = False,
     shader_mb: float = 0,
     **kwargs,
 ) -> str:
-    steam_bin = shutil.which("steam") or str(HOME / ".local/share/Steam/ubuntu12_32/steam")
-    shader_cache = HOME / ".local/share/Steam/steamapps/shadercache" / str(appid)
+    appid = _resolve_appid(appid=appid, **kwargs)
+    game_name = _resolve_game_name(appid, game_name or kwargs.get("game_name"))
+    steam = steam_root()
+    steam_bin = shutil.which("steam") or str(steam / "ubuntu12_32/steam")
+    if not appid:
+        return _header("game-update-pending", f"{game_name} — finish pending update", "medium") + f"""
+log "No active AppID — use Steam manually:"
+log "  1) Exit {game_name} to desktop"
+log "  2) Steam → Downloads — let any patch finish"
+xdg-open "steam://open/downloads" 2>/dev/null || "{steam_bin}" "steam://open/downloads" &
+sleep 2
+log "  3) Relaunch after download completes"
+log "To clear shader cache: Steam → game → Properties → clear shader cache, or delete:"
+log "  {steam}/steamapps/shadercache/<AppID>/fozpipelinesv6/"
+"""
+    shader_cache = steam / "steamapps/shadercache" / str(appid)
     reason = []
     if suspended:
         reason.append("update suspended while game was running")
@@ -732,6 +786,159 @@ log "  • Pulse Guidance → verify game files if crashes or missing assets app
 """
 
 
+def script_game_libs_missing(
+    lib_findings: list | None = None,
+    *,
+    multilib: bool = False,
+    apt_packages: str = "",
+    **kwargs,
+) -> str:
+    pkgs: list[str] = []
+    if apt_packages:
+        pkgs.extend(apt_packages.split())
+    multilib = multilib or bool(kwargs.get("lib_multilib_needed"))
+    for f in lib_findings or []:
+        fix = (f.get("fix") if isinstance(f, dict) else "") or ""
+        if "add-architecture i386" in fix:
+            multilib = True
+            pkgs.extend(["libgl1:i386", "libvulkan1:i386", "libldap2:i386"])
+        elif fix.startswith("sudo apt install "):
+            pkgs.extend(fix.replace("sudo apt install ", "").split())
+    pkgs = list(dict.fromkeys(pkgs))
+    body = ""
+    if multilib:
+        body += """
+log "Step 1 — enable 32-bit packages (one-time on Pop!_OS / Ubuntu)"
+sudo dpkg --add-architecture i386
+sudo apt update
+"""
+    if pkgs:
+        body += f"""
+log "Step 2 — install missing gaming libraries"
+sudo apt install {' '.join(pkgs)}
+"""
+    else:
+        body += """
+log "Install common Steam / Proton dependencies:"
+sudo apt install libvulkan1 mesa-vulkan-drivers libgl1 libgamemode0 libldap2 libgpg-error0
+"""
+    return _header("game-libs-missing", "Missing gaming libraries", "medium") + body + """
+log "Step 3 — verify Vulkan"
+vulkaninfo --summary 2>/dev/null | head -20 || log "Install: sudo apt install vulkan-tools"
+log "Relaunch the game from Steam"
+"""
+
+
+def script_steam_disk_low(free_gb: float = 10.0, **kwargs) -> str:
+    steam = steam_root()
+    return _header("steam-disk-low", f"Low Steam disk space ({free_gb:.1f} GB free)", "medium") + f"""
+log "Steam volume: {steam}"
+log "Free space: ~{free_gb:.1f} GB — updates and Proton prefixes need headroom"
+log ""
+log "1) Steam → Settings → Storage — uninstall or move large games"
+xdg-open "steam://open/settings" 2>/dev/null &
+sleep 2
+log "2) Review largest compatdata prefixes:"
+du -sh "{steam}/steamapps/compatdata"/* 2>/dev/null | sort -hr | head -15 || true
+log ""
+log "3) Optional — clear old shader caches (rebuilds on next launch):"
+du -sh "{steam}/steamapps/shadercache"/* 2>/dev/null | sort -hr | head -10 || true
+read -r -p "Clear shadercache for one AppID folder name? (empty to skip): " sid
+if [[ -n "$sid" && -d "{steam}/steamapps/shadercache/$sid" ]]; then
+  rm -rf "{steam}/steamapps/shadercache/$sid/fozpipelinesv6"/* 2>/dev/null || true
+  log "Cleared shader cache for $sid"
+fi
+log "Aim for at least 15–20 GB free before large patches"
+"""
+
+
+def script_vulkan_broken(**kwargs) -> str:
+    return _header("vulkan-broken", "Vulkan not working", "high") + """
+log "Games using Proton/DXVK need a working Vulkan stack"
+log ""
+log "1) Reinstall Mesa Vulkan drivers"
+sudo apt install --reinstall libvulkan1 mesa-vulkan-drivers vulkan-tools
+log "2) Test loader"
+vulkaninfo --summary 2>&1 | head -40
+log "3) If laptop/hybrid GPU, test discrete GPU:"
+DRI_PRIME=1 vulkaninfo --summary 2>&1 | head -40
+log "Reboot if drivers were upgraded"
+"""
+
+
+def script_game_bad_exit(
+    *,
+    appid: str | None = None,
+    game_name: str | None = None,
+    codes: str = "[]",
+    **kwargs,
+) -> str:
+    appid = _resolve_appid(appid=appid, **kwargs)
+    game_name = _resolve_game_name(appid, game_name or kwargs.get("game_name"))
+    steam = steam_root()
+    compat = steam / "steamapps/compatdata" / str(appid or "")
+    steam_bin = shutil.which("steam") or str(steam / "ubuntu12_32/steam")
+    return _header("game-prefix-reset", f"{game_name} — crash / bad exit ({codes})", "high") + f"""
+log "Recent Steam exit codes: {codes}"
+log "137 = killed · 139 = segfault · 127/126 = missing binary or library"
+log ""
+log "Try in order:"
+log "1) Verify game files"
+if [[ -n "{appid or ''}" ]]; then
+  xdg-open "steam://validate/{appid}" 2>/dev/null || "{steam_bin}" "steam://validate/{appid}" &
+  sleep 2
+else
+  log "No active AppID — verify from Steam Properties → Installed Files"
+fi
+log "2) Check Pulse Guidance → Missing gaming libraries"
+log "3) Proton prefix backup + reset (last resort)"
+log "   Prefix: {compat}"
+if [[ -d "{compat}" ]]; then
+  read -r -p "Backup and DELETE compatdata/{appid}? [y/N] " ans
+  if [[ "$ans" =~ ^[Yy]$ ]]; then
+    bk="$HOME/pulse-compat-backup-{appid}-$(date +%Y%m%d%H%M)"
+    cp -a "{compat}" "$bk"
+    rm -rf "{compat}"
+    log "Backed up to $bk and removed prefix — Steam will recreate on next launch"
+  else
+    log "Skipped prefix reset"
+  fi
+else
+  log "No prefix yet — first launch will create compatdata/{appid}"
+fi
+log "4) Try Proton Experimental or another Proton build in Steam → Properties → Compatibility"
+"""
+
+
+def script_mangohud_recommended(**kwargs) -> str:
+    return _header("mangohud-recommended", "Install MangoHud (optional)", "low") + """
+log "MangoHud adds an in-game overlay and CSV frametime logs"
+sudo apt install -y mangohud
+log ""
+log "Steam → game → Properties → Launch Options:"
+echo 'mangohud %command%'
+log ""
+log "Optional logging in ~/.config/MangoHud/MangoHud.conf:"
+echo 'output_folder=$HOME/mangohud-logs'
+echo 'autostart_log=5'
+log "Flatpak Steam may need: flatpak override --user --env=MANGOHUD=1 com.valvesoftware.Steam"
+"""
+
+
+def script_gamemode_recommended(**kwargs) -> str:
+    return _header("gamemode-recommended", "Install GameMode (optional)", "low") + """
+log "GameMode requests lower latency while a game runs"
+sudo apt install -y gamemode
+log ""
+log "Steam → game → Properties → Launch Options:"
+echo 'gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%'
+log ""
+log "Ensure gamemoded is running:"
+systemctl --user enable --now gamemoded 2>/dev/null || true
+gamemoded -t 2>/dev/null || log "Start gamemoded after install if needed"
+"""
+
+
 def script_balanced(
     *,
     game_id: str | None = None,
@@ -752,27 +959,46 @@ log "Dashboard: http://localhost:8765"
 
 SCRIPTS: dict[str, callable] = {
     "cpu-governor-powersave": script_governor,
-    "vm-swappiness-high": lambda: script_swappiness(180),
+    "vm-swappiness-high": script_swappiness,
     "ram-expo-verify": script_expo_verify,
     "gpu-thermal-ceiling": lambda j=100: script_gpu_thermal(j),
     "gpu-thermal-warm": lambda j=90: script_gpu_warm(j),
     "gpu-vram-bandwidth": lambda: script_vram_bandwidth(65, "?"),
     "gpu-vram-full": lambda: script_vram_low(80, 0),
     "gpu-gtt-churn": lambda: script_gtt(50),
-    "memory-swap-thrash": lambda: script_swap_thrash(25),
-    "memory-dram-stall": lambda: script_dram_stall(8),
+    "memory-swap-thrash": script_swap_thrash,
+    "memory-dram-stall": script_dram_stall,
     "memory-page-faults": lambda: script_page_faults(20),
     "cpu-bound": script_cpu_bound,
     "gpu-shader-bound": script_gpu_shader,
     "gpu-fps-cap": script_gpu_fps_cap,
-    "resolution-swap-stutter": lambda: script_resolution_swap_stutter(15, 30),
-    "resolution-load-settle": lambda: script_resolution_load_settle(15),
-    "resolution-cpu-perf": lambda: script_resolution_cpu_perf(75, "powersave"),
-    "cpu-ccd-spread": lambda: script_ccd_spread(0, 0),
-    "game-files-corrupt": lambda: script_steam_verify_files(),
-    "game-update-pending": lambda: script_steam_update_shader(),
+    "resolution-swap-stutter": script_resolution_swap_stutter,
+    "resolution-load-settle": script_resolution_load_settle,
+    "resolution-cpu-perf": script_resolution_cpu_perf,
+    "cpu-ccd-spread": script_ccd_spread,
+    "game-files-corrupt": script_steam_verify_files,
+    "game-update-pending": script_steam_update_shader,
+    "game-libs-missing": script_game_libs_missing,
+    "steam-disk-low": script_steam_disk_low,
+    "vulkan-broken": script_vulkan_broken,
+    "game-prefix-reset": script_game_bad_exit,
+    "mangohud-recommended": script_mangohud_recommended,
+    "gamemode-recommended": script_gamemode_recommended,
+    "stutter-proxy": lambda score=0, est_ms=0, causes=None, **kw: script_stutter(
+        float(score),
+        float(est_ms),
+        [causes] if isinstance(causes, str) else (causes or []),
+        **kw,
+    ),
     "system-balanced": script_balanced,
 }
+
+
+def _normalize_script_kwargs(kwargs: dict) -> dict:
+    out = dict(kwargs)
+    if out.get("game_id") and not out.get("appid"):
+        out["appid"] = out["game_id"]
+    return out
 
 
 def get_fix_script(insight_id: str, **kwargs) -> str:
@@ -780,7 +1006,11 @@ def get_fix_script(insight_id: str, **kwargs) -> str:
     fn = SCRIPTS.get(insight_id)
     if not fn:
         return ""
+    norm = _normalize_script_kwargs(kwargs)
     try:
-        return fn(**kwargs).strip() if kwargs else fn().strip()
+        return fn(**norm).strip()
     except TypeError:
-        return fn().strip()
+        try:
+            return fn().strip()
+        except TypeError:
+            return ""

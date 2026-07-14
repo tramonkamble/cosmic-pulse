@@ -1,0 +1,92 @@
+# Memory pressure rules
+rules:
+  - id: memory-swap-thrash
+    detect:
+      any:
+        - metric: memory.swap_out_kbps
+          gt: 50
+        - metric: memory.swap_pct
+          gt: 25
+    emit:
+      insight_id: memory-swap-thrash
+      level: warn
+      title: Swap thrash — fix memory first
+      text: >-
+        The system is pushing data to swap. This is a common stutter cause —
+        free RAM before tuning graphics.
+      fix_script: memory-swap-thrash
+      fix_kwargs:
+        swap_pct: memory.swap_pct
+    actions:
+      - label: Lower swappiness now
+        kind: cmd
+        cmd: sudo sysctl vm.swappiness=10
+      - label: Close memory hogs
+        kind: cmd
+        cmd: ps aux --sort=-%mem | head -15
+      - label: Drop caches (safe)
+        kind: cmd
+        cmd: sync && sudo sysctl vm.drop_caches=3
+        note: Frees page cache; game may stutter briefly
+      - label: Reboot before long gaming session
+        kind: cmd
+        cmd: sudo reboot
+        note: Clears fragmented swap state
+
+  - id: memory-dram-stall
+    detect:
+      metric: memory.psi_avg10
+      gt: 8
+    emit:
+      insight_id: memory-dram-stall
+      level: warn
+      title: RAM is the bottleneck
+      text: >-
+        Memory stall at {memory.psi_avg10}% — the CPU is waiting on RAM.
+        Close background apps.
+      fix_script: memory-dram-stall
+      fix_kwargs:
+        psi: memory.psi_avg10
+    actions:
+      - label: List top memory users
+        kind: cmd
+        cmd: ps aux --sort=-%mem | head -20
+      - label: Close Brave — copy & run
+        kind: cmd
+        cmd: flatpak kill com.brave.Browser
+        note: You run this; Pulse never does
+      - label: Close Firefox — copy & run
+        kind: cmd
+        cmd: pkill -x firefox
+        note: You run this; Pulse never does
+      - label: Close Discord — copy & run
+        kind: cmd
+        cmd: pkill -x discord
+        note: You run this; Pulse never does
+      - label: Disable unnecessary autostart
+        kind: cmd
+        cmd: systemctl --user list-unit-files --state=enabled | head -30
+
+  - id: memory-page-faults
+    detect:
+      metric: signals.page_fault_warn
+      eq: true
+    emit:
+      insight_id: memory-page-faults
+      level: warn
+      title: Asset streaming bottleneck
+      text: >-
+        {memory.pgmajfault_per_s}/s major page faults while {game.name} is playing —
+        assets are still being pulled from disk after load finished.
+      fix_script: memory-page-faults
+      game_context: true
+      fix_kwargs:
+        fault_rate: memory.pgmajfault_per_s
+      games: active
+    actions:
+      - label: Lower texture/world detail
+        kind: game
+        cmd: "{game.name} → reduce asset-heavy settings or mods"
+      - label: See what is using RAM
+        kind: cmd
+        cmd: ps aux --sort=-%mem | head -15

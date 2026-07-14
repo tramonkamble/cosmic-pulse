@@ -21,6 +21,16 @@ __all__ = (
 )
 
 
+def _junction_for_clock_throttle(prof: dict[str, Any]) -> float | None:
+    """Min junction (°C) before a clock drop counts as thermal throttling."""
+    if prof.get("fan_curve_helpful") is False and prof.get("info_high_c") is not None:
+        return float(prof["info_high_c"])
+    if prof.get("warm_c") is not None:
+        return float(prof["warm_c"])
+    hot = prof.get("hot_c", 100)
+    return float(hot) - 8
+
+
 def gpu_thermal_state(
     g: dict[str, Any],
     profile: dict[str, Any] | None,
@@ -31,15 +41,25 @@ def gpu_thermal_state(
     junc = g.get("junction_c")
     gfx = g.get("gfx_mhz")
     busy = (g.get("busy_pct") or 0) >= 40
-    throttle_c = prof.get("throttle_c", 110)
     info_high_c = prof.get("info_high_c")
     fan_help = prof.get("fan_curve_helpful", True)
-    boost = prof.get("boost_mhz") or 0
-    peak = max(float(session_peak_mhz or 0), float(boost))
+    observed_peak = float(session_peak_mhz or 0)
+    # Per-game observed peak only — do not compare against SKU boost (causes false
+    # positives when light games run below max clocks at cool junction temps).
+    ref_peak = observed_peak if observed_peak >= 800 else 0.0
+    junc_thresh = _junction_for_clock_throttle(prof)
 
     throttling = False
-    if gfx and peak >= 800 and busy:
-        throttling = float(gfx) < peak * 0.90
+    if (
+        gfx
+        and ref_peak >= 800
+        and busy
+        and junc is not None
+        and junc_thresh is not None
+        and float(junc) >= junc_thresh
+        and float(gfx) < ref_peak * 0.90
+    ):
+        throttling = True
 
     by_design = (
         not fan_help
@@ -52,7 +72,8 @@ def gpu_thermal_state(
     return {
         "throttling": throttling,
         "by_design": by_design,
-        "session_peak_mhz": round(peak) if peak else None,
+        "session_peak_mhz": round(ref_peak) if ref_peak else None,
+        "observed_peak_mhz": round(observed_peak) if observed_peak else None,
         "info_high_c": info_high_c,
         "fan_curve_helpful": fan_help,
     }

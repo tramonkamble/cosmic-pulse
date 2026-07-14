@@ -22,7 +22,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from fix_scripts import launch_fan_tool
-from games import game_data_paths
+from games import game_data_paths, normalize_game_id
 from gpu_thermal import infer_gpu_model, profile_for_model
 from hardware_profiles import FIX_TOOL_SPECS
 
@@ -50,6 +50,10 @@ FIX_REQUIRES_ROOT: dict[str, bool] = {
     "cpu-ccd-spread": False,
     "game-files-corrupt": False,
     "game-update-pending": False,
+    "game-libs-missing": True,
+    "steam-disk-low": False,
+    "vulkan-broken": True,
+    "game-prefix-reset": False,
     "system-balanced": False,
 }
 
@@ -158,9 +162,42 @@ def _apply_steam_downloads(ctx: dict) -> dict:
         return {"ok": False, "message": f"Could not open Steam: {exc}"}
 
 
-def _apply_steam_verify(ctx: dict) -> dict:
-    appid = ctx.get("appid") or "730"
+def _apply_steam_storage(_ctx: dict) -> dict:
+    url = "steam://open/settings"
+    try:
+        subprocess.Popen(
+            ["xdg-open", url],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return {
+            "ok": True,
+            "message": "Opened Steam Settings — check Storage to free space or move games.",
+        }
+    except OSError as exc:
+        return {"ok": False, "message": f"Could not open Steam: {exc}"}
+
+
+def _apply_prefix_folder(ctx: dict) -> dict:
+    compat = ctx.get("compat")
     gname = ctx.get("name") or "game"
+    if compat and _xdg_open(Path(compat)):
+        return {
+            "ok": True,
+            "message": f"Opened Proton prefix for {gname} — backup before deleting.",
+        }
+    return {"ok": False, "message": "Proton prefix folder not found yet — launch once from Steam."}
+
+
+def _apply_steam_verify(ctx: dict) -> dict:
+    appid = ctx.get("appid")
+    gname = ctx.get("name") or "game"
+    if not appid:
+        return {
+            "ok": False,
+            "message": f"No active game AppID — quit {gname}, then verify in Steam Properties.",
+        }
     url = f"steam://validate/{appid}"
     try:
         subprocess.Popen(
@@ -205,7 +242,8 @@ def apply_fix(
             "requires_root": True,
             "message": "This fix needs administrator access (sudo). Use the script below.",
         }
-    ctx = _paths(game_id)
+    gid = normalize_game_id(game_id)
+    ctx = _paths(gid)
     if game_name:
         ctx["name"] = game_name
 
@@ -219,6 +257,8 @@ def apply_fix(
         "gpu-shader-bound": _apply_open_game,
         "game-files-corrupt": _apply_steam_verify,
         "game-update-pending": _apply_steam_downloads,
+        "steam-disk-low": _apply_steam_storage,
+        "game-prefix-reset": _apply_prefix_folder,
         "system-balanced": _apply_open_game,
     }
     handler = handlers.get(insight_id)
@@ -238,6 +278,7 @@ def fix_available(insight_id: str) -> bool:
     handlers = {
         "gpu-thermal-ceiling", "gpu-thermal-warm", "gpu-vram-bandwidth",
         "gpu-vram-full", "gpu-gtt-churn", "memory-page-faults",
-        "gpu-shader-bound", "game-files-corrupt", "game-update-pending", "system-balanced",
+        "gpu-shader-bound", "game-files-corrupt", "game-update-pending",
+        "steam-disk-low", "game-prefix-reset", "system-balanced",
     }
     return insight_id in handlers and not requires_root(insight_id)

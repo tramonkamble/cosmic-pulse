@@ -1,0 +1,185 @@
+# Steam, libraries, Vulkan — from diagnostics + live install health
+rules:
+  - id: game-libs-missing
+    detect:
+      metric: diag.game_libs_missing
+      eq: true
+    emit:
+      insight_id: game-libs-missing
+      level_when:
+        detect:
+          metric: diag.lib_missing_hot
+          eq: true
+        then: hot
+        else: warn
+      title: Missing gaming libraries
+      text: >-
+        {diag.lib_missing_summary} — common cause of Proton games failing to launch or rendering black screens.
+      fix_script: game-libs-missing
+      fix_kwargs:
+        lib_findings: diag.lib_findings
+        multilib: diag.lib_multilib_needed
+      bucket: steam
+      condition_live: true
+      requires_root: true
+    actions:
+      - label: Enable 32-bit multilib
+        kind: cmd
+        cmd: sudo dpkg --add-architecture i386 && sudo apt update
+        note: One-time step on Pop!_OS / Ubuntu when 32-bit Proton libs are missing
+      - label: Install missing packages
+        kind: cmd
+        cmd: "{diag.lib_apt_install}"
+        note: Built from live diagnostics scan; needs sudo
+
+  - id: steam-disk-low
+    detect:
+      metric: diag.steam_disk_low
+      eq: true
+    emit:
+      insight_id: steam-disk-low
+      level_when:
+        detect:
+          metric: diag.disk_severity
+          eq: hot
+        then: hot
+        else: warn
+      title: "{diag.disk_title}"
+      text: "{diag.disk_text}"
+      fix_script: steam-disk-low
+      fix_kwargs:
+        free_gb: diag.disk_free_gb
+      bucket: steam
+      condition_live: true
+    actions:
+      - label: Open Steam Storage settings
+        kind: steam
+        cmd: xdg-open 'steam://open/settings'
+        note: Steam → Settings → Storage — move or uninstall games
+      - label: List largest Proton prefixes
+        kind: cmd
+        cmd: "du -sh {steam.root}/steamapps/compatdata/* 2>/dev/null | sort -hr | head -15"
+
+  - id: vulkan-broken
+    detect:
+      metric: diag.vulkan_broken
+      eq: true
+    emit:
+      insight_id: vulkan-broken
+      level_when:
+        detect:
+          metric: diag.vulkan_hot
+          eq: true
+        then: hot
+        else: warn
+      title: "{diag.vulkan_title}"
+      text: "{diag.vulkan_text}"
+      fix_script: vulkan-broken
+      bucket: driver
+      condition_live: true
+      requires_root: true
+    actions:
+      - label: Reinstall Vulkan stack
+        kind: cmd
+        cmd: sudo apt install --reinstall libvulkan1 mesa-vulkan-drivers vulkan-tools
+      - label: Test discrete GPU
+        kind: cmd
+        cmd: DRI_PRIME=1 vulkaninfo --summary | head -40
+
+  - id: game-files-corrupt-live
+    detect:
+      all:
+        - metric: game.running
+          eq: true
+        - any:
+            - metric: steam.files_corrupt
+              eq: true
+            - metric: diag.game_files_corrupt
+              eq: true
+    emit:
+      insight_id: game-files-corrupt
+      level: hot
+      title: "{game.name}: verify game files"
+      text: >-
+        Steam flagged the install as corrupt — common on Linux after patches;
+        causes crashes, missing maps, or failed loads.
+      fix_script: game-files-corrupt
+      game_context: true
+      games: active
+      bucket: steam
+      condition_live: true
+    actions:
+      - label: Verify in Steam (quit game first)
+        kind: steam
+        cmd: "xdg-open 'steam://validate/{game.appid}'"
+        note: Steam → Properties → Installed Files → Verify integrity
+
+  - id: game-update-pending
+    detect:
+      all:
+        - metric: game.running
+          eq: true
+        - any:
+            - metric: steam.update_needs_attention
+              eq: true
+            - metric: diag.game_update_pending
+              eq: true
+    emit:
+      insight_id: game-update-pending
+      level: warn
+      title: "{game.name}: finish pending update"
+      text: >-
+        {steam.update_summary} — playing on a half-patched build causes hitches, shader rebuilds, or odd crashes.
+      fix_script: game-update-pending
+      game_context: true
+      fix_kwargs:
+        pending_mb: steam.pending_mb
+        stage_mb: steam.stage_mb
+        shader_mb: steam.shader_mb
+        suspended: steam.suspended_while_running
+      games: active
+      bucket: steam
+      condition_live: true
+    actions:
+      - label: Open Steam Downloads
+        kind: steam
+        cmd: xdg-open 'steam://open/downloads'
+        note: Exit the game first, then let the download finish
+      - label: Clear shader cache (optional)
+        kind: cmd
+        cmd: "rm -rf {steam.root}/steamapps/shadercache/{game.appid}/fozpipelinesv6/*"
+        note: First launch after clear will hitch while shaders rebuild
+
+  - id: game-prefix-reset
+    detect:
+      all:
+        - metric: game.running
+          eq: true
+        - metric: diag.game_prefix_reset
+          eq: true
+    emit:
+      insight_id: game-prefix-reset
+      level_when:
+        detect:
+          metric: diag.exit_severe
+          eq: true
+        then: hot
+        else: warn
+      title: "{game.name}: abnormal exits"
+      text: >-
+        {diag.exit_text} — active-game exits only (other titles stay in System scan).
+        Try verify files, missing libs, or reset the Proton prefix.
+      fix_script: game-prefix-reset
+      game_context: true
+      fix_kwargs:
+        codes: diag.exit_codes
+      games: active
+      bucket: steam
+      condition_live: true
+    actions:
+      - label: Open Proton prefix folder
+        kind: game
+        cmd: "xdg-open {steam.root}/steamapps/compatdata/{game.appid}"
+      - label: Verify game files
+        kind: steam
+        cmd: "xdg-open 'steam://validate/{game.appid}'"

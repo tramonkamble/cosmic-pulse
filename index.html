@@ -188,6 +188,20 @@
     .rec-card.rec-info { border-left-color: var(--blue); }
     .rec-card.rec-ok { border-left-color: var(--ok); }
     .rec-card.rec-stale { opacity: .5; border-left-color: var(--muted); }
+    .rec-card.rec-suppressed { opacity: .72; }
+    .rec-suppressed-note {
+      font-size: .82rem; color: var(--muted); margin: 0 0 .35rem;
+      font-style: italic;
+    }
+    .rec-status {
+      font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      padding: .12rem .45rem; border-radius: 999px; border: 1px solid var(--line);
+      color: var(--muted); margin-right: .35rem;
+    }
+    .rec-status.live { color: var(--lime); border-color: rgba(120,220,120,.35); }
+    .rec-status.outstanding { color: var(--amber); border-color: rgba(255,180,80,.35); }
+    .rec-status.resolved { color: var(--muted); }
+    .rec-actions-head { display: flex; flex-wrap: wrap; gap: .35rem; margin-left: auto; align-items: center; }
     .rec-head { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; }
     .rec-rank {
       font-size: .72rem; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums;
@@ -202,35 +216,260 @@
       font-size: .72rem; font-weight: 600; letter-spacing: .06em;
       text-transform: uppercase; color: var(--muted);
     }
-    .guidance-page { display: flex; flex-direction: column; gap: 0; }
-    .guidance-head { margin-bottom: .25rem; }
-    .guidance-head h2 { margin: 0 0 .45rem; }
-    .guidance-summary {
-      display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
-      margin-bottom: 1.35rem; padding-bottom: 1.15rem; border-bottom: 1px solid var(--line);
+    .guidance-page { display: flex; flex-direction: column; gap: 1.1rem; }
+    .guidance-head-compact {
+      display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+      gap: .65rem 1.25rem; margin-bottom: .15rem;
     }
-    .guidance-summary:empty { display: none; margin: 0; padding: 0; border: 0; }
-    .guidance-stat { font-size: .95rem; color: var(--muted); margin-right: .15rem; }
-    .guidance-section { margin-bottom: 1.35rem; }
-    .guidance-section:last-child { margin-bottom: 0; }
-    .guidance-section-title {
-      margin: 0 0 .35rem; font-size: 1rem; font-weight: 500;
-      color: var(--text); letter-spacing: 0.03em;
+    .guidance-head-compact h2 { margin: 0; }
+    .guidance-head-stat { font-size: 1.05rem; color: var(--muted); line-height: 1.5; }
+    .guidance-head-stat strong { color: var(--text); font-weight: 600; }
+    .guidance-head-stat .guidance-rail-live {
+      display: inline-flex; align-items: center; gap: .35rem; margin-left: .15rem;
+      font-size: .95rem; color: var(--lime);
     }
-    .guidance-section-lead {
-      margin: 0 0 1rem; font-size: .92rem; color: var(--muted); line-height: 1.45;
+    .guidance-head-stat .guidance-rail-live::before {
+      content: ""; width: .45rem; height: .45rem; border-radius: 50%; background: var(--lime);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 28%, transparent);
     }
-    details.guidance-games-panel {
-      margin-top: .5rem; border: 1px solid var(--line); border-radius: var(--radius);
-      background: rgba(0,0,0,.08);
+    .guidance-split {
+      display: grid; grid-template-columns: minmax(240px, 28%) minmax(0, 1fr);
+      gap: 1rem; min-height: min(68vh, 640px);
     }
-    details.guidance-games-panel summary {
-      padding: .9rem 1.1rem; font-size: .98rem; font-weight: 500; color: var(--text);
-      cursor: pointer; list-style: none;
+    @media (max-width: 920px) {
+      .guidance-split { grid-template-columns: 1fr; min-height: 0; }
+      .guidance-index-scroll { max-height: 16rem; }
+      .guidance-detail { max-height: none; min-height: 16rem; }
     }
-    details.guidance-games-panel summary::-webkit-details-marker { display: none; }
-    details.guidance-games-panel .game-issues-static {
-      padding: 0 1rem 1rem; display: flex; flex-direction: column; gap: 1rem;
+    .guidance-index {
+      display: flex; flex-direction: column; min-height: 0; min-width: 0;
+      border: 1px solid var(--line); border-radius: var(--radius);
+      background: rgba(0,0,0,.08); overflow: hidden;
+    }
+    .guidance-toolbar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: .65rem .75rem; padding: .7rem .8rem;
+      border-bottom: 1px solid var(--line); background: rgba(0,0,0,.06);
+    }
+    .guidance-toolbar-filters {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .65rem; min-width: 0; flex: 1 1 auto;
+    }
+    .guidance-toolbar-filters .ctrl-group { flex-wrap: wrap; gap: .35rem; }
+    .guidance-toolbar-filters .btn {
+      padding: .42rem .72rem; font-size: .95rem;
+    }
+    .guidance-filter-hot {
+      width: .42rem; height: .42rem; border-radius: 50%; background: var(--hot); flex-shrink: 0;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--hot) 30%, transparent);
+    }
+    .guidance-toolbar-scan {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .65rem; flex-shrink: 0;
+    }
+    .guidance-scan-meta { font-size: .92rem; color: var(--muted); white-space: nowrap; }
+    .guidance-index-scroll {
+      flex: 1; overflow: auto; padding: .55rem .6rem;
+      max-height: min(64vh, 600px);
+    }
+    .guidance-idx-group-label {
+      padding: 1rem .35rem .45rem; font-size: .78rem; font-weight: 600;
+      letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+    }
+    .guidance-idx-group-label:first-child { padding-top: .25rem; }
+    .guidance-idx-row {
+      display: grid; grid-template-columns: 4px 1fr auto; gap: .65rem .75rem;
+      align-items: center; width: 100%; text-align: left;
+      padding: .72rem .65rem; margin-bottom: 5px;
+      border: 1px solid transparent; border-radius: var(--radius);
+      background: transparent; color: inherit; font-family: inherit; cursor: pointer;
+    }
+    .guidance-idx-row:hover { background: rgba(255,255,255,.04); border-color: var(--line); }
+    .guidance-idx-row.selected {
+      background: color-mix(in srgb, var(--accent) 11%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+    }
+    .guidance-idx-row.resolved { opacity: .55; }
+    .guidance-idx-row.guidance-idx-scan { align-items: start; }
+    .guidance-idx-sev { width: 4px; align-self: stretch; min-height: 1.1rem; border-radius: 2px; }
+    .guidance-idx-row.rec-hot .guidance-idx-sev { background: var(--hot); }
+    .guidance-idx-row.rec-warn .guidance-idx-sev { background: var(--amber); }
+    .guidance-idx-row.rec-info .guidance-idx-sev { background: var(--blue); }
+    .guidance-idx-row.rec-ok .guidance-idx-sev { background: var(--ok); }
+    .guidance-idx-main { min-width: 0; display: flex; flex-direction: column; gap: .28rem; }
+    .guidance-idx-title {
+      display: block; font-size: 1.05rem; font-weight: 500; line-height: 1.35;
+      color: var(--text);
+    }
+    .guidance-idx-preview {
+      display: block; font-size: .86rem; line-height: 1.4; color: var(--muted); font-weight: 400;
+      font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .guidance-idx-meta {
+      display: flex; align-items: center; flex-shrink: 0;
+    }
+    .guidance-idx-dot {
+      width: .45rem; height: .45rem; border-radius: 50%; flex-shrink: 0;
+    }
+    .guidance-idx-dot.live {
+      background: var(--lime);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 28%, transparent);
+    }
+    .guidance-idx-dot.fixed { background: var(--muted); opacity: .7; }
+    .guidance-detail {
+      min-height: 0; border: 1px solid var(--line); border-radius: var(--radius-lg);
+      background: var(--panel-solid); overflow: auto;
+      max-height: min(68vh, 640px); padding: 1.35rem 1.5rem;
+    }
+    body.cosmic-frosted .guidance-detail { background: var(--panel); }
+    .guidance-detail-placeholder {
+      margin: 0; padding: 3rem 1.25rem; text-align: center;
+      font-size: 1.05rem; color: var(--muted); line-height: 1.6;
+    }
+    .guidance-detail .rec-card {
+      border: 0; background: transparent; padding: 0; gap: 1.35rem; border-left: 0;
+    }
+    .guidance-detail .rec-head { margin-bottom: .35rem; gap: .55rem .65rem; }
+    .guidance-detail .rec-title { font-size: 1.35rem; flex-basis: 100%; line-height: 1.3; }
+    .guidance-detail .rec-body {
+      font-size: 1.08rem; color: var(--text-secondary); line-height: 1.65; margin: 0;
+    }
+    .guidance-detail .rec-meta { margin-top: .15rem; }
+    .guidance-detail .rec-section { margin-top: .65rem; }
+    .guidance-detail .rec-section-title {
+      margin: 0 0 .65rem; font-size: .82rem; font-weight: 600;
+      letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+    }
+    .guidance-detail .rec-steps-open { max-height: none; overflow: visible; }
+    .guidance-detail .diag-scan { display: flex; flex-direction: column; gap: 1.1rem; }
+    .guidance-detail .diag-item { border: 0; background: transparent; padding: 0; border-left: 0; }
+    .guidance-detail .diag-head { margin-bottom: .25rem; gap: .55rem .7rem; }
+    .guidance-detail .diag-title { font-size: 1.35rem; line-height: 1.3; margin: 0; }
+    .guidance-detail .diag-body { font-size: 1.08rem; line-height: 1.65; margin: 0; }
+    .guidance-detail .diag-pre {
+      font-size: .84rem; line-height: 1.5; max-height: 280px; overflow: auto;
+      background: #12141a; border: 1px solid var(--line); border-radius: 8px;
+      padding: .75rem .85rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
+      font-family: ui-monospace, monospace; margin: 0;
+      overscroll-behavior: contain;
+    }
+    .guidance-detail .diag-source {
+      margin: 0; font-size: .92rem; color: var(--muted); line-height: 1.5;
+    }
+    .guidance-detail .diag-source code {
+      font-size: .84rem; color: var(--blue); word-break: break-all;
+    }
+    .guidance-index-empty {
+      margin: 1rem .5rem 1.25rem; font-size: 1rem; color: var(--muted); line-height: 1.55;
+    }
+    .guidance-index-games {
+      padding: .65rem .7rem .7rem; border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.025), transparent);
+      min-width: 0;
+    }
+    .guidance-index-games[hidden] { display: none; }
+    .guidance-game-picker {
+      display: grid; grid-template-columns: min-content 1fr;
+      align-items: center; gap: 0 .7rem; min-width: 0;
+    }
+    .guidance-index-games-label {
+      font-size: .72rem; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted); white-space: nowrap;
+      padding: .2rem 0;
+    }
+    .guidance-game-picker-wrap { position: relative; min-width: 0; }
+    .guidance-game-trigger {
+      width: 100%; display: flex; align-items: center; gap: .45rem;
+      padding: .52rem .7rem .52rem .82rem;
+      border-radius: var(--radius);
+      border: 1px solid color-mix(in srgb, var(--line) 92%, transparent);
+      background: color-mix(in srgb, var(--panel-solid) 78%, transparent);
+      color: var(--text-secondary); font-family: inherit;
+      font-size: .92rem; font-weight: 500; line-height: 1.2;
+      cursor: pointer; text-align: left;
+      transition: border-color .15s, background .15s, color .15s, box-shadow .15s;
+    }
+    .guidance-game-trigger:hover {
+      color: var(--text);
+      border-color: rgba(255,255,255,.18);
+      background: rgba(255,255,255,.07);
+    }
+    .guidance-game-trigger:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 2px;
+    }
+    .guidance-game-trigger.open {
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .guidance-game-trigger.filtered { color: var(--text); }
+    .guidance-game-trigger-main {
+      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .guidance-game-trigger-dot {
+      width: .42rem; height: .42rem; border-radius: 50%; flex-shrink: 0;
+      background: var(--lime);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 28%, transparent);
+    }
+    .guidance-game-trigger-count {
+      flex-shrink: 0; font-size: .68rem; font-weight: 600; font-variant-numeric: tabular-nums;
+      padding: .14rem .38rem; border-radius: 999px; line-height: 1.1;
+      background: rgba(255,255,255,.07); border: 1px solid var(--line); color: var(--muted);
+    }
+    .guidance-game-trigger-chevron {
+      flex-shrink: 0; font-size: .72rem; color: var(--muted); line-height: 1;
+      transition: transform .15s ease, color .15s;
+    }
+    .guidance-game-trigger.open .guidance-game-trigger-chevron {
+      transform: rotate(180deg); color: var(--text-secondary);
+    }
+    .guidance-game-menu {
+      position: absolute; top: calc(100% + .38rem); left: 0; right: 0; z-index: 24;
+      border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--panel-solid); box-shadow: var(--shadow);
+      max-height: min(16rem, 42vh); overflow-y: auto; overscroll-behavior: contain;
+      padding: .35rem; display: flex; flex-direction: column; gap: 2px;
+    }
+    body.cosmic-frosted .guidance-game-menu { backdrop-filter: blur(18px) saturate(1.12); }
+    .guidance-game-menu[hidden] { display: none; }
+    .guidance-game-menu-item {
+      width: 100%; display: flex; align-items: center; gap: .5rem;
+      padding: .58rem .62rem; border: 1px solid transparent; border-radius: calc(var(--radius) - 2px);
+      background: transparent; color: var(--text-secondary);
+      font-family: inherit; font-size: .92rem; font-weight: 500; line-height: 1.25;
+      cursor: pointer; text-align: left;
+      transition: background .12s, border-color .12s, color .12s;
+    }
+    .guidance-game-menu-item:hover {
+      color: var(--text); background: rgba(255,255,255,.06);
+      border-color: color-mix(in srgb, var(--line) 80%, transparent);
+    }
+    .guidance-game-menu-item.selected {
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 11%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+    }
+    .guidance-game-menu-check {
+      width: 1rem; flex-shrink: 0; text-align: center;
+      font-size: .78rem; color: var(--accent); opacity: 0;
+    }
+    .guidance-game-menu-item.selected .guidance-game-menu-check { opacity: 1; }
+    .guidance-game-menu-label {
+      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .guidance-game-menu-meta {
+      display: inline-flex; align-items: center; gap: .35rem; flex-shrink: 0;
+    }
+    .guidance-game-menu-dot {
+      width: .4rem; height: .4rem; border-radius: 50%;
+      background: var(--lime);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 28%, transparent);
+    }
+    .guidance-game-menu-count {
+      font-size: .68rem; font-weight: 600; font-variant-numeric: tabular-nums;
+      min-width: 1.1rem; text-align: center;
+      padding: .12rem .34rem; border-radius: 999px; line-height: 1.1;
+      background: rgba(255,255,255,.07); border: 1px solid var(--line); color: var(--muted);
+    }
+    .guidance-game-menu-divider {
+      height: 1px; margin: .28rem .35rem; background: var(--line); flex-shrink: 0;
     }
     .game-issues-head {
       display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .65rem;
@@ -2023,15 +2262,10 @@
       </details>
 
       <details class="drill" id="drill-troubleshoot" data-open-key="drill-troubleshoot">
-        <summary><span class="drill-title">Troubleshooting</span><span class="drill-rollup" id="drillTroubleshootSum">Scanning…</span></summary>
-        <div class="drill-body section-target" id="troubleshootSection">
-          <p class="section-lead" style="margin-top:0">Boot errors, missing libraries, Steam/Proton logs, and pending updates.</p>
-          <div class="diag-toolbar">
-            <button class="btn" type="button" id="diagRefresh">Scan again</button>
-            <span class="sub" id="diagMeta" style="margin:0">—</span>
-          </div>
-          <div class="diag-counts stable-toolbar" id="diagCounts"></div>
-          <div class="diag-list stable-scroll" id="diagList">Loading…</div>
+        <summary><span class="drill-title">System checks</span><span class="drill-rollup">Moved to Guidance</span></summary>
+        <div class="drill-body">
+          <p class="section-lead" style="margin-top:0">Steam, libraries, and log scans now live in <strong>Guidance</strong> under the <strong>Scan</strong> filter. Critical items are promoted to Outstanding automatically.</p>
+          <button class="btn" type="button" id="openGuidanceScan">Open Guidance → Scan</button>
         </div>
       </details>
 
@@ -2047,29 +2281,43 @@
 
     <div id="pageFixes" class="page">
     <section class="card guidance-page section-target" id="insightsSection">
-      <div class="guidance-head">
+      <div class="guidance-head-compact">
         <h2>Guidance</h2>
-        <p class="section-lead" id="tuningLead" style="margin-bottom:0">What to check and how to fix it. <strong>Fix</strong> opens folders or tools — no sudo, no killing apps. Root steps are labeled; you run those yourself.</p>
+        <div class="guidance-head-stat" id="guidanceHeadStat">—</div>
       </div>
-      <div class="guidance-summary stable-toolbar" id="guidanceSummary"></div>
-      <div class="guidance-section">
-        <h3 class="guidance-section-title">Priority issues</h3>
-        <p class="guidance-section-lead" id="guidanceMeta">Sorted by impact — cross-game issues rank highest.</p>
-        <div class="rec-list" id="tuningHints"></div>
+      <div class="guidance-split">
+        <aside class="guidance-index section-target" id="guidanceIndex">
+          <div class="guidance-toolbar" id="guidanceIndexFilters">
+            <div class="guidance-toolbar-filters">
+              <span class="ctrl-label">Show</span>
+              <div class="ctrl-group" id="guidanceIndexFilterChips"></div>
+            </div>
+            <div class="guidance-toolbar-scan">
+              <button class="btn" type="button" id="diagRefresh">Scan</button>
+              <span class="guidance-scan-meta" id="diagMeta">—</span>
+            </div>
+          </div>
+          <div class="guidance-index-games" id="guidanceGamesDock" hidden>
+            <div class="guidance-game-picker" id="guidanceGamePicker">
+              <span class="guidance-index-games-label">Game</span>
+              <div class="guidance-game-picker-wrap">
+                <button type="button" class="guidance-game-trigger" id="guidanceGameTrigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="guidanceGameMenu">
+                  <span class="guidance-game-trigger-dot" id="guidanceGameTriggerDot" hidden aria-hidden="true"></span>
+                  <span class="guidance-game-trigger-main" id="guidanceGameTriggerLabel">All games</span>
+                  <span class="guidance-game-trigger-count" id="guidanceGameTriggerCount" hidden></span>
+                  <span class="guidance-game-trigger-chevron" aria-hidden="true">▾</span>
+                </button>
+                <div class="guidance-game-menu" id="guidanceGameMenu" role="listbox" hidden></div>
+              </div>
+            </div>
+          </div>
+          <div class="guidance-index-scroll stable-scroll" id="guidanceIndexList"></div>
+        </aside>
+        <div class="guidance-detail section-target" id="guidanceDetail">
+          <p class="guidance-detail-placeholder" id="guidanceDetailEmpty">Pick an item on the left.<br>Details and fix steps show here.</p>
+          <div id="guidanceDetailCard"></div>
+        </div>
       </div>
-      <div class="guidance-section" id="guidanceResolutionsWrap" hidden>
-        <h3 class="guidance-section-title">Possible resolutions</h3>
-        <p class="guidance-section-lead" id="guidanceResolutionsMeta">Quick wins when metrics match a known pattern — try these before deeper tuning.</p>
-        <div class="rec-list" id="tuningResolutions"></div>
-      </div>
-      <details class="rec-cleared" id="guidanceClearedWrap" hidden data-open-key="guidance-cleared">
-        <summary id="guidanceClearedSum">Cleared issues</summary>
-        <div class="rec-list" id="tuningCleared"></div>
-      </details>
-      <details class="guidance-games-panel" id="guidanceGamesPanel" hidden data-open-key="guidance-games">
-        <summary id="guidanceGamesSum">By game</summary>
-        <div class="game-issues-static" id="gameIssues"></div>
-      </details>
     </section>
     </div>
   </main>
@@ -2229,6 +2477,10 @@
       'cpu-ccd-spread': ['cpu'],
       'game-files-corrupt': ['cpu', 'gpu', 'memory'],
       'game-update-pending': ['cpu', 'gpu', 'memory'],
+      'game-libs-missing': ['cpu', 'gpu', 'memory'],
+      'steam-disk-low': ['cpu', 'gpu', 'memory'],
+      'vulkan-broken': ['gpu'],
+      'game-prefix-reset': ['cpu', 'gpu', 'memory'],
       'system-balanced': ['cpu', 'gpu', 'memory'],
     };
     let lastWarningsHints = [];
@@ -2455,8 +2707,18 @@
     function suppressedInsights() {
       return lastStatic?.suppressed_insights || [];
     }
+    function resolvedInsights() {
+      return lastStatic?.resolved_insights || [];
+    }
     function isInsightSuppressed(iid) {
       return iid && suppressedInsights().includes(iid);
+    }
+    function isInsightResolved(iid) {
+      return iid && resolvedInsights().includes(iid);
+    }
+    function hintUserStatus(h) {
+      return h?.user_status || (isInsightResolved(h?.insight_id) ? 'resolved'
+        : isInsightSuppressed(h?.insight_id) ? 'ignored' : 'outstanding');
     }
     function gpuTempPct(junc) {
       const throttle = gpuThermalProf().throttle_c ?? 110;
@@ -2922,7 +3184,8 @@
     function hintsStructKey(hints) {
       return JSON.stringify((hints || []).map(h => [
         h.insight_id, h.active, h.level, h.title, h.text,
-        h.games_affected, h.multi_game, !!h.has_fix_script, !!h.requires_root, !!h.fixable,
+        h.games_affected, h.multi_game, h.condition_live, h.user_status,
+        !!h.has_fix_script, !!h.requires_root, !!h.fixable,
         (h.actions || []).map(a => [a.label, a.cmd, a.note, a.kind || '']),
       ]));
     }
@@ -2977,15 +3240,36 @@
       window.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
     }
 
+    const DIAG_AUTO_REFRESH_MS = 90000;
+    let diagAutoRefreshId = null;
+
+    function syncDiagAutoRefresh() {
+      if (diagAutoRefreshId) {
+        clearInterval(diagAutoRefreshId);
+        diagAutoRefreshId = null;
+      }
+      if (activeTab !== 'fixes') return;
+      fetchDiagnostics(false);
+      diagAutoRefreshId = setInterval(() => fetchDiagnostics(false), DIAG_AUTO_REFRESH_MS);
+    }
+
     function setTab(name, scrollTo, scrollTop = false) {
       activeTab = name;
       sessionStorage.setItem('pulse-tab', name);
       document.getElementById('pageDashboard').classList.toggle('active', name === 'dashboard');
       document.getElementById('pageFixes').classList.toggle('active', name === 'fixes');
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      syncDiagAutoRefresh();
       if (scrollTo) {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => scrollToElement(document.getElementById(scrollTo)));
+          requestAnimationFrame(() => {
+            if (scrollTo.startsWith('insight-')) {
+              selectGuidanceHint(scrollTo.slice(8), { scroll: true });
+              scrollToElement(document.getElementById('guidanceDetail'));
+            } else {
+              scrollToElement(document.getElementById(scrollTo));
+            }
+          });
         });
       } else if (scrollTop) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3020,11 +3304,14 @@
 
     let diagCache = null;
     let lastDiagKey = '';
+    let lastGuidanceScanFindings = [];
 
     async function fetchDiagnostics(force = false) {
       try {
-        const d = await (await fetch('/api/diagnostics')).json();
-        const key = JSON.stringify([d.counts, d.findings?.map(f => [f.id, f.severity])]);
+        const url = force ? '/api/diagnostics?force=1' : '/api/diagnostics';
+        const d = await (await fetch(url)).json();
+        const scan = d.scan_findings || d.findings || [];
+        const key = JSON.stringify([d.counts, scan.map(f => [f.id, f.severity])]);
         if (force || key !== lastDiagKey) {
           lastDiagKey = key;
           diagCache = d;
@@ -3032,48 +3319,58 @@
         }
         return d;
       } catch {
-        document.getElementById('diagList').innerHTML = '<p class="sub">Diagnostics scan failed.</p>';
-        document.getElementById('drillTroubleshootSum').textContent = 'Scan failed';
+        const metaEl = document.getElementById('diagMeta');
+        if (metaEl) metaEl.textContent = 'Scan failed';
       }
       return null;
     }
 
-    function renderDiagnostics(d) {
-      if (!d) return;
-      const c = d.counts || {};
-      const n = (c.hot || 0) + (c.warn || 0);
-      document.getElementById('drillTroubleshootSum').textContent = n
-        ? `${c.hot || 0} critical · ${c.warn || 0} warnings · ${d.findings?.length || 0} checks`
-        : `${d.findings?.length || 0} checks · all clear`;
-      document.getElementById('diagMeta').textContent = d.scanned_at
-        ? `Last scan ${new Date(d.scanned_at * 1000).toLocaleTimeString()}`
-        : '—';
-      document.getElementById('diagCounts').innerHTML = stablePillsHtml([
-        ['hot', 'Critical', c.hot || 0],
-        ['warn', 'Warnings', c.warn || 0],
-        ['info', 'Notes', c.info || 0],
-        ['ok', 'OK', c.ok || 0],
-      ]);
-      const listEl = document.getElementById('diagList');
-      capturePanelState();
-      listEl.innerHTML = (d.findings || []).map(f => `
-        <article class="diag-item ${f.severity}" id="diag-${esc(f.id)}">
-          <div class="diag-head">
-            ${sevBadge(f.severity, f.severity === 'hot' ? 'Critical' : f.severity === 'warn' ? 'Warning' : f.severity === 'ok' ? 'OK' : 'Note')}
-            <span class="diag-cat">${DIAG_CAT_LABEL[f.category] || f.category}</span>
-            <h3 class="diag-title">${esc(f.title)}</h3>
-          </div>
-          <p class="diag-body">${esc(f.text)}</p>
-          ${f.detail ? `<details class="diag-detail"><summary>Log excerpt</summary><pre class="diag-pre">${esc(f.detail)}</pre></details>` : ''}
-          ${f.fix ? `<div class="diag-fix"><code>${esc(f.fix)}</code><button class="copy-btn" type="button" data-copy="${esc(f.fix)}">Copy</button></div>` : ''}
-        </article>`).join('');
-      document.querySelectorAll('.diag-fix .copy-btn').forEach(btn => {
-        btn.onclick = () => copyText(btn.dataset.copy, btn);
+    function sortScanFindings(scan) {
+      return [...scan].sort((a, b) => {
+        const rank = { hot: 0, warn: 1, info: 2, ok: 3 };
+        const sev = (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9);
+        if (sev) return sev;
+        return (a.title || '').localeCompare(b.title || '');
       });
-      restorePanelState();
     }
 
-    document.getElementById('diagRefresh').onclick = () => fetchDiagnostics(true);
+    function renderDiagnostics(d) {
+      if (!d) return;
+      const scan = d.scan_findings || d.findings || [];
+      const scanCounts = { hot: 0, warn: 0, info: 0, ok: 0 };
+      scan.forEach(f => { if (scanCounts[f.severity] !== undefined) scanCounts[f.severity]++; });
+      const flagged = (scanCounts.hot || 0) + (scanCounts.warn || 0);
+      const metaEl = document.getElementById('diagMeta');
+      if (metaEl) {
+        const when = d.scanned_at
+          ? new Date(d.scanned_at * 1000).toLocaleTimeString()
+          : '—';
+        metaEl.textContent = flagged
+          ? `${flagged} flagged · ${when}`
+          : (scan.length ? `${scan.length} notes · ${when}` : when);
+      }
+      guidanceSectionCounts.scan = flagged || scan.length;
+      guidanceSectionCounts.scan_hot = (scanCounts.hot || 0) > 0;
+      lastGuidanceScanFindings = sortScanFindings(scan);
+      if (guidanceIndexFilter === 'scan' && !lastGuidanceScanFindings.length) {
+        guidanceIndexFilter = 'all';
+      }
+      renderGuidanceFilters();
+      if (lastGuidanceIndexGroups.length || lastGuidanceFixedHints.length || lastGuidanceScanFindings.length) {
+        renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
+        selectGuidanceHint(lastSelectedGuidanceId, { scroll: false });
+      }
+    }
+
+    document.getElementById('diagRefresh')?.addEventListener('click', () => fetchDiagnostics(true));
+    document.getElementById('openGuidanceScan')?.addEventListener('click', () => {
+      setTab('fixes', 'guidanceIndex');
+      guidanceIndexFilter = 'scan';
+      renderGuidanceFilters();
+      renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
+      const firstScan = lastGuidanceScanFindings[0];
+      if (firstScan) selectGuidanceHint(`diag:${firstScan.id}`, { scroll: true });
+    });
     fetchDiagnostics();
 
     function jumpTo(id) {
@@ -3115,8 +3412,7 @@
     function renderSummaryBar(l, hints, comparison) {
       const c = l.cpu, m = l.memory, g = l.gpu.discrete, bw = l.bandwidth || {};
       const gt = l.game_totals;
-      const suppressed = suppressedInsights();
-      const active = (hints || []).filter(h => h.active !== false && !suppressed.includes(h.insight_id));
+      const active = guidanceOutstanding(hints).filter(h => !isInsightSuppressed(h.insight_id));
       const healthHints = hwFocus ? active.filter(h => hintVisibleForFocus(h)) : active;
       const counts = { hot: 0, warn: 0, info: 0 };
       healthHints.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
@@ -5094,20 +5390,362 @@
       return `<span class="hw-id-primary">${esc(name)}</span>`;
     }
 
+    function legacyGameIds() {
+      return lastStatic?.legacy_game_ids || {};
+    }
+    function normalizeGameId(id) {
+      if (!id) return id;
+      const legacy = legacyGameIds();
+      return legacy[id] || id;
+    }
+
     function gameLabel(id) {
-      const cat = lastStatic?.games_catalog?.[id];
+      const norm = normalizeGameId(id);
+      const cat = lastStatic?.games_catalog?.[norm] || lastStatic?.games_catalog?.[id];
       if (cat?.short) return cat.short;
       if (cat?.name) return cat.name;
-      if (id && /^\d+$/.test(id)) return `App ${id}`;
-      return id || 'Game';
+      if (norm && /^\d+$/.test(norm)) return `App ${norm}`;
+      return norm || id || 'Game';
     }
 
     const WARN_WIDGET_MAX = 10;
 
+    const GUIDANCE_STEAM_IDS = new Set([
+      'game-libs-missing', 'steam-disk-low', 'vulkan-broken',
+      'game-files-corrupt', 'game-update-pending', 'game-prefix-reset',
+    ]);
+
+    const guidanceSectionCounts = {
+      steam: 0, system: 0, resolutions: 0, games: 0, scan: 0, fixed: 0,
+    };
+
+    function guidanceCategory(h) {
+      if (h.bucket === 'resolutions') return 'resolutions';
+      if (h.bucket === 'steam') return 'steam';
+      const id = h.insight_id || '';
+      if (GUIDANCE_STEAM_IDS.has(id) || id.startsWith('game-') || id.startsWith('steam-')) return 'steam';
+      return 'system';
+    }
+
+    let lastGuidanceSummaryHints = [];
+    let lastSelectedGuidanceId = null;
+    let guidanceIndexFilter = 'all';
+    let guidanceGameFilter = null;
+    let guidancePickableHints = [];
+
+    function guidanceHintCount(arr) {
+      return (arr || []).filter(h => h.level !== 'ok').length;
+    }
+
+    function hintMatchesGameFilter(h, gameId) {
+      if (!gameId) return true;
+      const scope = h.games || ['all'];
+      if (scope.includes('all')) return true;
+      if (scope.includes(gameId)) return true;
+      return (h.games_affected || []).includes(gameId);
+    }
+
+    const GUIDANCE_GROUP_ORDER = { steam: 0, system: 1, resolutions: 2, scan: 3, fixed: 4 };
+
+    function guidanceScanLogPreview(f, max = 80) {
+      const raw = (f?.detail || '').trim();
+      if (!raw) return '';
+      const line = raw.split('\n').map(l => l.trim()).find(l => l.length > 0) || '';
+      if (!line) return '';
+      return line.length <= max ? line : `${line.slice(0, max - 1)}…`;
+    }
+
+    function guidanceScanEvidenceHtml(f) {
+      const detail = (f?.detail || '').trim();
+      const source = (f?.source || '').trim();
+      if (!detail && !source) return '';
+      const detailBlock = detail ? `
+        <div class="rec-section">
+          <h4 class="rec-section-title">Log excerpt</h4>
+          <pre class="diag-pre">${esc(detail)}</pre>
+        </div>` : '';
+      const sourceBlock = source ? `
+        <p class="diag-source"><span class="rec-meta">Source</span> <code>${esc(source)}</code></p>` : '';
+      return detailBlock + sourceBlock;
+    }
+
+    function guidanceSeverityRank(lv) {
+      return { hot: 0, warn: 1, info: 2, ok: 3 }[lv] ?? 9;
+    }
+
+    function sortGuidanceHints(hints) {
+      return [...hints].sort((a, b) => {
+        const aLive = a.condition_live && hintUserStatus(a) !== 'resolved' ? 1 : 0;
+        const bLive = b.condition_live && hintUserStatus(b) !== 'resolved' ? 1 : 0;
+        if (bLive !== aLive) return bLive - aLive;
+        const sev = guidanceSeverityRank(a.level) - guidanceSeverityRank(b.level);
+        if (sev) return sev;
+        const ps = warningPriority(b) - warningPriority(a);
+        if (ps) return ps;
+        return (a.title || '').localeCompare(b.title || '');
+      });
+    }
+
+    function sortGuidanceGroups(groups) {
+      return [...groups].sort((a, b) => {
+        const order = (GUIDANCE_GROUP_ORDER[a.key] ?? 9) - (GUIDANCE_GROUP_ORDER[b.key] ?? 9);
+        if (order) return order;
+        const worst = (g) => Math.min(...g.hints.map(h => guidanceSeverityRank(h.level || h.severity)));
+        return worst(a) - worst(b);
+      });
+    }
+
+    function guidanceScanPickId(f) {
+      return `diag:${f.id}`;
+    }
+
+    function guidanceIndexRowHtml(h, selected) {
+      const lv = h.level || 'info';
+      const sid = h.insight_id || 'insight';
+      const resolved = hintUserStatus(h) === 'resolved';
+      const live = h.condition_live && !resolved;
+      const statusDot = resolved
+        ? '<span class="guidance-idx-dot fixed" title="Marked fixed" aria-label="Fixed"></span>'
+        : (live ? '<span class="guidance-idx-dot live" title="Happening now" aria-label="Live"></span>' : '');
+      return `<button type="button" class="guidance-idx-row rec-${lv}${selected ? ' selected' : ''}${resolved ? ' resolved' : ''}" data-guidance-pick="${esc(sid)}" id="guidance-pick-${esc(sid)}" aria-label="${esc(h.title)}">
+        <span class="guidance-idx-sev" aria-hidden="true"></span>
+        <span class="guidance-idx-main">
+          <span class="guidance-idx-title">${esc(h.title)}</span>
+        </span>
+        ${statusDot ? `<span class="guidance-idx-meta">${statusDot}</span>` : '<span class="guidance-idx-meta" aria-hidden="true"></span>'}
+      </button>`;
+    }
+
+    function guidanceScanIndexRowHtml(f, selected) {
+      const lv = f.severity || 'info';
+      const pickId = guidanceScanPickId(f);
+      const preview = guidanceScanLogPreview(f);
+      return `<button type="button" class="guidance-idx-row guidance-idx-scan rec-${lv}${selected ? ' selected' : ''}" data-guidance-pick="${esc(pickId)}" id="guidance-pick-${esc(pickId)}" aria-label="${esc(f.title)}">
+        <span class="guidance-idx-sev" aria-hidden="true"></span>
+        <span class="guidance-idx-main">
+          <span class="guidance-idx-title">${esc(f.title)}</span>
+          ${preview ? `<span class="guidance-idx-preview">${esc(preview)}</span>` : ''}
+        </span>
+        <span class="guidance-idx-meta" aria-hidden="true"></span>
+      </button>`;
+    }
+
+    function getScanIndexGroup() {
+      if (!lastGuidanceScanFindings.length) return null;
+      return { key: 'scan', label: 'System scan', hints: lastGuidanceScanFindings, isScan: true };
+    }
+
+    function renderGuidanceFilters() {
+      const el = document.getElementById('guidanceIndexFilterChips');
+      if (!el) return;
+      const c = guidanceSectionCounts;
+      const filters = [
+        { key: 'all', label: 'All' },
+        { key: 'steam', label: 'Steam', n: c.steam, hot: c.steam_hot },
+        { key: 'system', label: 'Perf', n: c.system, hot: c.system_hot },
+        { key: 'resolutions', label: 'Resolutions', n: c.resolutions, hot: c.resolutions_hot },
+        { key: 'scan', label: 'Scan', n: c.scan, hot: c.scan_hot },
+        { key: 'fixed', label: 'Fixed', n: c.fixed },
+      ].filter(f => f.key === 'all' || (f.n || 0) > 0);
+      el.innerHTML = filters.map(f => {
+        const cls = ['btn', guidanceIndexFilter === f.key ? 'active' : ''].filter(Boolean).join(' ');
+        const hotDot = f.hot ? '<span class="guidance-filter-hot" aria-hidden="true"></span>' : '';
+        return `<button type="button" class="${cls}" data-guidance-filter="${f.key}">${hotDot}${f.label}</button>`;
+      }).join('');
+      el.querySelectorAll('[data-guidance-filter]').forEach(btn => {
+        btn.onclick = () => {
+          guidanceIndexFilter = btn.dataset.guidanceFilter;
+          renderGuidanceFilters();
+          renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
+          selectGuidanceHint(lastSelectedGuidanceId, { scroll: false });
+        };
+      });
+    }
+
+    let lastGuidanceIndexGroups = [];
+    let lastGuidanceFixedHints = [];
+
+    function renderGuidanceIndex(groups, fixedHints, selectedId) {
+      lastGuidanceIndexGroups = groups;
+      lastGuidanceFixedHints = fixedHints;
+      const listEl = document.getElementById('guidanceIndexList');
+      if (!listEl) return;
+
+      const scanGroup = getScanIndexGroup();
+      let visibleGroups = groups.filter(g => g.hints.length);
+      if (guidanceIndexFilter === 'fixed') {
+        visibleGroups = fixedHints.length
+          ? [{ key: 'fixed', label: 'Marked fixed', hints: sortGuidanceHints(fixedHints), isScan: false }]
+          : [];
+      } else if (guidanceIndexFilter === 'scan') {
+        visibleGroups = scanGroup ? [scanGroup] : [];
+      } else if (guidanceIndexFilter !== 'all') {
+        visibleGroups = visibleGroups
+          .filter(g => g.key === guidanceIndexFilter)
+          .map(g => ({ ...g, hints: sortGuidanceHints(g.hints), isScan: false }));
+      } else {
+        visibleGroups = visibleGroups.map(g => ({ ...g, hints: sortGuidanceHints(g.hints), isScan: false }));
+        if (scanGroup) visibleGroups.push(scanGroup);
+        if (visibleGroups.length > 1) visibleGroups = sortGuidanceGroups(visibleGroups);
+      }
+
+      if (guidanceGameFilter && guidanceIndexFilter !== 'scan') {
+        visibleGroups = visibleGroups
+          .filter(g => !g.isScan)
+          .map(g => ({
+            ...g,
+            hints: g.hints.filter(h => hintMatchesGameFilter(h, guidanceGameFilter)),
+          }))
+          .filter(g => g.hints.length);
+        if (guidanceIndexFilter === 'all' && scanGroup) visibleGroups.push(scanGroup);
+      }
+
+      guidancePickableHints = visibleGroups.filter(g => !g.isScan).flatMap(g => g.hints);
+      if (guidanceIndexFilter === 'fixed') {
+        guidancePickableHints = fixedHints.slice();
+      }
+
+      if (!visibleGroups.length) {
+        const msg = guidanceIndexFilter === 'scan'
+          ? 'No scan results yet. Press <strong>Scan</strong> above to check logs and system health.'
+          : 'Nothing in this view. Try another filter or run Scan.';
+        listEl.innerHTML = `<p class="guidance-index-empty">${msg}</p>`;
+        lastSelectedGuidanceId = null;
+        renderGuidanceDetail(null);
+        return;
+      }
+
+      const visiblePicks = visibleGroups.flatMap(g =>
+        g.isScan ? g.hints.map(f => guidanceScanPickId(f)) : g.hints.map(h => h.insight_id),
+      );
+      let activeId = selectedId;
+      if (!activeId || !visiblePicks.includes(activeId)) {
+        activeId = visiblePicks[0] || null;
+        lastSelectedGuidanceId = activeId;
+      }
+
+      const showGroupLabels = guidanceIndexFilter === 'all' && visibleGroups.length > 1;
+      listEl.innerHTML = visibleGroups.map(g => {
+        const label = showGroupLabels
+          ? `<div class="guidance-idx-group-label" id="guidanceGroup-${g.key}">${g.label}</div>`
+          : '';
+        const rows = g.isScan
+          ? g.hints.map(f => guidanceScanIndexRowHtml(f, guidanceScanPickId(f) === activeId)).join('')
+          : g.hints.map(h => guidanceIndexRowHtml(h, h.insight_id === activeId)).join('');
+        return label + rows;
+      }).join('');
+
+      listEl.querySelectorAll('[data-guidance-pick]').forEach(btn => {
+        btn.onclick = () => selectGuidanceHint(btn.dataset.guidancePick, { scroll: false });
+      });
+    }
+
+    function renderGuidanceScanDetail(f) {
+      const empty = document.getElementById('guidanceDetailEmpty');
+      const card = document.getElementById('guidanceDetailCard');
+      if (!empty || !card) return;
+      if (!f) {
+        empty.hidden = false;
+        card.innerHTML = '';
+        return;
+      }
+      empty.hidden = true;
+      card.innerHTML = `
+        <article class="diag-scan diag-item ${f.severity}">
+          <div class="diag-head">
+            <span class="diag-cat">${DIAG_CAT_LABEL[f.category] || f.category}</span>
+            ${sevBadge(f.severity, SEV_LABEL[f.severity] || f.severity)}
+            <h3 class="diag-title">${esc(f.title)}</h3>
+          </div>
+          <p class="diag-body">${esc(f.text)}</p>
+          ${guidanceScanEvidenceHtml(f)}
+          ${f.fix ? `<div class="rec-section">
+            <h4 class="rec-section-title">Suggested fix</h4>
+            <div class="diag-fix"><code>${esc(f.fix)}</code><button class="copy-btn" type="button" data-copy="${esc(f.fix)}">Copy</button></div>
+          </div>` : ''}
+        </article>`;
+      card.querySelectorAll('.diag-fix .copy-btn').forEach(btn => {
+        btn.onclick = () => copyText(btn.dataset.copy, btn);
+      });
+    }
+
+    function renderGuidanceDetail(h) {
+      const empty = document.getElementById('guidanceDetailEmpty');
+      const card = document.getElementById('guidanceDetailCard');
+      if (!empty || !card) return;
+      if (!h) {
+        empty.hidden = false;
+        card.innerHTML = '';
+        return;
+      }
+      empty.hidden = true;
+      card.innerHTML = recCardHtml(h, 'detail-');
+      bindHintActions(card, [h]);
+      hydrateScriptPanels(card);
+    }
+
+    function selectGuidanceHint(insightId, { scroll = false } = {}) {
+      lastSelectedGuidanceId = insightId || null;
+      document.querySelectorAll('.guidance-idx-row').forEach(row => {
+        row.classList.toggle('selected', row.dataset.guidancePick === insightId);
+      });
+      if (insightId?.startsWith('diag:')) {
+        const fid = insightId.slice(5);
+        const f = lastGuidanceScanFindings.find(x => x.id === fid);
+        renderGuidanceScanDetail(f);
+        if (scroll && insightId) {
+          document.getElementById(`guidance-pick-${insightId}`)
+            ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+        return;
+      }
+      const pool = guidancePickableHints.length
+        ? guidancePickableHints
+        : lastGuidanceIndexGroups.flatMap(g => g.hints).concat(lastGuidanceFixedHints);
+      const h = hintById(pool, insightId) || hintById(lastGuidanceFixedHints, insightId);
+      renderGuidanceDetail(h);
+      if (scroll && insightId) {
+        document.getElementById(`guidance-pick-${insightId}`)
+          ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+
+    function updateGuidanceHeadStat(issues) {
+      if (issues) lastGuidanceSummaryHints = issues;
+      issues = lastGuidanceSummaryHints;
+      const el = document.getElementById('guidanceHeadStat');
+      if (!el) return;
+      const liveN = issues.filter(h => h.condition_live).length;
+      const totalActive = issues.length;
+      if (!totalActive) {
+        el.innerHTML = '<strong>All clear</strong> — nothing outstanding';
+        return;
+      }
+      el.innerHTML = [
+        `<strong>${totalActive}</strong> outstanding`,
+        liveN ? `<span class="guidance-rail-live">${liveN} live now</span>` : '',
+      ].filter(Boolean).join(' · ');
+    }
+
+    function guidanceOutstanding(hints) {
+      return (hints || []).filter(h => hintUserStatus(h) === 'outstanding');
+    }
+
+    function guidanceLiveOutstanding(hints) {
+      return guidanceOutstanding(hints).filter(h => h.condition_live);
+    }
+
+    function guidanceResolved(hints) {
+      return (hints || []).filter(h => hintUserStatus(h) === 'resolved');
+    }
+
+    function guidanceSummaryHints(hints) {
+      return guidanceLiveOutstanding(hints).filter(h => h.level !== 'ok');
+    }
+
     function warningsForDisplay(hints) {
-      const suppressed = suppressedInsights();
-      return (hints || []).filter(h =>
-        h.active !== false && h.level !== 'ok' && !suppressed.includes(h.insight_id),
+      return guidanceOutstanding(hints).filter(h =>
+        h.level !== 'ok' && h.condition_live && !isInsightSuppressed(h.insight_id),
       );
     }
 
@@ -5230,12 +5868,31 @@
     }
 
     function recCardHtml(h, idPrefix = '', rank = 0) {
+      const isDetail = idPrefix === 'detail-';
       const lv = h.level || 'info';
-      const stale = h.active === false;
+      const status = hintUserStatus(h);
+      const resolved = status === 'resolved';
+      const outstanding = status === 'outstanding';
       const sid = h.insight_id || 'insight';
       const domId = `${idPrefix}insight-${sid}`;
+      const suppressed = isInsightSuppressed(sid);
       const rankBadge = rank ? `<span class="rec-rank">#${rank}</span>` : '';
       const when = h.last_seen ? `Last seen ${fmtAgo(h.last_seen)}` : '';
+      const statusBadge = resolved
+        ? '<span class="rec-status resolved">Fixed</span>'
+        : h.condition_live
+          ? '<span class="rec-status live">Live</span>'
+          : '<span class="rec-status outstanding">Outstanding</span>';
+      const markFixedBtn = outstanding
+        ? `<button class="btn warn-hide" type="button" data-resolve-iid="${esc(sid)}" title="Mark as fixed">Mark fixed</button>`
+        : '';
+      const ignoreBtn = outstanding && !suppressed
+        ? `<button class="btn warn-hide" type="button" data-hide-iid="${esc(sid)}" title="Ignore — hide from dashboard and Guidance">Ignore</button>`
+        : '';
+      const reopenBtn = resolved
+        ? `<button class="btn warn-hide" type="button" data-reopen-iid="${esc(sid)}" title="Move back to outstanding">Reopen</button>`
+        : '';
+      const headActions = `${markFixedBtn}${ignoreBtn}${reopenBtn}`;
       const steps = (h.actions || []).map((a, ai) => `
         <div class="rec-step">
           <div class="rec-step-label">${esc(a.label)}</div>
@@ -5266,22 +5923,38 @@
             <pre class="script-pre" data-script-pre${cachedScript ? ' data-loaded="1"' : ''}>${cachedScript ? esc(cachedScript) : 'Loading script…'}</pre>
           </details>` : ''}
         </div>` : '';
-      const stepsBlock = steps ? `
+      const stepCount = (h.actions || []).length;
+      const stepsBlock = steps ? (isDetail ? `
+        <div class="rec-section">
+          <h4 class="rec-section-title">Steps${stepCount ? ` · ${stepCount}` : ''}</h4>
+          <div class="rec-steps rec-steps-open">${steps}</div>
+        </div>` : `
         <details class="rec-more" data-open-key="hint-${domId}-steps">
-          <summary>${(h.actions || []).length} steps</summary>
+          <summary>${stepCount} steps</summary>
           <div class="rec-steps">${steps}</div>
-        </details>` : '';
-      return `<article class="rec-card rec-${lv}${stale ? ' rec-stale' : ''}" data-level="${lv}" data-iid="${esc(sid)}" id="${domId}">
-        <header class="rec-head">
-          ${rankBadge}
-          ${sevBadge(lv, SEV_LABEL[lv] || lv)}
-          ${gameTag(h)}
-          <h3 class="rec-title">${esc(h.title)}${stale ? ' <span style="font-weight:400;color:var(--muted)">(cleared)</span>' : ''}</h3>
-        </header>
+        </details>`) : '';
+      const detailHead = isDetail
+        ? `<header class="rec-head">
+            ${statusBadge}
+            ${sevBadge(lv, SEV_LABEL[lv] || lv)}
+            ${gameTag(h)}
+            <h3 class="rec-title">${esc(h.title)}</h3>
+            ${headActions ? `<span class="rec-actions-head">${headActions}</span>` : ''}
+          </header>`
+        : `<header class="rec-head">
+            ${rankBadge}
+            ${statusBadge}
+            ${sevBadge(lv, SEV_LABEL[lv] || lv)}
+            ${gameTag(h)}
+            <h3 class="rec-title">${esc(h.title)}</h3>
+            ${headActions ? `<span class="rec-actions-head">${headActions}</span>` : ''}
+          </header>`;
+      return `<article class="rec-card rec-${lv}${resolved ? ' rec-stale' : ''}" data-level="${lv}" data-iid="${esc(sid)}" id="${domId}">
+        ${detailHead}
         <p class="rec-body">${esc(h.text)}</p>
         ${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}
-        ${scriptBlock}
         ${stepsBlock}
+        ${scriptBlock}
       </article>`;
     }
 
@@ -5360,6 +6033,24 @@
       el.querySelectorAll('.script-btn, .copy-btn, .fix-btn').forEach(btn => {
         btn.addEventListener('click', e => e.stopPropagation());
       });
+      el.querySelectorAll('.warn-hide[data-hide-iid]').forEach(btn => {
+        btn.onclick = e => {
+          e.stopPropagation();
+          suppressInsight(btn.dataset.hideIid);
+        };
+      });
+      el.querySelectorAll('[data-resolve-iid]').forEach(btn => {
+        btn.onclick = e => {
+          e.stopPropagation();
+          resolveInsight(btn.dataset.resolveIid);
+        };
+      });
+      el.querySelectorAll('[data-reopen-iid]').forEach(btn => {
+        btn.onclick = e => {
+          e.stopPropagation();
+          reopenInsight(btn.dataset.reopenIid);
+        };
+      });
       hydrateScriptPanels(el);
     }
 
@@ -5371,7 +6062,7 @@
       const sessionCls = lastActiveGameId && hintForActiveGame(h, lastActiveGameId) ? ' warn-row-session' : '';
       const game = gameTag(h);
       const hideBtn = lv === 'info'
-        ? `<button class="btn warn-hide" type="button" data-hide-iid="${esc(sid)}" title="Hide from warnings">Hide</button>`
+        ? `<button class="btn warn-hide" type="button" data-hide-iid="${esc(sid)}" title="Ignore this issue">Ignore</button>`
         : '';
       return `<div class="warn-row rec-${lv}${sessionCls}" data-iid="${esc(sid)}" data-hw="${esc(hwTags)}" id="warn-${domId}">
         <div class="warn-row-top">
@@ -5383,20 +6074,56 @@
       </div>`;
     }
 
+    async function postInsightAction(body) {
+      const res = await fetch('/api/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return res.json();
+    }
+
+    function refreshHintStatuses(hints) {
+      return (hints || []).map(h => {
+        const iid = h.insight_id;
+        const user_status = isInsightSuppressed(iid) ? 'ignored'
+          : isInsightResolved(iid) ? 'resolved' : 'outstanding';
+        return { ...h, user_status, active: user_status === 'outstanding' };
+      });
+    }
+
+    function applyInsightConfig(data) {
+      if (!data?.ok || !lastStatic) return false;
+      lastStatic.suppressed_insights = data.suppressed_insights || [];
+      lastStatic.resolved_insights = data.resolved_insights || [];
+      lastWarningsHints = refreshHintStatuses(lastWarningsHints);
+      lastFixesKey = '';
+      lastGameIssuesKey = '';
+      renderWarnings(lastWarningsHints);
+      renderFixes(lastWarningsHints);
+      renderSummaryBar(lastLatest, lastWarningsHints, lastComparison);
+      updateWarningsFocusUI();
+      return true;
+    }
+
     async function suppressInsight(insightId) {
       if (!insightId) return;
       try {
-        const res = await fetch('/api/store', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ suppress_insight: insightId }),
-        });
-        const data = await res.json();
-        if (!data.ok) return;
-        if (lastStatic) lastStatic.suppressed_insights = data.suppressed_insights || [];
-        renderWarnings(lastWarningsHints);
-        renderSummaryBar(lastLatest, lastWarningsHints, lastComparison);
-        updateWarningsFocusUI();
+        applyInsightConfig(await postInsightAction({ suppress_insight: insightId }));
+      } catch (_) { /* ignore */ }
+    }
+
+    async function resolveInsight(insightId) {
+      if (!insightId) return;
+      try {
+        applyInsightConfig(await postInsightAction({ resolve_insight: insightId }));
+      } catch (_) { /* ignore */ }
+    }
+
+    async function reopenInsight(insightId) {
+      if (!insightId) return;
+      try {
+        applyInsightConfig(await postInsightAction({ unresolve_insight: insightId }));
       } catch (_) { /* ignore */ }
     }
 
@@ -5450,77 +6177,69 @@
       updateWarningsFocusUI();
     }
 
-    function updateGuidanceSummary(issues) {
-      const summaryEl = document.getElementById('guidanceSummary');
-      const metaEl = document.getElementById('guidanceMeta');
-      const counts = { hot: 0, warn: 0, info: 0 };
-      issues.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
-      const pills = [
-        ['hot', 'Critical', counts.hot],
-        ['warn', 'Important', counts.warn],
-        ['info', 'Moderate', counts.info],
-      ].filter(([, , n]) => n > 0);
-      if (summaryEl) {
-        summaryEl.innerHTML = issues.length
-          ? `<span class="guidance-stat">${issues.length} active issue${issues.length === 1 ? '' : 's'}</span>${stablePillsHtml(pills)}`
-          : '<span class="guidance-stat">All clear right now</span>';
-      }
-      if (metaEl) {
-        metaEl.textContent = issues.length
-          ? 'Sorted by impact — cross-game issues rank highest.'
-          : 'Play a session and issues will appear here with scripts and steps.';
-      }
-    }
-
     function renderFixes(hints) {
       const list = hints || [];
-      const active = list.filter(h => h.active !== false);
+      const outstanding = guidanceOutstanding(list);
+      const liveOutstanding = guidanceLiveOutstanding(list);
+      const fixed = guidanceResolved(list);
       const resolutionHints = sortWarningsByPriority(
-        active.filter(h => h.bucket === 'resolutions' && h.level !== 'ok'),
+        liveOutstanding.filter(h => h.bucket === 'resolutions' && h.level !== 'ok'),
       );
-      const priorityPool = active.filter(h => h.bucket !== 'resolutions');
+      const priorityPool = liveOutstanding.filter(h => h.bucket !== 'resolutions');
       const priority = sortWarningsByPriority(priorityPool.filter(h => h.level !== 'ok'));
       const okOnly = priorityPool.filter(h => h.level === 'ok');
-      const display = priority.length ? priority : okOnly;
-      const cleared = list.filter(h => h.active === false);
-      const structKey = hintsStructKey(list);
+      const steamPriority = priority.filter(h => guidanceCategory(h) === 'steam');
+      const systemPriority = priority.filter(h => guidanceCategory(h) === 'system');
+      const steamOk = okOnly.filter(h => guidanceCategory(h) === 'steam');
+      const systemOk = okOnly.filter(h => guidanceCategory(h) === 'system');
+      const steamDisplay = steamPriority.length ? steamPriority : steamOk;
+      const systemDisplay = systemPriority.length ? systemPriority : systemOk;
+      const structKey = hintsStructKey(list) + '|' + suppressedInsights().join(',') + '|' + resolvedInsights().join(',');
+      const summaryHints = guidanceSummaryHints(list);
+      const indexGroups = [
+        { key: 'steam', label: 'Steam', hints: steamDisplay },
+        { key: 'system', label: 'Performance', hints: systemDisplay },
+        { key: 'resolutions', label: 'Resolutions', hints: resolutionHints },
+      ].map(g => ({
+        ...g,
+        hints: sortGuidanceHints(
+          g.hints.filter(h => h.level !== 'ok').length ? g.hints.filter(h => h.level !== 'ok') : g.hints,
+        ),
+      })).filter(g => g.hints.length);
+
       if (structKey === lastFixesKey) {
         updateRecMetas(list);
-        updateGuidanceSummary(priority.concat(resolutionHints));
+        updateGuidanceHeadStat(summaryHints);
         return;
       }
       lastFixesKey = structKey;
       capturePanelState();
-      updateGuidanceSummary(priority.concat(resolutionHints));
+      updateGuidanceHeadStat(summaryHints);
 
-      const el = document.getElementById('tuningHints');
-      el.innerHTML = display.length
-        ? display.map((h, i) => recCardHtml(h, '', priority.length ? i + 1 : 0)).join('')
-        : '<p class="sub" style="margin:0">Play a session — issues show up here when something needs attention.</p>';
-      bindHintActions(el, display);
+      const countHot = (arr) => arr.filter(h => h.level === 'hot').length;
+      guidanceSectionCounts.steam = guidanceHintCount(steamDisplay);
+      guidanceSectionCounts.steam_hot = countHot(steamPriority) > 0;
+      guidanceSectionCounts.system = guidanceHintCount(systemDisplay);
+      guidanceSectionCounts.system_hot = countHot(systemPriority) > 0;
+      guidanceSectionCounts.resolutions = resolutionHints.length;
+      guidanceSectionCounts.resolutions_hot = countHot(resolutionHints) > 0;
+      guidanceSectionCounts.fixed = fixed.length;
 
-      const resWrap = document.getElementById('guidanceResolutionsWrap');
-      const resEl = document.getElementById('tuningResolutions');
-      if (resWrap && resEl) {
-        resWrap.hidden = !resolutionHints.length;
-        resEl.innerHTML = resolutionHints.length
-          ? resolutionHints.map(h => recCardHtml(h, '', 0)).join('')
-          : '';
-        bindHintActions(resEl, resolutionHints);
+      const pickable = indexGroups.flatMap(g => g.hints);
+      const scanPickable = lastGuidanceScanFindings.map(f => guidanceScanPickId(f));
+      const stillSelected = lastSelectedGuidanceId?.startsWith('diag:')
+        ? scanPickable.includes(lastSelectedGuidanceId)
+        : pickable.find(h => h.insight_id === lastSelectedGuidanceId);
+      if (!lastSelectedGuidanceId || !stillSelected) {
+        lastSelectedGuidanceId = pickable[0]?.insight_id || scanPickable[0] || null;
+      }
+      if (guidanceIndexFilter === 'fixed' && !fixed.length) {
+        guidanceIndexFilter = 'all';
       }
 
-      const clearedWrap = document.getElementById('guidanceClearedWrap');
-      const clearedSum = document.getElementById('guidanceClearedSum');
-      const clearedEl = document.getElementById('tuningCleared');
-      if (cleared.length) {
-        if (clearedWrap) clearedWrap.hidden = false;
-        if (clearedSum) clearedSum.textContent = `${cleared.length} cleared issue${cleared.length === 1 ? '' : 's'}`;
-        clearedEl.innerHTML = cleared.map(h => recCardHtml(h)).join('');
-        bindHintActions(clearedEl, cleared);
-      } else {
-        if (clearedWrap) clearedWrap.hidden = true;
-        clearedEl.innerHTML = '';
-      }
+      renderGuidanceFilters();
+      renderGuidanceIndex(indexGroups, fixed, lastSelectedGuidanceId);
+      selectGuidanceHint(lastSelectedGuidanceId, { scroll: false });
 
       restorePanelState();
     }
@@ -5550,45 +6269,139 @@
       return cachedIssuesByGame;
     }
 
-    function renderGameIssues(byGame) {
-      const blocks = Object.values(byGame || {}).filter(g => g.issue_count > 0 || g.running);
-      const structKey = JSON.stringify(blocks.map(g => [g.id, g.running, g.issue_count, hintsStructKey(g.issues)]));
-      if (structKey === lastGameIssuesKey) return;
-      lastGameIssuesKey = structKey;
-      capturePanelState();
+    let lastGuidanceGameBlocks = [];
+    let guidanceGameMenuOpen = false;
+    let guidanceGamePickerBound = false;
 
-      const el = document.getElementById('gameIssues');
-      const panel = document.getElementById('guidanceGamesPanel');
-      const panelSum = document.getElementById('guidanceGamesSum');
-      const withIssues = blocks.filter(g => g.issue_count > 0);
-      if (!withIssues.length) {
-        if (panel) panel.hidden = true;
-        if (el) el.innerHTML = '';
-        restorePanelState();
+    function setGuidanceGameMenuOpen(open) {
+      guidanceGameMenuOpen = !!open;
+      const trigger = document.getElementById('guidanceGameTrigger');
+      const menu = document.getElementById('guidanceGameMenu');
+      if (!trigger || !menu) return;
+      trigger.classList.toggle('open', guidanceGameMenuOpen);
+      trigger.setAttribute('aria-expanded', guidanceGameMenuOpen ? 'true' : 'false');
+      menu.hidden = !guidanceGameMenuOpen;
+    }
+
+    function guidanceGameMenuItemHtml(g) {
+      const isAll = !g;
+      const pick = isAll ? '' : g.id;
+      const selected = (guidanceGameFilter || '') === pick;
+      const label = isAll ? 'All games' : g.name;
+      const dot = (!isAll && g.running)
+        ? '<span class="guidance-game-menu-dot" title="Running now" aria-hidden="true"></span>' : '';
+      const count = (!isAll && g.issue_count > 0)
+        ? `<span class="guidance-game-menu-count">${g.issue_count}</span>` : '';
+      return `<button type="button" class="guidance-game-menu-item${selected ? ' selected' : ''}" role="option" aria-selected="${selected}" data-game-filter="${esc(pick)}">
+        <span class="guidance-game-menu-check" aria-hidden="true">✓</span>
+        <span class="guidance-game-menu-label">${esc(label)}</span>
+        <span class="guidance-game-menu-meta">${dot}${count}</span>
+      </button>`;
+    }
+
+    function renderGuidanceGameMenu(games) {
+      const menu = document.getElementById('guidanceGameMenu');
+      if (!menu) return;
+      menu.innerHTML = [
+        guidanceGameMenuItemHtml(null),
+        games.length ? '<div class="guidance-game-menu-divider" role="separator"></div>' : '',
+        ...games.map(g => guidanceGameMenuItemHtml(g)),
+      ].filter(Boolean).join('');
+      menu.querySelectorAll('[data-game-filter]').forEach(btn => {
+        btn.onclick = () => {
+          guidanceGameFilter = btn.dataset.gameFilter || null;
+          setGuidanceGameMenuOpen(false);
+          updateGuidanceGamePickerUI(games);
+          renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
+        };
+      });
+    }
+
+    function updateGuidanceGamePickerUI(games) {
+      const trigger = document.getElementById('guidanceGameTrigger');
+      const labelEl = document.getElementById('guidanceGameTriggerLabel');
+      const dotEl = document.getElementById('guidanceGameTriggerDot');
+      const countEl = document.getElementById('guidanceGameTriggerCount');
+      if (!trigger || !labelEl || !dotEl || !countEl) return;
+      const list = games || lastGuidanceGameBlocks || [];
+      if (guidanceGameFilter && !list.some(g => g.id === guidanceGameFilter)) {
+        guidanceGameFilter = null;
+      }
+      const active = guidanceGameFilter ? list.find(g => g.id === guidanceGameFilter) : null;
+      trigger.classList.toggle('filtered', !!active);
+      if (!active) {
+        labelEl.textContent = 'All games';
+        dotEl.hidden = true;
+        countEl.hidden = true;
+        trigger.title = 'Show guidance for every game';
+        renderGuidanceGameMenu(list);
         return;
       }
-      if (panel) panel.hidden = false;
-      if (panelSum) {
-        panelSum.textContent = `By game · ${withIssues.length} title${withIssues.length === 1 ? '' : 's'}`;
+      labelEl.textContent = active.name;
+      dotEl.hidden = !active.running;
+      if (active.issue_count > 0) {
+        countEl.textContent = active.issue_count;
+        countEl.hidden = false;
+      } else {
+        countEl.hidden = true;
       }
-      el.innerHTML = withIssues.map(g => `
-        <div class="game-issues-block" id="game-issues-${g.id}">
-          <div class="game-issues-head">
-            <span class="game-issues-name">${esc(g.name)}</span>
-            ${g.running ? '<span class="game-issues-live">live</span>' : ''}
-            <span class="game-issues-count">${g.issue_count} issue${g.issue_count === 1 ? '' : 's'}</span>
-          </div>
-          <div class="game-issues-body">
-            ${g.issues.length
-              ? g.issues.map(h => recCardHtml(h, `g-${g.id}-`)).join('')
-              : '<p class="sub" style="margin:0">No issues logged yet for this game.</p>'}
-          </div>
-        </div>`).join('');
-      withIssues.forEach(g => {
-        const body = el.querySelector(`#game-issues-${g.id} .game-issues-body`);
-        if (body && g.issues.length) bindHintActions(body, g.issues);
+      trigger.title = `${active.name} — ${active.issue_count} issue${active.issue_count === 1 ? '' : 's'}`;
+      renderGuidanceGameMenu(list);
+    }
+
+    function bindGuidanceGamePicker() {
+      if (guidanceGamePickerBound) return;
+      const trigger = document.getElementById('guidanceGameTrigger');
+      const wrap = document.querySelector('.guidance-game-picker-wrap');
+      if (!trigger || !wrap) return;
+      trigger.onclick = (e) => {
+        e.stopPropagation();
+        setGuidanceGameMenuOpen(!guidanceGameMenuOpen);
+        if (guidanceGameMenuOpen) renderGuidanceGameMenu(lastGuidanceGameBlocks);
+      };
+      document.addEventListener('click', (e) => {
+        if (!guidanceGameMenuOpen) return;
+        if (!wrap.contains(e.target)) setGuidanceGameMenuOpen(false);
       });
-      restorePanelState();
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && guidanceGameMenuOpen) setGuidanceGameMenuOpen(false);
+      });
+      guidanceGamePickerBound = true;
+    }
+
+    function renderGameIssues(byGame) {
+      const blocks = Object.values(byGame || {})
+        .map(g => {
+          const issues = (g.issues || []).filter(h =>
+            hintUserStatus(h) === 'outstanding' && h.condition_live,
+          );
+          return { ...g, issues, issue_count: issues.length };
+        })
+        .filter(g => g.issue_count > 0 || g.running);
+      const structKey = JSON.stringify(blocks.map(g => [g.id, g.running, g.issue_count, hintsStructKey(g.issues)]));
+      const withIssues = blocks.filter(g => g.issue_count > 0);
+      guidanceSectionCounts.games = withIssues.length;
+
+      const dock = document.getElementById('guidanceGamesDock');
+      if (!dock) return;
+      if (!withIssues.length) {
+        dock.hidden = true;
+        lastGuidanceGameBlocks = [];
+        guidanceGameFilter = null;
+        setGuidanceGameMenuOpen(false);
+        return;
+      }
+      dock.hidden = false;
+      bindGuidanceGamePicker();
+      lastGuidanceGameBlocks = withIssues;
+
+      if (structKey === lastGameIssuesKey) {
+        updateGuidanceGamePickerUI(withIssues);
+        return;
+      }
+      lastGameIssuesKey = structKey;
+      updateGuidanceGamePickerUI(withIssues);
+      if (guidanceGameMenuOpen) renderGuidanceGameMenu(withIssues);
     }
 
     function renderSensorGroups(sensors) {
@@ -6022,7 +6835,11 @@
           metricsBootstrapped = true;
         } else {
           appendHistoryPoint(data.point);
-          if (data.cosmic_theme && lastStatic) lastStatic.cosmic_theme = data.cosmic_theme;
+          if (lastStatic) {
+            if (data.cosmic_theme) lastStatic.cosmic_theme = data.cosmic_theme;
+            if (data.resolved_insights) lastStatic.resolved_insights = data.resolved_insights;
+            if (data.suppressed_insights) lastStatic.suppressed_insights = data.suppressed_insights;
+          }
         }
         const l = data.latest, s = lastStatic;
         if (wasBootstrap || l.issues_by_game) {

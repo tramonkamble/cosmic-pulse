@@ -12,15 +12,18 @@ import time
 from pathlib import Path
 
 from games import (
-    STEAM,
     game_name_for_appid,
     installed_appids,
     steam_install_health,
+    steam_root,
     steam_update_needs_attention,
 )
 
 HOME = Path.home()
-STEAM_LOGS = STEAM / "logs"
+
+
+def _steam_logs() -> Path:
+    return steam_root() / "logs"
 
 # journal / dmesg lines matching these are ignored (cosmetic or benign)
 _NOISE_PATTERNS = re.compile(
@@ -47,6 +50,15 @@ _GAME_EXIT = re.compile(
 _BAD_GAME_EXITS = frozenset({1, 2, 3, 126, 127, 128, 137, 139, 143, 255})
 
 # ldconfig soname -> (apt package, description)
+_PROMOTE_SEVERITIES = frozenset({"hot", "warn"})
+
+# i386 soname -> (apt package, description) — needs `dpkg --add-architecture i386`
+_GAMING_LIBS_I386: list[tuple[str, str, str]] = [
+    ("libGL.so.1", "libgl1:i386", "OpenGL (32-bit)"),
+    ("libvulkan.so.1", "libvulkan1:i386", "Vulkan loader (32-bit)"),
+    ("libldap.so.2", "libldap2:i386", "LDAP (32-bit Proton/Wine)"),
+]
+
 _GAMING_LIBS: list[tuple[str, str, str]] = [
     ("libvulkan.so.1", "libvulkan1", "Vulkan loader"),
     ("libvulkan_radeon.so", "mesa-vulkan-drivers", "AMD Vulkan (Mesa)"),
@@ -111,7 +123,59 @@ def _ldconfig_map() -> str:
     return _run(["ldconfig", "-p"], timeout=5)
 
 
+def _ldconfig_has_i386_soname(libs: str, soname: str) -> bool:
+    """True if soname is registered for 32-bit (Pop/Ubuntu ldconfig uses (libc6) on i386 paths)."""
+    for line in libs.splitlines():
+        if soname not in line:
+            continue
+        if "(libc6,i386)" in line:
+            return True
+        if "i386-linux-gnu" in line:
+            return True
+    return False
+
+
+def _foreign_architectures() -> set[str]:
+    out = _run(["dpkg", "--print-foreign-architectures"], timeout=5)
+    return {ln.strip() for ln in out.splitlines() if ln.strip()}
+
+
+def _check_multilib(findings: list[dict]) -> None:
+    arches = _foreign_architectures()
+    if "i386" not in arches:
+        findings.append(_finding(
+            "lib-multilib-missing",
+            "libraries",
+            "warn",
+            "32-bit multilib not enabled",
+            "Steam and Proton need i386 libraries for many Windows games. "
+            "Enable the architecture once, then install common 32-bit packages.",
+            fix=(
+                "sudo dpkg --add-architecture i386 && sudo apt update && "
+                "sudo apt install libgl1:i386 libvulkan1:i386 libldap2:i386"
+            ),
+            source="dpkg",
+        ))
+        return
+    libs = _ldconfig_map()
+    missing_i386: list[tuple[str, str, str]] = []
+    for soname, pkg, desc in _GAMING_LIBS_I386:
+        if not _ldconfig_has_i386_soname(libs, soname):
+            missing_i386.append((soname, pkg, desc))
+    for soname, pkg, desc in missing_i386:
+        findings.append(_finding(
+            f"lib-missing-i386-{soname.replace('.', '-')}",
+            "libraries",
+            "warn",
+            f"Missing 32-bit library: {desc}",
+            f"`{soname}` (i386) not found — Proton games may fail to start or show a blank window.",
+            fix=f"sudo apt install {pkg}",
+            source="ldconfig-i386",
+        ))
+
+
 def _check_libraries(findings: list[dict]) -> None:
+    _check_multilib(findings)
     libs = _ldconfig_map()
     missing_required: list[tuple[str, str, str]] = []
     for soname, pkg, desc in _GAMING_LIBS:
@@ -142,7 +206,7 @@ def _check_libraries(findings: list[dict]) -> None:
         ))
 
     for bin_name, pkg, note in _OPTIONAL_BINS:
-        if bin_name == "steam" and STEAM.exists():
+        if bin_name == "steam" and steam_root().exists():
             continue
         if not shutil.which(bin_name):
             findings.append(_finding(
@@ -230,7 +294,7 @@ def _check_updates_and_disk(findings: list[dict]) -> None:
             ))
 
     try:
-        usage = shutil.disk_usage(STEAM)
+        usage = shutil.disk_usage(steam_root())
         free_gb = usage.free / 1024**3
         if free_gb < 15:
             findings.append(_finding(
@@ -240,7 +304,7 @@ def _check_updates_and_disk(findings: list[dict]) -> None:
                 f"Low disk space on Steam volume ({free_gb:.1f} GB free)",
                 "Less than 15 GB free — game updates and Proton prefixes can fail.",
                 fix="Clear old Proton prefixes · Steam → Settings → Storage",
-                source=str(STEAM),
+                source=str(steam_root()),
             ))
     except OSError:
         pass
@@ -260,7 +324,7 @@ def _check_steam_install_health(findings: list[dict]) -> None:
     for appid in installed_appids():
         health = steam_install_health(appid)
         name = game_name_for_appid(appid)
-        manifest = str(STEAM / "steamapps" / f"appmanifest_{appid}.acf")
+        manifest = str(steam_root() / "steamapps" / f"appmanifest_{appid}.acf")
 
         if health.get("files_corrupt"):
             findings.append(_finding(
@@ -275,16 +339,10 @@ def _check_steam_install_health(findings: list[dict]) -> None:
             ))
 
         if steam_update_needs_attention(health, running=False):
-            pending_mb = round(health["pending_download_bytes"] / 1024**2, 1)
-            stage_mb = round(health.get("pending_stage_bytes", 0) / 1024**2, 1)
+            from games import steam_update_summary_parts
+
             shader_mb = round(health.get("shader_cache_bytes", 0) / 1024**2, 1)
-            parts: list[str] = []
-            if health.get("update_suspended_while_running"):
-                parts.append("update paused while the game was running")
-            if pending_mb > 0:
-                parts.append(f"{pending_mb} MB download still pending")
-            if stage_mb > 0:
-                parts.append(f"{stage_mb} MB still staging")
+            parts = steam_update_summary_parts(health)
             if shader_mb > 200:
                 parts.append(f"{shader_mb} MB shader cache")
             text = " · ".join(parts) or "Steam update incomplete"
@@ -300,20 +358,21 @@ def _check_steam_install_health(findings: list[dict]) -> None:
 
 
 def _check_steam_logs(findings: list[dict]) -> None:
-    if not STEAM.exists():
+    steam = steam_root()
+    if not steam.exists():
         findings.append(_finding(
             "steam-missing",
             "steam",
             "hot",
             "Steam not found",
-            f"Expected Steam at {STEAM}",
+            f"Expected Steam at {steam}",
             fix="Install Steam from Pop!_Shop or https://store.steampowered.com",
             source="path",
         ))
         return
 
     # Game crash / bad exit codes from gameprocess log
-    gp_lines = _scan_log_tail(STEAM_LOGS / "gameprocess_log.txt", 800)
+    gp_lines = _scan_log_tail(_steam_logs() / "gameprocess_log.txt", 800)
     bad_exits: dict[str, list[int]] = {}
     for line in gp_lines:
         m = _GAME_EXIT.search(line)
@@ -338,7 +397,7 @@ def _check_steam_logs(findings: list[dict]) -> None:
 
     # Error lines from steam logs
     for log_name in _STEAM_LOG_FILES:
-        path = STEAM_LOGS / log_name
+        path = _steam_logs() / log_name
         hits = []
         for line in _scan_log_tail(path, 300):
             if not _ERROR_LINE.search(line):
@@ -361,7 +420,7 @@ def _check_steam_logs(findings: list[dict]) -> None:
 
 
 def _check_game_prefixes(findings: list[dict]) -> None:
-    compat_root = STEAM / "steamapps" / "compatdata"
+    compat_root = steam_root() / "steamapps" / "compatdata"
     for appid in installed_appids():
         meta_name = game_name_for_appid(appid)
         prefix = compat_root / appid
@@ -483,10 +542,22 @@ def run_diagnostics() -> dict:
 _cache: tuple[float, dict] = (0.0, {})
 
 
-def get_diagnostics(ttl_sec: float = 90.0) -> dict:
+def invalidate_diagnostics_cache() -> None:
+    """Drop cached diagnostics so the next read re-runs checks (e.g. after apt install)."""
+    global _cache
+    _cache = (0.0, {})
+
+
+def scan_findings(findings: list[dict], *, skip_ids: set[str] | None = None) -> list[dict]:
+    """Findings for the collapsed system-scan panel (excludes promoted Guidance cards)."""
+    skip = skip_ids or set()
+    return [f for f in findings if f["id"] not in skip and f["id"] != "all-clear"]
+
+
+def get_diagnostics(ttl_sec: float = 90.0, *, force: bool = False) -> dict:
     global _cache
     now = time.time()
-    if now - _cache[0] < ttl_sec and _cache[1]:
+    if not force and now - _cache[0] < ttl_sec and _cache[1]:
         return _cache[1]
     result = run_diagnostics()
     _cache = (now, result)

@@ -1,0 +1,156 @@
+# GPU performance and thermals
+rules:
+  - id: gpu-thermal-ceiling-hot
+    detect:
+      all:
+        - metric: thermal.fan_curve_helpful
+          eq: true
+        - metric: thermal.is_hot
+          eq: true
+    emit:
+      insight_id: gpu-thermal-ceiling
+      level: hot
+      title: GPU overheating
+      text: >-
+        Junction is {gpu.junction_c}°C. Near the {thermal.arch_label} throttle (~{thermal.hot_c:.0f}°C) —
+        lower graphics settings or improve cooling.
+      fix_script: gpu-thermal-ceiling
+      fix_kwargs:
+        junction_c: gpu.junction_c
+    actions:
+      - label: "In-game: lower shadow / LOD / draw distance"
+        kind: game
+        cmd: Lower Level of Detail, Shadow quality, and cap FPS 60–90
+
+  - id: gpu-thermal-ceiling-throttle
+    detect:
+      all:
+        - metric: thermal.fan_curve_helpful
+          eq: false
+        - metric: thermal.throttling
+          eq: true
+    emit:
+      insight_id: gpu-thermal-ceiling
+      level: warn
+      title: GPU throttling
+      text: >-
+        Junction {gpu.junction_c}°C and clocks dropped to {thermal.gfx_mhz} MHz
+        (session peak ~{thermal.peak_mhz} MHz). {thermal.arch_label} is throttling — lower graphics settings.
+      fix_script: gpu-thermal-ceiling
+      fix_kwargs:
+        junction_c: gpu.junction_c
+    actions:
+      - label: "In-game: lower shadow / LOD / draw distance"
+        kind: game
+        cmd: Lower Level of Detail, Shadow quality, and cap FPS 60–90
+
+  - id: gpu-thermal-warm
+    detect:
+      all:
+        - metric: thermal.fan_curve_helpful
+          eq: true
+        - metric: thermal.is_warm
+          eq: true
+    emit:
+      insight_id: gpu-thermal-warm
+      level: warn
+      title: GPU getting warm
+      text: >-
+        Junction is {gpu.junction_c}°C. {thermal.design_note}
+      fix_script: gpu-thermal-warm
+      fix_kwargs:
+        junction_c: gpu.junction_c
+    actions:
+      - label: Cap FPS in-game
+        kind: game
+        cmd: Graphics → Frame rate limit → 90
+      - label: Check GPU power
+        kind: cmd
+        cmd: sensors | grep -iE 'junction|ppt'
+
+  - id: gpu-thermal-by-design
+    detect:
+      metric: thermal.by_design
+      eq: true
+    emit:
+      insight_id: gpu-thermal-by-design
+      level: info
+      title: GPU running hot by design
+      text: >-
+        Junction {gpu.junction_c}°C — {thermal.design_note}
+        Clocks at {thermal.gfx_mhz} MHz (peak ~{thermal.peak_mhz} MHz this session).
+      fix_script: ""
+    actions:
+      - label: Check clocks + temps
+        kind: cmd
+        cmd: sensors | grep -E 'junction|edge|fan|PPT'
+        note: Stable clocks under load = normal for this architecture
+
+  - id: gpu-vram-bandwidth
+    detect:
+      all:
+        - metric: gpu.mem_busy_pct
+          gte: 65
+    emit:
+      insight_id: gpu-vram-bandwidth
+      level: info
+      title: VRAM bus is busy
+      text: >-
+        Memory controller at {gpu.mem_busy_pct:.0f}% (~{gpu.vram_used_mb} MB VRAM in use).
+        Textures are pushing the GDDR hard.
+      fix_script: gpu-vram-bandwidth
+      game_context: true
+      fix_kwargs:
+        mem_busy_pct: gpu.mem_busy_pct
+    actions:
+      - label: "In-game: reduce texture / asset quality"
+        kind: game
+        cmd: "{game.name} → graphics → lower texture and asset quality"
+
+  - id: gpu-vram-full
+    detect:
+      metric: gpu.vram_pct
+      gte: 80
+    emit:
+      insight_id: gpu-vram-full
+      level: warn
+      title: Running low on VRAM
+      text: >-
+        {gpu.vram_pct:.0f}% VRAM used ({gpu.vram_used_mb} MB). Spilling into system RAM causes stutters.
+      fix_script: gpu-vram-full
+      game_context: true
+      fix_kwargs:
+        vram_pct: gpu.vram_pct
+        vram_used_mb: gpu.vram_used_mb
+    actions:
+      - label: "In-game: lower resolution scale"
+        kind: game
+        cmd: "{game.name} → graphics → resolution scale 85–90%"
+      - label: "In-game: reduce texture quality"
+        kind: game
+        cmd: "{game.name} → graphics → medium textures"
+
+  - id: gpu-gtt-churn
+    detect:
+      all:
+        - metric: gpu.gtt_sustained_high
+          eq: true
+        - metric: gpu.gtt_rate_mbps
+          gt: 50
+        - metric: signals.gtt_spill_risk
+          eq: true
+    emit:
+      insight_id: gpu-gtt-churn
+      level: info
+      title: GPU using system RAM
+      text: >-
+        Shared memory pool churn at {gpu.gtt_rate_mbps:.0f} MB/s while VRAM is {gpu.vram_pct:.0f}% full
+        (GTT pool {gpu.gtt_pool_pct:.0f}% used). Lower textures or resolution if you see hitches.
+      fix_script: gpu-gtt-churn
+      game_context: true
+      fix_kwargs:
+        gtt_rate: gpu.gtt_rate_mbps
+    actions:
+      - label: "In-game: drop texture / asset mods"
+        kind: game
+        cmd: "{game.name} → disable high-res asset or texture mods"

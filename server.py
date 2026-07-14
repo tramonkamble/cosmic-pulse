@@ -29,9 +29,17 @@ from hardware_probe import (
     probe_storage,
 )
 from cosmic_theme import get_cosmic_theme
-from diagnostics import get_diagnostics
+from diagnostics import get_diagnostics, invalidate_diagnostics_cache
 from game_performance import seed_last_session, tick_game_performance
-from games import build_games_catalog, detect_games, primary_active_game, prime_game_cpu, running_game_ids
+from load_phase import tick_load_phase
+from games import (
+    LEGACY_GAME_IDS,
+    build_games_catalog,
+    detect_games,
+    primary_active_game,
+    prime_game_cpu,
+    running_game_ids,
+)
 from issue_aggregate import _games_for_active, build_issue_views, merge_games_seen
 from probe_memory import infer_fallback
 from stutter import attach_stutter
@@ -53,7 +61,15 @@ from apply_fix import apply_fix
 from gpu_metrics import read_gpu_engines
 from gpu_thermal import gpu_thermal_state, profile_for_model
 from hardware_profiles import detect_gpu_spec
-from pulse_config import get_suppressed_insights, load_config
+from guidance_auto import seed_clear_timers, tick_auto_resolve
+from pulse_config import (
+    get_insight_pref_sets,
+    get_resolved_insights,
+    get_suppressed_insights,
+    load_config,
+    resolve_insight,
+    unresolve_insight,
+)
 from tuning_actions import build_tuning_hints, fix_script_for_insight, system_context
 
 PORT = 8765
@@ -145,10 +161,16 @@ _prev_disk: tuple[int, int, float] | None = None
 _prev_swap: tuple[int, int, float] | None = None
 _prev_ctx: tuple[int, int, float] | None = None
 _prev_gtt: tuple[int, float] | None = None
+_gtt_high_streak: int = 0
 _prev_vmstat: tuple[dict[str, int], float] | None = None
 _prev_disk_busy: tuple[int, float] | None = None
 _sensors_cache: tuple[float, dict] = (0.0, {})
 _rate_smooth: dict[str, float] = {}
+_proc_stats_cache: tuple[float, int, int] = (0.0, 0, 0)
+_psi_cache: dict[str, tuple[float, dict | None]] = {}
+_tuning_ctx_cache: tuple[float, dict] = (0.0, {})
+_PROC_STATS_TTL = 3.0
+_TUNING_CTX_TTL = 5.0
 
 VRAM_PEAK_GBPS = 800.0
 # PCIe 4.0 x16 one-way theoretical payload ≈ 31.5 GB/s
@@ -174,8 +196,12 @@ def load_memory_spec() -> dict:
 
 _mem_spec: dict = {}
 _tuning_history: list[dict] = []
+_tuning_by_id: dict[str, dict] = {}
+_tuning_dirty = False
+_tuning_last_save = 0.0
 TUNING_LOG = ROOT / ".tuning_log.json"
 TUNING_MAX = 48
+TUNING_SAVE_SEC = 12.0
 BACKLOG_FILE = ROOT / "backlog.json"
 
 
@@ -184,6 +210,19 @@ def read_int(path: Path, scale: float = 1.0) -> int | None:
         return int(float(path.read_text().strip()) / scale)
     except (OSError, ValueError):
         return None
+
+
+def sanitize_pct(val: int | float | None, *, max_valid: float = 100.0) -> float | None:
+    """Drop amdgpu sentinel/overflow reads (e.g. 65535) from percent metrics."""
+    if val is None:
+        return None
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return None
+    if v < 0 or v > max_valid:
+        return None
+    return round(v, 1)
 
 
 def read_float(path: Path) -> float | None:
@@ -201,7 +240,7 @@ def read_str(path: Path) -> str | None:
 
 
 _gpu_spec: dict = {}
-_gpu_session_peak_mhz: float = 0.0
+_gpu_peak_by_game: dict[str, float] = {}
 
 
 def gpu_hwmon(base: Path) -> Path | None:
@@ -299,29 +338,53 @@ def parse_sensors() -> dict:
 
 
 def psi_read(kind: str) -> dict | None:
+    now = time.time()
+    cached = _psi_cache.get(kind)
+    if cached and now - cached[0] < 1.0:
+        return cached[1]
     path = Path(f"/proc/pressure/{kind}")
     if not path.exists():
+        _psi_cache[kind] = (now, None)
         return None
     try:
         text = path.read_text()
         m = re.search(r"some avg10=([\d.]+) avg60=([\d.]+) avg300=([\d.]+)", text)
         if not m:
+            _psi_cache[kind] = (now, None)
             return None
-        return {
+        result = {
             "avg10": float(m.group(1)),
             "avg60": float(m.group(2)),
             "avg300": float(m.group(3)),
         }
+        _psi_cache[kind] = (now, result)
+        return result
     except OSError:
+        _psi_cache[kind] = (now, None)
         return None
+
+
+def _proc_stats() -> tuple[int, int]:
+    """Process + thread counts (cached — full walk is ~20ms on this rig)."""
+    global _proc_stats_cache
+    now = time.time()
+    if now - _proc_stats_cache[0] < _PROC_STATS_TTL:
+        return _proc_stats_cache[1], _proc_stats_cache[2]
+    procs = len(psutil.pids())
+    threads = 0
+    for proc in psutil.process_iter(["num_threads"]):
+        try:
+            threads += proc.info["num_threads"] or 0
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    _proc_stats_cache = (now, procs, threads)
+    return procs, threads
 
 
 def swap_rates() -> dict:
     global _prev_swap
     now = time.time()
     sw = psutil.swap_memory()
-    sin, sout = psutil.swap_memory().sin, psutil.swap_memory().sout
-    # psutil exposes sin/sout on Linux
     try:
         sin = sw.sin  # type: ignore[attr-defined]
         sout = sw.sout  # type: ignore[attr-defined]
@@ -374,7 +437,7 @@ def read_dpm_active_mhz(path: Path) -> int | None:
 
 
 def gtt_rates(base: Path) -> dict:
-    global _prev_gtt
+    global _prev_gtt, _gtt_high_streak
     now = time.time()
     used = read_int(base / "mem_info_gtt_used")
     total = read_int(base / "mem_info_gtt_total")
@@ -386,11 +449,17 @@ def gtt_rates(base: Path) -> dict:
         if dt >= 0.5:
             raw = abs(used - prev[0]) / dt / 1024**2
             rate_mbps = round(ema_rate("gtt:mbps", raw, cap=20_000), 2)
+    if rate_mbps > 50:
+        _gtt_high_streak += 1
+    else:
+        _gtt_high_streak = 0
     return {
         "used_mb": round(used / 1024**2, 1) if used else None,
         "total_mb": round(total / 1024**2, 1) if total else None,
         "pct": round(100 * used / total, 1) if used and total else None,
         "rate_mbps": rate_mbps,
+        "sustained_high": _gtt_high_streak >= 3,
+        "high_streak": _gtt_high_streak,
     }
 
 
@@ -442,8 +511,8 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
     sens = parse_sensors()
     vram_used = read_int(base / "mem_info_vram_used", 1024**2)
     vram_total = read_int(base / "mem_info_vram_total", 1024**2)
-    busy = read_int(base / "gpu_busy_percent")
-    mem_busy = read_int(base / "mem_busy_percent")
+    busy = sanitize_pct(read_int(base / "gpu_busy_percent"))
+    mem_busy = sanitize_pct(read_int(base / "mem_busy_percent"))
     temp = read_int(hw / "temp1_input", 1000) if hw else None
     power_w = read_gpu_power_w(base, sens, sensor_prefix)
     fan = read_int(hw / "fan1_input") if hw else None
@@ -527,13 +596,7 @@ def sensor_wall(dgpu: dict | None = None, igpu: dict | None = None) -> list[dict
     sens = parse_sensors()
     du = psutil.disk_usage("/")
     uptime_s = int(float(open("/proc/uptime").read().split()[0]))
-    procs = len(psutil.pids())
-    threads = 0
-    for p in psutil.process_iter(["num_threads"]):
-        try:
-            threads += p.info["num_threads"] or 0
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
+    procs, threads = _proc_stats()
     freq = psutil.cpu_freq()
     sw = swap_rates()
     ctx = ctx_rates()
@@ -747,14 +810,75 @@ def tools_status() -> dict:
     }
 
 
+def _migrate_tuning_history() -> None:
+    """Normalize legacy game IDs and merge duplicate games_seen timestamps."""
+    from games import LEGACY_GAME_IDS, normalize_game_id
+
+    changed = False
+    for item in _tuning_history:
+        seen = item.get("games_seen") or {}
+        if seen:
+            merged: dict[str, float] = {}
+            for gid, ts in seen.items():
+                norm = normalize_game_id(gid)
+                if norm:
+                    merged[norm] = max(merged.get(norm, 0), float(ts or 0))
+            if merged != seen:
+                item["games_seen"] = merged
+                changed = True
+        games = item.get("games") or []
+        if games and games != ["all"]:
+            normed = []
+            for gid in games:
+                norm = normalize_game_id(gid)
+                if norm and norm not in normed:
+                    normed.append(norm)
+            if normed != games:
+                item["games"] = normed
+                changed = True
+        for legacy, canonical in LEGACY_GAME_IDS.items():
+            if canonical in (item.get("games_seen") or {}) and legacy in (item.get("games_seen") or {}):
+                item["games_seen"].pop(legacy, None)
+                changed = True
+        if item.get("active") is False:
+            item["active"] = True
+            changed = True
+        if "condition_live" not in item:
+            item["condition_live"] = False
+            changed = True
+    if changed:
+        save_tuning_log()
+
+
+def _rebuild_tuning_index() -> None:
+    global _tuning_by_id
+    _tuning_by_id = {
+        item["insight_id"]: item
+        for item in _tuning_history
+        if item.get("insight_id")
+    }
+
+
+def _find_tuning_item(iid: str | None, title: str) -> dict | None:
+    if iid:
+        hit = _tuning_by_id.get(iid)
+        if hit:
+            return hit
+    return next((x for x in _tuning_history if x.get("title") == title), None)
+
+
 def load_tuning_log() -> None:
     global _tuning_history
     if not TUNING_LOG.exists():
+        _rebuild_tuning_index()
         return
     try:
         _tuning_history = json.loads(TUNING_LOG.read_text())
+        _migrate_tuning_history()
+        _rebuild_tuning_index()
     except (json.JSONDecodeError, OSError):
         _tuning_history = []
+        _rebuild_tuning_index()
 
 
 def save_tuning_log() -> None:
@@ -764,16 +888,38 @@ def save_tuning_log() -> None:
         pass
 
 
-def update_tuning_history(active: list[dict], running_ids: list[str]) -> list[dict]:
-    global _tuning_history
+def _maybe_save_tuning_log(*, force: bool = False) -> None:
+    global _tuning_dirty, _tuning_last_save
+    if not _tuning_dirty and not force:
+        return
+    now = time.time()
+    if force or now - _tuning_last_save >= TUNING_SAVE_SEC:
+        save_tuning_log()
+        _tuning_last_save = now
+        _tuning_dirty = False
+
+
+def update_tuning_history(
+    active: list[dict],
+    running_ids: list[str],
+    snap: dict | None = None,
+) -> list[dict]:
+    global _tuning_history, _tuning_dirty
     now = time.time()
     active_ids = {h["insight_id"] for h in active if h.get("insight_id")}
+    resolved_ids, suppressed_ids = get_insight_pref_sets()
+    # Re-open when a marked-fixed issue clears then is detected again (not while still live).
+    for item in _tuning_history:
+        iid = item.get("insight_id")
+        if not iid or iid not in active_ids or iid not in resolved_ids:
+            continue
+        if not item.get("condition_live", False):
+            unresolve_insight(iid)
+            resolved_ids.discard(iid)
+            _tuning_dirty = True
     for h in active:
         iid = h.get("insight_id")
-        hit = next(
-            (x for x in _tuning_history if x.get("insight_id") == iid),
-            next((x for x in _tuning_history if x.get("title") == h["title"]), None) if iid else None,
-        )
+        hit = _find_tuning_item(iid, h["title"])
         game_hits = _games_for_active(h, running_ids)
         if hit:
             hit.update({
@@ -783,14 +929,19 @@ def update_tuning_history(active: list[dict], running_ids: list[str]) -> list[di
                 "actions": h.get("actions", []),
                 "insight_id": iid,
                 "fix_script": h.get("fix_script"),
+                "has_fix_script": h.get("has_fix_script"),
                 "requires_root": h.get("requires_root"),
                 "fixable": h.get("fixable"),
                 "games": h.get("games", ["all"]),
+                "bucket": h.get("bucket"),
                 "last_seen": now,
                 "count": hit.get("count", 1) + 1,
                 "active": True,
+                "condition_live": True,
             })
             merge_games_seen(hit, game_hits, now)
+            if iid:
+                _tuning_by_id[iid] = hit
         else:
             entry = {
                 **h,
@@ -798,38 +949,76 @@ def update_tuning_history(active: list[dict], running_ids: list[str]) -> list[di
                 "last_seen": now,
                 "count": 1,
                 "active": True,
+                "condition_live": True,
                 "games_seen": {},
             }
             merge_games_seen(entry, game_hits, now)
             _tuning_history.insert(0, entry)
+            if iid:
+                _tuning_by_id[iid] = entry
     for item in _tuning_history:
         iid = item.get("insight_id")
-        if iid and iid not in active_ids:
-            item["active"] = False
-        elif not iid and item.get("title") not in {h["title"] for h in active}:
-            item["active"] = False
+        if iid:
+            item["condition_live"] = iid in active_ids
+        item["active"] = True
+    if seed_clear_timers(
+        _tuning_history, active_ids, resolved_ids, suppressed_ids, now,
+    ):
+        _tuning_dirty = True
+    def _fresh_active_ids() -> set[str]:
+        invalidate_diagnostics_cache()
+        base = snap if snap is not None else _latest_full or {}
+        return {h["insight_id"] for h in tuning_hints(base) if h.get("insight_id")}
+
+    if tick_auto_resolve(
+        _tuning_history,
+        active_ids,
+        resolved_ids,
+        suppressed_ids,
+        now,
+        resolve_insight,
+        fresh_active_ids=_fresh_active_ids,
+    ):
+        _tuning_dirty = True
     _tuning_history.sort(
-        key=lambda x: (x.get("active", False), x.get("last_seen", 0)),
+        key=lambda x: (x.get("condition_live", False), x.get("last_seen", 0)),
         reverse=True,
     )
-    del _tuning_history[TUNING_MAX:]
-    save_tuning_log()
+    if len(_tuning_history) > TUNING_MAX:
+        del _tuning_history[TUNING_MAX:]
+        _rebuild_tuning_index()
+    _tuning_dirty = True
+    _maybe_save_tuning_log()
     return _tuning_history
 
 
-def tuning_hints(snap: dict) -> list[dict]:
+def _tuning_context() -> dict:
+    global _tuning_ctx_cache
+    now = time.time()
+    if now - _tuning_ctx_cache[0] < _TUNING_CTX_TTL:
+        return dict(_tuning_ctx_cache[1])
     ctx = system_context()
-    ctx["gpu_model"] = _gpu_spec.get("model", "")
     drm = discover_drm_cards()
     dpath = drm["discrete"]["device_path"]
-    ctx["gpu_card"] = drm["discrete"].get("card", "card1")
-    ctx["gpu_sysfs"] = str(dpath)
-    ctx["gpu_sensor"] = f"amdgpu-pci-{gpu_sensor_prefix()}"
+    ctx.update({
+        "gpu_model": _gpu_spec.get("model", ""),
+        "gpu_card": drm["discrete"].get("card", "card1"),
+        "gpu_sysfs": str(dpath),
+        "gpu_sensor": f"amdgpu-pci-{gpu_sensor_prefix()}",
+    })
+    _tuning_ctx_cache = (now, ctx)
+    return dict(ctx)
+
+
+def tuning_hints(snap: dict) -> list[dict]:
+    ctx = _tuning_context()
+    ctx["gpu_model"] = _gpu_spec.get("model", "")
     return build_tuning_hints(snap, _mem_spec, ctx)
 
 
 def collect_metrics() -> dict:
-    cpu_pct = psutil.cpu_percent(interval=0.08, percpu=True)
+    # interval=None: delta since last cpu_percent (primed in sampler) — avoids ~80ms block/tick.
+    cpu_pct = psutil.cpu_percent(interval=None, percpu=True)
     freqs = psutil.cpu_freq(percpu=True)
     per_core = []
     for i, pct in enumerate(cpu_pct):
@@ -861,15 +1050,21 @@ def collect_metrics() -> dict:
         _gpu_spec.get("label") or _gpu_spec.get("model", "GPU"),
         gpu_sensor_prefix(),
     )
-    global _gpu_session_peak_mhz
+    global _gpu_peak_by_game
     thermal_profile = (
         _gpu_spec.get("thermal_profile") or profile_for_model(_gpu_spec.get("model", ""))
     )
     dgpu["thermal_profile"] = thermal_profile
     gfx_mhz = dgpu.get("gfx_mhz")
-    if gfx_mhz and (dgpu.get("busy_pct") or 0) >= 25:
-        _gpu_session_peak_mhz = max(_gpu_session_peak_mhz, float(gfx_mhz))
-    dgpu["thermal_state"] = gpu_thermal_state(dgpu, thermal_profile, _gpu_session_peak_mhz)
+    active_gid = game_totals.get("game_id") if game_totals.get("running") else None
+    game_peak_mhz = 0.0
+    if active_gid:
+        busy_pct = dgpu.get("busy_pct") or 0
+        if gfx_mhz and busy_pct >= 25:
+            prev = _gpu_peak_by_game.get(active_gid, 0.0)
+            _gpu_peak_by_game[active_gid] = max(prev, float(gfx_mhz))
+        game_peak_mhz = _gpu_peak_by_game.get(active_gid, 0.0)
+    dgpu["thermal_state"] = gpu_thermal_state(dgpu, thermal_profile, game_peak_mhz)
     igpu = gpu_stats(
         igpu_device_path(),
         igpu_label(_static.get("cpu_model", "")),
@@ -923,10 +1118,11 @@ def collect_metrics() -> dict:
             "memory": mem_bw,
         },
     }
+    snap["load_phase"] = tick_load_phase(snap)
     with _lock:
         attach_stutter(snap, _history)
     active_hints = tuning_hints(snap)
-    history = update_tuning_history(active_hints, running_ids)
+    history = update_tuning_history(active_hints, running_ids, snap)
     views = build_issue_views(active_hints, history, running_ids, games_state)
     snap["tuning_active"] = active_hints
     snap["tuning"] = views["overall"]
@@ -962,14 +1158,14 @@ def cpu_temps() -> dict:
 
 
 def sampler():
-    global _history, _latest_full, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS, _gpu_session_peak_mhz
+    global _history, _latest_full, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS, _gpu_peak_by_game
     from hardware_probe import _drm_cache, _storage_cache
     _drm_cache = None
     _storage_cache = None
 
     _mem_spec = load_memory_spec()
     _gpu_spec = detect_gpu_spec()
-    _gpu_session_peak_mhz = 0.0
+    _gpu_peak_by_game = {}
     VRAM_PEAK_GBPS = _gpu_spec["vram_peak_gbps"]
     load_tuning_log()
     discover_drm_cards()
@@ -1010,8 +1206,10 @@ def sampler():
         "pulse_root": str(ROOT),
         "cosmic_theme": get_cosmic_theme(),
         "suppressed_insights": get_suppressed_insights(),
+        "resolved_insights": get_resolved_insights(),
         "pulse_config": load_config(),
         "games_catalog": build_games_catalog(),
+        "legacy_game_ids": dict(LEGACY_GAME_IDS),
     }
     net_rates()
     disk_rates()
@@ -1019,6 +1217,7 @@ def sampler():
     ctx_rates()
     gtt_rates(gpu_device_path())
     vmstat_rates()
+    psutil.cpu_percent(interval=0.1, percpu=True)
     prime_game_cpu()
     while True:
         _static["cosmic_theme"] = get_cosmic_theme()
@@ -1097,6 +1296,8 @@ class Handler(BaseHTTPRequestHandler):
                         "latest": latest,
                         "point": _history[-1] if _history else slim_history_point(_latest_full),
                         "cosmic_theme": _static.get("cosmic_theme"),
+                        "resolved_insights": get_resolved_insights(),
+                        "suppressed_insights": get_suppressed_insights(),
                     }
                 payload = json.dumps(body).encode()
             self.send_response(200)
@@ -1129,7 +1330,23 @@ class Handler(BaseHTTPRequestHandler):
                 "script": script,
             })
         elif path == "/api/diagnostics":
-            self._json(get_diagnostics())
+            from rule_packs import evaluate_rule_packs, scan_findings_for_guidance
+
+            force = (qs.get("force") or ["0"])[0] in ("1", "true", "yes")
+            diag = get_diagnostics(force=force)
+            with _lock:
+                gt = (_latest_full or {}).get("game_totals") or {}
+                active = gt.get("game_id") or gt.get("appid")
+                ctx = system_context()
+                _, emitted = evaluate_rule_packs(_latest_full or {}, _mem_spec, ctx)
+                scan = scan_findings_for_guidance(
+                    diag.get("findings") or [],
+                    emitted,
+                    active_appid=str(active) if active else None,
+                    running=bool(gt.get("running")),
+                )
+            diag = {**diag, "scan_findings": scan}
+            self._json(diag)
         elif path == "/api/store":
             self._json(store_stats())
         elif path == "/api/trends":

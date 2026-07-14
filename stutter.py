@@ -7,6 +7,7 @@ from __future__ import annotations
 SESSION_WINDOW_SEC = 300
 EVENT_SCORE = 38
 _EMA_SCORE: float | None = None
+_active_game_id: str | None = None
 
 CAUSE_LABELS = {
     "major_faults": "Major page faults",
@@ -15,6 +16,13 @@ CAUSE_LABELS = {
     "swap": "Swap activity",
     "disk_spike": "Disk write spike",
 }
+
+
+def reset_stutter_state() -> None:
+    """Clear EMA baseline (tests / game session boundaries)."""
+    global _EMA_SCORE, _active_game_id
+    _EMA_SCORE = None
+    _active_game_id = None
 
 
 def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
@@ -43,8 +51,35 @@ def _percentile(values: list[float], pct: float) -> float:
     return ordered[idx]
 
 
+def _sync_game_baseline(snap: dict) -> None:
+    """Reset hitch EMA when the active game changes or the session ends."""
+    global _EMA_SCORE, _active_game_id
+    gt = snap.get("game_totals") or {}
+    gid = gt.get("game_id") if gt.get("running") else None
+    if gid != _active_game_id:
+        _EMA_SCORE = None
+        _active_game_id = gid
+
+
+def _window_samples(history: list, now: float, window_sec: float) -> list:
+    """Recent history points within window_sec (newest history is at the end)."""
+    if not history:
+        return []
+    cutoff = now - window_sec
+    out: list = []
+    for point in reversed(history):
+        ts = point.get("ts") or 0
+        if ts < cutoff:
+            break
+        out.append(point)
+    out.reverse()
+    return out
+
+
 def compute_stutter(snap: dict) -> dict:
     global _EMA_SCORE
+
+    _sync_game_baseline(snap)
 
     dram = (snap.get("bandwidth") or {}).get("memory") or {}
     disk = snap.get("disk") or {}
@@ -109,9 +144,11 @@ def compute_stutter(snap: dict) -> dict:
 
 
 def session_stats(snap: dict, history: list) -> dict:
-    now = snap.get("ts") or 0
-    window = [h for h in history if (h.get("ts") or 0) >= now - SESSION_WINDOW_SEC]
-    samples = window + [snap]
+    now = float(snap.get("ts") or 0)
+    window = _window_samples(history, now, SESSION_WINDOW_SEC)
+    samples = window
+    if not samples or (samples[-1].get("ts") or 0) < now:
+        samples = window + [snap]
 
     scores: list[float] = []
     hitch_ms: list[float] = []
@@ -124,10 +161,16 @@ def session_stats(snap: dict, history: list) -> dict:
             events += 1
 
     avg = sum(scores) / len(scores) if scores else 0.0
+    span_sec = SESSION_WINDOW_SEC
+    if len(samples) >= 2:
+        span_sec = max(
+            1.0,
+            float(samples[-1].get("ts") or now) - float(samples[0].get("ts") or now),
+        )
     return {
         "window_sec": SESSION_WINDOW_SEC,
         "events": events,
-        "hitch_rate_per_min": round(events / (SESSION_WINDOW_SEC / 60), 2),
+        "hitch_rate_per_min": round(events / (span_sec / 60), 2),
         "score_avg": round(avg, 1),
         "score_p95": round(_percentile(scores, 0.95), 1),
         "hitch_ms_1pct": round(_percentile(hitch_ms, 0.99), 1),
