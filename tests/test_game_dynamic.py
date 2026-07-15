@@ -136,6 +136,27 @@ def test_lib_apt_install_built_from_findings():
     assert "add-architecture i386" in script
 
 
+def test_running_game_scoped_fix_script_skips_stale_history():
+    from tuning_actions import fix_script_for_insight
+
+    snap = _snap(game_totals={"running": True, "game_id": "3041230", "game_name": "Windrose"})
+    history = [
+        {
+            "insight_id": "game-files-corrupt",
+            "fix_script": '# CS2 stale\nsteam://validate/730\nCounter-Strike 2',
+        }
+    ]
+    script = fix_script_for_insight(
+        "game-files-corrupt",
+        snap,
+        {},
+        history=history,
+    )
+    assert "steam://validate/3041230" in script
+    assert "Counter-Strike" not in script
+    assert "steam://validate/730" not in script
+
+
 def test_idle_game_scoped_fix_script_skips_stale_history():
     from tuning_actions import fix_script_for_insight
 
@@ -228,6 +249,7 @@ if __name__ == "__main__":
     test_fix_script_uses_active_appid_not_cs2_default()
     test_game_context_kwargs_from_metrics()
     test_lib_apt_install_built_from_findings()
+    test_running_game_scoped_fix_script_skips_stale_history()
     test_idle_game_scoped_fix_script_skips_stale_history()
     test_prefix_reset_requires_running_game()
     test_no_game_metrics_context()

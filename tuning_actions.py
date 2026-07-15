@@ -142,7 +142,7 @@ def fix_script_for_insight(
     pack_script = resolve_fix_script_for_insight(insight_id, snap, mem_spec, ctx)
     if pack_script:
         return pack_script
-    if history and not (game_scoped and not active_appid):
+    if history and not game_scoped:
         for item in history:
             if item.get("insight_id") == insight_id:
                 cached = item.get("fix_script") or ""
