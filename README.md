@@ -21,7 +21,7 @@ Cosmic Pulse is a local web dashboard that helps you understand *why* a game stu
 
 - Linux with `/proc`, `/sys`, and optional `lm-sensors` (`sensors`)
 - Python **3.11+**
-- pip: [`psutil`](https://pypi.org/project/psutil/), [`PyYAML`](https://pypi.org/project/PyYAML/) — or distro packages `python3-psutil`, `python3-yaml`
+- Python deps: `sudo apt install python3-psutil python3-yaml` on Pop/Ubuntu, or `pip install -r requirements.txt`
 - AMD GPU metrics work best with amdgpu sysfs (`card1` discrete GPU assumed — see `server.py`)
 - Optional: `dmidecode`, `smartctl`, `corectrl`, `nvtop` (listed in the tools panel)
 

@@ -6,7 +6,16 @@ Three ways to run Pulse on a Linux PC. All are **local-only** — no cloud, no a
 
 - Linux with `/proc` and `/sys`
 - **Python 3.11+**
+- **python3-venv** (recommended for `install.sh`; script falls back to system Python if missing)
 - pip packages: `psutil`, `PyYAML` (or distro packages `python3-psutil`, `python3-yaml`)
+
+On Pop!_OS / Ubuntu, apt packages are enough (no pip required):
+
+```bash
+sudo apt install python3-psutil python3-yaml
+# optional, for venv-based install:
+sudo apt install python3-venv python3-pip
+```
 - Optional: `lm-sensors`, Steam (for game-aware features)
 
 ## Option 1 — Install script (recommended)

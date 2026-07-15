@@ -46,6 +46,23 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"
 }
 
+python_deps_ok() {
+  python3 -c "import psutil, yaml" >/dev/null 2>&1
+}
+
+install_python_deps() {
+  if python_deps_ok; then
+    log "Python deps satisfied (pip or distro packages)"
+    return 0
+  fi
+  if python3 -m pip --version >/dev/null 2>&1; then
+    python3 -m pip install --user -r "$INSTALL_DIR/requirements.txt"
+    return 0
+  fi
+  die "Missing psutil/PyYAML. On Pop!_OS / Ubuntu run:
+  sudo apt install python3-psutil python3-yaml python3-venv python3-pip"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dir)
@@ -90,7 +107,7 @@ need_cmd rsync
 [[ -f "$SOURCE_DIR/server.py" ]] || die "run install.sh from the Cosmic Pulse repo root"
 
 log "Installing to $INSTALL_DIR"
-mkdir -p "$INSTALL_DIR" "$BIN_DIR"
+mkdir -p "$INSTALL_DIR"
 
 rsync -a --delete \
   --exclude '.git/' \
@@ -107,16 +124,32 @@ rsync -a --delete \
   --exclude 'build/' \
   "$SOURCE_DIR/" "$INSTALL_DIR/"
 
+mkdir -p "$BIN_DIR"
+
 if [[ "$USE_SYSTEM_PYTHON" -eq 1 ]]; then
-  log "Installing Python dependencies (user site)"
-  python3 -m pip install --user -r "$INSTALL_DIR/requirements.txt"
+  log "Using system Python"
+  install_python_deps
   PYTHON_BIN="$(command -v python3)"
 else
   log "Creating virtualenv"
-  python3 -m venv "$INSTALL_DIR/.venv"
-  "$INSTALL_DIR/.venv/bin/pip" install -U pip
-  "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
-  PYTHON_BIN="$INSTALL_DIR/.venv/bin/python"
+  VENV_OK=0
+  if python3 -m venv "$INSTALL_DIR/.venv" >/dev/null 2>&1 \
+      && [[ -x "$INSTALL_DIR/.venv/bin/python" ]] \
+      && "$INSTALL_DIR/.venv/bin/python" -m pip --version >/dev/null 2>&1; then
+    VENV_OK=1
+  else
+    rm -rf "$INSTALL_DIR/.venv"
+  fi
+  if [[ "$VENV_OK" -eq 1 ]]; then
+    "$INSTALL_DIR/.venv/bin/pip" install -U pip
+    "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+    PYTHON_BIN="$INSTALL_DIR/.venv/bin/python"
+  else
+    log "venv unavailable — try: sudo apt install python3-venv"
+    log "Falling back to system Python"
+    install_python_deps
+    PYTHON_BIN="$(command -v python3)"
+  fi
 fi
 
 log "Installing wrapper: $WRAPPER"
