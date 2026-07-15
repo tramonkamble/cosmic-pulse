@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from guidance_auto import (
     AUTO_RESOLVE_CLEAR_SEC,
     CLEAR_SINCE_KEY,
+    DIAG_BACKED_INSIGHTS,
     seed_clear_timers,
     tick_auto_resolve,
 )
@@ -88,6 +89,46 @@ def test_auto_resolve_skips_when_live_again():
     )
     assert not resolved
     assert CLEAR_SINCE_KEY not in history[0]
+
+
+def test_fresh_active_ids_cached_once_per_tick():
+    calls = 0
+
+    def fresh() -> set[str]:
+        nonlocal calls
+        calls += 1
+        return {"game-libs-missing"}
+
+    history = [
+        {"insight_id": iid, CLEAR_SINCE_KEY: 0.0}
+        for iid in ("game-libs-missing", "steam-disk-low", "vulkan-broken")
+        if iid in DIAG_BACKED_INSIGHTS
+    ]
+    tick_auto_resolve(
+        history,
+        set(),
+        set(),
+        set(),
+        AUTO_RESOLVE_CLEAR_SEC + 1,
+        lambda _iid: None,
+        fresh_active_ids=fresh,
+    )
+    assert calls == 1
+
+
+def test_seed_clear_timers_tolerates_invalid_last_seen():
+    history = [{"insight_id": "swap-thrash", "last_seen": ""}]
+    now = 500.0
+    assert seed_clear_timers(history, set(), set(), set(), now)
+    assert history[0][CLEAR_SINCE_KEY] == now
+
+
+def test_auto_resolve_tolerates_invalid_clear_since():
+    resolved: list[str] = []
+    history = [{"insight_id": "swap-thrash", CLEAR_SINCE_KEY: "not-a-ts"}]
+    tick_auto_resolve(history, set(), set(), set(), 1000.0, resolved.append)
+    assert not resolved
+    assert history[0][CLEAR_SINCE_KEY] == 1000.0
 
 
 def test_auto_resolve_skips_resolved_and_suppressed():

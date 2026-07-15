@@ -10,6 +10,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from rule_packs import (
+    _get_path,
+    _has_unresolved_template,
+    _render_actions,
     eval_condition,
     evaluate_rule_packs,
     flatten_metrics,
@@ -106,6 +109,57 @@ def test_eval_condition_all_and_any():
         )
         is False
     )
+
+
+def test_unresolved_template_regex_ignores_json_like_braces():
+    assert _has_unresolved_template("{game.name}")
+    assert _has_unresolved_template("busy {gpu.busy_pct:.0f}%")
+    assert not _has_unresolved_template('echo \'{"ok": true}\'')
+    assert not _has_unresolved_template("PATH=$HOME/bin")
+
+
+def test_get_path_traverses_list_indices():
+    metrics = {"cpu": {"temps": {"ccd": [45.2, 46.1]}}}
+    assert _get_path(metrics, "cpu.temps.ccd.0") == 45.2
+    assert _get_path(metrics, "cpu.temps.ccd.1") == 46.1
+    assert _get_path(metrics, "cpu.temps.ccd.9") is None
+    assert render_template("CCD0 {cpu.temps.ccd.0:.0f}C", metrics) == "CCD0 45C"
+
+
+def test_render_template_leaves_missing_paths():
+    metrics = {"game": {"name": "Windrose"}}
+    assert render_template("Hi {game.name}", metrics) == "Hi Windrose"
+    assert render_template("Hi {game.missing}", metrics) == "Hi {game.missing}"
+    assert _get_path(metrics, "game.deep.path") is None
+
+
+def test_render_template_bad_format_falls_back_to_str():
+    metrics = {"cpu": {"overall_pct": 82.4}}
+    assert render_template("CPU {cpu.overall_pct:badfmt}%", metrics) == "CPU 82.4%"
+
+
+def test_render_actions_drops_unresolved_keeps_json_literals():
+    metrics = {"game": {"name": "Windrose", "appid": "3041230"}}
+    json_only = _render_actions(
+        [{"label": "JSON", "cmd": 'echo \'{"ok": true}\'', "note": "ok"}],
+        metrics,
+    )
+    assert len(json_only) == 1
+    assert json_only[0]["cmd"] == 'echo \'{"ok": true}\''
+
+    mixed = _render_actions(
+        [
+            {
+                "label": "Open {game.name}",
+                "cmd": 'echo \'{"ok": true}\'',
+                "note": "see {game.missing}",
+            },
+            {"label": "Valid", "cmd": "echo {game.appid}", "note": ""},
+        ],
+        metrics,
+    )
+    assert len(mixed) == 1
+    assert mixed[0]["cmd"] == "echo 3041230"
 
 
 def test_render_template_formats_numbers():

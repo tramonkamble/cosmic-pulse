@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -18,6 +19,13 @@ _SHADER_SIZE_CACHE: dict[str, tuple[float, int]] = {}
 _STEAM_HEALTH_TTL = 45.0
 _CONTENT_LOG_TTL = 30.0
 _SHADER_SIZE_TTL = 300.0
+
+
+def _prune_stale_cache(cache: dict[str, tuple[float, object]], ttl: float, *, now: float | None = None) -> None:
+    """Drop expired cache entries so AppID keys do not accumulate forever."""
+    ts = time.monotonic() if now is None else now
+    for key in [k for k, (cached_at, _) in cache.items() if ts - cached_at >= ttl]:
+        del cache[key]
 
 HOME = Path.home()
 
@@ -93,47 +101,58 @@ AUXILIARY_EXES = frozenset(
 # Populated from rule packs (see get_game_overrides / get_legacy_game_ids).
 _GAME_OVERRIDE_CACHE: dict[str, dict] | None = None
 _LEGACY_ID_CACHE: dict[str, str] | None = None
+_PACK_DATA_LOCK = threading.Lock()
 
 
 def _load_legacy_game_ids() -> dict[str, str]:
     global _LEGACY_ID_CACHE
     if _LEGACY_ID_CACHE is not None:
         return _LEGACY_ID_CACHE
-    try:
-        from rule_packs import get_legacy_game_ids
+    with _PACK_DATA_LOCK:
+        if _LEGACY_ID_CACHE is not None:
+            return _LEGACY_ID_CACHE
+        try:
+            from rule_packs import get_legacy_game_ids
 
-        _LEGACY_ID_CACHE = get_legacy_game_ids()
-    except Exception:
-        return {}
-    return _LEGACY_ID_CACHE
+            _LEGACY_ID_CACHE = get_legacy_game_ids()
+        except Exception:
+            return {}
+        return _LEGACY_ID_CACHE
 
 
 def _load_game_overrides() -> dict[str, dict]:
     global _GAME_OVERRIDE_CACHE
     if _GAME_OVERRIDE_CACHE is not None:
         return _GAME_OVERRIDE_CACHE
-    try:
-        from rule_packs import get_game_overrides
+    with _PACK_DATA_LOCK:
+        if _GAME_OVERRIDE_CACHE is not None:
+            return _GAME_OVERRIDE_CACHE
+        try:
+            from rule_packs import get_game_overrides
 
-        _GAME_OVERRIDE_CACHE = get_game_overrides()
-    except Exception:
-        return {}
-    return _GAME_OVERRIDE_CACHE
+            _GAME_OVERRIDE_CACHE = get_game_overrides()
+        except Exception:
+            return {}
+        return _GAME_OVERRIDE_CACHE
 
 
 class _LazyDict:
     """Dict-like view loaded from rule packs on first access."""
 
-    __slots__ = ("_loader", "_cache")
+    __slots__ = ("_loader", "_cache", "_lock")
 
     def __init__(self, loader):
         self._loader = loader
         self._cache: dict | None = None
+        self._lock = threading.Lock()
 
     def _data(self) -> dict:
-        if self._cache is None:
-            self._cache = self._loader()
-        return self._cache
+        if self._cache is not None:
+            return self._cache
+        with self._lock:
+            if self._cache is None:
+                self._cache = self._loader()
+            return self._cache
 
     def get(self, key, default=None):
         return self._data().get(key, default)
@@ -167,10 +186,12 @@ GAME_OVERRIDES = _LazyDict(_load_game_overrides)
 def reload_game_pack_data() -> None:
     """Invalidate cached pack-derived game tables (pack hot-reload / tests)."""
     global _GAME_OVERRIDE_CACHE, _LEGACY_ID_CACHE
-    _GAME_OVERRIDE_CACHE = None
-    _LEGACY_ID_CACHE = None
-    LEGACY_GAME_IDS._cache = None
-    GAME_OVERRIDES._cache = None
+    with _PACK_DATA_LOCK:
+        _GAME_OVERRIDE_CACHE = None
+        _LEGACY_ID_CACHE = None
+    for view in (LEGACY_GAME_IDS, GAME_OVERRIDES):
+        with view._lock:
+            view._cache = None
 
 
 def normalize_game_id(game_id: str | None) -> str | None:
@@ -494,6 +515,7 @@ def _dir_size_bytes(path: Path) -> int:
 
 def _shader_cache_bytes(appid: str) -> int:
     now = time.monotonic()
+    _prune_stale_cache(_SHADER_SIZE_CACHE, _SHADER_SIZE_TTL, now=now)
     cached = _SHADER_SIZE_CACHE.get(appid)
     if cached and now - cached[0] < _SHADER_SIZE_TTL:
         return cached[1]
@@ -653,6 +675,7 @@ def steam_install_health(appid: str, *, cache: bool = True) -> dict:
     """Parse Steam manifest + content_log for corrupt files / stalled updates."""
     now = time.monotonic()
     if cache:
+        _prune_stale_cache(_STEAM_HEALTH_CACHE, _STEAM_HEALTH_TTL, now=now)
         hit = _STEAM_HEALTH_CACHE.get(appid)
         if hit and now - hit[0] < _STEAM_HEALTH_TTL:
             return hit[1]

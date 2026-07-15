@@ -34,7 +34,9 @@ BUILTIN_RULES = PULSE_ROOT / "rules" / "builtin"
 USER_RULES = Path.home() / ".config" / "pulse" / "rules"
 
 _TEMPLATE_RE = re.compile(r"\{([^}]+)\}")
-_UNRESOLVED_TEMPLATE_RE = re.compile(r"\{[^}]+\}")
+_UNRESOLVED_TEMPLATE_RE = re.compile(
+    r"\{(?:[a-zA-Z0-9_]+)(?:\.[a-zA-Z0-9_]+)*(?::[^}]+)?\}"
+)
 _PACK_CACHE: dict[str, Any] = {"mtime": 0.0, "packs": []}
 
 
@@ -55,6 +57,11 @@ def _get_path(obj: Any, path: str) -> Any:
             continue
         if isinstance(cur, dict):
             cur = cur.get(part)
+        elif isinstance(cur, (list, tuple)) and part.isdigit():
+            idx = int(part)
+            if idx < 0 or idx >= len(cur):
+                return None
+            cur = cur[idx]
         else:
             return None
         if cur is None:
@@ -656,6 +663,7 @@ def _load_packs(force: bool = False) -> list[dict]:
     if not force and _PACK_CACHE["packs"] and latest <= _PACK_CACHE["mtime"]:
         return _PACK_CACHE["packs"]
 
+    had_cached_packs = bool(_PACK_CACHE["packs"])
     packs: list[dict] = []
     seen_ids: set[str] = set()
     for root in rule_search_paths():
@@ -693,12 +701,13 @@ def _load_packs(force: bool = False) -> list[dict]:
     packs.sort(key=lambda p: p["priority"], reverse=True)
     _PACK_CACHE["mtime"] = latest
     _PACK_CACHE["packs"] = packs
-    try:
-        from games import reload_game_pack_data
+    if had_cached_packs or force:
+        try:
+            from games import reload_game_pack_data
 
-        reload_game_pack_data()
-    except Exception:
-        pass
+            reload_game_pack_data()
+        except Exception:
+            pass
     return packs
 
 

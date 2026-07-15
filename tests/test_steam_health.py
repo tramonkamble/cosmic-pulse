@@ -5,12 +5,18 @@
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from games import (
     _candidate_appids_for_proc,
+    _prune_stale_cache,
+    _SHADER_SIZE_CACHE,
+    _SHADER_SIZE_TTL,
+    _STEAM_HEALTH_CACHE,
+    _STEAM_HEALTH_TTL,
     _tail_lines,
     clear_steam_health_caches,
     content_log_health,
@@ -148,6 +154,54 @@ def test_steam_health_cache_reuses_result():
     first = steam_install_health("730", cache=True)
     second = steam_install_health("730", cache=True)
     assert first is second
+
+
+def _health_blob(**overrides) -> dict:
+    base = {
+        "missing_game_files": False,
+        "update_suspended_while_running": False,
+        "update_delayed": False,
+        "update_active": False,
+        "manifest_pending_stale": False,
+        "pending_download_bytes": 0,
+        "pending_stage_bytes": 0,
+    }
+    base.update(overrides)
+    return base
+
+
+_MB = 1024**2
+
+
+def test_steam_update_needs_attention_thresholds():
+    cases = [
+        ("idle small pending", _health_blob(pending_download_bytes=10 * _MB), False, False),
+        ("idle large pending inactive", _health_blob(pending_download_bytes=25 * _MB), False, True),
+        ("running small pending", _health_blob(pending_download_bytes=4 * _MB), True, False),
+        ("running large pending", _health_blob(pending_download_bytes=6 * _MB), True, True),
+        ("running large stage", _health_blob(pending_stage_bytes=8 * _MB), True, True),
+        ("running active below threshold", _health_blob(pending_download_bytes=1 * _MB, update_active=True), True, False),
+        ("stale manifest ignores counters", _health_blob(pending_download_bytes=200 * _MB, manifest_pending_stale=True), False, False),
+        ("suspended while running", _health_blob(update_suspended_while_running=True), True, True),
+    ]
+    for label, health, running, expected in cases:
+        got = steam_update_needs_attention(health, running=running)
+        assert got is expected, label
+
+
+def test_steam_caches_prune_stale_appids():
+    clear_steam_health_caches()
+    now = time.monotonic()
+    _STEAM_HEALTH_CACHE["stale"] = (now - _STEAM_HEALTH_TTL - 1, {"appid": "stale"})
+    _STEAM_HEALTH_CACHE["fresh"] = (now, {"appid": "fresh"})
+    _SHADER_SIZE_CACHE["stale"] = (now - _SHADER_SIZE_TTL - 1, 99)
+    _SHADER_SIZE_CACHE["fresh"] = (now, 42)
+    _prune_stale_cache(_STEAM_HEALTH_CACHE, _STEAM_HEALTH_TTL, now=now)
+    _prune_stale_cache(_SHADER_SIZE_CACHE, _SHADER_SIZE_TTL, now=now)
+    assert "stale" not in _STEAM_HEALTH_CACHE
+    assert "fresh" in _STEAM_HEALTH_CACHE
+    assert "stale" not in _SHADER_SIZE_CACHE
+    assert _SHADER_SIZE_CACHE["fresh"][1] == 42
 
 
 def test_live_installed_games_not_false_positive():

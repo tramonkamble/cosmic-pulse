@@ -23,6 +23,15 @@ DIAG_BACKED_INSIGHTS = frozenset(
 )
 
 
+def _parse_timestamp(val: object) -> float | None:
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
 def seed_clear_timers(
     history: list[dict],
     active_ids: set[str],
@@ -39,7 +48,7 @@ def seed_clear_timers(
         if iid in active_ids:
             continue
         if CLEAR_SINCE_KEY not in item:
-            item[CLEAR_SINCE_KEY] = float(item.get("last_seen") or now)
+            item[CLEAR_SINCE_KEY] = _parse_timestamp(item.get("last_seen")) or now
             changed = True
     return changed
 
@@ -62,6 +71,7 @@ def tick_auto_resolve(
     """
     changed = False
     to_resolve: list[str] = []
+    fresh_ids: set[str] | None = None
     for item in history:
         iid = item.get("insight_id")
         if not iid or iid in resolved_ids or iid in suppressed_ids:
@@ -76,9 +86,16 @@ def tick_auto_resolve(
             item[CLEAR_SINCE_KEY] = now
             changed = True
             continue
-        if now - float(clear_since) >= AUTO_RESOLVE_CLEAR_SEC:
+        clear_at = _parse_timestamp(clear_since)
+        if clear_at is None:
+            item[CLEAR_SINCE_KEY] = now
+            changed = True
+            continue
+        if now - clear_at >= AUTO_RESOLVE_CLEAR_SEC:
             if iid in DIAG_BACKED_INSIGHTS and fresh_active_ids is not None:
-                if iid in fresh_active_ids():
+                if fresh_ids is None:
+                    fresh_ids = fresh_active_ids()
+                if iid in fresh_ids:
                     item[CLEAR_SINCE_KEY] = now
                     changed = True
                     continue
