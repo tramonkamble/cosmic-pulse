@@ -29,6 +29,9 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Changed
+- **README** — expanded for GitHub: quick start, install flags, config, security notice, troubleshooting, doc index.
+
 ### Added
 - **Installer** — `install.sh` (user-local venv + `cosmic-pulse` wrapper + optional systemd).
 - **Debian package** — `deploy/build-deb.sh` builds `cosmic-pulse_*_all.deb` for apt.
