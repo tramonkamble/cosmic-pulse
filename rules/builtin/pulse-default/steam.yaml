@@ -197,18 +197,22 @@ rules:
           eq: true
     emit:
       insight_id: proton-wayland-launch-fix
-      level: info
-      title: "{game.name}: Proton on Wayland — X11 override if mouse/camera acts up"
+      level: warn
+      title: "{game.name}: running on Wayland without X11 launch override"
       text: >-
-        {game.name} is running via Proton on Wayland ({session.desktop}).
-        If look is capped (~180°) or the cursor escapes, add the X11 launch
-        override and restart the game.
+        {game.name} is on Proton + Wayland ({session.desktop}) with no X11 launch
+        options in Steam (and the running process does not have the override).
+        Use Fix to write launch options, or copy them manually — then restart.
       fix_script: proton-wayland-launch-fix
       game_context: true
       games: active
       bucket: steam
       condition_live: true
     actions:
+      - label: Apply X11 launch option (Pulse)
+        kind: pulse
+        cmd: apply-fix:proton-wayland-launch-fix
+        note: Writes Steam launch options for {game.name} — restart the game after
       - label: Steam launch option (copy)
         kind: steam
         cmd: PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%

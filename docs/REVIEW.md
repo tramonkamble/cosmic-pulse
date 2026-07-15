@@ -34,9 +34,14 @@ server.py (sampler thread + HTTP)
 
 index.html
     └── fetch /api/metrics every 1s, render in-place (meters smoothed in JS)
+
+issue_aggregate.py + guidance_auto.py
+    └── persistent Guidance history, stable sort, auto-resolve
 ```
 
-Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` → UI. Tuning hints are rebuilt each tick from latest snapshot.
+Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` → UI. Tuning hints are rebuilt each tick; history merges via `update_tuning_history()`.
+
+**Deeper dive:** [ARCHITECTURE.md](ARCHITECTURE.md) — Guidance outstanding vs live, layout-key diffing, local config files.
 
 ## Suggested review focus
 
@@ -50,7 +55,7 @@ Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` →
 
 ### Medium priority
 
-6. **`index.html` size** — ~2.6k lines monolith. Splitting JS/CSS is a future refactor, not blocking.
+6. **`index.html` size** — ~7.9k lines monolith. Splitting JS/CSS is a future refactor, not blocking.
 7. **Stutter proxy accuracy** — `stutter.py` is heuristic, not real frametime. Document limitations vs MangoHud.
 8. **SQLite growth** — retention pruning in `store.py`; confirm bounds.
 9. **Error handling** — broad `except` in sampler loop; intentional for resilience but may hide bugs.
@@ -68,7 +73,8 @@ Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` →
 | 2 | `tuning_actions.py` — `build_tuning_hints` | User-facing recommendations |
 | 3 | `stutter.py` | Novel logic |
 | 4 | `benchmarks.py` — `hardware_comparison` | Tier/league math |
-| 5 | `index.html` — `tick()`, `renderVisualDashboard` | UI update strategy |
+| 5 | `index.html` — `tick()`, `renderFixes`, `hintsLayoutKey` | UI update + Guidance stability |
+| 6 | `issue_aggregate.py` — `build_issue_views`, `guidance_sort_key` | Guidance ordering |
 
 ## Known limitations (not bugs)
 

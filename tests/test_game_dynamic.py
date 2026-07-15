@@ -143,7 +143,7 @@ def test_running_game_scoped_fix_script_skips_stale_history():
     history = [
         {
             "insight_id": "game-files-corrupt",
-            "fix_script": '# CS2 stale\nsteam://validate/730\nCounter-Strike 2',
+            "fix_script": "# CS2 stale\nsteam://validate/730\nCounter-Strike 2",
         }
     ]
     script = fix_script_for_insight(
@@ -164,7 +164,7 @@ def test_idle_game_scoped_fix_script_skips_stale_history():
     history = [
         {
             "insight_id": "game-files-corrupt",
-            "fix_script": '# CS2 stale\nsteam://validate/730\nCounter-Strike 2',
+            "fix_script": "# CS2 stale\nsteam://validate/730\nCounter-Strike 2",
         }
     ]
     script = fix_script_for_insight(

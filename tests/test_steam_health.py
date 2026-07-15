@@ -11,12 +11,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from games import (
-    _candidate_appids_for_proc,
-    _prune_stale_cache,
     _SHADER_SIZE_CACHE,
     _SHADER_SIZE_TTL,
     _STEAM_HEALTH_CACHE,
     _STEAM_HEALTH_TTL,
+    _candidate_appids_for_proc,
+    _prune_stale_cache,
     _tail_lines,
     clear_steam_health_caches,
     content_log_health,
@@ -180,8 +180,18 @@ def test_steam_update_needs_attention_thresholds():
         ("running small pending", _health_blob(pending_download_bytes=4 * _MB), True, False),
         ("running large pending", _health_blob(pending_download_bytes=6 * _MB), True, True),
         ("running large stage", _health_blob(pending_stage_bytes=8 * _MB), True, True),
-        ("running active below threshold", _health_blob(pending_download_bytes=1 * _MB, update_active=True), True, False),
-        ("stale manifest ignores counters", _health_blob(pending_download_bytes=200 * _MB, manifest_pending_stale=True), False, False),
+        (
+            "running active below threshold",
+            _health_blob(pending_download_bytes=1 * _MB, update_active=True),
+            True,
+            False,
+        ),
+        (
+            "stale manifest ignores counters",
+            _health_blob(pending_download_bytes=200 * _MB, manifest_pending_stale=True),
+            False,
+            False,
+        ),
         ("suspended while running", _health_blob(update_suspended_while_running=True), True, True),
     ]
     for label, health, running, expected in cases:

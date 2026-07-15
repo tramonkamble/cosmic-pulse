@@ -6,7 +6,7 @@ Cosmic Pulse is a local web dashboard that helps you understand *why* a game stu
 
 ![Cosmic Pulse dashboard](docs/screenshots/dashboard.png)
 
-> **Status:** Pre-release — polishing for code review before publishing to GitHub/GitLab.
+> **Status:** v0.1 — initial public release. Feedback welcome via Issues.
 
 ## What it does
 
@@ -38,6 +38,16 @@ python3 server.py
 
 Open **http://localhost:8765** on a second monitor while gaming.
 
+### Configuration (optional)
+
+On first run, Pulse creates local state beside the app (not committed to git):
+
+```bash
+cp .pulse_config.example.json .pulse_config.json   # optional; defaults work without this
+```
+
+Edit retention days or mark insights fixed/ignored — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Run as a service (optional)
 
 ```bash
@@ -58,11 +68,17 @@ systemctl --user enable --now pulse
 | `benchmarks.py` | Hardware tier tables and league comparison |
 | `stutter.py` | Hitch / stutter proxy scoring |
 | `tuning_actions.py` | Insight generation and recommended actions |
+| `rule_packs.py` | YAML rule pack loader |
+| `rules/builtin/` | Default insight rules (GPU, Steam, resolutions, …) |
+| `issue_aggregate.py` | Guidance priority, per-game issues, stable sort |
+| `guidance_auto.py` | Auto-resolve and clear-after-fix timers |
 | `fix_scripts.py` | Per-issue bash fix script templates |
+| `apply_fix.py` | Safe one-click fixes (user-writable config only) |
 | `diagnostics.py` | System troubleshooting scanner |
-| `games.py` | Steam game registry and process detection |
+| `games.py` | Steam game detection, Proton/Wayland helpers |
 | `store.py` | SQLite history, retention, correlation APIs |
 | `probe_memory.py` | RAM speed probe (optional, may need sudo) |
+| `docs/ARCHITECTURE.md` | Data flow, Guidance contracts, config files |
 
 ## API
 
@@ -75,7 +91,7 @@ systemctl --user enable --now pulse
 
 ## Code review
 
-If you're reviewing this project (thanks!), start with **[docs/REVIEW.md](docs/REVIEW.md)** — architecture notes, security considerations, and suggested review focus areas.
+Start with **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for data flow and module map. Reviewers: **[docs/REVIEW.md](docs/REVIEW.md)** covers security and suggested focus areas.
 
 ## Contributing
 

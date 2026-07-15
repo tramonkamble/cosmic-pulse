@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from pulse_config import STATE_VERIFIED_INSIGHTS
+
 # Sustained absence from live rule eval before moving to Fixed.
 AUTO_RESOLVE_CLEAR_SEC = 60
 CLEAR_SINCE_KEY = "_clear_since"
@@ -75,6 +77,9 @@ def tick_auto_resolve(
     for item in history:
         iid = item.get("insight_id")
         if not iid or iid in resolved_ids or iid in suppressed_ids:
+            continue
+        if iid in STATE_VERIFIED_INSIGHTS:
+            item.pop(CLEAR_SINCE_KEY, None)
             continue
         if iid in active_ids:
             if CLEAR_SINCE_KEY in item:

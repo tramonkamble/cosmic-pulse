@@ -57,9 +57,11 @@ systemctl --user restart pulse   # service name unchanged
 ## What not to commit
 
 - `pulse.db`, `pulse.db-wal`, `pulse.db-shm`
-- `.tuning_log.json`, `.memory_cache.json`
-- `__pycache__/`, `.ruff_cache/`
+- `.pulse_config.json`, `.tuning_log.json`, `.memory_cache.json`
+- `backups/`, `__pycache__/`, `.ruff_cache/`
 - Machine-specific paths in `~/.config/systemd/user/pulse.service` (use `deploy/pulse.service` template in repo)
+
+Ship `.pulse_config.example.json` instead of a real config. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for what each local file does.
 
 ## Publishing later
 

@@ -6,8 +6,13 @@ __pycache__/
 # Runtime / local machine state
 pulse.db
 pulse.db-*
+.pulse_config.json
 .tuning_log.json
 .memory_cache.json
+backups/
+
+# Local review notes (not shipped)
+reviews_*-ux-review.md
 
 # Editor / OS
 *.swp

@@ -143,7 +143,7 @@
       margin: 0 0 1.1rem; font-size: 1.2rem; color: var(--text);
       font-weight: 500; letter-spacing: 0.04em;
     }
-    .stat, .bw-big, .rank-score, .sensor .val {
+    .stat, .bw-big, .rank-score, .drill-sensor-card .ds-val {
       font-variant-numeric: tabular-nums lining-nums;
       font-feature-settings: "kern" 1, "tnum" 1, "lnum" 1;
     }
@@ -640,6 +640,15 @@
       min-height: 8.25rem;
       min-width: min(100%, 52rem);
     }
+    .sum-grid.game-prominent {
+      grid-template-rows: auto auto auto;
+      grid-template-areas:
+        "health cpu mem league"
+        "health gpu gpu league"
+        "game game game game";
+      min-height: 0;
+      align-items: stretch;
+    }
     #sumHealthCell { grid-area: health; }
     #sumCpuCell { grid-area: cpu; }
     #sumMemCell { grid-area: mem; }
@@ -657,6 +666,14 @@
         min-height: 0;
         min-width: 100%;
       }
+      .sum-grid.game-prominent {
+        grid-template-rows: auto;
+        grid-template-areas:
+          "health health league"
+          "cpu mem gpu"
+          "game game game";
+        min-height: 0;
+      }
     }
     @media (max-width: 520px) {
       .sum-grid {
@@ -666,6 +683,36 @@
           "league league"
           "cpu mem"
           "gpu game";
+      }
+      .sum-grid.game-prominent {
+        grid-template-areas:
+          "health health"
+          "league league"
+          "cpu mem"
+          "gpu gpu"
+          "game game";
+      }
+      .sum-grid.game-prominent #sumGameCell {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "game-art"
+          "game-info"
+          "game-hero"
+          "game-stats";
+        column-gap: 0;
+        row-gap: .6rem;
+      }
+      .sum-grid.game-prominent #sumGameCell {
+        padding: 1rem 1.1rem 1.15rem;
+      }
+      .sum-grid.game-prominent #sumGameCell .sum-game-art {
+        height: 4rem;
+      }
+      .sum-grid.game-prominent #sumGameCell .sum-game-primary {
+        grid-template-columns: auto auto 1fr;
+      }
+      .sum-grid.game-prominent #sumGameCell .sum-game-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
     .sum-cell {
@@ -681,6 +728,208 @@
     .sum-foot { margin-top: auto; display: flex; flex-direction: column; gap: .35rem; }
     .sum-league-badge { min-height: 1.6rem; display: flex; align-items: center; }
     .sum-league-badge .rank-badge { font-size: .82rem; padding: .3rem .6rem; }
+    .sum-game-badge { min-height: 1.35rem; display: flex; align-items: center; }
+    .sum-game-badge:empty { display: none; }
+    .rating-tier-pill {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+      padding: .18rem .45rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.1);
+    }
+    .rating-tier-pill.excellent { color: var(--green); border-color: rgba(106,201,141,.35); background: rgba(106,201,141,.1); }
+    .rating-tier-pill.good { color: #8fd49a; border-color: rgba(143,212,154,.3); background: rgba(143,212,154,.08); }
+    .rating-tier-pill.fair { color: #f5c882; border-color: rgba(245,200,130,.3); background: rgba(245,200,130,.08); }
+    .rating-tier-pill.poor { color: #ff9f7a; border-color: rgba(255,159,122,.3); background: rgba(255,159,122,.08); }
+    .rating-tier-pill.bad { color: #ff8a7a; border-color: rgba(255,138,122,.35); background: rgba(255,138,122,.1); }
+    .sum-cell.game.tall { border-left: 4px solid color-mix(in srgb, var(--accent) 55%, transparent); }
+    .sum-grid.game-prominent #sumGameCell.sum-cell.game.tall {
+      padding-left: 1.65rem;
+    }
+    .sum-cell.game.tall.tier-excellent { border-left-color: var(--green); }
+    .sum-cell.game.tall.tier-good { border-left-color: #8fd49a; }
+    .sum-cell.game.tall.tier-fair { border-left-color: #f5c882; }
+    .sum-cell.game.tall.tier-poor { border-left-color: #ff9f7a; }
+    .sum-cell.game.tall.tier-bad { border-left-color: #ff8a7a; }
+    .sum-cell.game .sum-value.excellent { color: var(--green); }
+    .sum-cell.game .sum-value.good { color: #8fd49a; }
+    .sum-cell.game .sum-value.fair { color: #f5c882; }
+    .sum-cell.game .sum-value.poor { color: #ff9f7a; }
+    .sum-cell.game .sum-value.bad { color: #ff8a7a; }
+    .sum-grid.game-prominent #sumGameCell {
+      display: grid;
+      grid-template-columns: 10.5rem minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      grid-template-areas:
+        "game-art game-hero"
+        "game-info game-stats";
+      column-gap: 1.25rem;
+      row-gap: .75rem;
+      padding: 1.2rem 1.5rem 1.35rem 1.55rem;
+      align-items: center;
+      align-content: center;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      overflow: visible;
+    }
+    .sum-game-info {
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+      min-width: 0;
+      justify-content: center;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-art {
+      grid-area: game-art;
+      align-self: center;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-info {
+      grid-area: game-info;
+      align-self: center;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-info .sum-head { display: none; }
+    .sum-game-art {
+      width: 100%;
+      height: 4.35rem;
+      flex-shrink: 0;
+      border-radius: 9px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.09);
+      background: linear-gradient(145deg, rgba(0,0,0,.35), rgba(255,255,255,.04));
+      box-shadow: 0 4px 14px rgba(0,0,0,.22);
+    }
+    .sum-game-art[hidden],
+    .sum-game-art:not(.is-loaded) { display: none !important; }
+    .sum-game-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-head {
+      margin-bottom: 0;
+      min-width: 0;
+      align-items: flex-start;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-label {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      line-height: 1.25;
+    }
+    .sum-game-context {
+      font-size: .76rem;
+      color: var(--muted);
+      line-height: 1.4;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-context {
+      margin-top: 0;
+      padding-right: .15rem;
+    }
+    .sum-grid.game-prominent #sumGameCell.game-live .sum-game-context {
+      color: color-mix(in srgb, var(--accent) 70%, var(--muted));
+    }
+    .sum-game-primary {
+      display: flex;
+      align-items: center;
+      gap: .85rem;
+      min-width: 0;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-primary {
+      grid-area: game-hero;
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr);
+      align-items: center;
+      gap: .85rem 1.15rem;
+      width: 100%;
+      min-width: 0;
+      align-self: center;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-primary .sum-value {
+      font-size: 1.65rem;
+      white-space: nowrap;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-badge {
+      min-height: 0;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-primary .sum-meter.game {
+      width: 100%;
+      max-width: none;
+      min-width: 0;
+      justify-self: stretch;
+    }
+    .sum-game-stats {
+      display: grid;
+      gap: .55rem;
+      min-width: 0;
+      width: 100%;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-stats {
+      grid-area: game-stats;
+      grid-template-columns: repeat(var(--game-stat-cols, 5), minmax(0, 1fr));
+      padding-bottom: .1rem;
+    }
+    .sum-game-stats:empty,
+    .sum-game-stats[hidden] { display: none !important; }
+    .sum-grid.game-prominent #sumGameCell .sum-detail { display: none; }
+    .sum-game-banner {
+      display: none;
+      flex-direction: column;
+      gap: .2rem;
+      padding: 0 .05rem .15rem;
+    }
+    .sum-game-banner.is-visible { display: flex; }
+    .sum-game-section-title {
+      margin: 0; font-size: 1rem; font-weight: 600; color: var(--text);
+      line-height: 1.3; letter-spacing: -0.01em;
+    }
+    .sum-game-explainer {
+      margin: 0; font-size: .875rem; color: var(--muted); line-height: 1.4;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-head .sum-label {
+      font-size: .75rem; text-transform: none; letter-spacing: 0;
+      color: var(--muted); font-weight: 500;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-context {
+      font-size: .875rem; font-weight: 500; color: var(--text-secondary);
+    }
+    .sum-game-idle-pulse {
+      animation: game-idle-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes game-idle-pulse {
+      0%, 100% { opacity: .55; }
+      50% { opacity: 1; }
+    }
+    .sum-game-stat {
+      display: flex;
+      flex-direction: column;
+      gap: .15rem;
+      padding: .52rem .65rem .55rem;
+      border-radius: 9px;
+      background: rgba(0,0,0,.28);
+      border: none;
+      min-width: 0;
+      width: 100%;
+      overflow: hidden;
+    }
+    .sum-game-stat .k {
+      font-size: .75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--text-secondary);
+    }
+    .sum-game-stat .v {
+      font-size: .95rem; font-weight: 600; line-height: 1.1;
+      font-variant-numeric: tabular-nums; color: var(--text);
+    }
+    .sum-game-stat .s {
+      font-size: .68rem; color: var(--muted); line-height: 1.25;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+    .sum-game-stat.excellent .v { color: var(--green); }
+    .sum-game-stat.good .v { color: #8fd49a; }
+    .sum-game-stat.fair .v { color: #f5c882; }
+    .sum-game-stat.poor .v { color: #ff9f7a; }
+    .sum-game-stat.bad .v { color: #ff8a7a; }
+    .sum-game-stat.ok .v { color: var(--accent); }
 
     .sum-cell:hover { background: var(--panel-hover); border-color: var(--accent); box-shadow: 0 6px 22px rgba(0,0,0,.22); }
     .sum-cell.hot { border-left: 4px solid var(--hot); }
@@ -711,42 +960,48 @@
     .sum-meter.health.warn > span { background: linear-gradient(90deg, #b8863a, var(--amber)); }
     .sum-meter.league > span { background: linear-gradient(90deg, var(--purple), var(--blue)); box-shadow: 0 0 10px rgba(180,142,173,.4); }
     .sum-meter.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 75%, #000), var(--accent)); }
-    .viz-panel h2 { margin-bottom: .85rem; }
+    .viz-panel-head {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .65rem 1rem;
+      margin-bottom: .85rem;
+    }
+    .viz-panel-head h2 { margin: 0; flex: 1; min-width: 8rem; }
+    .viz-tabs {
+      display: flex; flex-wrap: wrap; gap: .35rem;
+      padding: .25rem; border-radius: 12px;
+      background: rgba(0,0,0,.2);
+    }
+    .viz-tab {
+      font-family: inherit; font-size: .875rem; font-weight: 500;
+      padding: .45rem .85rem; border-radius: 9px;
+      border: none; background: transparent; color: var(--muted);
+      cursor: pointer; transition: background .15s, color .15s;
+    }
+    .viz-tab:hover { color: var(--text); background: rgba(255,255,255,.05); }
+    .viz-tab.active {
+      color: var(--text); background: var(--panel-elevated);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--line) 80%, transparent);
+    }
+    .viz-tab[data-viz-tab="rig"].active { color: var(--blue); }
+    .viz-tab[data-viz-tab="index"].active { color: var(--purple); }
+    .viz-tab[data-viz-tab="stutter"].active { color: var(--amber); }
     .viz-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-areas:
-        "rig rig rig rig"
-        "stutter stutter stutter stutter"
-        "index index index index";
+      grid-template-columns: 1fr;
       gap: .85rem;
       align-items: stretch;
     }
-    .viz-area-rig { grid-area: rig; }
-    .viz-area-rig .viz-block { min-height: 32rem; }
-    .viz-area-index {
-      grid-area: index;
-      cursor: pointer;
-    }
-    .viz-area-index .viz-block { min-height: 35rem; }
+    .viz-area-rig,
+    .viz-area-index,
+    .viz-area-stutter { min-width: 0; }
+    .viz-grid .viz-area-index,
+    .viz-grid .viz-area-stutter { display: none; }
+    .viz-grid.viz-focus-rig .viz-area-rig { display: block; }
+    .viz-grid.viz-focus-index .viz-area-index { display: block; cursor: pointer; }
+    .viz-grid.viz-focus-stutter .viz-area-stutter { display: block; }
+    .viz-area-rig .viz-block { min-height: 22rem; }
+    .viz-area-index .viz-block { min-height: 20rem; }
+    .viz-area-stutter .viz-block { min-height: 20rem; }
     .viz-area-index:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
-    .viz-area-stutter { grid-area: stutter; }
-    .viz-area-stutter .viz-block { min-height: 35rem; }
-    @media (max-width: 1200px) {
-      .viz-grid {
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-areas:
-          "rig rig"
-          "stutter stutter"
-          "index index";
-      }
-    }
-    @media (max-width: 600px) {
-      .viz-grid {
-        grid-template-columns: 1fr;
-        grid-template-areas: "rig" "stutter" "index";
-      }
-    }
     .viz-block {
       background: var(--panel-elevated); border: 1px solid var(--line); border-radius: var(--radius);
       padding: 1rem 1.1rem; display: flex; flex-direction: column; min-height: 0; height: 100%;
@@ -978,44 +1233,78 @@
     .index-rank-foot .vs-neg { font-weight: 600; }
     .index-status .vs-pos,
     .index-status .vs-neg { font-weight: 600; }
-    .hw-status {
-      display: flex; flex-direction: column; gap: .6rem;
-      margin-top: 0; padding-top: 0;
+    .sensor-strip-wrap {
       border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-      padding-top: 1rem;
+      padding-top: .85rem;
     }
+    .sensor-strip-head {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .75rem;
+      margin-bottom: .55rem;
+    }
+    .sensor-strip-title {
+      font-size: .875rem; font-weight: 600; color: var(--text-secondary);
+      letter-spacing: .04em; text-transform: uppercase; flex: 1; min-width: 0;
+    }
+    .sensor-strip-link,
+    .sensor-strip-toggle {
+      font-family: inherit; font-size: .875rem; font-weight: 500;
+      color: var(--accent); background: transparent; border: none; cursor: pointer;
+      padding: .25rem .45rem; border-radius: 8px;
+    }
+    .sensor-strip-link:hover,
+    .sensor-strip-toggle:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .hw-status {
+      display: flex; flex-direction: column; gap: .5rem;
+      margin-top: 0; padding-top: 0;
+    }
+    .hw-status.collapsed .hw-status-row-secondary { display: none; }
     .hw-status-row {
-      display: grid; grid-template-columns: 4rem 1fr; gap: .7rem; align-items: center;
+      display: grid; grid-template-columns: 4.5rem 1fr; gap: .65rem; align-items: center;
+    }
+    @media (max-width: 900px) {
+      .hw-status-cards {
+        display: flex; flex-wrap: nowrap; overflow-x: auto;
+        overscroll-behavior-x: contain; scroll-snap-type: x proximity;
+        padding-bottom: .2rem;
+      }
+      .hw-status-card { flex: 0 0 min(9.5rem, 72vw); scroll-snap-align: start; }
     }
     @media (max-width: 520px) {
       .hw-status-row { grid-template-columns: 1fr; gap: .3rem; }
       .hw-status-label { padding-top: 0; }
     }
     .hw-status-label {
-      font-size: .58rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
       color: var(--muted); line-height: 1.35; padding-top: 0;
     }
     .hw-status-cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-      gap: .55rem; min-width: 0; width: 100%;
+      grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+      gap: .5rem; min-width: 0; width: 100%;
     }
     .hw-status-card {
       display: flex; align-items: center; gap: .6rem;
-      padding: .55rem .8rem; border-radius: 10px;
-      border: 1px solid var(--line); background: rgba(0,0,0,.18);
+      padding: .6rem .75rem; border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel-solid);
+      box-shadow: inset 3px 0 0 var(--hw-card-accent, rgba(255,255,255,.14));
       min-width: 0; width: 100%;
     }
+    .hw-status-card.accent-cpu { --hw-card-accent: var(--blue); }
+    .hw-status-card.accent-gpu { --hw-card-accent: var(--orange); }
+    .hw-status-card.accent-storage { --hw-card-accent: var(--green); }
+    .hw-status-card.accent-net { --hw-card-accent: #63d0de; }
+    .hw-status-card.accent-io { --hw-card-accent: var(--blue); }
     .hw-status-card .hw-icon-box {
       width: 1.85rem; height: 1.85rem; border-radius: 8px; flex-shrink: 0;
     }
-    .hw-status-card-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: .08rem; }
+    .hw-status-card-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: .1rem; }
     .hw-status-card-name {
-      font-size: .68rem; font-weight: 500; color: var(--text-secondary);
+      font-size: .75rem; font-weight: 600; color: var(--text-secondary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
     }
     .hw-status-card-val {
-      font-size: 1.02rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.15;
+      font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15;
       color: var(--text);
     }
     .hw-status-card.hot .hw-status-card-val { color: #ff8a7a; }
@@ -1023,7 +1312,7 @@
     .hw-status-card.hot .hw-icon-box { border-color: rgba(255,138,122,.35); }
     .hw-status-card.warn .hw-icon-box { border-color: rgba(245,200,130,.35); }
     .hw-status-empty {
-      font-size: .78rem; color: var(--muted); padding: .45rem 0; align-self: center;
+      font-size: .875rem; color: var(--muted); padding: .45rem 0; align-self: center;
     }
     .sensor-chip { justify-content: flex-start; }
     .glance-grid {
@@ -1032,7 +1321,8 @@
     .glance-cell {
       display: flex; align-items: center; gap: .6rem;
       padding: .55rem .65rem; border-radius: 10px;
-      background: rgba(0,0,0,.22); border: 1px solid var(--line);
+      background: var(--panel-solid); border: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
       min-width: 0;
     }
     .glance-cell .hw-icon-box { width: 2rem; height: 2rem; border-radius: 9px; flex-shrink: 0; }
@@ -1069,6 +1359,8 @@
       gap: 1rem 1.1rem; flex: 1; min-height: 28rem; align-items: stretch;
     }
     @media (max-width: 1100px) {
+      .stutter-layout { min-height: 0; }
+      .stutter-kpis { grid-template-columns: repeat(2, 1fr); }
       .stutter-layout {
         grid-template-columns: 1fr 1fr;
         grid-template-areas:
@@ -1146,12 +1438,13 @@
       display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; min-width: 0;
     }
     .stutter-kpi {
-      background: rgba(0,0,0,.22); border: 1px solid var(--line); border-radius: 8px;
-      padding: .45rem .5rem; text-align: center; min-width: 0;
+      background: rgba(0,0,0,.24); border: none; border-radius: 8px;
+      padding: .5rem .55rem; text-align: center; min-width: 0;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
     }
     .stutter-kpi .k {
-      display: block; font-size: .58rem; font-weight: 600; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--muted); margin-bottom: .1rem;
+      display: block; font-size: .75rem; font-weight: 600; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: .12rem;
     }
     .stutter-kpi .v {
       font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);
@@ -1162,7 +1455,7 @@
     .stutter-kpi .v.mild { color: #8ec0ff; }
     .stutter-kpi .v.ok { color: var(--green); }
     .stutter-kpi .s {
-      display: block; margin-top: .12rem; font-size: .58rem; font-weight: 500;
+      display: block; margin-top: .12rem; font-size: .75rem; font-weight: 500;
       color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .game-perf-live { margin-bottom: 1.1rem; }
@@ -1172,11 +1465,12 @@
     }
     .game-perf-kpi {
       padding: .55rem .65rem; border-radius: 12px;
-      background: rgba(255,255,255,.04); border: 1px solid var(--line);
+      background: rgba(0,0,0,.22); border: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
     }
     .game-perf-kpi .k {
-      display: block; font-size: .62rem; font-weight: 600; letter-spacing: .04em;
-      text-transform: uppercase; color: var(--muted);
+      display: block; font-size: .75rem; font-weight: 600; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--text-secondary);
     }
     .game-perf-kpi .v {
       display: block; margin-top: .18rem; font-size: 1.15rem; font-weight: 600; line-height: 1.1;
@@ -1187,8 +1481,21 @@
     .game-perf-kpi .v.poor { color: #ff9f7a; }
     .game-perf-kpi .v.bad { color: #ff8a7a; }
     .game-perf-kpi .s {
-      display: block; margin-top: .12rem; font-size: .58rem; color: var(--muted);
+      display: block; margin-top: .12rem; font-size: .75rem; color: var(--muted);
     }
+    .game-perf-zero {
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      gap: .55rem; padding: 1.75rem 1.25rem; margin: .5rem 0 .85rem;
+      border-radius: 12px; background: rgba(0,0,0,.18);
+    }
+    .game-perf-zero .hw-icon-box { width: 2.5rem; height: 2.5rem; border-radius: 11px; }
+    .game-perf-zero-title {
+      margin: 0; font-size: 1rem; font-weight: 600; color: var(--text);
+    }
+    .game-perf-zero-sub {
+      margin: 0; font-size: .875rem; color: var(--muted); line-height: 1.45; max-width: 22rem;
+    }
+    .game-perf-zero-pulse { animation: game-idle-pulse 2.4s ease-in-out infinite; }
     .game-perf-chart-box {
       height: 200px; margin: .5rem 0 .75rem; padding: .45rem;
       border-radius: 12px; background: rgba(0,0,0,.18); border: 1px solid var(--line);
@@ -1317,10 +1624,30 @@
       border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel-solid);
       overflow: hidden; box-shadow: var(--shadow);
     }
+    details.drill.drill-primary {
+      border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+      background: color-mix(in srgb, var(--panel-solid) 94%, var(--accent) 6%);
+    }
+    details.drill.drill-primary summary { font-weight: 600; }
+    details.drill.drill-secondary { opacity: .96; }
+    .drill-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.85rem; height: 1.85rem; border-radius: 8px; flex-shrink: 0;
+    }
+    .drill-icon.game { color: var(--accent); background: rgba(233,84,32,.12); }
+    .drill-icon.sensors { color: #63d0de; background: rgba(99,208,222,.1); }
+    .drill-icon.charts { color: var(--blue); background: rgba(98,160,234,.1); }
+    .drill-icon.bw { color: var(--green); background: rgba(106,201,141,.1); }
+    .drill-icon.compute { color: var(--blue); background: rgba(98,160,234,.1); }
+    .drill-icon.league { color: var(--purple); background: rgba(180,142,173,.12); }
+    .drill-icon.storage { color: var(--purple); background: rgba(180,142,173,.1); }
+    .drill-icon.checks { color: var(--amber); background: rgba(233,184,114,.1); }
+    .drill-icon.admin { color: var(--muted); background: rgba(255,255,255,.05); }
+    body.game-prominent-active #rigGameKpiCell { display: none; }
     body.cosmic-frosted details.drill { background: var(--panel); }
     details.drill summary {
       list-style: none; cursor: pointer; padding: 1rem 1.25rem;
-      display: grid; grid-template-columns: auto 1fr auto; gap: .75rem 1rem; align-items: center;
+      display: grid; grid-template-columns: auto auto 1fr auto; gap: .65rem 1rem; align-items: center;
       font-weight: 500; margin: 0; min-height: 3.25rem; box-sizing: border-box;
     }
     details.drill summary::-webkit-details-marker { display: none; }
@@ -1340,11 +1667,48 @@
     .drill-body .grid { margin: 0; }
     .chart-controls-top { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin-bottom: 1rem; }
     .section-target, .rec-card { scroll-margin-top: var(--header-scroll-offset, 6.5rem); }
-    .sensor-group { margin-bottom: 1rem; }
-    .sensor-group h3 { margin: 0 0 .65rem; font-size: 1rem; color: var(--muted); font-weight: 500; letter-spacing: 0.03em; }
-    .g-sensors { grid-template-columns: repeat(6, 1fr); }
-    @media (max-width: 1200px) { .g-sensors { grid-template-columns: repeat(4, 1fr); } }
-    @media (max-width: 700px) { .g-sensors { grid-template-columns: repeat(2, 1fr); } }
+    .sensor-group { margin-bottom: 1.15rem; }
+    .sensor-group h3 {
+      margin: 0 0 .55rem; font-size: .875rem; color: var(--text-secondary);
+      font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    }
+    .drill-sensor-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+      gap: .5rem;
+    }
+    @media (max-width: 700px) {
+      .drill-sensor-grid { grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
+    }
+    .drill-sensor-card {
+      display: flex; flex-direction: column; gap: .2rem;
+      padding: .65rem .75rem; border-radius: 10px;
+      border: 1px solid var(--line); background: var(--panel-solid);
+      box-shadow: inset 3px 0 0 var(--ds-accent, rgba(255,255,255,.12));
+      min-width: 0;
+    }
+    .drill-sensor-card .ds-name {
+      font-size: .75rem; font-weight: 600; color: var(--text-secondary);
+      line-height: 1.25; overflow: hidden; text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .drill-sensor-card .ds-val {
+      font-size: 1.15rem; font-weight: 700; color: var(--text);
+      font-variant-numeric: tabular-nums; line-height: 1.1; letter-spacing: -0.02em;
+    }
+    .drill-sensor-card .ds-unit {
+      font-size: .75rem; color: var(--muted); line-height: 1.2;
+    }
+    .drill-sensor-card.accent-cpu { --ds-accent: var(--blue); }
+    .drill-sensor-card.accent-gpu { --ds-accent: var(--orange); }
+    .drill-sensor-card.accent-storage { --ds-accent: var(--green); }
+    .drill-sensor-card.accent-net { --ds-accent: #63d0de; }
+    .drill-sensor-card.accent-mem { --ds-accent: var(--green); }
+    .drill-sensor-card.accent-sys { --ds-accent: rgba(255,255,255,.22); }
+    .drill-sensor-card.hot { border-color: color-mix(in srgb, #ff8a7a 35%, var(--line)); }
+    .drill-sensor-card.warn { border-color: color-mix(in srgb, #f5c882 35%, var(--line)); }
+    .drill-sensor-card.hot .ds-val { color: #ff9f8a; }
+    .drill-sensor-card.warn .ds-val { color: #f5d08a; }
     .warn-panel-head {
       display: flex; align-items: baseline; flex-wrap: wrap; gap: .55rem .85rem; margin-bottom: .4rem;
     }
@@ -1378,6 +1742,16 @@
     }
     .warn-more-link:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
     .warn-empty { margin: 0; padding: .5rem 0; font-size: .95rem; color: var(--muted); line-height: 1.45; }
+    .warn-clear-state {
+      display: flex; align-items: flex-start; gap: .75rem; padding: .65rem 0;
+    }
+    .warn-clear-state .hw-icon-box { flex-shrink: 0; margin-top: .1rem; }
+    .warn-clear-state strong { display: block; color: var(--green); font-size: 1rem; margin-bottom: .2rem; }
+    .warn-clear-state p { margin: 0; font-size: .875rem; }
+    .warn-clear-link {
+      font-family: inherit; font-size: inherit; font-weight: 500; color: var(--accent);
+      background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline;
+    }
     .warn-row {
       display: flex; flex-direction: column; gap: .4rem;
       padding: .75rem .95rem; border-radius: var(--radius); border: 1px solid var(--line);
@@ -1414,15 +1788,7 @@
     #warningList .warn-row.hw-filtered-hidden { display: none !important; }
     .sum-cell.game-live { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
     .game-issues-static { display: flex; flex-direction: column; gap: 1rem; }
-    .sensor {
-      padding: .9rem .75rem; border-radius: 12px; border: 1px solid var(--line);
-      background: var(--panel-solid); text-align: center;
-    }
-    .sensor .lbl { font-size: .9rem; color: var(--muted); margin-bottom: .35rem; }
-    .sensor .val { font-size: 1.65rem; color: var(--purple); font-weight: 600; letter-spacing: -0.015em; }
-    .sensor .unit { font-size: .85rem; color: var(--muted); }
-    .sensor.warn .val { color: var(--amber); }
-    .sensor.hot .val { color: var(--hot); }
+
     table { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
     th, td { text-align: left; padding: .75rem .6rem; border-bottom: 1px solid rgba(255,255,255,.05); color: var(--text); }
     th { color: var(--text-secondary); font-size: .95rem; font-weight: 500; letter-spacing: 0.03em; }
@@ -1573,10 +1939,14 @@
     .sensor-chip.hot .hw-chip-glyph { color: #ff8a7a; }
     .sensor-chip.warn .hw-chip-glyph { color: #f5c882; }
     .rig-panel {
-      margin-bottom: 0; padding: 0 0 1rem;
+      margin-bottom: 0; padding: 0 0 .65rem;
       background: transparent; border: none; border-radius: 0;
       border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
     }
+    .summary-bar.compact-rig .rig-panel { padding-bottom: .45rem; }
+    .summary-bar.compact-rig .rig-tile { min-height: 3.35rem; }
+    .summary-bar.compact-rig .rig-tile-art { width: 2.75rem; }
+    .summary-bar.compact-rig .rig-tile-name { font-size: .875rem; }
     .rig-strip-scroll {
       overflow-x: auto;
       overscroll-behavior-x: contain;
@@ -1609,6 +1979,13 @@
       border-radius: 0 2px 2px 0; background: var(--rig-accent, var(--accent));
       opacity: .3; pointer-events: none; transition: opacity .15s;
     }
+    .rig-tile-hint {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+      color: #fff; background: rgba(0,0,0,.55); opacity: 0; pointer-events: none;
+      transition: opacity .15s; z-index: 2;
+    }
+    .rig-tile:hover .rig-tile-hint { opacity: 1; }
     .rig-tile:hover { border-color: rgba(255,255,255,.18); }
     .rig-tile:hover::before { opacity: .28; }
     .rig-tile:hover::after { opacity: .48; }
@@ -1762,6 +2139,10 @@
         visibility .26s ease;
     }
     #summaryBar .sum-cell[data-hw] { max-height: 9rem; }
+    .sum-grid.game-prominent #sumGameCell[data-hw] {
+      max-height: none;
+      overflow: visible;
+    }
     #vizPanel .metric-bar[data-hw] { max-height: 6.5rem; }
     #vizPanel .glance-cell[data-hw] { max-height: 5rem; }
     #vizPanel .core-strip[data-hw],
@@ -1823,7 +2204,7 @@
 
   <main>
     <div id="pageDashboard" class="page active">
-    <section class="card summary-bar section-target" id="summaryBar">
+    <section class="card summary-bar compact-rig section-target" id="summaryBar">
       <div class="rig-panel">
         <div class="rig-strip-scroll">
         <div class="rig-strip" id="rigStrip" aria-label="Your hardware — click to filter"></div>
@@ -1864,9 +2245,19 @@
           <span class="sum-detail" id="sumGpuSub">—</span>
         </button>
         <button type="button" class="sum-cell game" id="sumGameCell" data-drill="drill-game" data-hw="cpu gpu">
-          <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label" id="sumGameLabel">Game</span></div>
-          <span class="sum-value" id="sumGameVal">—</span>
-          <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
+          <div class="sum-game-art" id="sumGameArt" hidden>
+            <img id="sumGameArtImg" alt="">
+          </div>
+          <div class="sum-game-info">
+            <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label" id="sumGameLabel">Game</span></div>
+            <span class="sum-game-context" id="sumGameContext"></span>
+          </div>
+          <div class="sum-game-primary">
+            <span class="sum-value" id="sumGameVal">—</span>
+            <div id="sumGameBadge" class="sum-game-badge"></div>
+            <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
+          </div>
+          <div class="sum-game-stats" id="sumGameStats" hidden></div>
           <span class="sum-detail" id="sumGameSub">—</span>
         </button>
         <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="pulseIndexBlock" data-hw-keep>
@@ -1882,12 +2273,30 @@
         </button>
       </div>
       </div>
-      <div class="hw-status" id="sensorStrip" aria-label="Hardware temperatures"></div>
+      <div class="sum-game-banner" id="sumGameBanner" hidden>
+        <h3 class="sum-game-section-title" id="sumGameSectionTitle"></h3>
+        <p class="sum-game-explainer" id="sumGameExplainer"></p>
+      </div>
+      <div class="sensor-strip-wrap">
+        <div class="sensor-strip-head">
+          <span class="sensor-strip-title">Hardware sensors</span>
+          <button type="button" class="sensor-strip-link" id="sensorStripDrillLink">All sensors →</button>
+          <button type="button" class="sensor-strip-toggle" id="sensorStripToggle" aria-expanded="false">Show all</button>
+        </div>
+        <div class="hw-status collapsed" id="sensorStrip" aria-label="Hardware sensors"></div>
+      </div>
     </section>
 
     <section class="card viz-panel section-target" id="vizPanel">
-      <h2>Live overview</h2>
-      <div class="viz-grid">
+      <div class="viz-panel-head">
+        <h2>Live overview</h2>
+        <div class="viz-tabs" role="tablist" aria-label="Live overview sections">
+          <button type="button" class="viz-tab active" role="tab" data-viz-tab="rig" aria-selected="true">Rig snapshot</button>
+          <button type="button" class="viz-tab" role="tab" data-viz-tab="index" aria-selected="false">Pulse Index</button>
+          <button type="button" class="viz-tab" role="tab" data-viz-tab="stutter" aria-selected="false">Stutter</button>
+        </div>
+      </div>
+      <div class="viz-grid viz-focus-rig" id="vizGrid">
         <div class="viz-block viz-area-rig" id="rigSnapshotBlock">
           <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="activity"></span><h3>Rig snapshot</h3></div>
           <div class="viz-block-body">
@@ -1924,7 +2333,7 @@
                     <span class="v" id="rigHottest">—</span>
                     <span class="s" id="rigHottestSub">sensor</span>
                   </div>
-                  <div class="stutter-kpi">
+                  <div class="stutter-kpi" id="rigGameKpiCell">
                     <span class="k">Game</span>
                     <span class="v" id="rigGameKpi">—</span>
                     <span class="s" id="rigGameSub">foreground</span>
@@ -2089,16 +2498,44 @@
     </section>
 
     <div class="drill-stack">
-      <details class="drill" id="drill-sensors" data-open-key="drill-sensors" data-hw="all">
-        <summary><span class="drill-title">Sensors</span><span class="drill-rollup" id="drillSensorsSum">—</span></summary>
+      <details class="drill drill-primary" id="drill-game" data-open-key="drill-game" data-hw="cpu gpu all">
+        <summary><span class="drill-icon game" data-glyph="game"></span><span class="drill-title">Game performance</span><span class="drill-rollup" id="drillGameSum">—</span></summary>
+        <div class="drill-body">
+          <div class="game-perf-live" id="gamePerfLive">
+            <p class="section-lead" id="gamePerfLead">Live session stats while a Steam game is running.</p>
+            <div class="game-perf-kpis" id="gamePerfKpis"></div>
+            <p class="section-lead" id="gamePerfTrendLead" style="margin:.35rem 0 .15rem">This session</p>
+            <div class="game-perf-chart-box"><canvas id="gamePerfChart"></canvas></div>
+            <p class="section-lead" style="margin:.5rem 0 .15rem">Past session ratings</p>
+            <div class="game-perf-chart-box game-perf-chart-box-sm"><canvas id="gamePerfSessionsChart"></canvas></div>
+            <div class="game-perf-markers" id="gamePerfMarkers"></div>
+            <div class="game-perf-history">
+              <h3 class="guidance-section-title" style="margin:.2rem 0 .45rem">Past sessions</h3>
+              <table>
+                <thead><tr><th>When</th><th>Rating</th><th>Smooth</th><th>1% low</th><th>Hitches</th><th>Duration</th></tr></thead>
+                <tbody id="gamePerfHistory"></tbody>
+              </table>
+            </div>
+          </div>
+          <h3 class="guidance-section-title" style="margin:1rem 0 .45rem">Processes</h3>
+          <p class="section-lead" id="gameProcLead">Main game executable and related children.</p>
+          <table>
+            <thead><tr><th>PID</th><th>Name</th><th>Role</th><th>CPU%</th><th>RAM MB</th></tr></thead>
+            <tbody id="procBody"></tbody>
+          </table>
+        </div>
+      </details>
+
+      <details class="drill drill-secondary" id="drill-sensors" data-open-key="drill-sensors" data-hw="all">
+        <summary><span class="drill-icon sensors" data-glyph="temp"></span><span class="drill-title">Sensors</span><span class="drill-rollup" id="drillSensorsSum">—</span></summary>
         <div class="drill-body section-target" id="sensorsSection">
           <div class="sensor-status" id="sensorStatus"></div>
           <div id="sensorGroups"></div>
         </div>
       </details>
 
-      <details class="drill" id="drill-charts" data-open-key="drill-charts" data-hw="all">
-        <summary><span class="drill-title">Charts</span><span class="drill-rollup" id="drillChartsSum">—</span></summary>
+      <details class="drill drill-secondary" id="drill-charts" data-open-key="drill-charts" data-hw="all">
+        <summary><span class="drill-icon charts" data-glyph="activity"></span><span class="drill-title">Charts</span><span class="drill-rollup" id="drillChartsSum">—</span></summary>
         <div class="drill-body section-target" id="chartsSection">
           <div class="chart-controls-top">
             <span class="ctrl-label">Span</span>
@@ -2147,8 +2584,8 @@
         </div>
       </details>
 
-      <details class="drill" id="drill-bandwidth" data-open-key="drill-bandwidth" data-hw="memory gpu all">
-        <summary><span class="drill-title">Bandwidth</span><span class="drill-rollup" id="drillBwSum">—</span></summary>
+      <details class="drill drill-secondary" id="drill-bandwidth" data-open-key="drill-bandwidth" data-hw="memory gpu all">
+        <summary><span class="drill-icon bw" data-glyph="ram"></span><span class="drill-title">Bandwidth</span><span class="drill-rollup" id="drillBwSum">—</span></summary>
         <div class="drill-body section-target" id="bandwidthSection">
           <div class="grid g-bw">
             <div class="card" data-hw="gpu all">
@@ -2163,8 +2600,8 @@
         </div>
       </details>
 
-      <details class="drill" id="drill-compute" data-open-key="drill-compute" data-hw="cpu gpu all">
-        <summary><span class="drill-title">Compute</span><span class="drill-rollup" id="drillComputeSum">—</span></summary>
+      <details class="drill drill-secondary" id="drill-compute" data-open-key="drill-compute" data-hw="cpu gpu all">
+        <summary><span class="drill-icon compute" data-glyph="cpu"></span><span class="drill-title">Compute</span><span class="drill-rollup" id="drillComputeSum">—</span></summary>
         <div class="drill-body section-target" id="coresSection">
           <div class="grid g-mid">
             <div class="card" data-hw="cpu all">
@@ -2181,8 +2618,8 @@
         </div>
       </details>
 
-      <details class="drill" id="drill-league" data-open-key="drill-league" data-hw="all">
-        <summary><span class="drill-title">Pulse Index</span><span class="drill-rollup" id="drillLeagueSum">—</span></summary>
+      <details class="drill drill-secondary" id="drill-league" data-open-key="drill-league" data-hw="all">
+        <summary><span class="drill-icon league" data-glyph="league"></span><span class="drill-title">Pulse Index</span><span class="drill-rollup" id="drillLeagueSum">—</span></summary>
         <div class="drill-body section-target" id="leagueSection">
           <div class="rank-head">
             <div>
@@ -2206,36 +2643,8 @@
         </div>
       </details>
 
-      <details class="drill" id="drill-game" data-open-key="drill-game" data-hw="cpu gpu all">
-        <summary><span class="drill-title">Game performance</span><span class="drill-rollup" id="drillGameSum">—</span></summary>
-        <div class="drill-body">
-          <div class="game-perf-live" id="gamePerfLive">
-            <p class="section-lead" id="gamePerfLead">Live session stats while a Steam game is running.</p>
-            <div class="game-perf-kpis" id="gamePerfKpis"></div>
-            <p class="section-lead" id="gamePerfTrendLead" style="margin:.35rem 0 .15rem">This session</p>
-            <div class="game-perf-chart-box"><canvas id="gamePerfChart"></canvas></div>
-            <p class="section-lead" style="margin:.5rem 0 .15rem">Past session ratings</p>
-            <div class="game-perf-chart-box game-perf-chart-box-sm"><canvas id="gamePerfSessionsChart"></canvas></div>
-            <div class="game-perf-markers" id="gamePerfMarkers"></div>
-            <div class="game-perf-history">
-              <h3 class="guidance-section-title" style="margin:.2rem 0 .45rem">Past sessions</h3>
-              <table>
-                <thead><tr><th>When</th><th>Rating</th><th>Smooth</th><th>1% low</th><th>Hitches</th><th>Duration</th></tr></thead>
-                <tbody id="gamePerfHistory"></tbody>
-              </table>
-            </div>
-          </div>
-          <h3 class="guidance-section-title" style="margin:1rem 0 .45rem">Processes</h3>
-          <p class="section-lead" id="gameProcLead">Main game executable and related children.</p>
-          <table>
-            <thead><tr><th>PID</th><th>Name</th><th>Role</th><th>CPU%</th><th>RAM MB</th></tr></thead>
-            <tbody id="procBody"></tbody>
-          </table>
-        </div>
-      </details>
-
-      <details class="drill" id="drill-storage" data-open-key="drill-storage">
-        <summary><span class="drill-title">Drives & history</span><span class="drill-rollup" id="drillStorageSum">—</span></summary>
+      <details class="drill drill-secondary" id="drill-storage" data-open-key="drill-storage">
+        <summary><span class="drill-icon storage" data-glyph="storage"></span><span class="drill-title">Drives & history</span><span class="drill-rollup" id="drillStorageSum">—</span></summary>
         <div class="drill-body section-target" id="storageSection">
           <div class="storage-panel">
             <h3 class="guidance-section-title" style="margin-top:0">NVMe drives</h3>
@@ -2261,16 +2670,16 @@
         </div>
       </details>
 
-      <details class="drill" id="drill-troubleshoot" data-open-key="drill-troubleshoot">
-        <summary><span class="drill-title">System checks</span><span class="drill-rollup">Moved to Guidance</span></summary>
+      <details class="drill drill-secondary" id="drill-troubleshoot" data-open-key="drill-troubleshoot">
+        <summary><span class="drill-icon checks" data-glyph="health"></span><span class="drill-title">System checks</span><span class="drill-rollup">Moved to Guidance</span></summary>
         <div class="drill-body">
           <p class="section-lead" style="margin-top:0">Steam, libraries, and log scans now live in <strong>Guidance</strong> under the <strong>Scan</strong> filter. Critical items are promoted to Outstanding automatically.</p>
           <button class="btn" type="button" id="openGuidanceScan">Open Guidance → Scan</button>
         </div>
       </details>
 
-      <details class="drill" id="drill-admin" data-open-key="drill-admin">
-        <summary><span class="drill-title">Profiling tools</span><span class="drill-rollup" id="drillAdminSum">—</span></summary>
+      <details class="drill drill-secondary" id="drill-admin" data-open-key="drill-admin">
+        <summary><span class="drill-icon admin" data-glyph="chip"></span><span class="drill-title">Profiling tools</span><span class="drill-rollup" id="drillAdminSum">—</span></summary>
         <div class="drill-body">
           <p class="section-lead" style="margin-top:0">Optional packages that improve what Cosmic Pulse can see.</p>
           <div class="backlog" id="toolsList"></div>
@@ -2388,10 +2797,13 @@
     }
     const ROLL_LABELS = { 1: 'Live', 60: '1m', 300: '5m', 600: '10m' };
     const SENSOR_GROUPS = {
-      Temps: s => s.kind === 'temp',
-      GPU: s => /gpu|vram|igpu|gfx/i.test(s.label),
-      System: s => /psi|swap|ctx|intr|procs|threads|uptime|load|ram|disk/i.test(s.label),
-      Other: s => true,
+      Temperatures: s => s.kind === 'temp',
+      'GPU & clocks': s => /gpu|igpu|gfx|vram/i.test(`${s.id} ${s.label}`) && s.kind !== 'temp',
+      'Memory & pressure': s => /psi|swap|pgfault|pgmaj|dram|ram_avail/i.test(`${s.id} ${s.label}`),
+      'Storage & drives': s => /^nvme|disk_use/i.test(s.id),
+      Network: s => /^nic_|^wifi/.test(s.id),
+      System: s => /load|uptime|procs|threads|ctx|intr|fan|pwr|mhz|clk/i.test(`${s.id} ${s.label}`),
+      Other: () => true,
     };
     let spanSec = 300, globalRollup = 1, rawHistory = [], metricsBootstrapped = false;
     const chartRollup = { util: null, bw: null, io: null };
@@ -2527,7 +2939,7 @@
           tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
         },
         scales: {
-          x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 10 } }, grid: { color: gridColor } },
+          x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 10 } }, grid: { display: false } },
           y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 10 }, callback: v => v + '%' }, grid: { color: gridColor } },
         },
       },
@@ -2543,7 +2955,7 @@
         tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
       },
       scales: {
-        x: { ticks: { color: tickColor, maxTicksLimit: 5, font: { size: 9 } }, grid: { color: gridColor } },
+        x: { ticks: { color: tickColor, maxTicksLimit: 5, font: { size: 9 } }, grid: { display: false } },
         y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 }, callback: v => v }, grid: { color: gridColor } },
       },
     };
@@ -2568,7 +2980,7 @@
         tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
       },
       scales: {
-        x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 } }, grid: { color: gridColor } },
+        x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 } }, grid: { display: false } },
         y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 } }, grid: { color: gridColor } },
       },
     };
@@ -3031,6 +3443,7 @@
     let lastWarningsKey = '', lastFixesKey = '', lastGameIssuesKey = '', lastSensorKey = '';
     let cachedIssuesByGame = null, lastIssuesFetchKey = '';
     let lastActiveGameId = null;
+    let gameWasRunning = false;
     let lastWarningsPillsKey = '', lastMemProbeKey = '', lastProcKey = '', lastSensorStripKey = '';
     let panelScrollState = {};
     let lastRankStructKey = '';
@@ -3181,13 +3594,62 @@
         .join('');
     }
 
-    function hintsStructKey(hints) {
+    /* Guidance diffing: layout key ignores condition_live / last_seen so the index
+       does not rebuild every poll. patchGuidanceLiveState() updates dots in place. */
+    function hintsLayoutKey(hints) {
       return JSON.stringify((hints || []).map(h => [
-        h.insight_id, h.active, h.level, h.title, h.text,
-        h.games_affected, h.multi_game, h.condition_live, h.user_status,
+        h.insight_id, h.level, h.title, h.text,
+        h.games_affected, h.multi_game, h.bucket,
         !!h.has_fix_script, !!h.requires_root, !!h.fixable,
         (h.actions || []).map(a => [a.label, a.cmd, a.note, a.kind || '']),
       ]));
+    }
+
+    function hintsStructKey(hints) {
+      return hintsLayoutKey(hints);
+    }
+
+    function patchGuidanceLiveState(hints) {
+      const byId = new Map((hints || []).map(h => [h.insight_id, h]));
+      document.querySelectorAll('.guidance-idx-row[data-guidance-pick]').forEach(row => {
+        const id = row.dataset.guidancePick;
+        if (!id || id.startsWith('diag:')) return;
+        const h = byId.get(id);
+        if (!h) return;
+        const resolved = hintUserStatus(h) === 'resolved';
+        const live = h.condition_live && !resolved;
+        const meta = row.querySelector('.guidance-idx-meta');
+        if (meta) {
+          if (resolved) {
+            meta.innerHTML = '<span class="guidance-idx-dot fixed" title="Marked fixed" aria-label="Fixed"></span>';
+            meta.removeAttribute('aria-hidden');
+          } else if (live) {
+            meta.innerHTML = '<span class="guidance-idx-dot live" title="Happening now" aria-label="Live"></span>';
+            meta.removeAttribute('aria-hidden');
+          } else {
+            meta.innerHTML = '';
+            meta.setAttribute('aria-hidden', 'true');
+          }
+        }
+        row.classList.toggle('resolved', resolved);
+      });
+      document.querySelectorAll('#guidanceDetailCard article.rec-card[data-iid]').forEach(card => {
+        const h = byId.get(card.dataset.iid);
+        if (!h) return;
+        const badge = card.querySelector('.rec-status');
+        if (!badge) return;
+        const resolved = hintUserStatus(h) === 'resolved';
+        if (resolved) {
+          badge.className = 'rec-status resolved';
+          badge.textContent = 'Fixed';
+        } else if (h.condition_live) {
+          badge.className = 'rec-status live';
+          badge.textContent = 'Live';
+        } else {
+          badge.className = 'rec-status outstanding';
+          badge.textContent = 'Outstanding';
+        }
+      });
     }
 
     function updateRecMetas(hints) {
@@ -3409,6 +3871,331 @@
         : `${rec.length} installed`;
     }
 
+    const GAME_RATING_TIERS = ['excellent', 'good', 'fair', 'poor', 'bad'];
+
+    function gameSummaryState(gp, gt, st) {
+      const gid = gt?.running ? gt.game_id : (gp?.last_session?.game_id || lastActiveGameId);
+      const runName = gt?.running
+        ? (gt.primary_name || gt.game_name || (gid ? gameLabel(gid) : 'Game'))
+        : null;
+
+      if (gp?.active && gp.recording) {
+        const tier = gp.rating_tier || 'fair';
+        const hitches = gp.hitch_events ?? 0;
+        const hitchMs = gp.hitch_ms_1pct ?? '—';
+        const sess = st?.session || {};
+        const hitchCls = (gp.hitch_ms_1pct || 0) >= 50 ? 'poor' : '';
+        const gameName = gp.game_name || runName || 'Game';
+        const gameId = gp.game_id || gt?.game_id;
+        return {
+          tall: true,
+          live: true,
+          tier,
+          gameId,
+          label: gameLabel(gameId) || gameName,
+          sectionTitle: `Live session · ${gameName}`,
+          explainer: 'Session smoothness score · Pulse rating — not a Steam score',
+          val: `${gp.rating ?? '—'}/100`,
+          context: `Live · ${fmtDuration(gp.duration_sec)}`,
+          meter: gp.rating ?? 0,
+          stats: [
+            { k: 'Smooth', v: `${gp.smoothness_avg ?? '—'}%`, s: 'session avg', cls: tier },
+            { k: '1% low', v: `${hitchMs}ms`, s: 'worst hitch', cls: hitchCls },
+            { k: 'Hitches', v: hitches, s: `${sess.hitch_rate_per_min ?? 0}/min`, cls: hitches >= 5 ? 'fair' : '' },
+            { k: 'CPU', v: `${gp.game_cpu_avg ?? '—'}%`, s: `now ${gt?.cpu_pct ?? '—'}%` },
+            { k: 'GPU', v: `${gp.gpu_busy_avg ?? '—'}%`, s: 'session avg' },
+          ],
+          drillRollup: `${gameName} · rating ${gp.rating ?? '—'}/100 · smooth ${gp.smoothness_avg ?? '—'}%`,
+        };
+      }
+      if (gp?.active && !gp.recording) {
+        const remain = Math.ceil(gp.load_remaining_sec ?? 0);
+        const gameName = gp.game_name || runName || 'Game';
+        const gameId = gp.game_id || gt?.game_id;
+        return {
+          tall: true,
+          live: true,
+          tier: null,
+          gameId,
+          label: gameLabel(gameId) || gameName,
+          sectionTitle: `Starting · ${gameName}`,
+          explainer: 'Recording starts after the load grace period',
+          val: 'Loading',
+          context: `Loading · ${remain}s until stats`,
+          meter: Math.max(0, 100 - Math.min(remain, 45) * (100 / 45)),
+          stats: [
+            { k: 'Process', v: `${gt?.cpu_pct ?? '—'}%`, s: 'live CPU', cls: 'ok' },
+            { k: 'RAM', v: `${((gt?.rss_mb || 0) / 1024).toFixed(1)} GB`, s: 'game process' },
+            { k: 'Grace', v: `${remain}s`, s: 'until recording' },
+          ],
+          drillRollup: `${gameName} · load ${remain}s · ${gt?.cpu_pct ?? '—'}% CPU`,
+        };
+      }
+      const last = resolveLastSession(gp, gid);
+      if (last?.rating != null) {
+        const tier = last.rating_tier || 'fair';
+        const gameName = last.game_name || gameLabel(last.game_id);
+        return {
+          tall: true,
+          live: false,
+          tier,
+          gameId: last.game_id,
+          label: gameLabel(last.game_id) || gameName,
+          sectionTitle: `Last played · ${gameName}`,
+          explainer: 'Session smoothness score · Pulse rating — not a Steam score',
+          val: `${last.rating}/100`,
+          context: `Last session · ${fmtStoreSpan(last.ended_ts)}`,
+          meter: last.rating,
+          stats: [
+            { k: 'Smooth', v: `${last.smoothness_avg ?? '—'}%`, s: fmtDuration(last.duration_sec), cls: tier },
+            { k: '1% low', v: `${last.hitch_ms_1pct ?? '—'}ms`, s: `${last.hitch_events ?? 0} hitches` },
+            { k: 'CPU', v: `${last.game_cpu_avg ?? '—'}%`, s: 'session avg' },
+            { k: 'GPU', v: `${last.gpu_busy_avg ?? '—'}%`, s: 'session avg' },
+          ],
+          drillRollup: `${gameName} · last ${last.rating}/100 · smooth ${last.smoothness_avg ?? '—'}%`,
+        };
+      }
+      if (gt?.running) {
+        const lingering = gt.lingering;
+        const lingerSec = gt.linger_remaining_sec;
+        const gameName = runName || gameLabel(gt.game_id) || 'Game';
+        return {
+          tall: true,
+          live: true,
+          tier: null,
+          gameId: gt.game_id,
+          label: gameLabel(gt.game_id) || gameName,
+          sectionTitle: lingering ? `Starting · ${gameName}` : `Now playing · ${gameName}`,
+          explainer: lingering
+            ? 'Process paused during load — card stays up until the game returns'
+            : 'Live process CPU — session rating building',
+          val: lingering ? 'Loading' : `${gt.cpu_pct}%`,
+          context: lingering
+            ? `Loading · ${Math.ceil(lingerSec ?? 0)}s hold`
+            : 'Starting session',
+          meter: lingering
+            ? Math.max(0, 100 - Math.min(lingerSec ?? 10, 10) * 10)
+            : (gt.cpu_pct ?? 0),
+          stats: [
+            { k: 'Process', v: lingering ? '—' : `${gt.cpu_pct ?? '—'}%`, s: lingering ? 'waiting for PID' : 'live CPU', cls: 'ok' },
+            { k: 'RAM', v: lingering ? '—' : `${((gt.rss_mb || 0) / 1024).toFixed(1)} GB`, s: 'game process' },
+          ],
+          drillRollup: lingering
+            ? `${gameName} · loading · ${Math.ceil(lingerSec ?? 0)}s hold`
+            : `${runName} · … · ${gt.cpu_pct}% CPU`,
+        };
+      }
+      return {
+        tall: false,
+        live: false,
+        tier: null,
+        gameId: null,
+        label: 'Game',
+        sectionTitle: 'Game performance',
+        explainer: 'Waiting for first session… Launch a Steam game to start tracking',
+        val: '—',
+        context: 'Launch a Steam game',
+        meter: 0,
+        stats: [],
+        drillRollup: 'No game running',
+      };
+    }
+
+    function renderGameSummaryStats(el, stats) {
+      if (!el) return;
+      let visible = stats || [];
+      const maxStats = window.innerWidth < 900 ? 4 : (window.innerWidth < 520 ? 3 : 5);
+      if (visible.length > maxStats) {
+        const hidden = visible.length - (maxStats - 1);
+        visible = visible.slice(0, maxStats - 1).concat([
+          { k: 'More', v: `+${hidden}`, s: 'session stats', cls: '' },
+        ]);
+      }
+      const key = JSON.stringify(visible);
+      if (el.dataset.statsKey === key) return;
+      el.dataset.statsKey = key;
+      if (!visible.length) {
+        el.innerHTML = '';
+        el.hidden = true;
+        el.style.removeProperty('--game-stat-cols');
+        return;
+      }
+      el.hidden = false;
+      el.style.setProperty('--game-stat-cols', String(visible.length));
+      el.innerHTML = visible.map(s => `
+        <div class="sum-game-stat${s.cls ? ` ${esc(s.cls)}` : ''}">
+          <span class="k">${esc(s.k)}</span>
+          <span class="v">${esc(String(s.v))}</span>
+          ${s.s ? `<span class="s">${esc(s.s)}</span>` : ''}
+        </div>`).join('');
+    }
+
+    function gameAppId(id, catalog) {
+      const norm = normalizeGameId(id);
+      if (!norm) return null;
+      if (/^\d+$/.test(String(norm))) return String(norm);
+      const cat = catalog?.[norm] || catalog?.[id];
+      return cat?.appid ? String(cat.appid) : null;
+    }
+
+    const STEAM_ART_CDN = 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps';
+    const STEAM_ART_LEGACY_CDN = 'https://cdn.cloudflare.steamstatic.com/steam/apps';
+    const gameArtResolved = new Map();
+    let gameArtProbeAppid = null;
+
+    function steamArtCandidates(appid, catalog) {
+      const cat = catalog?.[appid];
+      if (cat?.art_urls?.length) return cat.art_urls;
+      return [
+        `${STEAM_ART_CDN}/${appid}/library_hero.jpg`,
+        `${STEAM_ART_CDN}/${appid}/header.jpg`,
+        `${STEAM_ART_CDN}/${appid}/capsule_616x353.jpg`,
+        `${STEAM_ART_LEGACY_CDN}/${appid}/header.jpg`,
+      ];
+    }
+
+    function setGameSummaryArtVisible(wrap, show) {
+      if (!wrap) return;
+      wrap.hidden = !show;
+      wrap.classList.toggle('is-loaded', show);
+    }
+
+    function bindGameArtImg(img) {
+      if (img.dataset.artBound === '1') return;
+      img.dataset.artBound = '1';
+      img.referrerPolicy = 'no-referrer';
+      img.decoding = 'async';
+    }
+
+    function showGameArtUrl(wrap, img, appid, url) {
+      const reveal = () => setGameSummaryArtVisible(wrap, true);
+      img.onload = reveal;
+      img.onerror = () => {
+        gameArtResolved.delete(appid);
+        gameArtProbeAppid = null;
+        applyGameSummaryArt(appid, img.alt.replace(/ artwork$/, ''));
+      };
+      if (img.getAttribute('src') !== url) img.src = url;
+      else if (img.complete && img.naturalWidth > 0) reveal();
+      else setGameSummaryArtVisible(wrap, false);
+    }
+
+    function applyGameSummaryArt(gameId, label) {
+      const wrap = document.getElementById('sumGameArt');
+      const img = document.getElementById('sumGameArtImg');
+      if (!wrap || !img) return;
+      bindGameArtImg(img);
+
+      const catalog = lastStatic?.games_catalog || {};
+      const appid = gameAppId(gameId, catalog);
+      img.alt = label ? `${label} artwork` : 'Game artwork';
+
+      if (!appid) {
+        gameArtProbeAppid = null;
+        setGameSummaryArtVisible(wrap, false);
+        img.removeAttribute('src');
+        return;
+      }
+
+      if (gameArtResolved.has(appid)) {
+        const resolved = gameArtResolved.get(appid);
+        if (!resolved) {
+          setGameSummaryArtVisible(wrap, false);
+          img.removeAttribute('src');
+          return;
+        }
+        if (img.getAttribute('src') === resolved && img.complete && img.naturalWidth > 0) {
+          setGameSummaryArtVisible(wrap, true);
+          return;
+        }
+        showGameArtUrl(wrap, img, appid, resolved);
+        return;
+      }
+
+      if (gameArtProbeAppid === appid) return;
+
+      gameArtProbeAppid = appid;
+      setGameSummaryArtVisible(wrap, false);
+      const candidates = steamArtCandidates(appid, catalog);
+      let idx = 0;
+
+      const tryNext = () => {
+        if (gameArtProbeAppid !== appid) return;
+        if (idx >= candidates.length) {
+          gameArtResolved.set(appid, null);
+          gameArtProbeAppid = null;
+          setGameSummaryArtVisible(wrap, false);
+          img.removeAttribute('src');
+          return;
+        }
+        const url = candidates[idx++];
+        img.onload = () => {
+          if (gameArtProbeAppid !== appid) return;
+          gameArtResolved.set(appid, url);
+          gameArtProbeAppid = null;
+          setGameSummaryArtVisible(wrap, true);
+        };
+        img.onerror = () => {
+          if (gameArtProbeAppid !== appid) return;
+          tryNext();
+        };
+        img.src = url;
+      };
+      tryNext();
+    }
+
+    function setRatingTierBadge(el, tier) {
+      if (!el) return;
+      const key = tier || '';
+      if (el.dataset.tierKey === key) return;
+      el.dataset.tierKey = key;
+      if (!tier) {
+        el.innerHTML = '';
+        return;
+      }
+      const label = RATING_TIER_LABEL[tier] || tier;
+      el.innerHTML = `<span class="rating-tier-pill ${esc(tier)}">${esc(label)}</span>`;
+    }
+
+    function renderGameSummaryCell(gp, gt, st) {
+      const gs = gameSummaryState(gp, gt, st);
+      const gameCell = document.getElementById('sumGameCell');
+      const gameVal = document.getElementById('sumGameVal');
+      if (!gameCell || !gameVal) return;
+
+      document.querySelector('.sum-grid')?.classList.toggle('game-prominent', gs.tall);
+      document.body.classList.toggle('game-prominent-active', gs.tall);
+      gameCell.classList.toggle('tall', gs.tall);
+      gameCell.classList.toggle('game-live', gs.live);
+      gameCell.classList.toggle('sum-game-idle-pulse', !gs.tall);
+      const banner = document.getElementById('sumGameBanner');
+      const sectionTitle = document.getElementById('sumGameSectionTitle');
+      const explainer = document.getElementById('sumGameExplainer');
+      if (banner) {
+        banner.hidden = !gs.tall;
+        banner.classList.toggle('is-visible', gs.tall);
+        banner.setAttribute('aria-hidden', gs.tall ? 'false' : 'true');
+      }
+      if (sectionTitle) sectionTitle.textContent = gs.sectionTitle || gs.label || 'Game performance';
+      if (explainer) explainer.textContent = gs.explainer || '';
+      const sumLbl = document.getElementById('sumGameLabel');
+      if (sumLbl && gs.label) sumLbl.textContent = gs.tall ? '' : gs.label;
+      GAME_RATING_TIERS.forEach(t => gameCell.classList.remove(`tier-${t}`));
+      if (gs.tier) gameCell.classList.add(`tier-${gs.tier}`);
+
+      gameVal.textContent = gs.val;
+      gameVal.className = `sum-value${gs.tier ? ` ${gs.tier}` : ''}`;
+      const ctxEl = document.getElementById('sumGameContext');
+      if (ctxEl) ctxEl.textContent = gs.context || '';
+      const subEl = document.getElementById('sumGameSub');
+      if (subEl) subEl.textContent = gs.tall ? '' : (gs.context || '');
+      setMeterWidth(document.getElementById('sumGameMeter'), gs.meter);
+      setRatingTierBadge(document.getElementById('sumGameBadge'), gs.tier);
+      renderGameSummaryStats(document.getElementById('sumGameStats'), gs.stats);
+      applyGameSummaryArt(gs.gameId, gs.label);
+      document.getElementById('drillGameSum').textContent = gs.drillRollup;
+    }
+
     function renderSummaryBar(l, hints, comparison) {
       const c = l.cpu, m = l.memory, g = l.gpu.discrete, bw = l.bandwidth || {};
       const gt = l.game_totals;
@@ -3450,7 +4237,6 @@
       setMeterWidth(document.getElementById('sumCpuMeter'), c.overall_pct);
       setMeterWidth(document.getElementById('sumMemMeter'), m.pct);
       setMeterWidth(document.getElementById('sumGpuMeter'), g.busy_pct ?? 0);
-      setMeterWidth(document.getElementById('sumGameMeter'), gt?.running ? gt.cpu_pct : 0);
       const leagueIdx = comparison ? smoothDisplayPct('session-index', comparison.session_index) : 0;
 
       document.getElementById('sumCpuVal').textContent = `${c.overall_pct}%`;
@@ -3463,11 +4249,6 @@
       document.getElementById('sumGpuVal').textContent = `${g.busy_pct ?? '—'}%`;
       document.getElementById('sumGpuSub').textContent =
         `${g.junction_c ?? '—'}°C · ${g.power_w ?? '—'} W · VRAM ${g.vram_pct ?? '—'}%`;
-
-      document.getElementById('sumGameVal').textContent = gt?.running ? `${gt.cpu_pct}%` : 'Idle';
-      document.getElementById('sumGameSub').textContent = gt?.running
-        ? `${gt.primary_name || gt.game_name} · ${(gt.rss_mb / 1024).toFixed(1)} GB`
-        : 'No game running';
 
       if (hwFocus && comparison) {
         const part = hwFocus === 'memory' ? comparison.memory : comparison[hwFocus];
@@ -3506,18 +4287,7 @@
       document.getElementById('drillLeagueSum').textContent =
         `Index ${comparison ? leagueIdx : '—'}/100 · ${comparison?.composite_rank ?? '—'} · CPU ${comparison?.cpu?.tier_rank ?? '—'}`;
 
-      const gp = l.game_performance;
-      let ratingTxt = null;
-      if (gp?.active && gp.recording) ratingTxt = `${gp.rating ?? '—'}/100`;
-      else if (gp?.active && gp.phase === 'loading') ratingTxt = `load ${Math.ceil(gp.load_remaining_sec ?? 0)}s`;
-      else if (!gp?.active && gp?.last_session?.rating != null) {
-        ratingTxt = `last ${gp.last_session.rating}/100`;
-      }
-      document.getElementById('drillGameSum').textContent = gt?.running
-        ? `${gt.primary_name || gt.game_name} · ${ratingTxt ? `rating ${ratingTxt}` : '…'} · ${gt.cpu_pct}% CPU`
-        : (gp?.last_session
-          ? `${gp.last_session.game_name || gameLabel(gp.last_session.game_id)} · ${ratingTxt || 'done'}`
-          : 'No game running');
+      renderGameSummaryCell(l.game_performance, gt, l.stutter);
     }
 
     const UTIL_SPECS = [
@@ -3658,11 +4428,12 @@
       const newDatasets = activeSpark.map(d => {
         const raw = points.map(p => d.pick(p));
         const data = smoothChartSeries(`${structKey}:${d.key}`, raw);
+        const primary = activeSpark[0]?.key === d.key;
         return {
           label: d.label, data, borderColor: d.color,
-          backgroundColor: d.color + '18',
-          fill: true, tension: .35, pointRadius: 0,
-          borderWidth: 2, yAxisID: 'y',
+          backgroundColor: d.color + (primary ? '28' : '14'),
+          fill: primary, tension: .35, pointRadius: 0,
+          borderWidth: primary ? 2.5 : 1.5, yAxisID: 'y',
         };
       });
       if (structKey === sparkChart._pulseStructKey && sparkChart.data.datasets.length === newDatasets.length) {
@@ -3750,9 +4521,13 @@
       }
       const gameSub = document.getElementById('rigGameSub');
       if (gameSub) {
-        gameSub.textContent = gt?.running
-          ? (gt.primary_name || gt.game_name || 'running').slice(0, 28)
-          : 'no foreground game';
+        if (document.body.classList.contains('game-prominent-active')) {
+          gameSub.textContent = 'See session card above';
+        } else {
+          gameSub.textContent = gt?.running
+            ? (gt.primary_name || gt.game_name || 'running').slice(0, 28)
+            : 'no foreground game';
+        }
       }
 
       const statusEl = document.getElementById('rigStatus');
@@ -4001,7 +4776,7 @@
         let sub = '';
         if (s.id === 'major_faults') sub = `${dram.pgmajfault_per_s ?? 0}/s maj`;
         else if (s.id === 'mem_stall') sub = `Wait ${dram.psi_avg10 ?? 0}%`;
-        else if (s.id === 'io_stall') sub = `I/O ${dram.psi_io_avg10 ?? 0}%`;
+        else if (s.id === 'io_stall') sub = `I/O ${dram.io_wait_pct ?? dram.psi_io_avg10 ?? 0}%`;
         else if (s.id === 'swap') sub = `↓${dram.swap_in_kbps ?? 0} ↑${dram.swap_out_kbps ?? 0}`;
         else if (s.id === 'disk_spike') sub = `W ${l.disk?.write_mbps ?? 0} MB/s`;
         setMetricBar('stutterComponents', s.id, v, `${Math.round(v)}`, sub, '', s.cls);
@@ -4023,8 +4798,11 @@
 
       const gt = l.game_totals;
       if (gt?.running && (st.event || (st.score || 0) >= 35)) {
-        document.getElementById('sumGameSub').textContent =
+        const hitchTxt =
           `${gt.primary_name || gt.game_name} · hitch ~${st.est_ms}ms · ${sess.events ?? 0} in 5m`;
+        const ctxEl = document.getElementById('sumGameContext');
+        if (ctxEl) ctxEl.textContent = hitchTxt;
+        else document.getElementById('sumGameSub').textContent = hitchTxt;
       }
     }
 
@@ -4482,12 +5260,18 @@
 
     function shortDriveLabel(sensor) {
       const model = sensor.drive?.model || sensor.label || '';
-      if (/980\s*PRO/i.test(model)) return '980 PRO';
-      if (/990\s*PRO/i.test(model)) return '990 PRO';
-      if (/SN\d+/i.test(model)) return model.replace(/^.*?(SN\d+.*)$/i, '$1').slice(0, 16);
       const brand = sensor.drive?.brand || '';
+      if (/980\s*PRO/i.test(model)) return 'Samsung 980 PRO';
+      if (/990\s*PRO/i.test(model)) return 'Samsung 990 PRO';
+      if (/KXG60/i.test(model)) return 'Kioxia NVMe';
+      if (/SN\d+/i.test(model)) {
+        const sn = model.match(/SN\d+\w*/i)?.[0] || model;
+        return `${brand || 'Samsung'} ${sn}`.trim().slice(0, 22);
+      }
       const trimmed = model.replace(new RegExp(`^${brand}\\s*`, 'i'), '').trim();
-      return (trimmed || model).slice(0, 20);
+      const friendly = (trimmed || model).slice(0, 22);
+      if (brand && !new RegExp(brand, 'i').test(friendly)) return `${brand} ${friendly}`.trim().slice(0, 24);
+      return friendly;
     }
 
     function buildHwStatusGroups(sensors) {
@@ -4534,7 +5318,7 @@
         groups.network.push({
           id: 'network_combined',
           sensor: { ...hottest, value: maxVal },
-          display: 'Ethernet',
+          display: 'Network',
           icon: 'net',
           iconCls: 'cpu',
           tooltip: netSensors.map(s => `${s.label}: ${s.value ?? '—'}°C`).join(' · '),
@@ -4546,10 +5330,20 @@
       return groups;
     }
 
+    function hwStatusCardAccent(item) {
+      if (item.id?.startsWith('io_')) return 'accent-io';
+      if (item.id === 'network_combined' || item.id?.startsWith('nic_') || item.id === 'wifi') return 'accent-net';
+      if (item.hw === 'storage' || item.id?.startsWith('nvme_')) return 'accent-storage';
+      if (item.iconCls === 'gpu') return 'accent-gpu';
+      if (item.iconCls === 'cpu') return 'accent-cpu';
+      return 'accent-storage';
+    }
+
     function hwStatusCardHtml(item) {
       const hw = item.hw ?? (item.hw === '' ? '' : sensorHwFocus(item.sensor));
       const hwAttr = hw ? ` data-hw="${hw}"` : ' data-hw-keep';
-      return `<div class="hw-status-card" data-sid="${esc(item.id)}"${hwAttr} title="${esc(item.tooltip || '')}">
+      const accent = hwStatusCardAccent(item);
+      return `<div class="hw-status-card ${accent}" data-sid="${esc(item.id)}"${hwAttr} title="${esc(item.tooltip || '')}">
         <span class="hw-icon-box ${item.iconCls}">${hwIcon(item.icon)}</span>
         <div class="hw-status-card-body">
           <span class="hw-status-card-name">${esc(item.display)}</span>
@@ -4558,18 +5352,26 @@
       </div>`;
     }
 
-    function renderHwStatusRow(label, items) {
+    function renderHwStatusRow(label, items, opts = {}) {
+      const { secondary = false } = opts;
       if (!items.length) return '';
-      return `<div class="hw-status-row">
+      return `<div class="hw-status-row${secondary ? ' hw-status-row-secondary' : ''}">
         <span class="hw-status-label">${esc(label)}</span>
         <div class="hw-status-cards">${items.map(hwStatusCardHtml).join('')}</div>
       </div>`;
     }
 
+    function diskIoWaitPct(l) {
+      const m = l?.bandwidth?.memory || {};
+      return m.io_wait_pct ?? m.psi_io_avg10 ?? null;
+    }
+
     function buildIoStatusGroup(l) {
       const disk = l?.disk || {};
-      const psiIo = l?.bandwidth?.memory?.psi_io_avg10;
+      const mem = l?.bandwidth?.memory || {};
+      const ioWait = diskIoWaitPct(l);
       const busy = disk.busy_pct;
+      const zramNote = mem.io_wait_zram_dominated ? ' (swap churn hidden)' : '';
       return [
         {
           id: 'io_read', display: 'Read', icon: 'storage', iconCls: 'storage', hw: 'storage',
@@ -4583,9 +5385,9 @@
         },
         {
           id: 'io_stall', display: 'I/O wait', icon: 'cpu', iconCls: 'storage', hw: 'storage',
-          tooltip: 'PSI I/O pressure — tasks waiting on storage',
-          sensor: { value: psiIo, unit: '%', kind: 'psi' },
-          warnAt: 12, hotAt: 25,
+          tooltip: `Disk wait — CPU iowait + queue busy${zramNote}`,
+          sensor: { value: ioWait, unit: '%', kind: 'pct' },
+          warnAt: 8, hotAt: 15,
         },
         {
           id: 'io_busy', display: 'Busy', icon: 'storage', iconCls: 'storage', hw: 'storage',
@@ -4602,6 +5404,7 @@
       const flat = [...groups.temps, ...io, ...groups.storage, ...groups.network];
       const sig = JSON.stringify(flat.map(i => [i.id, i.sensor?.value, i.sensor?.unit]));
       const el = document.getElementById('sensorStrip');
+      if (!el) return;
       if (!flat.length) {
         if (el.dataset.mode !== 'empty') {
           el.innerHTML = '<div class="hw-status-empty">No live hardware sensors</div>';
@@ -4615,9 +5418,9 @@
         el.dataset.structKey = structKey;
         el.innerHTML =
           renderHwStatusRow('Temps', groups.temps)
-          + renderHwStatusRow('I/O', io)
-          + renderHwStatusRow('Drives', groups.storage)
-          + renderHwStatusRow('Network', groups.network);
+          + renderHwStatusRow('I/O', io, { secondary: true })
+          + renderHwStatusRow('Drives', groups.storage, { secondary: true })
+          + renderHwStatusRow('Network', groups.network, { secondary: true });
         el.dataset.mode = 'live';
         lastSensorStripKey = '';
       }
@@ -4698,14 +5501,14 @@
 
       const diskRead = disk.read_mbps ?? 0;
       const diskWrite = disk.write_mbps ?? 0;
-      const psiIo = bw.memory?.psi_io_avg10 ?? 0;
+      const ioWait = diskIoWaitPct(l) ?? 0;
       const diskBusy = disk.busy_pct ?? 0;
       setMetricBar('ioMeters', 'disk-read', Math.min(100, (diskRead / DISK_RATE_CEIL) * 100),
         `${diskRead || '—'} MB/s`, 'Aggregate read throughput', '', 'disk-read');
       setMetricBar('ioMeters', 'disk-write', Math.min(100, (diskWrite / DISK_RATE_CEIL) * 100),
         `${diskWrite || '—'} MB/s`, 'Aggregate write throughput', '', 'disk-write');
-      setMetricBar('ioMeters', 'io-stall', Math.min(100, psiIo * 5),
-        `${psiIo}% wait`, 'PSI I/O — tasks stalled on storage', '', 'stutter-io');
+      setMetricBar('ioMeters', 'io-stall', Math.min(100, ioWait * 5),
+        `${ioWait}% wait`, 'Disk wait — not zram swap churn', '', 'stutter-io');
       setMetricBar('ioMeters', 'disk-busy', diskBusy,
         `${diskBusy}%`, 'Disk queue busy time', '', 'disk-busy');
 
@@ -4983,12 +5786,12 @@
         metaEl.textContent = `${rig.memory?.kit || mem.label || 'RAM'} · ${l?.memory?.pct ?? '—'}% used · swap ${l?.memory?.swap_pct ?? '—'}%`;
       } else if (hwFocus === 'storage') {
         const disk = l?.disk || {};
-        const psiIo = l?.bandwidth?.memory?.psi_io_avg10 ?? '—';
+        const ioWait = diskIoWaitPct(l) ?? '—';
         const drives = rig.storage || s.storage || [];
         const driveLabel = drives.length === 1
           ? (drives[0].model || drives[0].brand || 'NVMe')
           : `${drives.length} NVMe drives`;
-        metaEl.textContent = `${driveLabel} · R ${disk.read_mbps ?? '—'} · W ${disk.write_mbps ?? '—'} MB/s · ${psiIo}% I/O wait`;
+        metaEl.textContent = `${driveLabel} · R ${disk.read_mbps ?? '—'} · W ${disk.write_mbps ?? '—'} MB/s · ${ioWait}% I/O wait`;
       }
     }
 
@@ -5118,9 +5921,9 @@
       const metaEl = document.getElementById('tuningMeta');
       if (metaEl) {
         if (!visible.length) {
-          metaEl.textContent = hwFocus
+          metaEl.innerHTML = hwFocus
             ? `No ${HW_FOCUS_LABELS[hwFocus]} warnings for this rig focus`
-            : 'All clear — nothing needs attention';
+            : '<span style="color:var(--green)">✓ No outstanding issues</span> · Guidance has scripts and step-by-step help';
         } else {
           const parts = [`${visible.length} need${visible.length === 1 ? 's' : ''} attention`];
           if (hwFocus) parts.push(`${HW_FOCUS_LABELS[hwFocus]} focus`);
@@ -5281,6 +6084,7 @@
           </span>
           <span class="rig-tile-name">${esc(t.name)}</span>
         </span>
+        <span class="rig-tile-hint">Filter dashboard</span>
         <span class="rig-tile-art" aria-hidden="true">${brandMark}${icon}</span>
       </button>`;
     }
@@ -5408,6 +6212,8 @@
       return norm || id || 'Game';
     }
 
+    /* --- Guidance tab (index + detail + dashboard warnings) ---
+       Outstanding hints stay in the list; live is a badge only. See docs/ARCHITECTURE.md */
     const WARN_WIDGET_MAX = 10;
 
     const GUIDANCE_STEAM_IDS = new Set([
@@ -5475,14 +6281,13 @@
 
     function sortGuidanceHints(hints) {
       return [...hints].sort((a, b) => {
-        const aLive = a.condition_live && hintUserStatus(a) !== 'resolved' ? 1 : 0;
-        const bLive = b.condition_live && hintUserStatus(b) !== 'resolved' ? 1 : 0;
-        if (bLive !== aLive) return bLive - aLive;
         const sev = guidanceSeverityRank(a.level) - guidanceSeverityRank(b.level);
         if (sev) return sev;
         const ps = warningPriority(b) - warningPriority(a);
         if (ps) return ps;
-        return (a.title || '').localeCompare(b.title || '');
+        const fs = (a.first_seen || 0) - (b.first_seen || 0);
+        if (fs) return fs;
+        return (a.insight_id || a.title || '').localeCompare(b.insight_id || b.title || '');
       });
     }
 
@@ -5618,9 +6423,17 @@
       const visiblePicks = visibleGroups.flatMap(g =>
         g.isScan ? g.hints.map(f => guidanceScanPickId(f)) : g.hints.map(h => h.insight_id),
       );
+      const allHintIds = new Set([
+        ...groups.flatMap(g => g.hints.map(h => h.insight_id)),
+        ...fixedHints.map(h => h.insight_id),
+        ...(scanGroup ? scanGroup.hints.map(f => guidanceScanPickId(f)) : []),
+      ]);
       let activeId = selectedId;
-      if (!activeId || !visiblePicks.includes(activeId)) {
+      const selectedStillExists = activeId && allHintIds.has(activeId);
+      if (!activeId || (!visiblePicks.includes(activeId) && !selectedStillExists)) {
         activeId = visiblePicks[0] || null;
+        lastSelectedGuidanceId = activeId;
+      } else if (selectedStillExists) {
         lastSelectedGuidanceId = activeId;
       }
 
@@ -5699,10 +6512,10 @@
         }
         return;
       }
-      const pool = guidancePickableHints.length
-        ? guidancePickableHints
-        : lastGuidanceIndexGroups.flatMap(g => g.hints).concat(lastGuidanceFixedHints);
-      const h = hintById(pool, insightId) || hintById(lastGuidanceFixedHints, insightId);
+      const fullPool = lastGuidanceIndexGroups.flatMap(g => g.hints).concat(lastGuidanceFixedHints);
+      const h = hintById(guidancePickableHints, insightId)
+        || hintById(fullPool, insightId)
+        || hintById(lastGuidanceFixedHints, insightId);
       renderGuidanceDetail(h);
       if (scroll && insightId) {
         document.getElementById(`guidance-pick-${insightId}`)
@@ -5740,13 +6553,35 @@
     }
 
     function guidanceSummaryHints(hints) {
-      return guidanceLiveOutstanding(hints).filter(h => h.level !== 'ok');
+      return guidanceOutstanding(hints).filter(h => h.level !== 'ok');
     }
 
+    const WARNING_LIVE_DWELL_SEC = 45;
+    const warningLiveDwellUntil = new Map();
+
     function warningsForDisplay(hints) {
-      return guidanceOutstanding(hints).filter(h =>
-        h.level !== 'ok' && h.condition_live && !isInsightSuppressed(h.insight_id),
+      const now = Date.now() / 1000;
+      const outstanding = guidanceOutstanding(hints).filter(h =>
+        h.level !== 'ok' && !isInsightSuppressed(h.insight_id),
       );
+      const validIds = new Set(outstanding.map(h => h.insight_id).filter(Boolean));
+      for (const id of warningLiveDwellUntil.keys()) {
+        if (!validIds.has(id)) warningLiveDwellUntil.delete(id);
+      }
+      for (const h of outstanding) {
+        if (h.condition_live && h.insight_id) {
+          warningLiveDwellUntil.set(h.insight_id, now + WARNING_LIVE_DWELL_SEC);
+        }
+      }
+      return outstanding.filter(h => {
+        if (h.condition_live) return true;
+        const until = warningLiveDwellUntil.get(h.insight_id);
+        return until != null && until > now;
+      });
+    }
+
+    function warningsLayoutKey(hints) {
+      return JSON.stringify((hints || []).map(h => [h.insight_id, h.level, h.title, h.text]));
     }
 
     function warningPriority(h) {
@@ -5810,7 +6645,6 @@
         }
       }
 
-      document.getElementById('sumGameCell')?.classList.toggle('game-live', !!gid);
       if (gid) lastActiveGameId = gid;
     }
 
@@ -6140,6 +6974,8 @@
           suppressInsight(btn.dataset.hideIid);
         };
       });
+      const warnGuide = document.getElementById('warnGuidanceLink');
+      if (warnGuide) warnGuide.onclick = () => setTab('fixes', 'insightsSection');
     }
 
     function updateWarningsMoreLink(total) {
@@ -6161,15 +6997,21 @@
       const list = hints || [];
       lastWarningsHints = list;
       const { all, shown, total } = warningsWidgetData(list);
-      const structKey = hintsStructKey(shown);
+      const layoutKey = warningsLayoutKey(shown);
 
       const listEl = document.getElementById('warningList');
-      if (structKey !== lastWarningsKey) {
-        lastWarningsKey = structKey;
+      if (layoutKey !== lastWarningsKey) {
+        lastWarningsKey = layoutKey;
         capturePanelState();
         listEl.innerHTML = shown.length
           ? shown.map(h => warningRowHtml(h)).join('')
-          : '<p class="warn-empty">Nothing needs attention. Open <strong>Guidance</strong> for scripts and step-by-step help.</p>';
+          : `<div class="warn-empty warn-clear-state">
+              <span class="hw-icon-box health" data-glyph="ok"></span>
+              <div>
+                <strong>No outstanding issues</strong>
+                <p>Your rig looks good. <button type="button" class="warn-clear-link" id="warnGuidanceLink">Open Guidance</button> for tuning scripts and scans.</p>
+              </div>
+            </div>`;
         bindWarningActions(shown);
         restorePanelState();
       }
@@ -6177,16 +7019,16 @@
       updateWarningsFocusUI();
     }
 
+    /** Guidance index: all outstanding hints (not live-only). Rebuild on layoutKey change only. */
     function renderFixes(hints) {
       const list = hints || [];
       const outstanding = guidanceOutstanding(list);
-      const liveOutstanding = guidanceLiveOutstanding(list);
       const fixed = guidanceResolved(list);
-      const resolutionHints = sortWarningsByPriority(
-        liveOutstanding.filter(h => h.bucket === 'resolutions' && h.level !== 'ok'),
+      const resolutionHints = sortGuidanceHints(
+        outstanding.filter(h => h.bucket === 'resolutions' && h.level !== 'ok'),
       );
-      const priorityPool = liveOutstanding.filter(h => h.bucket !== 'resolutions');
-      const priority = sortWarningsByPriority(priorityPool.filter(h => h.level !== 'ok'));
+      const priorityPool = outstanding.filter(h => h.bucket !== 'resolutions');
+      const priority = sortGuidanceHints(priorityPool.filter(h => h.level !== 'ok'));
       const okOnly = priorityPool.filter(h => h.level === 'ok');
       const steamPriority = priority.filter(h => guidanceCategory(h) === 'steam');
       const systemPriority = priority.filter(h => guidanceCategory(h) === 'system');
@@ -6194,7 +7036,7 @@
       const systemOk = okOnly.filter(h => guidanceCategory(h) === 'system');
       const steamDisplay = steamPriority.length ? steamPriority : steamOk;
       const systemDisplay = systemPriority.length ? systemPriority : systemOk;
-      const structKey = hintsStructKey(list) + '|' + suppressedInsights().join(',') + '|' + resolvedInsights().join(',');
+      const layoutKey = hintsLayoutKey(list) + '|' + suppressedInsights().join(',') + '|' + resolvedInsights().join(',');
       const summaryHints = guidanceSummaryHints(list);
       const indexGroups = [
         { key: 'steam', label: 'Steam', hints: steamDisplay },
@@ -6207,12 +7049,13 @@
         ),
       })).filter(g => g.hints.length);
 
-      if (structKey === lastFixesKey) {
+      if (layoutKey === lastFixesKey) {
+        patchGuidanceLiveState(list);
         updateRecMetas(list);
         updateGuidanceHeadStat(summaryHints);
         return;
       }
-      lastFixesKey = structKey;
+      lastFixesKey = layoutKey;
       capturePanelState();
       updateGuidanceHeadStat(summaryHints);
 
@@ -6227,9 +7070,14 @@
 
       const pickable = indexGroups.flatMap(g => g.hints);
       const scanPickable = lastGuidanceScanFindings.map(f => guidanceScanPickId(f));
+      const allKnownIds = new Set([
+        ...outstanding.map(h => h.insight_id),
+        ...fixed.map(h => h.insight_id),
+        ...scanPickable,
+      ]);
       const stillSelected = lastSelectedGuidanceId?.startsWith('diag:')
         ? scanPickable.includes(lastSelectedGuidanceId)
-        : pickable.find(h => h.insight_id === lastSelectedGuidanceId);
+        : allKnownIds.has(lastSelectedGuidanceId);
       if (!lastSelectedGuidanceId || !stillSelected) {
         lastSelectedGuidanceId = pickable[0]?.insight_id || scanPickable[0] || null;
       }
@@ -6404,6 +7252,56 @@
       if (guidanceGameMenuOpen) renderGuidanceGameMenu(withIssues);
     }
 
+    function sensorDrillName(s) {
+      const byId = {
+        cpu_pkg: 'CPU package', ccd1: 'CCD 1', ccd2: 'CCD 2',
+        gpu_junc: 'GPU hotspot', gpu_edge: 'GPU edge', gpu_memt: 'VRAM',
+        igpu_edge: 'iGPU', wifi: 'WiFi radio',
+      };
+      if (byId[s.id]) return byId[s.id];
+      if (s.id?.startsWith('nvme_')) return shortDriveLabel(s);
+      if (s.id?.startsWith('nic_phy')) return 'NIC PHY';
+      if (s.id?.startsWith('nic_mac')) return 'NIC MAC';
+      return s.label || s.id || 'Sensor';
+    }
+
+    function sensorDrillAccent(s) {
+      if (/^cpu|^ccd/.test(s.id)) return 'accent-cpu';
+      if (/^gpu|^igpu|vram/i.test(`${s.id} ${s.label}`)) return 'accent-gpu';
+      if (/^nvme|disk/i.test(s.id)) return 'accent-storage';
+      if (/^nic_|^wifi/.test(s.id)) return 'accent-net';
+      if (/psi|swap|pgfault|pgmaj|ram_avail|dram/i.test(`${s.id} ${s.label}`)) return 'accent-mem';
+      return 'accent-sys';
+    }
+
+    function sensorDrillSeverity(s) {
+      if (s.kind === 'temp') {
+        const isGpuJunc = s.id === 'gpu_junc';
+        return isGpuJunc ? gpuJuncUiClass(s.value).trim() : tempClass(s.value);
+      }
+      if (s.kind === 'psi' && s.value > 20) return 'hot';
+      if (s.kind === 'psi' && s.value > 8) return 'warn';
+      if (s.kind === 'pct' && s.value >= 85) return 'hot';
+      if (s.kind === 'pct' && s.value >= 70) return 'warn';
+      return '';
+    }
+
+    function sensorDrillValText(s) {
+      if (s.value == null || s.value === '') return '—';
+      const v = Number(s.value);
+      if (s.kind === 'temp') return `${Number.isInteger(v) ? v : v.toFixed(1)}°`;
+      if (s.unit === '%' || s.kind === 'psi' || s.kind === 'pct') {
+        return `${v >= 100 ? Math.round(v) : (Number.isInteger(v) ? v : v.toFixed(1))}%`;
+      }
+      return `${s.value}${s.unit || ''}`;
+    }
+
+    function sensorDrillUnitText(s) {
+      if (s.kind === 'temp') return 'Celsius';
+      if (!s.unit || s.unit === '%') return '';
+      return s.unit.replace(/^\s*/, '');
+    }
+
     function renderSensorGroups(sensors) {
       const sensorKey = JSON.stringify((sensors || []).map(s => [s.id, s.value]));
       if (sensorKey === lastSensorKey) return;
@@ -6411,15 +7309,20 @@
       const used = new Set();
       const html = [];
       for (const [name, pred] of Object.entries(SENSOR_GROUPS)) {
-        const items = sensors.filter(s => !used.has(s.id) && pred(s));
+        const items = (sensors || []).filter(s => !used.has(s.id) && pred(s));
         items.forEach(s => used.add(s.id));
         if (!items.length) continue;
-        html.push(`<div class="sensor-group"><h3>${name}</h3><div class="grid g-sensors">${items.map(s => {
-          let cls = s.kind === 'temp' ? tempClass(s.value) : (s.kind === 'psi' && s.value > 5 ? 'warn' : '');
-          return `<div class="sensor ${cls}"><div class="lbl">${s.label}</div><div class="val">${s.value ?? '—'}</div><div class="unit">${s.unit}</div></div>`;
+        html.push(`<div class="sensor-group"><h3>${esc(name)}</h3><div class="drill-sensor-grid">${items.map(s => {
+          const sev = sensorDrillSeverity(s);
+          const unit = sensorDrillUnitText(s);
+          return `<div class="drill-sensor-card ${sensorDrillAccent(s)}${sev ? ` ${sev}` : ''}" title="${esc(s.label || '')}">
+            <span class="ds-name">${esc(sensorDrillName(s))}</span>
+            <span class="ds-val">${esc(sensorDrillValText(s))}</span>
+            ${unit ? `<span class="ds-unit">${esc(unit)}</span>` : ''}
+          </div>`;
         }).join('')}</div></div>`);
       }
-      document.getElementById('sensorGroups').innerHTML = html.join('');
+      document.getElementById('sensorGroups').innerHTML = html.join('') || '<p class="section-lead" style="margin:0">No sensors reporting.</p>';
     }
 
     function renderCores(cores) {
@@ -6468,8 +7371,9 @@
           label: 'Smooth %',
           data: points.map(p => p.smoothness ?? null),
           borderColor: CHART.gameCpu || '#6fcf97',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
+          backgroundColor: 'rgba(111,207,151,.12)',
+          fill: true,
+          borderWidth: 2.5,
           pointRadius: 0,
           tension: 0.2,
         },
@@ -6518,8 +7422,13 @@
           ).join('');
           return;
         }
-        if (lead) lead.textContent = 'Launch a Steam game — live rating and session history appear here.';
-        el.innerHTML = '<div class="game-perf-kpi"><span class="k">Status</span><span class="v">Idle</span><span class="s">No active session</span></div>';
+        if (lead) lead.textContent = 'Session ratings and live charts appear when you play.';
+        el.innerHTML = `<div class="game-perf-zero game-perf-zero-pulse">
+          <span class="hw-icon-box game" data-glyph="game"></span>
+          <p class="game-perf-zero-title">Waiting for first session</p>
+          <p class="game-perf-zero-sub">Launch a Steam game — Pulse tracks smoothness, hitches, and session rating automatically.</p>
+        </div>`;
+        initStaticGlyphs();
         return;
       }
       if (!gp.recording) {
@@ -6677,9 +7586,18 @@
       }
     }
 
+    function syncGameDrillOpen(gp, gt) {
+      const running = !!(gt?.running || gp?.active);
+      if (running && !gameWasRunning) {
+        openDrill('drill-game');
+      }
+      gameWasRunning = running;
+    }
+
     function renderGamePerformance(l, s) {
       const gp = l.game_performance || {};
       const gt = l.game_totals || {};
+      syncGameDrillOpen(gp, gt);
       if (gp.last_session?.ended_ts && gp.last_session.ended_ts !== lastSeenSessionEnd) {
         lastSeenSessionEnd = gp.last_session.ended_ts;
         gameSessionsKey = '';
@@ -6824,6 +7742,7 @@
       if (rawHistory.length > maxLen) rawHistory.splice(0, rawHistory.length - maxLen);
     }
 
+    /** 1 Hz poll: bootstrap once, then slim history points. Render helpers diff via layout keys. */
     async function tick() {
       try {
         const url = metricsBootstrapped ? '/api/metrics' : '/api/metrics?bootstrap=1';
@@ -6898,6 +7817,49 @@
         document.getElementById('liveLabel').textContent = 'Offline';
       }
     }
+
+    let vizFocus = sessionStorage.getItem('pulse-viz-focus') || 'rig';
+    let sensorStripExpanded = sessionStorage.getItem('pulse-sensors-expanded') === '1';
+
+    function setVizFocus(tab) {
+      vizFocus = tab;
+      sessionStorage.setItem('pulse-viz-focus', tab);
+      const grid = document.getElementById('vizGrid');
+      grid?.classList.remove('viz-focus-rig', 'viz-focus-index', 'viz-focus-stutter');
+      grid?.classList.add(`viz-focus-${tab}`);
+      document.querySelectorAll('.viz-tab').forEach(btn => {
+        const on = btn.dataset.vizTab === tab;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+
+    function syncSensorStripExpanded() {
+      const el = document.getElementById('sensorStrip');
+      const btn = document.getElementById('sensorStripToggle');
+      if (!el || !btn) return;
+      el.classList.toggle('collapsed', !sensorStripExpanded);
+      btn.textContent = sensorStripExpanded ? 'Show temps only' : 'Show all';
+      btn.setAttribute('aria-expanded', sensorStripExpanded ? 'true' : 'false');
+    }
+
+    document.querySelectorAll('.viz-tab').forEach(btn => {
+      btn.addEventListener('click', () => setVizFocus(btn.dataset.vizTab));
+    });
+    document.getElementById('sensorStripToggle')?.addEventListener('click', () => {
+      sensorStripExpanded = !sensorStripExpanded;
+      sessionStorage.setItem('pulse-sensors-expanded', sensorStripExpanded ? '1' : '0');
+      syncSensorStripExpanded();
+    });
+    document.getElementById('sensorStripDrillLink')?.addEventListener('click', () => jumpTo('drill-sensors'));
+
+    if (!localStorage.getItem('pulse-drill-init')) {
+      openPanels.add('drill-game');
+      localStorage.setItem('pulse-drill-init', '1');
+    }
+    restoreOpenPanels();
+    setVizFocus(vizFocus);
+    syncSensorStripExpanded();
 
     document.getElementById('rigFocusClear')?.addEventListener('click', () => setHwFocus(null));
     window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', () => {

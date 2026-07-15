@@ -25,7 +25,7 @@ from games import (
     LEGACY_GAME_IDS,
     build_games_catalog,
     detect_games,
-    primary_active_game,
+    primary_active_game_with_linger,
     prime_game_cpu,
     running_game_ids,
 )
@@ -44,10 +44,16 @@ from hardware_probe import (
     probe_storage,
 )
 from hardware_profiles import detect_gpu_spec
-from issue_aggregate import _games_for_active, build_issue_views, merge_games_seen
+from issue_aggregate import (
+    _games_for_active,
+    build_issue_views,
+    guidance_sort_key,
+    merge_games_seen,
+)
 from load_phase import tick_load_phase
 from probe_memory import infer_fallback
 from pulse_config import (
+    STATE_VERIFIED_INSIGHTS,
     get_insight_pref_sets,
     get_resolved_insights,
     get_suppressed_insights,
@@ -71,7 +77,7 @@ from store import (
 from store import (
     stats as store_stats,
 )
-from stutter import attach_stutter
+from stutter import attach_stutter, effective_disk_io_wait
 from tuning_actions import build_tuning_hints, fix_script_for_insight, system_context
 
 PORT = int(os.environ.get("PULSE_PORT", "8765"))
@@ -166,6 +172,7 @@ _prev_gtt: tuple[int, float] | None = None
 _gtt_high_streak: int = 0
 _prev_vmstat: tuple[dict[str, int], float] | None = None
 _prev_disk_busy: tuple[int, float] | None = None
+_prev_cpu_stat: tuple[int, int, float] | None = None
 _sensors_cache: tuple[float, dict] = (0.0, {})
 _rate_smooth: dict[str, float] = {}
 _proc_stats_cache: tuple[float, int, int] = (0.0, 0, 0)
@@ -896,6 +903,30 @@ def net_rates() -> dict:
     }
 
 
+def cpu_iowait_pct() -> float:
+    """Rolling CPU iowait % from /proc/stat (classic disk-wait signal)."""
+    global _prev_cpu_stat
+    now = time.time()
+    try:
+        line = Path("/proc/stat").read_text().splitlines()[0]
+        parts = [int(x) for x in line.split()[1:]]
+        if len(parts) < 5:
+            return 0.0
+        total = sum(parts[: min(len(parts), 10)])
+        iowait = parts[4]
+        prev = _prev_cpu_stat
+        _prev_cpu_stat = (total, iowait, now)
+        if not prev or now - prev[2] < 0.4:
+            return 0.0
+        dt_total = total - prev[0]
+        dt_io = iowait - prev[1]
+        if dt_total <= 0:
+            return 0.0
+        return round(dt_io / dt_total * 100.0, 1)
+    except (OSError, ValueError, IndexError):
+        return 0.0
+
+
 def disk_rates() -> dict:
     global _prev_disk, _prev_disk_busy
     now = time.time()
@@ -1113,10 +1144,22 @@ def update_tuning_history(
     running_ids: list[str],
     snap: dict | None = None,
 ) -> list[dict]:
+    """Merge per-tick rule matches into persistent Guidance history.
+
+    Active hints update ``condition_live`` and ``last_seen``; history rows stay
+    visible when a condition drops for a tick. Sort uses ``guidance_sort_key``
+    (severity / priority / first_seen) so order does not jump on live flips.
+    See docs/ARCHITECTURE.md § Guidance history.
+    """
     global _tuning_history, _tuning_dirty
     now = time.time()
     active_ids = {h["insight_id"] for h in active if h.get("insight_id")}
     resolved_ids, suppressed_ids = get_insight_pref_sets()
+    for iid in list(resolved_ids):
+        if iid in STATE_VERIFIED_INSIGHTS and iid in active_ids:
+            unresolve_insight(iid)
+            resolved_ids.discard(iid)
+            _tuning_dirty = True
     # Re-open when a marked-fixed issue clears then is detected again (not while still live).
     for item in _tuning_history:
         iid = item.get("insight_id")
@@ -1196,10 +1239,7 @@ def update_tuning_history(
         fresh_active_ids=_fresh_active_ids,
     ):
         _tuning_dirty = True
-    _tuning_history.sort(
-        key=lambda x: (x.get("condition_live", False), x.get("last_seen", 0)),
-        reverse=True,
-    )
+    _tuning_history.sort(key=guidance_sort_key)
     if len(_tuning_history) > TUNING_MAX:
         del _tuning_history[TUNING_MAX:]
         _rebuild_tuning_index()
@@ -1249,8 +1289,12 @@ def collect_metrics() -> dict:
     sw = psutil.swap_memory()
     load1, load5, load15 = os.getloadavg()
     games_state = detect_games()
+    primary_game = primary_active_game_with_linger(games_state)
     running_ids = running_game_ids(games_state)
-    primary_game = primary_active_game(games_state)
+    if primary_game and primary_game.get("lingering"):
+        gid = primary_game.get("id")
+        if gid and gid not in running_ids:
+            running_ids.append(gid)
     game_procs = (primary_game or {}).get("procs") or []
     game_totals = {
         "running": bool(primary_game and primary_game.get("running")),
@@ -1262,6 +1306,8 @@ def collect_metrics() -> dict:
         "proc_count": (primary_game or {}).get("proc_count", 0),
         "game_id": (primary_game or {}).get("id"),
         "game_name": (primary_game or {}).get("name"),
+        "lingering": bool((primary_game or {}).get("lingering")),
+        "linger_remaining_sec": (primary_game or {}).get("linger_remaining_sec"),
     }
     dgpu = gpu_stats(
         gpu_device_path(),
@@ -1294,13 +1340,28 @@ def collect_metrics() -> dict:
         if primary_game and primary_game.get("running")
         else 0.0
     )
+    disk = disk_rates()
+    cpu_iowait = cpu_iowait_pct()
     mem_bw = memory_bandwidth(overall_cpu, game_cpu)
+    io_wait = effective_disk_io_wait(
+        psi_io=float(mem_bw.get("psi_io_avg10") or 0),
+        psi_mem=float(mem_bw.get("psi_avg10") or 0),
+        disk_busy_pct=float(disk.get("busy_pct") or 0),
+        disk_read_mbps=float(disk.get("read_mbps") or 0),
+        disk_write_mbps=float(disk.get("write_mbps") or 0),
+        cpu_iowait_pct=cpu_iowait,
+    )
+    mem_bw["cpu_iowait_pct"] = cpu_iowait
+    mem_bw["io_wait_pct"] = io_wait["io_wait_pct"]
+    mem_bw["io_wait_source"] = io_wait["source"]
+    mem_bw["io_wait_zram_dominated"] = io_wait["zram_dominated"]
     gtt = dgpu.get("gtt") or {}
 
     snap = {
         "ts": time.time(),
         "cpu": {
             "overall_pct": overall_cpu,
+            "iowait_pct": cpu_iowait,
             "per_core": per_core,
             "cores": psutil.cpu_count(logical=False),
             "threads": psutil.cpu_count(logical=True),
@@ -1319,7 +1380,7 @@ def collect_metrics() -> dict:
         },
         "gpu": {"discrete": dgpu, "igpu": igpu},
         "network": net_rates(),
-        "disk": disk_rates(),
+        "disk": disk,
         "games": games_state,
         "game_procs": game_procs,
         "game_totals": game_totals,
@@ -1629,11 +1690,25 @@ class Handler(BaseHTTPRequestHandler):
                 return
             with _lock:
                 latest = _latest_full
+                history = list(_tuning_history)
             gt = latest.get("game_totals") or {}
+            game_id = gt.get("game_id") if gt.get("running") else None
+            game_name = gt.get("game_name")
+            if not game_id:
+                for item in history:
+                    if item.get("insight_id") != insight_id.strip():
+                        continue
+                    seen = item.get("games_seen") or {}
+                    if seen:
+                        game_id = max(seen, key=lambda k: seen[k])
+                        from games import game_meta
+
+                        game_name = game_meta(game_id).get("name") or game_name
+                    break
             result = apply_fix(
                 insight_id.strip(),
-                game_id=gt.get("game_id") if gt.get("running") else None,
-                game_name=gt.get("game_name"),
+                game_id=game_id,
+                game_name=game_name,
             )
             if result.get("ok"):
                 gid = gt.get("game_id")

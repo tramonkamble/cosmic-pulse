@@ -34,9 +34,7 @@ BUILTIN_RULES = PULSE_ROOT / "rules" / "builtin"
 USER_RULES = Path.home() / ".config" / "pulse" / "rules"
 
 _TEMPLATE_RE = re.compile(r"\{([^}]+)\}")
-_UNRESOLVED_TEMPLATE_RE = re.compile(
-    r"\{(?:[a-zA-Z0-9_]+)(?:\.[a-zA-Z0-9_]+)*(?::[^}]+)?\}"
-)
+_UNRESOLVED_TEMPLATE_RE = re.compile(r"\{(?:[a-zA-Z0-9_]+)(?:\.[a-zA-Z0-9_]+)*(?::[^}]+)?\}")
 _PACK_CACHE: dict[str, Any] = {"mtime": 0.0, "packs": []}
 
 
@@ -289,7 +287,11 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
     active_appid = str(gctx.get("appid") or gt.get("game_id") or "") or None
     running = bool(gt.get("running"))
     launch_metrics = (
-        game_session_launch_metrics(active_appid, gt.get("primary_pid"))
+        game_session_launch_metrics(
+            active_appid,
+            gt.get("primary_pid"),
+            primary_name=gt.get("primary_name"),
+        )
         if running and active_appid
         else {"proton": False, "wayland_fix_missing": False, "launch_options": ""}
     )

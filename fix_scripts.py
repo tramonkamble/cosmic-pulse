@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from games import game_data_paths, game_meta, steam_root
+from games import WAYLAND_X11_LAUNCH_OPTS, game_data_paths, game_meta, steam_root
 from hardware_profiles import FIX_TOOL_SPECS, iter_fix_tools
 
 HOME = Path.home()
@@ -219,6 +219,24 @@ need_root() {{
     exit 1
   fi
 }}
+"""
+
+
+def _header_user(insight_id: str, title: str, risk: str = "low") -> str:
+    return f"""#!/usr/bin/env bash
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Cosmic Pulse · {insight_id}
+# {title}
+# Risk: {risk} · Review before running · Generated for {HOME}
+# Usage:  bash fix.sh   (no sudo — edits your Steam user config only)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [ -z "${{BASH_VERSION:-}}" ]; then
+  echo "This script needs bash (not sh/dash). Re-run: bash $0"
+  exit 1
+fi
+set -euo pipefail
+
+log() {{ printf '▸ %s\\n' "$*"; }}
 """
 
 
@@ -1036,30 +1054,59 @@ def script_proton_wayland_launch(
 ) -> str:
     ctx = _game_ctx(game_id, game_name, **kwargs)
     gname = ctx["name"]
-    appid = ctx.get("appid") or game_id or "?"
+    appid = ctx.get("appid") or game_id or ""
+    opts = WAYLAND_X11_LAUNCH_OPTS
+    pulse_root = ROOT
     return (
-        _header(
+        _header_user(
             "proton-wayland-launch-fix",
-            f"{gname} — Proton Wayland X11 override (general recommendation)",
+            f"{gname} — apply Proton Wayland X11 launch override",
             "low",
         )
         + f"""
-cat <<'PLAYBOOK'
+APPID="{appid}"
+GNAME="{gname.replace('"', '\\"')}"
+OPTS='{opts}'
+PULSE_ROOT='{pulse_root}'
 
-  {gname} (AppID {appid}) is on Proton + Wayland.
-  Use this only if mouse look is capped (~180°) or the cursor escapes the game.
+if [ -z "$APPID" ]; then
+  log "No Steam AppID in script context."
+  log "Re-download from Guidance while the game is active, or pass AppID manually:"
+  log "  APPID=3041230 bash $0"
+  exit 1
+fi
 
-  Steam → {gname} → Properties → Launch Options:
+log "Writing X11 launch options for $GNAME (AppID $APPID)"
+log "  $OPTS"
+log "Target: Steam userdata localconfig.vdf (backup → .bak.pulse)"
 
-    PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+python3 <<'PY'
+import sys
+from pathlib import Path
 
-  Optional (if you already use GameMode for this title):
+appid = "{appid}"
+pulse_root = Path("{pulse_root}")
+sys.path.insert(0, str(pulse_root))
 
-    gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+from games import WAYLAND_X11_LAUNCH_OPTS, set_steam_launch_options, steam_launch_options
 
-  Restart the game after saving launch options.
+result = set_steam_launch_options(appid, WAYLAND_X11_LAUNCH_OPTS)
+msg = result.get("message") or str(result)
+print(msg)
+if result.get("path"):
+    print("config:", result["path"])
+if result.get("backup"):
+    print("backup:", result["backup"])
+verified = steam_launch_options(appid)
+print("launch options now:", verified or "(empty)")
+if not result.get("ok"):
+    raise SystemExit(1)
+if not verified or "SDL_VIDEODRIVER=x11" not in verified:
+    raise SystemExit("verify failed — launch options not visible in Steam config")
+PY
 
-PLAYBOOK
+log "Done — quit $GNAME completely, then relaunch from Steam."
+log "Optional GameMode prefix (manual): gamemoderun $OPTS"
 """
     )
 

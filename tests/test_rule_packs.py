@@ -114,7 +114,7 @@ def test_eval_condition_all_and_any():
 def test_unresolved_template_regex_ignores_json_like_braces():
     assert _has_unresolved_template("{game.name}")
     assert _has_unresolved_template("busy {gpu.busy_pct:.0f}%")
-    assert not _has_unresolved_template('echo \'{"ok": true}\'')
+    assert not _has_unresolved_template("echo '{\"ok\": true}'")
     assert not _has_unresolved_template("PATH=$HOME/bin")
 
 
@@ -141,17 +141,17 @@ def test_render_template_bad_format_falls_back_to_str():
 def test_render_actions_drops_unresolved_keeps_json_literals():
     metrics = {"game": {"name": "Windrose", "appid": "3041230"}}
     json_only = _render_actions(
-        [{"label": "JSON", "cmd": 'echo \'{"ok": true}\'', "note": "ok"}],
+        [{"label": "JSON", "cmd": "echo '{\"ok\": true}'", "note": "ok"}],
         metrics,
     )
     assert len(json_only) == 1
-    assert json_only[0]["cmd"] == 'echo \'{"ok": true}\''
+    assert json_only[0]["cmd"] == "echo '{\"ok\": true}'"
 
     mixed = _render_actions(
         [
             {
                 "label": "Open {game.name}",
-                "cmd": 'echo \'{"ok": true}\'',
+                "cmd": "echo '{\"ok\": true}'",
                 "note": "see {game.missing}",
             },
             {"label": "Valid", "cmd": "echo {game.appid}", "note": ""},

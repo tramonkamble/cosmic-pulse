@@ -9,15 +9,17 @@ from fix_scripts import (
     get_fix_script,
     script_balanced,
 )
-from games import active_game_context
+from games import active_game_context, game_meta
 from rule_packs import evaluate_rule_packs, resolve_fix_script_for_insight
 
-_GAME_SCOPED_INSIGHTS = frozenset({
-    "game-files-corrupt",
-    "game-update-pending",
-    "game-prefix-reset",
-    "proton-wayland-launch-fix",
-})
+_GAME_SCOPED_INSIGHTS = frozenset(
+    {
+        "game-files-corrupt",
+        "game-update-pending",
+        "game-prefix-reset",
+        "proton-wayland-launch-fix",
+    }
+)
 
 
 def _hint(
@@ -153,6 +155,16 @@ def fix_script_for_insight(
         "appid": gctx.get("appid"),
         "game_name": gctx.get("name"),
     }
+    if game_scoped and not extra.get("appid") and history:
+        for item in history:
+            if item.get("insight_id") != insight_id:
+                continue
+            seen = item.get("games_seen") or {}
+            if seen:
+                gid = max(seen, key=lambda k: seen[k])
+                extra["appid"] = gid
+                extra["game_name"] = game_meta(gid).get("name") or extra.get("game_name")
+            break
     if insight_id == "vm-swappiness-high":
         extra["current"] = ctx.get("swappiness") or 60
     if insight_id == "game-libs-missing":

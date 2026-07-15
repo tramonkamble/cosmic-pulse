@@ -29,6 +29,43 @@ def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
     return max(lo, min(hi, v))
 
 
+def effective_disk_io_wait(
+    *,
+    psi_io: float = 0,
+    psi_mem: float = 0,
+    disk_busy_pct: float = 0,
+    disk_read_mbps: float = 0,
+    disk_write_mbps: float = 0,
+    cpu_iowait_pct: float = 0,
+) -> dict:
+    """Disk-relevant I/O wait for UI and stutter scoring.
+
+    Raw PSI I/O often reflects zram swap churn while the NVMe is idle; dampen that
+    so the dashboard reflects storage pain, not background swap traffic.
+    """
+    disk_rw = disk_read_mbps + disk_write_mbps
+    disk_active = disk_busy_pct >= 12 or disk_rw >= 25
+    zram_dominated = psi_io >= 20 and psi_mem < 6 and not disk_active
+
+    if zram_dominated:
+        display = max(cpu_iowait_pct, disk_busy_pct * 0.35)
+        source = "cpu_iowait"
+    elif disk_active:
+        blend = max(cpu_iowait_pct, disk_busy_pct * 0.9)
+        psi_scaled = psi_io * min(1.0, max(disk_busy_pct, disk_rw) / 35.0)
+        display = max(blend, psi_scaled)
+        source = "disk"
+    else:
+        display = max(cpu_iowait_pct, psi_io * 0.2)
+        source = "idle"
+
+    return {
+        "io_wait_pct": round(min(100.0, display), 1),
+        "zram_dominated": zram_dominated,
+        "source": source,
+    }
+
+
 def hitch_ms_proxy(
     score: float,
     pgmaj: float,
@@ -88,6 +125,7 @@ def compute_stutter(snap: dict) -> dict:
     pgmaj = float(dram.get("pgmajfault_per_s") or 0)
     psi_mem = float(dram.get("psi_avg10") or 0)
     psi_io = float(dram.get("psi_io_avg10") or 0)
+    io_wait = float(dram.get("io_wait_pct") if dram.get("io_wait_pct") is not None else psi_io)
     swap_out = float(dram.get("swap_out_kbps") or 0)
     swap_in = float(dram.get("swap_in_kbps") or 0)
     swap_pct = float(mem.get("swap_pct") or 0)
@@ -96,7 +134,7 @@ def compute_stutter(snap: dict) -> dict:
     components = {
         "major_faults": _clamp(pgmaj / 60.0 * 100),
         "mem_stall": _clamp(psi_mem / 15.0 * 100),
-        "io_stall": _clamp(psi_io / 12.0 * 100),
+        "io_stall": _clamp(io_wait / 20.0 * 100),
         "swap": _clamp(max(swap_out, swap_in) / 150.0 * 100 + swap_pct * 0.5),
         "disk_spike": _clamp(disk_w / 80.0 * 100) if disk_w > 20 else 0.0,
     }
@@ -130,7 +168,7 @@ def compute_stutter(snap: dict) -> dict:
     else:
         severity = "none"
 
-    est_ms = hitch_ms_proxy(score, pgmaj, psi_mem, psi_io, swap_out)
+    est_ms = hitch_ms_proxy(score, pgmaj, psi_mem, io_wait, swap_out)
 
     return {
         "score": score,

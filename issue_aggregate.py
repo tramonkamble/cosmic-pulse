@@ -58,6 +58,15 @@ def enrich_hint(
     return out
 
 
+def guidance_sort_key(item: dict) -> tuple:
+    """Stable Guidance ordering: severity, priority, then first_seen."""
+    level = item.get("level", "info")
+    rank = {"hot": 0, "warn": 1, "info": 2, "ok": 3}.get(level, 9)
+    games_seen = item.get("games_seen") or {}
+    score = LEVEL_SCORE.get(level, 40) + max(0, len(games_seen) - 1) * MULTI_GAME_BOOST
+    return (rank, -score, item.get("first_seen", 0), item.get("insight_id", ""))
+
+
 def merge_games_seen(history_item: dict, game_ids: list[str], now: float) -> None:
     seen = history_item.setdefault("games_seen", {})
     for gid in game_ids:
@@ -81,7 +90,11 @@ def build_issue_views(
     running_ids: list[str],
     games_state: dict | None = None,
 ) -> dict:
-    """Build overall prioritized list and per-game issue sections."""
+    """Build overall prioritized list and per-game issue sections.
+
+    ``overall`` merges outstanding history with resolved (marked-fixed) items.
+    ``condition_live`` is enriched per tick but does not remove outstanding rows.
+    """
     active_ids = {h["insight_id"] for h in active if h.get("insight_id")}
     resolved_ids, suppressed_ids = get_insight_pref_sets()
 
@@ -115,14 +128,7 @@ def build_issue_views(
                 }
             )
 
-    outstanding = sorted(
-        outstanding_map.values(),
-        key=lambda x: (
-            not x.get("condition_live"),
-            -x["priority_score"],
-            -x.get("last_seen", 0),
-        ),
-    )
+    outstanding = sorted(outstanding_map.values(), key=guidance_sort_key)
     resolved = sorted(
         [enrich(item) for item in history if item.get("insight_id") in resolved_ids],
         key=lambda x: -x.get("last_seen", 0),

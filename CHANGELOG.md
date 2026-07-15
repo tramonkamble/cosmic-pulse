@@ -7,6 +7,28 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+## [2026-07-15]
+
+### Added
+- **Architecture guide** — `docs/ARCHITECTURE.md` (data flow, Guidance contracts, local config).
+- **Config template** — `.pulse_config.example.json`; real `.pulse_config.json` gitignored.
+- **Game linger test** — `tests/test_game_linger.py` for Proton load-gap hold.
+- **Inline documentation** — Guidance render path in `index.html`; `update_tuning_history` docstring.
+
+### Changed
+- **Guidance stability** — index lists all outstanding hints (live = badge only); stable sort by severity/priority/`first_seen`; layout-key diffing + `patchGuidanceLiveState()`; sticky detail selection; warnings dwell ~45s after going non-live.
+- **I/O wait display** — `effective_disk_io_wait()` dampens zram-dominated PSI so dashboard disk wait is not scary on idle rigs.
+- **Proton Wayland fix** — one-click launch-options apply; broader detection; state-verified reopen.
+- **Diagnostics noise** — dropped false-positive prefix-version and unplayed-game prefix scans.
+- **Publish prep** — README layout table, `.gitignore` for backups and local config, REVIEW/PUBLISH_CHECKLIST updates.
+
+### Fixed
+- **Game card flicker** — 10s linger when PID vanishes during Proton load (`primary_active_game_with_linger`).
+
+---
+
+## [Unreleased]
+
 ### Added
 - **Proton Wayland general recommendation** — `proton-wayland-launch-fix` Guidance card (info, per-game) when a Proton title runs on Wayland without the X11 launch override; metrics from `session.wayland`, `game.proton`, and Steam `LaunchOptions`; `tests/test_game_launch.py`.
 - **Backlog: per-game general options UI** — future home for clickable launch-option tunables on the games list (separate from live issue cards).
@@ -145,9 +167,9 @@ When shipping a user-visible change:
 3. Commit in git with a short message that matches the changelog entry (e.g. `feat: smoother meter easing`).
 4. Restart Cosmic Pulse after UI/backend changes: `systemctl --user restart pulse`.
 
-### Local git (current)
+### Local git
 
-- Repo root: `/home/tkep/perf-dashboard` · branch **`main`**
-- Ignored: `pulse.db*`, `.tuning_log.json`, `.memory_cache.json`, `__pycache__/`, `.ruff_cache/`
-- Systemd unit lives at `~/.config/systemd/user/pulse.service` (not in repo); template at `deploy/pulse.service`
-- Remote not configured yet — add GitHub/GitLab when ready: `git remote add origin <url>` then `git push -u origin main`
+- Branch **`main`** — commit source only; runtime files in `.gitignore`
+- Ignored: `pulse.db*`, `.pulse_config.json`, `.tuning_log.json`, `.memory_cache.json`, `backups/`, `__pycache__/`, `.ruff_cache/`
+- Systemd unit: `~/.config/systemd/user/pulse.service` (local); template at `deploy/pulse.service`
+- First push: `git remote add origin <url>` then `git push -u origin main`

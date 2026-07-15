@@ -22,9 +22,15 @@ from collections.abc import Callable
 from pathlib import Path
 
 from fix_scripts import launch_fan_tool
-from games import game_data_paths, normalize_game_id
+from games import (
+    WAYLAND_X11_LAUNCH_OPTS,
+    game_data_paths,
+    normalize_game_id,
+    set_steam_launch_options,
+)
 from gpu_thermal import infer_gpu_model, profile_for_model
 from hardware_profiles import FIX_TOOL_SPECS
+from pulse_config import resolve_insight
 
 # UI hint: insight scripts/steps that need sudo — shown as "Requires root", no Fix button.
 FIX_REQUIRES_ROOT: dict[str, bool] = {
@@ -221,6 +227,23 @@ def _apply_steam_verify(ctx: dict) -> dict:
     }
 
 
+def _apply_proton_wayland_launch(ctx: dict) -> dict:
+    appid = ctx.get("appid")
+    gname = ctx.get("name") or "game"
+    result = set_steam_launch_options(appid, WAYLAND_X11_LAUNCH_OPTS)
+    if not result.get("ok"):
+        return result
+    resolve_insight("proton-wayland-launch-fix")
+    return {
+        "ok": True,
+        "message": (
+            f"Set X11 launch options for {gname}. Quit and relaunch from Steam "
+            "so Proton picks up the override."
+        ),
+        "path": result.get("path"),
+    }
+
+
 def _apply_page_faults(ctx: dict) -> dict:
     gname = ctx.get("name") or "game"
     if _open_game_path(ctx, "Saves", "save", "Save Games", "saved"):
@@ -260,6 +283,7 @@ def apply_fix(
         "game-update-pending": _apply_steam_downloads,
         "steam-disk-low": _apply_steam_storage,
         "game-prefix-reset": _apply_prefix_folder,
+        "proton-wayland-launch-fix": _apply_proton_wayland_launch,
         "system-balanced": _apply_open_game,
     }
     handler = handlers.get(insight_id)
@@ -288,6 +312,7 @@ def fix_available(insight_id: str) -> bool:
         "game-update-pending",
         "steam-disk-low",
         "game-prefix-reset",
+        "proton-wayland-launch-fix",
         "system-balanced",
     }
     return insight_id in handlers and not requires_root(insight_id)

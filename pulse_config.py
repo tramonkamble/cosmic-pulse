@@ -12,6 +12,9 @@ CONFIG_PATH = ROOT / ".pulse_config.json"
 _config_cache: tuple[float, dict] | None = None
 
 DEFAULT_RETENTION_DAYS = 10
+
+# Guidance that must match live system state — reopens when detected again after "Fixed".
+STATE_VERIFIED_INSIGHTS = frozenset({"proton-wayland-launch-fix"})
 RETENTION_PRESETS = [3, 7, 10, 14, 30]
 RETENTION_MIN_DAYS = 1
 RETENTION_MAX_DAYS = 90

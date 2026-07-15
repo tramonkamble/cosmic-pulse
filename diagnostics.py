@@ -455,39 +455,18 @@ def _check_steam_logs(findings: list[dict]) -> None:
 
 
 def _check_game_prefixes(findings: list[dict]) -> None:
+    """Scan existing Proton prefixes for version oddities and error logs.
+
+    Missing compatdata is intentionally not reported: Steam Linux Runtimes,
+    redistributables, native Linux titles, and not-yet-played games all lack
+    prefixes normally — that is not an actionable issue.
+    """
     compat_root = steam_root() / "steamapps" / "compatdata"
     for appid in installed_appids():
         meta_name = game_name_for_appid(appid)
         prefix = compat_root / appid
         if not prefix.is_dir():
-            findings.append(
-                _finding(
-                    f"prefix-missing-{appid}",
-                    "game",
-                    "info",
-                    f"{meta_name}: no Proton prefix yet",
-                    "First launch will create compatdata — errors before that are normal.",
-                    source=str(prefix),
-                )
-            )
             continue
-        ver_file = prefix / "version"
-        if ver_file.is_file():
-            try:
-                ver = ver_file.read_text().strip()
-                if ver and "proton" not in ver.lower() and "steam" not in ver.lower():
-                    findings.append(
-                        _finding(
-                            f"prefix-version-{appid}",
-                            "game",
-                            "info",
-                            f"{meta_name} prefix version",
-                            f"compatdata version: {ver}",
-                            source=str(ver_file),
-                        )
-                    )
-            except OSError:
-                pass
 
         # Game stderr in Proton prefix
         for pattern in ("*/logs/*.log", "*/error*.log"):

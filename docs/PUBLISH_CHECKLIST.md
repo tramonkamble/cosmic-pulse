@@ -10,8 +10,11 @@ Goal: **review-ready repo this week**, public GitHub/GitLab after brother's feed
 - [x] `docs/REVIEW.md` for code reviewers
 - [x] `docs/screenshots/dashboard.png`
 - [x] Remove hardcoded `/home/tkep` paths
-- [x] `.gitignore` for runtime artifacts
+- [x] `.gitignore` for runtime artifacts (incl. `.pulse_config.json`, `backups/`)
 - [x] `CONTRIBUTING.md` + `CHANGELOG.md`
+- [x] `docs/ARCHITECTURE.md` — data flow, Guidance contracts, config
+- [x] `.pulse_config.example.json` — template for local settings
+- [x] Inline comments on Guidance render path (`index.html`) and `update_tuning_history`
 - [ ] **Brother code review** — feedback captured (issues or doc)
 - [ ] Address blocker / should-fix items from review
 
@@ -20,7 +23,7 @@ Goal: **review-ready repo this week**, public GitHub/GitLab after brother's feed
 - [ ] Create GitHub or GitLab repo
 - [ ] Set git `user.email` to real address for attribution
 - [ ] `git remote add origin …` && `git push -u origin main`
-- [ ] README: replace `<repo-url>` with real clone URL
+- [ ] README: replace `<repo-url>` with real clone URL after remote exists
 - [ ] Optional: second screenshot (Fixes tab, league drill-down)
 - [ ] Optional: `127.0.0.1` bind default + `--lan` flag (if review suggests)
 - [ ] Optional: GitHub Issues templates

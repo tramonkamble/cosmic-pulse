@@ -131,6 +131,21 @@ def test_auto_resolve_tolerates_invalid_clear_since():
     assert history[0][CLEAR_SINCE_KEY] == 1000.0
 
 
+def test_auto_resolve_skips_state_verified_insights():
+    resolved: list[str] = []
+    history = [{"insight_id": "proton-wayland-launch-fix", CLEAR_SINCE_KEY: 0.0}]
+    tick_auto_resolve(
+        history,
+        set(),
+        set(),
+        set(),
+        AUTO_RESOLVE_CLEAR_SEC + 5,
+        resolved.append,
+    )
+    assert not resolved
+    assert CLEAR_SINCE_KEY not in history[0]
+
+
 def test_auto_resolve_skips_resolved_and_suppressed():
     resolved: list[str] = []
     history = [

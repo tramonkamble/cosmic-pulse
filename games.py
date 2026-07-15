@@ -21,11 +21,14 @@ _CONTENT_LOG_TTL = 30.0
 _SHADER_SIZE_TTL = 300.0
 
 
-def _prune_stale_cache(cache: dict[str, tuple[float, object]], ttl: float, *, now: float | None = None) -> None:
+def _prune_stale_cache(
+    cache: dict[str, tuple[float, object]], ttl: float, *, now: float | None = None
+) -> None:
     """Drop expired cache entries so AppID keys do not accumulate forever."""
     ts = time.monotonic() if now is None else now
     for key in [k for k, (cached_at, _) in cache.items() if ts - cached_at >= ttl]:
         del cache[key]
+
 
 HOME = Path.home()
 
@@ -220,8 +223,20 @@ _LOCALCONFIG_CACHE: tuple[float, str] = (0.0, "")
 _STEAM_ID64_BASE = 76561197960265728
 
 
+WAYLAND_X11_LAUNCH_OPTS = (
+    "PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%"
+)
+
+
 def session_is_wayland() -> bool:
-    return (os.environ.get("XDG_SESSION_TYPE") or "").lower() == "wayland"
+    st = (os.environ.get("XDG_SESSION_TYPE") or "").lower()
+    if st == "wayland":
+        return True
+    if st == "x11":
+        return False
+    if os.environ.get("WAYLAND_DISPLAY"):
+        return True
+    return False
 
 
 def _steam_account_id(steam_id64: str) -> str:
@@ -317,10 +332,32 @@ def launch_has_wayland_fix(opts: str | None) -> bool:
     """True when launch options already force Proton/X11 instead of native Wayland."""
     o = (opts or "").lower()
     return (
-        "proton_enable_wayland=0" in o
-        or "proton_use_wayland=0" in o
-        or "sdl_videodriver=x11" in o
+        "proton_enable_wayland=0" in o or "proton_use_wayland=0" in o or "sdl_videodriver=x11" in o
     )
+
+
+def _env_blob_has_wayland_fix(blob: bytes) -> bool:
+    low = blob.lower()
+    return (
+        b"proton_enable_wayland=0" in low
+        or b"proton_use_wayland=0" in low
+        or b"sdl_videodriver=x11" in low
+    )
+
+
+def proc_has_wayland_fix(pid: int | None, *, depth: int = 0) -> bool:
+    """True when pid or its parents already export the Wayland→X11 launch override."""
+    if not pid or depth > 8:
+        return False
+    blob = _proc_environ_blob(pid)
+    if blob and _env_blob_has_wayland_fix(blob):
+        return True
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+        ppid = int(stat.split()[3])
+    except (OSError, ValueError, IndexError):
+        return False
+    return proc_has_wayland_fix(ppid, depth=depth + 1)
 
 
 def _proc_environ_blob(pid: int) -> bytes:
@@ -332,13 +369,17 @@ def _proc_environ_blob(pid: int) -> bytes:
 
 def proc_uses_proton(pid: int | None, *, depth: int = 0) -> bool:
     """True when pid or its parents show an active Proton/Wine game session."""
-    if not pid or depth > 6:
+    if not pid or depth > 8:
         return False
     blob = _proc_environ_blob(pid)
-    if blob and b"STEAM_COMPAT_PROTON=1" in blob and (
-        b"WINEDLLPATH" in blob or b"SteamAppId=" in blob
-    ):
-        return True
+    if blob:
+        wine = b"WINEDLLPATH" in blob or any(k in blob for k in STEAM_ENV_APPID_KEYS)
+        if wine and (
+            b"STEAM_COMPAT_PROTON=" in blob
+            or b"STEAM_COMPAT_DATA_PATH=" in blob
+            or b"STEAM_COMPAT_CLIENT=" in blob
+        ):
+            return True
     try:
         stat = Path(f"/proc/{pid}/stat").read_text()
         ppid = int(stat.split()[3])
@@ -347,15 +388,110 @@ def proc_uses_proton(pid: int | None, *, depth: int = 0) -> bool:
     return proc_uses_proton(ppid, depth=depth + 1)
 
 
+def game_uses_proton(
+    appid: str | None,
+    primary_pid: int | None,
+    *,
+    primary_name: str | None = None,
+) -> bool:
+    """Proton/Wine session — env walk plus compatdata when metering a .exe title."""
+    if proc_uses_proton(primary_pid):
+        return True
+    if not appid:
+        return False
+    compat = steam_root() / "steamapps" / "compatdata" / str(appid)
+    if compat.is_dir() and (primary_name or "").lower().endswith(".exe"):
+        return True
+    return False
+
+
+def _indent_launch_options_line(block: str) -> str:
+    for line in block.splitlines():
+        if line.strip().startswith('"') and "LaunchOptions" not in line:
+            m = re.match(r"^(\s+)", line)
+            if m:
+                return m.group(1)
+    for line in block.splitlines():
+        m = re.match(r"^(\s+)", line)
+        if m:
+            return m.group(1)
+    return "\t\t\t\t\t\t"
+
+
+def set_steam_launch_options(appid: str | None, options: str) -> dict:
+    """Write per-game LaunchOptions into Steam localconfig.vdf (user-owned, no sudo)."""
+    aid = (appid or "").strip()
+    opts = (options or "").strip()
+    if not aid:
+        return {"ok": False, "message": "No Steam AppID — launch the game from Steam first."}
+    if not opts:
+        return {"ok": False, "message": "Launch options string is empty."}
+    path = _steam_localconfig_path()
+    if not path:
+        return {
+            "ok": False,
+            "message": "Steam localconfig not found — sign into Steam on this machine.",
+        }
+    try:
+        text = path.read_text(errors="ignore")
+    except OSError as exc:
+        return {"ok": False, "message": f"Cannot read Steam config: {exc}"}
+    block = _extract_vdf_block(text, aid)
+    if not block:
+        return {
+            "ok": False,
+            "message": f"App {aid} not in Steam config — launch once from Steam, then retry.",
+        }
+    escaped = opts.replace("\\", "\\\\").replace('"', '\\"')
+    if re.search(r'"LaunchOptions"\s*"', block):
+        new_block = re.sub(
+            r'"LaunchOptions"\s*"[^"]*"',
+            f'"LaunchOptions"\t\t"{escaped}"',
+            block,
+            count=1,
+        )
+    else:
+        indent = _indent_launch_options_line(block)
+        trimmed = block.rstrip()
+        if trimmed.endswith("}"):
+            trimmed = trimmed[:-1].rstrip()
+        close = indent[:-1] if len(indent) > 0 else ""
+        new_block = f'{trimmed}\n{indent}"LaunchOptions"\t\t"{escaped}"\n{close}}}'
+    if new_block == block:
+        return {"ok": True, "message": "Launch options already set.", "path": str(path)}
+    new_text = text.replace(block, new_block, 1)
+    backup = path.with_suffix(path.suffix + ".bak.pulse")
+    try:
+        if path.exists():
+            backup.write_text(text, encoding="utf-8")
+        path.write_text(new_text, encoding="utf-8")
+    except OSError as exc:
+        return {"ok": False, "message": f"Cannot write Steam config: {exc}"}
+    global _LOCALCONFIG_CACHE
+    _LOCALCONFIG_CACHE = (0.0, "")
+    return {
+        "ok": True,
+        "message": "Saved Steam launch options — restart the game for the X11 override.",
+        "path": str(path),
+        "backup": str(backup),
+    }
+
+
 def game_session_launch_metrics(
     appid: str | None,
     primary_pid: int | None = None,
+    *,
+    primary_name: str | None = None,
 ) -> dict[str, bool | str]:
-    """Proton session + whether Steam launch options lack the Wayland→X11 override."""
+    """Proton session + whether Wayland→X11 override is missing in Steam and runtime."""
     opts = steam_launch_options(appid)
+    fix_in_opts = launch_has_wayland_fix(opts)
+    fix_runtime = proc_has_wayland_fix(primary_pid)
     return {
-        "proton": proc_uses_proton(primary_pid),
-        "wayland_fix_missing": not launch_has_wayland_fix(opts),
+        "proton": game_uses_proton(appid, primary_pid, primary_name=primary_name),
+        "wayland_fix_missing": not (fix_in_opts or fix_runtime),
+        "wayland_fix_in_launch_options": fix_in_opts,
+        "wayland_fix_runtime": fix_runtime,
         "launch_options": opts,
     }
 
@@ -402,6 +538,24 @@ def game_meta(appid: str) -> dict:
     }
 
 
+_STEAM_ASSET_CDN = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps"
+_STEAM_LEGACY_CDN = "https://cdn.cloudflare.steamstatic.com/steam/apps"
+
+
+def steam_art_urls(appid: str) -> list[str]:
+    """Steam CDN art candidates — newer titles often lack header.jpg (use library_hero)."""
+    appid = normalize_game_id(appid) or appid
+    if not appid or not str(appid).isdigit():
+        return []
+    base = f"{_STEAM_ASSET_CDN}/{appid}"
+    return [
+        f"{base}/library_hero.jpg",
+        f"{base}/header.jpg",
+        f"{base}/capsule_616x353.jpg",
+        f"{_STEAM_LEGACY_CDN}/{appid}/header.jpg",
+    ]
+
+
 def build_games_catalog() -> dict[str, dict]:
     catalog: dict[str, dict] = {}
     steamapps = steam_root() / "steamapps"
@@ -413,6 +567,7 @@ def build_games_catalog() -> dict[str, dict]:
                 "name": meta["name"],
                 "short": meta["short"],
                 "appid": appid,
+                "art_urls": steam_art_urls(appid),
             }
     for appid in GAME_OVERRIDES:
         meta = game_meta(appid)
@@ -422,6 +577,7 @@ def build_games_catalog() -> dict[str, dict]:
                 "name": meta["name"],
                 "short": meta["short"],
                 "appid": appid,
+                "art_urls": steam_art_urls(appid),
             },
         )
     return catalog
@@ -1178,6 +1334,53 @@ def primary_active_game(state: dict[str, dict]) -> dict | None:
     if not running:
         return None
     return max(running, key=lambda g: (g.get("cpu_pct") or 0, g.get("rss_mb") or 0))
+
+
+GAME_LINGER_SEC = 10.0
+_game_linger: dict | None = None
+
+
+def reset_game_linger() -> None:
+    """Clear linger state (tests / session boundaries)."""
+    global _game_linger
+    _game_linger = None
+
+
+def primary_active_game_with_linger(
+    state: dict[str, dict],
+    now: float | None = None,
+) -> dict | None:
+    """Hold the active game visible briefly after its PID vanishes (Proton load gaps)."""
+    global _game_linger
+    ts = time.time() if now is None else now
+    live = primary_active_game(state)
+
+    if live and live.get("running"):
+        snap = dict(live)
+        snap.pop("lingering", None)
+        snap.pop("linger_remaining_sec", None)
+        _game_linger = {"last_live_ts": ts, "game": snap}
+        return snap
+
+    if not _game_linger:
+        return None
+
+    age = ts - _game_linger["last_live_ts"]
+    if age >= GAME_LINGER_SEC:
+        _game_linger = None
+        return None
+
+    stale = dict(_game_linger["game"])
+    stale["running"] = True
+    stale["lingering"] = True
+    stale["linger_remaining_sec"] = round(max(0.0, GAME_LINGER_SEC - age), 1)
+    stale["primary_pid"] = None
+    stale["cpu_pct"] = 0.0
+    stale["rss_mb"] = 0.0
+    stale["tree_rss_mb"] = 0.0
+    stale["proc_count"] = 0
+    stale["procs"] = []
+    return stale
 
 
 def installed_appids() -> list[str]:
