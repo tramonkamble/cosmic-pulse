@@ -1,0 +1,4 @@
+#!/bin/sh
+# Launcher for apt-installed Cosmic Pulse (/usr/lib/cosmic-pulse).
+# Writable state defaults to ~/.local/share/cosmic-pulse via paths.py.
+exec /usr/bin/python3 /usr/lib/cosmic-pulse/server.py "$@"

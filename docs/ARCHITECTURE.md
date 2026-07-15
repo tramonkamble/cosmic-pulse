@@ -86,6 +86,19 @@ Previously the index gated on live-only, which made cards vanish for a tick whil
 
 When a Proton game's PID disappears during load, `primary_active_game_with_linger()` (server) holds the game row ~10s. Client shows "Loading" from `game_totals.lingering`.
 
+## Install paths (`paths.py`)
+
+| Location | Role |
+|----------|------|
+| `app_root()` | Code, `index.html`, `rules/` (read-only in `.deb`) |
+| `data_dir()` | `pulse.db`, `.pulse_config.json`, tuning log, caches |
+
+- **Git clone / `install.sh`:** both under the install directory (e.g. `~/.local/share/cosmic-pulse`).
+- **`.deb` install:** code in `/usr/lib/cosmic-pulse`, state in `~/.local/share/cosmic-pulse`.
+- Override: `PULSE_DATA_DIR=/path/to/state`.
+
+See [INSTALL.md](INSTALL.md).
+
 ## Local configuration (not in git)
 
 | File | Purpose |
@@ -94,6 +107,8 @@ When a Proton game's PID disappears during load, `primary_active_game_with_linge
 | `.tuning_log.json` | Guidance history cache |
 | `.memory_cache.json` | RAM probe cache |
 | `pulse.db` | SQLite samples |
+
+All live under `data_dir()` (see above).
 
 ## Tests
 

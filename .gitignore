@@ -10,6 +10,7 @@ pulse.db-*
 .tuning_log.json
 .memory_cache.json
 backups/
+build/
 
 # Local review notes (not shipped)
 reviews_*-ux-review.md

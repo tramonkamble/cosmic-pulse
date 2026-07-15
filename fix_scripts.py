@@ -10,9 +10,10 @@ from pathlib import Path
 
 from games import WAYLAND_X11_LAUNCH_OPTS, game_data_paths, game_meta, steam_root
 from hardware_profiles import FIX_TOOL_SPECS, iter_fix_tools
+from paths import app_root
 
 HOME = Path.home()
-ROOT = Path(__file__).resolve().parent
+ROOT = app_root()
 PROBE = ROOT / "probe_memory.py"
 
 

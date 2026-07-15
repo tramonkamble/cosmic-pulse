@@ -51,6 +51,7 @@ from issue_aggregate import (
     merge_games_seen,
 )
 from load_phase import tick_load_phase
+from paths import app_root, data_dir
 from probe_memory import infer_fallback
 from pulse_config import (
     STATE_VERIFIED_INSIGHTS,
@@ -82,7 +83,7 @@ from tuning_actions import build_tuning_hints, fix_script_for_insight, system_co
 
 PORT = int(os.environ.get("PULSE_PORT", "8765"))
 HISTORY_LEN = 600  # 10 minutes at 1 Hz
-ROOT = Path(__file__).resolve().parent
+ROOT = app_root()
 
 
 def _strip_hint(h: dict) -> dict:
@@ -184,7 +185,7 @@ _TUNING_CTX_TTL = 5.0
 VRAM_PEAK_GBPS = 800.0
 # PCIe 4.0 x16 one-way theoretical payload ≈ 31.5 GB/s
 PCIE_PEAK_GBPS = 31.5
-MEMORY_CACHE = ROOT / ".memory_cache.json"
+MEMORY_CACHE = data_dir() / ".memory_cache.json"
 
 
 def load_memory_spec() -> dict:
@@ -208,7 +209,7 @@ _tuning_history: list[dict] = []
 _tuning_by_id: dict[str, dict] = {}
 _tuning_dirty = False
 _tuning_last_save = 0.0
-TUNING_LOG = ROOT / ".tuning_log.json"
+TUNING_LOG = data_dir() / ".tuning_log.json"
 TUNING_MAX = 48
 TUNING_SAVE_SEC = 12.0
 BACKLOG_FILE = ROOT / "backlog.json"

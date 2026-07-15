@@ -9,8 +9,8 @@ import math
 import sqlite3
 import threading
 import time
-from pathlib import Path
 
+from paths import data_dir
 from pulse_config import (
     DEFAULT_RETENTION_DAYS,
     RETENTION_MAX_DAYS,
@@ -28,8 +28,7 @@ from pulse_config import (
     unsuppress_insight,
 )
 
-ROOT = Path(__file__).resolve().parent
-DB_PATH = ROOT / "pulse.db"
+DB_PATH = data_dir() / "pulse.db"
 
 # Flat metrics available for /api/trends and /api/correlation
 METRICS: dict[str, str] = {

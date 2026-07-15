@@ -30,6 +30,12 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **Installer** — `install.sh` (user-local venv + `cosmic-pulse` wrapper + optional systemd).
+- **Debian package** — `deploy/build-deb.sh` builds `cosmic-pulse_*_all.deb` for apt.
+- **`paths.py`** — separates app root from writable data dir (deb installs state under `~/.local/share/cosmic-pulse`).
+- **`docs/INSTALL.md`** — install script, .deb, systemd, uninstall guide.
+
+### Added
 - **Proton Wayland general recommendation** — `proton-wayland-launch-fix` Guidance card (info, per-game) when a Proton title runs on Wayland without the X11 launch override; metrics from `session.wayland`, `game.proton`, and Steam `LaunchOptions`; `tests/test_game_launch.py`.
 - **Backlog: per-game general options UI** — future home for clickable launch-option tunables on the games list (separate from live issue cards).
 - **De-hardcode initiative** — game overrides and legacy AppIDs live in `rules/builtin/pulse-default/pack.yaml`; fix scripts use active `appid` (no CS2 `730` fallbacks); dynamic lib-install lines from diagnostics; `{steam.root}` templates in Steam rules; `legacy_game_ids` on static API; `tests/test_game_dynamic.py`.

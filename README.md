@@ -20,23 +20,41 @@ Cosmic Pulse is a local web dashboard that helps you understand *why* a game stu
 ## Requirements
 
 - Linux with `/proc`, `/sys`, and optional `lm-sensors` (`sensors`)
-- Python **3.10+**
-- [`psutil`](https://pypi.org/project/psutil/) (only pip dependency)
+- Python **3.11+**
+- pip: [`psutil`](https://pypi.org/project/psutil/), [`PyYAML`](https://pypi.org/project/PyYAML/) — or distro packages `python3-psutil`, `python3-yaml`
 - AMD GPU metrics work best with amdgpu sysfs (`card1` discrete GPU assumed — see `server.py`)
 - Optional: `dmidecode`, `smartctl`, `corectrl`, `nvtop` (listed in the tools panel)
 
-## Quick start
+## Install
+
+**Easiest** — install script + optional background service:
 
 ```bash
-git clone <repo-url> pulse   # or copy the project directory
-cd pulse
-python3 -m venv .venv
-source .venv/bin/activate
+git clone <repo-url> cosmic-pulse
+cd cosmic-pulse
+chmod +x install.sh
+./install.sh --service
+```
+
+Opens **http://localhost:8765**. Wrapper: `cosmic-pulse`. Full options: **[docs/INSTALL.md](docs/INSTALL.md)**.
+
+**Debian / Pop!_OS .deb** (optional):
+
+```bash
+./deploy/build-deb.sh
+sudo apt install ./build/deb/cosmic-pulse_0.1.0_all.deb
+systemctl --user enable --now cosmic-pulse
+```
+
+**Manual / hacking on the code:**
+
+```bash
+git clone <repo-url> cosmic-pulse
+cd cosmic-pulse
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python3 server.py
 ```
-
-Open **http://localhost:8765** on a second monitor while gaming.
 
 ### Configuration (optional)
 
@@ -47,17 +65,6 @@ cp .pulse_config.example.json .pulse_config.json   # optional; defaults work wit
 ```
 
 Edit retention days or mark insights fixed/ignored — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Run as a service (optional)
-
-```bash
-# Edit paths: replace USER with your username
-cp deploy/pulse.service ~/.config/systemd/user/pulse.service
-$EDITOR ~/.config/systemd/user/pulse.service
-
-systemctl --user daemon-reload
-systemctl --user enable --now pulse
-```
 
 ## Project layout
 
@@ -78,6 +85,9 @@ systemctl --user enable --now pulse
 | `games.py` | Steam game detection, Proton/Wayland helpers |
 | `store.py` | SQLite history, retention, correlation APIs |
 | `probe_memory.py` | RAM speed probe (optional, may need sudo) |
+| `install.sh` | User-local installer (venv + optional systemd) |
+| `deploy/build-deb.sh` | Build a `.deb` for apt |
+| `docs/INSTALL.md` | Install script, .deb, systemd, uninstall |
 | `docs/ARCHITECTURE.md` | Data flow, Guidance contracts, config files |
 
 ## API

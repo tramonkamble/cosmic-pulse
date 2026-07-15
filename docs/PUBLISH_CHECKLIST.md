@@ -15,6 +15,7 @@ Goal: **review-ready repo this week**, public GitHub/GitLab after brother's feed
 - [x] `docs/ARCHITECTURE.md` — data flow, Guidance contracts, config
 - [x] `.pulse_config.example.json` — template for local settings
 - [x] Inline comments on Guidance render path (`index.html`) and `update_tuning_history`
+- [x] `install.sh` + `docs/INSTALL.md` + `deploy/build-deb.sh` (.deb)
 - [ ] **Brother code review** — feedback captured (issues or doc)
 - [ ] Address blocker / should-fix items from review
 

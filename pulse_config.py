@@ -5,10 +5,10 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-CONFIG_PATH = ROOT / ".pulse_config.json"
+from paths import data_dir
+
+CONFIG_PATH = data_dir() / ".pulse_config.json"
 _config_cache: tuple[float, dict] | None = None
 
 DEFAULT_RETENTION_DAYS = 10
