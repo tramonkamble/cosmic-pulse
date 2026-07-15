@@ -196,13 +196,60 @@ def steam_root() -> Path:
 
 
 _LOCALCONFIG_CACHE: tuple[float, str] = (0.0, "")
+_STEAM_ID64_BASE = 76561197960265728
 
 
 def session_is_wayland() -> bool:
     return (os.environ.get("XDG_SESSION_TYPE") or "").lower() == "wayland"
 
 
+def _steam_account_id(steam_id64: str) -> str:
+    return str(int(steam_id64) - _STEAM_ID64_BASE)
+
+
+def _extract_vdf_block(text: str, key: str) -> str:
+    needle = f'"{key}"'
+    pos = 0
+    while True:
+        idx = text.find(needle, pos)
+        if idx == -1:
+            return ""
+        tail = text[idx + len(needle) : idx + len(needle) + 48]
+        if re.match(r"\s*\{", tail):
+            start = text.index("{", idx)
+            depth = 0
+            for i in range(start, len(text)):
+                ch = text[i]
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return text[start : i + 1]
+        pos = idx + 1
+
+
+def _most_recent_steam_localconfig_path() -> Path | None:
+    loginusers = steam_root() / "config" / "loginusers.vdf"
+    userdata = steam_root() / "userdata"
+    if loginusers.is_file() and userdata.is_dir():
+        try:
+            text = loginusers.read_text(errors="ignore")
+        except OSError:
+            text = ""
+        for steam_id64 in re.findall(r'"(\d{17})"', text):
+            block = _extract_vdf_block(text, steam_id64)
+            if block and re.search(r'"MostRecent"\s*"1"', block):
+                path = userdata / _steam_account_id(steam_id64) / "config" / "localconfig.vdf"
+                if path.is_file():
+                    return path
+    return None
+
+
 def _steam_localconfig_path() -> Path | None:
+    recent = _most_recent_steam_localconfig_path()
+    if recent:
+        return recent
     userdata = steam_root() / "userdata"
     if not userdata.is_dir():
         return None
@@ -238,47 +285,45 @@ def steam_launch_options(appid: str | None) -> str:
     text = _read_localconfig_text()
     if not text:
         return ""
-    needle = f'"{appid}"'
-    pos = 0
-    while True:
-        idx = text.find(needle, pos)
-        if idx == -1:
-            return ""
-        tail = text[idx + len(needle) : idx + len(needle) + 48]
-        if re.match(r"\s*\{", tail):
-            start = text.index("{", idx)
-            depth = 0
-            for i in range(start, len(text)):
-                ch = text[i]
-                if ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0:
-                        block = text[start : i + 1]
-                        match = re.search(r'"LaunchOptions"\s*"([^"]*)"', block)
-                        return match.group(1) if match else ""
-        pos = idx + 1
+    block = _extract_vdf_block(text, appid)
+    if not block:
+        return ""
+    match = re.search(r'"LaunchOptions"\s*"([^"]*)"', block)
+    return match.group(1) if match else ""
 
 
 def launch_has_wayland_fix(opts: str | None) -> bool:
     """True when launch options already force Proton/X11 instead of native Wayland."""
     o = (opts or "").lower()
-    return "proton_enable_wayland=0" in o or "sdl_videodriver=x11" in o
-
-
-def proc_uses_proton(pid: int | None) -> bool:
-    """True when /proc/pid/environ shows an active Proton/Wine game session."""
-    if not pid:
-        return False
-    try:
-        raw = Path(f"/proc/{pid}/environ").read_bytes()
-    except OSError:
-        return False
-    blob = raw.replace(b"\0", b" ")
-    return b"STEAM_COMPAT_PROTON=1" in blob and (
-        b"WINEDLLPATH" in blob or b"SteamAppId=" in blob
+    return (
+        "proton_enable_wayland=0" in o
+        or "proton_use_wayland=0" in o
+        or "sdl_videodriver=x11" in o
     )
+
+
+def _proc_environ_blob(pid: int) -> bytes:
+    try:
+        return Path(f"/proc/{pid}/environ").read_bytes().replace(b"\0", b" ")
+    except OSError:
+        return b""
+
+
+def proc_uses_proton(pid: int | None, *, depth: int = 0) -> bool:
+    """True when pid or its parents show an active Proton/Wine game session."""
+    if not pid or depth > 6:
+        return False
+    blob = _proc_environ_blob(pid)
+    if blob and b"STEAM_COMPAT_PROTON=1" in blob and (
+        b"WINEDLLPATH" in blob or b"SteamAppId=" in blob
+    ):
+        return True
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+        ppid = int(stat.split()[3])
+    except (OSError, ValueError, IndexError):
+        return False
+    return proc_uses_proton(ppid, depth=depth + 1)
 
 
 def game_session_launch_metrics(

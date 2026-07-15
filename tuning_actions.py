@@ -16,6 +16,7 @@ _GAME_SCOPED_INSIGHTS = frozenset({
     "game-files-corrupt",
     "game-update-pending",
     "game-prefix-reset",
+    "proton-wayland-launch-fix",
 })
 
 
@@ -112,10 +113,10 @@ def build_tuning_hints(snap: dict, mem_spec: dict, ctx: dict | None = None) -> l
             [
                 *([_open_game_action(gctx)] if _open_game_action(gctx) else []),
                 _cmd(
-                    "Steam launch options (keep Wayland fix)",
-                    "PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%",
-                    kind="steam",
-                    note="Steam → game → Properties → Launch Options",
+                    "Wayland + Proton games",
+                    "See Guidance: Proton on Wayland — X11 override (per game)",
+                    kind="game",
+                    note="Only if mouse/camera acts up on COSMIC/Wayland",
                 ),
             ],
             insight_id="system-balanced",

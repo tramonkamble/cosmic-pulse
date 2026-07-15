@@ -281,9 +281,10 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
     cause_txt = ", ".join(cause_labels.get(c, c) for c in causes) or "memory pressure"
     active_appid = str(gctx.get("appid") or gt.get("game_id") or "") or None
     running = bool(gt.get("running"))
-    launch_metrics = game_session_launch_metrics(
-        active_appid if running else None,
-        gt.get("primary_pid"),
+    launch_metrics = (
+        game_session_launch_metrics(active_appid, gt.get("primary_pid"))
+        if running and active_appid
+        else {"proton": False, "wayland_fix_missing": False, "launch_options": ""}
     )
 
     try:

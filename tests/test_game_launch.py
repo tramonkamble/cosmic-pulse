@@ -42,6 +42,7 @@ def test_launch_has_wayland_fix_detects_override():
         "PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%"
     )
     assert launch_has_wayland_fix("SDL_VIDEODRIVER=x11 %command%")
+    assert launch_has_wayland_fix("PROTON_USE_WAYLAND=0 %command%")
     assert not launch_has_wayland_fix("")
     assert not launch_has_wayland_fix("%command%")
 
@@ -137,6 +138,42 @@ def test_proc_uses_proton_self_process():
     import os
 
     assert proc_uses_proton(os.getpid()) is False
+
+
+def test_most_recent_localconfig_account(monkeypatch, tmp_path):
+    import games
+
+    root = tmp_path / "steam"
+    (root / "config").mkdir(parents=True)
+    (root / "config" / "loginusers.vdf").write_text(
+        '''
+"users"
+{
+    "76561197977150766"
+    {
+        "MostRecent"		"1"
+    }
+}
+'''
+    )
+    acct = games._steam_account_id("76561197977150766")
+    cfg = root / "userdata" / acct / "config"
+    cfg.mkdir(parents=True)
+    (cfg / "localconfig.vdf").write_text(
+        f'''
+"Apps"
+{{
+    "3041230"
+    {{
+        "LaunchOptions"		"PROTON_ENABLE_WAYLAND=0 %command%"
+    }}
+}}
+'''
+    )
+    monkeypatch.setattr(games, "steam_root", lambda: root)
+    games._LOCALCONFIG_CACHE = (0.0, "")
+    assert games._steam_localconfig_path() == cfg / "localconfig.vdf"
+    assert "PROTON_ENABLE_WAYLAND=0" in steam_launch_options("3041230")
 
 
 def test_eval_condition_session_game_metrics():
