@@ -23,7 +23,7 @@ sudo apt install python3-venv python3-pip
 From a git clone or extracted tarball:
 
 ```bash
-git clone <repo-url> cosmic-pulse
+git clone https://github.com/tramonkamble/cosmic-pulse.git
 cd cosmic-pulse
 chmod +x install.sh
 ./install.sh --service
@@ -46,7 +46,7 @@ Ensure `~/.local/bin` is on your `PATH`.
 ## Option 2 — Manual / development
 
 ```bash
-git clone <repo-url> cosmic-pulse
+git clone https://github.com/tramonkamble/cosmic-pulse.git
 cd cosmic-pulse
 python3 -m venv .venv
 source .venv/bin/activate

@@ -67,6 +67,6 @@ Ship `.pulse_config.example.json` instead of a real config. See [docs/ARCHITECTU
 
 ```bash
 git config user.email "you@example.com"
-git remote add origin <repo-url>
+git remote add origin https://github.com/tramonkamble/cosmic-pulse.git
 git push -u origin main
 ```

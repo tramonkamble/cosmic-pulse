@@ -30,6 +30,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Changed
+- **GitHub** — repo URLs updated to https://github.com/tramonkamble/cosmic-pulse; pushed to `main`.
 - **README** — expanded for GitHub: quick start, install flags, config, security notice, troubleshooting, doc index.
 
 ### Added

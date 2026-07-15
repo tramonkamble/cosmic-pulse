@@ -21,10 +21,10 @@ Goal: **review-ready repo this week**, public GitHub/GitLab after brother's feed
 
 ## Before public publish
 
-- [ ] Create GitHub or GitLab repo
+- [x] Create GitHub repo — https://github.com/tramonkamble/cosmic-pulse
 - [ ] Set git `user.email` to real address for attribution
-- [ ] `git remote add origin …` && `git push -u origin main`
-- [ ] README: replace `<repo-url>` with real clone URL after remote exists
+- [x] `git remote add origin` && `git push -u origin main`
+- [x] README: clone URL points at GitHub
 - [ ] Optional: second screenshot (Fixes tab, league drill-down)
 - [ ] Optional: `127.0.0.1` bind default + `--lan` flag (if review suggests)
 - [ ] Optional: GitHub Issues templates

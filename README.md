@@ -6,7 +6,7 @@ Cosmic Pulse is a local web dashboard that helps you understand *why* a game stu
 
 ![Cosmic Pulse dashboard](docs/screenshots/dashboard.png)
 
-> **Status:** v0.1 — community project, not an official System76 app. Feedback welcome via [Issues](https://github.com/YOURUSER/cosmic-pulse/issues).
+> **Status:** v0.1 — community project, not an official System76 app. Feedback welcome via [Issues](https://github.com/tramonkamble/cosmic-pulse/issues).
 
 ## Why Cosmic Pulse?
 
@@ -26,7 +26,7 @@ Cosmic Pulse is a **companion** for a second monitor while gaming — not a repl
 sudo apt install python3-psutil python3-yaml
 
 # Install
-git clone https://github.com/YOURUSER/cosmic-pulse.git
+git clone https://github.com/tramonkamble/cosmic-pulse.git
 cd cosmic-pulse
 chmod +x install.sh
 ./install.sh --service
