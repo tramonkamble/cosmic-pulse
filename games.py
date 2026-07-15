@@ -195,6 +195,105 @@ def steam_root() -> Path:
     return HOME / ".local/share/Steam"
 
 
+_LOCALCONFIG_CACHE: tuple[float, str] = (0.0, "")
+
+
+def session_is_wayland() -> bool:
+    return (os.environ.get("XDG_SESSION_TYPE") or "").lower() == "wayland"
+
+
+def _steam_localconfig_path() -> Path | None:
+    userdata = steam_root() / "userdata"
+    if not userdata.is_dir():
+        return None
+    for account in sorted(userdata.iterdir()):
+        if not account.is_dir() or not account.name.isdigit():
+            continue
+        path = account / "config" / "localconfig.vdf"
+        if path.is_file():
+            return path
+    return None
+
+
+def _read_localconfig_text() -> str:
+    global _LOCALCONFIG_CACHE
+    path = _steam_localconfig_path()
+    if not path:
+        return ""
+    try:
+        mtime = path.stat().st_mtime
+        if mtime <= _LOCALCONFIG_CACHE[0] and _LOCALCONFIG_CACHE[1]:
+            return _LOCALCONFIG_CACHE[1]
+        text = path.read_text(errors="ignore")
+    except OSError:
+        return ""
+    _LOCALCONFIG_CACHE = (mtime, text)
+    return text
+
+
+def steam_launch_options(appid: str | None) -> str:
+    """Per-game Steam LaunchOptions from localconfig.vdf (empty when unset)."""
+    if not appid:
+        return ""
+    text = _read_localconfig_text()
+    if not text:
+        return ""
+    needle = f'"{appid}"'
+    pos = 0
+    while True:
+        idx = text.find(needle, pos)
+        if idx == -1:
+            return ""
+        tail = text[idx + len(needle) : idx + len(needle) + 48]
+        if re.match(r"\s*\{", tail):
+            start = text.index("{", idx)
+            depth = 0
+            for i in range(start, len(text)):
+                ch = text[i]
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        block = text[start : i + 1]
+                        match = re.search(r'"LaunchOptions"\s*"([^"]*)"', block)
+                        return match.group(1) if match else ""
+        pos = idx + 1
+
+
+def launch_has_wayland_fix(opts: str | None) -> bool:
+    """True when launch options already force Proton/X11 instead of native Wayland."""
+    o = (opts or "").lower()
+    return "proton_enable_wayland=0" in o or "sdl_videodriver=x11" in o
+
+
+def proc_uses_proton(pid: int | None) -> bool:
+    """True when /proc/pid/environ shows an active Proton/Wine game session."""
+    if not pid:
+        return False
+    try:
+        raw = Path(f"/proc/{pid}/environ").read_bytes()
+    except OSError:
+        return False
+    blob = raw.replace(b"\0", b" ")
+    return b"STEAM_COMPAT_PROTON=1" in blob and (
+        b"WINEDLLPATH" in blob or b"SteamAppId=" in blob
+    )
+
+
+def game_session_launch_metrics(
+    appid: str | None,
+    primary_pid: int | None = None,
+) -> dict[str, bool | str]:
+    """Proton session + whether Steam launch options lack the Wayland→X11 override."""
+    opts = steam_launch_options(appid)
+    return {
+        "proton": proc_uses_proton(primary_pid),
+        "wayland_fix_missing": not launch_has_wayland_fix(opts),
+        "launch_options": opts,
+    }
+
+
 def _short_name(name: str) -> str:
     words = (name or "").split()
     if len(words) <= 3:

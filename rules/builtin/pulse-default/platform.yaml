@@ -19,10 +19,6 @@ rules:
       - label: Check available governors
         kind: cmd
         cmd: cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
-      - label: "Steam launch: add GameMode"
-        kind: steam
-        cmd: gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
-        note: Steam → game → Properties → Launch Options
 
   - id: vm-swappiness-high
     detect:

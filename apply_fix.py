@@ -54,6 +54,7 @@ FIX_REQUIRES_ROOT: dict[str, bool] = {
     "steam-disk-low": False,
     "vulkan-broken": True,
     "game-prefix-reset": False,
+    "proton-wayland-launch-fix": False,
     "system-balanced": False,
 }
 

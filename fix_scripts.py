@@ -665,8 +665,8 @@ cat <<'PLAYBOOK'
   Until reboot (needs sudo):
     echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
-  Optional Steam launch option:
-    gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+  If on Wayland and mouse/camera acts up, see Guidance:
+    Proton on Wayland — X11 override (per-game launch options).
 
 PLAYBOOK
 """
@@ -1017,11 +1017,49 @@ log "GameMode requests lower latency while a game runs"
 sudo apt install -y gamemode
 log ""
 log "Steam → game → Properties → Launch Options:"
-echo 'gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%'
+echo 'gamemoderun %command%'
+log ""
+log "On Wayland, also see Guidance: Proton on Wayland — X11 override (per game)."
 log ""
 log "Ensure gamemoded is running:"
 systemctl --user enable --now gamemoded 2>/dev/null || true
 gamemoded -t 2>/dev/null || log "Start gamemoded after install if needed"
+"""
+    )
+
+
+def script_proton_wayland_launch(
+    *,
+    game_id: str | None = None,
+    game_name: str | None = None,
+    **kwargs,
+) -> str:
+    ctx = _game_ctx(game_id, game_name, **kwargs)
+    gname = ctx["name"]
+    appid = ctx.get("appid") or game_id or "?"
+    return (
+        _header(
+            "proton-wayland-launch-fix",
+            f"{gname} — Proton Wayland X11 override (general recommendation)",
+            "low",
+        )
+        + f"""
+cat <<'PLAYBOOK'
+
+  {gname} (AppID {appid}) is on Proton + Wayland.
+  Use this only if mouse look is capped (~180°) or the cursor escapes the game.
+
+  Steam → {gname} → Properties → Launch Options:
+
+    PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+
+  Optional (if you already use GameMode for this title):
+
+    gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+
+  Restart the game after saving launch options.
+
+PLAYBOOK
 """
     )
 
@@ -1037,10 +1075,9 @@ def script_balanced(
         _header("system-balanced", "System healthy — maintenance checklist", "low")
         + f"""
 log "No critical insights. Maintenance:"
-log "  • Steam launch options:"
-echo '    PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%'
+log "  • Wayland + Proton games: see Guidance per-game X11 override if mouse/camera acts up"
 log "  • Optional GameMode:"
-echo '    gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%'
+echo '    gamemoderun %command%'
 {_open_dir_cmd(ctx)}
 log "Dashboard: http://localhost:8765"
 """
@@ -1074,6 +1111,7 @@ SCRIPTS: dict[str, callable] = {
     "game-prefix-reset": script_game_bad_exit,
     "mangohud-recommended": script_mangohud_recommended,
     "gamemode-recommended": script_gamemode_recommended,
+    "proton-wayland-launch-fix": script_proton_wayland_launch,
     "stutter-proxy": lambda score=0, est_ms=0, causes=None, **kw: script_stutter(
         float(score),
         float(est_ms),

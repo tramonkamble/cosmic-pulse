@@ -129,7 +129,3 @@ rules:
       - label: Set performance governor (until reboot)
         kind: cmd
         cmd: echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-      - label: "Steam launch: add GameMode"
-        kind: steam
-        cmd: gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
-        note: Steam → game → Properties → Launch Options

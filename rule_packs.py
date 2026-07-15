@@ -18,6 +18,8 @@ from fix_scripts import get_fix_script
 from games import (
     active_game_context,
     game_meta,
+    game_session_launch_metrics,
+    session_is_wayland,
     steam_install_health,
     steam_root,
     steam_update_needs_attention,
@@ -279,6 +281,10 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
     cause_txt = ", ".join(cause_labels.get(c, c) for c in causes) or "memory pressure"
     active_appid = str(gctx.get("appid") or gt.get("game_id") or "") or None
     running = bool(gt.get("running"))
+    launch_metrics = game_session_launch_metrics(
+        active_appid if running else None,
+        gt.get("primary_pid"),
+    )
 
     try:
         from diagnostics import get_diagnostics
@@ -293,10 +299,16 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
             "swappiness": ctx.get("swappiness"),
             "gpu_model": ctx.get("gpu_model") or thermal_profile.get("model") or "",
         },
+        "session": {
+            "wayland": session_is_wayland(),
+            "desktop": os.environ.get("XDG_CURRENT_DESKTOP") or "",
+        },
         "game": {
             "running": bool(gt.get("running")),
             "appid": gctx.get("appid"),
             "name": gctx.get("name") or "your game",
+            "proton": bool(launch_metrics["proton"]),
+            "wayland_fix_missing": bool(launch_metrics["wayland_fix_missing"]),
         },
         "display": {
             "refresh_hz": refresh_hz,

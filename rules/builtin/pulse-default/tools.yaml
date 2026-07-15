@@ -52,5 +52,5 @@ rules:
         cmd: sudo apt install gamemode
       - label: Steam launch option
         kind: steam
-        cmd: gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+        cmd: gamemoderun %command%
         note: Steam → game → Properties → Launch Options

@@ -8,8 +8,13 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **Proton Wayland general recommendation** — `proton-wayland-launch-fix` Guidance card (info, per-game) when a Proton title runs on Wayland without the X11 launch override; metrics from `session.wayland`, `game.proton`, and Steam `LaunchOptions`; `tests/test_game_launch.py`.
+- **Backlog: per-game general options UI** — future home for clickable launch-option tunables on the games list (separate from live issue cards).
 - **De-hardcode initiative** — game overrides and legacy AppIDs live in `rules/builtin/pulse-default/pack.yaml`; fix scripts use active `appid` (no CS2 `730` fallbacks); dynamic lib-install lines from diagnostics; `{steam.root}` templates in Steam rules; `legacy_game_ids` on static API; `tests/test_game_dynamic.py`.
 - **Linting** — Ruff config in `pyproject.toml`; documented in `CONTRIBUTING.md`.
+
+### Changed
+- **Wayland launch dedupe** — X11 override guidance lives in `proton-wayland-launch-fix` only; GameMode/governor/resolution rules no longer repeat the same Steam launch string.
 
 ### Changed
 - **Lazy per-game issues** — `issues_by_game` ships on bootstrap and via `GET /api/issues-by-game` when guidance structure changes; steady-state polls omit the ~70 KB block (live/running flags patched client-side from `games`).

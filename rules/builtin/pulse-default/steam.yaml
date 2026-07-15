@@ -183,3 +183,37 @@ rules:
       - label: Verify game files
         kind: steam
         cmd: "xdg-open 'steam://validate/{game.appid}'"
+
+  - id: proton-wayland-launch-fix
+    detect:
+      all:
+        - metric: session.wayland
+          eq: true
+        - metric: game.running
+          eq: true
+        - metric: game.proton
+          eq: true
+        - metric: game.wayland_fix_missing
+          eq: true
+    emit:
+      insight_id: proton-wayland-launch-fix
+      level: info
+      title: "{game.name}: Proton on Wayland — X11 override if mouse/camera acts up"
+      text: >-
+        {game.name} is running via Proton on Wayland ({session.desktop}).
+        If look is capped (~180°) or the cursor escapes, add the X11 launch
+        override and restart the game.
+      fix_script: proton-wayland-launch-fix
+      game_context: true
+      games: active
+      bucket: steam
+      condition_live: true
+    actions:
+      - label: Steam launch option (copy)
+        kind: steam
+        cmd: PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+        note: Steam → {game.name} → Properties → Launch Options — restart required
+      - label: With GameMode (optional)
+        kind: steam
+        cmd: gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+        note: Only if you already use gamemoderun for this title
