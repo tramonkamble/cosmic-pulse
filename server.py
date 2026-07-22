@@ -41,6 +41,7 @@ from hardware_probe import (
     igpu_label,
     igpu_sensor_prefix,
     nvme_sensor_tiles,
+    probe_nvme_smart,
     probe_storage,
 )
 from hardware_profiles import detect_gpu_spec
@@ -99,8 +100,40 @@ def _strip_hints(hints: list) -> list:
     return [_strip_hint(h) for h in hints]
 
 
-def latest_for_api(latest: dict, *, include_game_issues: bool = True) -> dict:
-    """Drop bulky fix_script bodies from hints sent to the browser."""
+def _strip_game_performance_trends(gp: dict, *, keep_trend: bool) -> dict:
+    """Omit session trend series from API payloads unless keep_trend (bootstrap).
+
+    Live charts rebuild trend from the in-memory history ring; completed sessions
+    load trend via /api/game-sessions. Keeps KPI fields identical.
+    """
+    if not isinstance(gp, dict):
+        return gp
+    out = dict(gp)
+    if keep_trend:
+        return out
+    if "trend" in out:
+        has = bool(out.get("trend"))
+        out.pop("trend", None)
+        if has:
+            out["has_trend"] = True
+    ls = out.get("last_session")
+    if isinstance(ls, dict) and "trend" in ls:
+        ls = dict(ls)
+        has = bool(ls.get("trend"))
+        ls.pop("trend", None)
+        if has:
+            ls["has_trend"] = True
+        out["last_session"] = ls
+    return out
+
+
+def latest_for_api(
+    latest: dict,
+    *,
+    include_game_issues: bool = True,
+    include_session_trend: bool = False,
+) -> dict:
+    """Drop bulky fix_script bodies (and optional session trends) from the browser payload."""
     if not latest:
         return latest
     out = dict(latest)
@@ -123,11 +156,20 @@ def latest_for_api(latest: dict, *, include_game_issues: bool = True) -> dict:
             out["issues_by_game"] = stripped
     else:
         out.pop("issues_by_game", None)
+    if isinstance(out.get("game_performance"), dict):
+        out["game_performance"] = _strip_game_performance_trends(
+            out["game_performance"],
+            keep_trend=include_session_trend,
+        )
     return out
 
 
 def slim_history_point(snap: dict) -> dict:
-    """Ring-buffer entry for charts and stutter session stats — not full dashboard state."""
+    """Ring-buffer entry for charts and stutter session stats — not full dashboard state.
+
+    Keep only series the UI charts read (see index.html chart pickers). Full bandwidth
+    / stutter blobs bloat bootstrap (~1 MB for 600 points) without adding fidelity.
+    """
     comp = snap.get("comparison") or {}
     cpu_c = comp.get("cpu") or {}
     gpu_c = comp.get("gpu") or {}
@@ -143,14 +185,58 @@ def slim_history_point(snap: dict) -> dict:
             "cpu_pct": gt.get("cpu_pct"),
             "running": gt.get("running"),
         }
+    net = snap.get("network") or {}
+    slim_net = {
+        "down_mbps": net.get("down_mbps"),
+        "up_mbps": net.get("up_mbps"),
+    }
+    disk = snap.get("disk") or {}
+    slim_disk = {
+        "read_mbps": disk.get("read_mbps"),
+        "write_mbps": disk.get("write_mbps"),
+        "busy_pct": disk.get("busy_pct"),
+    }
+    bw = snap.get("bandwidth") or {}
+    bw_gpu = bw.get("gpu") or {}
+    bw_mem = bw.get("memory") or {}
+    slim_bw = {
+        "gpu": {
+            "vram_est_gbps": bw_gpu.get("vram_est_gbps"),
+            "gtt_rate_mbps": bw_gpu.get("gtt_rate_mbps"),
+        },
+        "memory": {
+            "dram_est_gbps": bw_mem.get("dram_est_gbps"),
+        },
+    }
+    st = snap.get("stutter") or {}
+    sess = st.get("session") or {}
+    slim_stutter = {
+        "score": st.get("score"),
+        "smoothness": st.get("smoothness"),
+        "event": st.get("event"),
+        "est_ms": st.get("est_ms"),
+        "severity": st.get("severity"),
+        "components": st.get("components"),
+        "session": {
+            "events": sess.get("events"),
+            "hitch_rate_per_min": sess.get("hitch_rate_per_min"),
+            "score_avg": sess.get("score_avg"),
+            "score_p95": sess.get("score_p95"),
+            "hitch_ms_1pct": sess.get("hitch_ms_1pct"),
+            "smoothness_session": sess.get("smoothness_session"),
+        }
+        if sess
+        else {},
+    }
     return {
         "ts": snap.get("ts"),
         "cpu": {"overall_pct": cpu.get("overall_pct")},
         "memory": {"pct": mem.get("pct"), "swap_pct": mem.get("swap_pct")},
         "gpu": {"discrete": {"busy_pct": dgpu.get("busy_pct")}},
-        "disk": snap.get("disk"),
-        "bandwidth": snap.get("bandwidth"),
-        "stutter": snap.get("stutter"),
+        "disk": slim_disk,
+        "network": slim_net,
+        "bandwidth": slim_bw,
+        "stutter": slim_stutter,
         "game_totals": slim_gt,
         "comparison": {
             "session_index": comp.get("session_index"),
@@ -161,11 +247,12 @@ def slim_history_point(snap: dict) -> dict:
     }
 
 
+
 _lock = threading.Lock()
 _history: list[dict] = []
 _latest_full: dict = {}
 _static: dict = {}
-_prev_net: dict[str, tuple[int, int, float]] = {}
+_prev_net: dict[str, tuple] = {}
 _prev_disk: tuple[int, int, float] | None = None
 _prev_swap: tuple[int, int, float] | None = None
 _prev_ctx: tuple[int, int, float] | None = None
@@ -880,27 +967,107 @@ def sensor_wall(dgpu: dict | None = None, igpu: dict | None = None) -> list[dict
     return tiles
 
 
+_NET_SKIP_PREFIXES = (
+    "lo",
+    "docker",
+    "veth",
+    "br-",
+    "virbr",
+    "vnet",
+    "tun",
+    "tap",
+    "wg",
+    "tailscale",
+    "zt",
+    "lxc",
+    "cni",
+    "flannel",
+    "cali",
+)
+
+
+def _is_tracked_nic(name: str) -> bool:
+    """Skip loopback and common virtual bridges so aggregate rates stay real."""
+    if name == "lo":
+        return False
+    lower = name.lower()
+    return not any(lower.startswith(p) for p in _NET_SKIP_PREFIXES)
+
+
 def net_rates() -> dict:
+    """Per-NIC and aggregate link throughput (Mbps) plus primary iface metadata."""
     global _prev_net
     now = time.time()
     rates: dict[str, dict] = {}
-    counters = psutil.net_io_counters(pernic=True)
+    counters = psutil.net_io_counters(pernic=True) or {}
+    try:
+        stats = psutil.net_if_stats() or {}
+    except Exception:
+        stats = {}
+
     for nic, c in counters.items():
-        if nic == "lo":
+        if not _is_tracked_nic(nic):
             continue
+        st = stats.get(nic)
+        is_up = bool(st.isup) if st else True
+        speed = int(st.speed) if st and st.speed and st.speed > 0 else None
         prev = _prev_net.get(nic)
+        down = 0.0
+        up = 0.0
+        err_in = 0.0
+        err_out = 0.0
         if prev:
             dt = now - prev[2]
             if dt > 0:
-                rates[nic] = {
-                    "down_mbps": round((c.bytes_recv - prev[0]) * 8 / dt / 1e6, 2),
-                    "up_mbps": round((c.bytes_sent - prev[1]) * 8 / dt / 1e6, 2),
-                }
-        _prev_net[nic] = (c.bytes_recv, c.bytes_sent, now)
+                down = (c.bytes_recv - prev[0]) * 8 / dt / 1e6
+                up = (c.bytes_sent - prev[1]) * 8 / dt / 1e6
+                # prev slots 3–4 store cumulative errors when available
+                if len(prev) >= 5:
+                    err_in = max(0.0, (c.errin - prev[3]) / dt)
+                    err_out = max(0.0, (c.errout - prev[4]) / dt)
+        rates[nic] = {
+            "down_mbps": round(max(0.0, down), 2),
+            "up_mbps": round(max(0.0, up), 2),
+            "is_up": is_up,
+            "speed_mbps": speed,
+            "err_in_ps": round(err_in, 2),
+            "err_out_ps": round(err_out, 2),
+        }
+        _prev_net[nic] = (c.bytes_recv, c.bytes_sent, now, c.errin, c.errout)
+
+    # Drop stale NICs that disappeared
+    for stale in list(_prev_net.keys()):
+        if stale not in rates and stale not in counters:
+            _prev_net.pop(stale, None)
+
+    down_total = round(sum(v["down_mbps"] for v in rates.values()), 2)
+    up_total = round(sum(v["up_mbps"] for v in rates.values()), 2)
+
+    # Primary = up interface with most combined traffic this tick, else fastest up link.
+    primary = None
+    if rates:
+        up_nics = [n for n, v in rates.items() if v.get("is_up")]
+        pool = up_nics or list(rates.keys())
+
+        def _rank(n: str) -> tuple:
+            v = rates[n]
+            return (
+                v["down_mbps"] + v["up_mbps"],
+                v.get("speed_mbps") or 0,
+            )
+
+        primary = max(pool, key=_rank)
+
+    primary_meta = rates.get(primary or "", {}) if primary else {}
     return {
         "per_nic": rates,
-        "down_mbps": round(sum(v["down_mbps"] for v in rates.values()), 2),
-        "up_mbps": round(sum(v["up_mbps"] for v in rates.values()), 2),
+        "down_mbps": down_total,
+        "up_mbps": up_total,
+        "primary": primary,
+        "primary_speed_mbps": primary_meta.get("speed_mbps"),
+        "primary_up": bool(primary_meta.get("is_up")) if primary else False,
+        "nic_count": len(rates),
+        "up_count": sum(1 for v in rates.values() if v.get("is_up")),
     }
 
 
@@ -1017,39 +1184,115 @@ def memory_bandwidth(cpu_pct: float = 0.0, game_cpu_pct: float = 0.0) -> dict:
 
 
 def tools_status() -> dict:
-    recommended = [
+    """Tools Pulse actually uses — data sources that feed metrics, plus one thermal helper.
+
+    Removed from the old shopping list: nvtop, radeontop, turbostat, perf, iotop, nethogs.
+    Those never improved dashboard data (Pulse already samples /sys and /proc).
+    """
+    smart = probe_nvme_smart()
+    sensors_ok = bool(shutil.which("sensors"))
+    dmidecode_ok = bool(shutil.which("dmidecode"))
+    corectrl_ok = bool(shutil.which("corectrl"))
+
+    mem_src = (_mem_spec or {}).get("source") or ""
+    mem_feeding = mem_src in ("dmidecode", "dmidecode-cache", "cache") or bool(
+        (_mem_spec or {}).get("sticks") and mem_src not in ("", "inferred", "estimated")
+    )
+    # Also treat high-confidence non-inferred labels as fed when cache came from dmidecode
+    if (_mem_spec or {}).get("confidence") in ("exact", "high") and dmidecode_ok:
+        mem_feeding = True
+    if mem_src == "dmidecode":
+        mem_feeding = True
+
+    data_sources = [
         {
+            "id": "sensors",
+            "bin": "sensors",
+            "pkg": "lm-sensors",
+            "role": "data",
+            "note": "CPU/GPU/NVMe temperatures, fans, PPT — primary sensor feed",
+            "installed": sensors_ok,
+            "feeding": sensors_ok,
+            "detail": "live · sensors -j every sample" if sensors_ok else "install to unlock sensor strip temps",
+        },
+        {
+            "id": "smartctl",
+            "bin": "smartctl",
+            "pkg": "smartmontools",
+            "role": "data",
+            "note": "NVMe wear %, spare capacity, TB written, media errors",
+            "installed": bool(smart.get("installed")),
+            "feeding": bool(smart.get("readable")),
+            "detail": smart.get("message") or "",
+            "setup": (
+                "enable-nvme-smart"
+                if smart.get("installed") and not smart.get("readable")
+                else None
+            ),
+        },
+        {
+            "id": "dmidecode",
+            "bin": "dmidecode",
+            "pkg": "dmidecode",
+            "role": "data",
+            "note": "Exact RAM SPD / configured MHz (one-time sudo probe)",
+            "installed": dmidecode_ok,
+            "feeding": bool(mem_feeding),
+            "detail": (
+                f"memory source: {mem_src or 'inferred'}"
+                if dmidecode_ok
+                else "install + sudo probe_memory.py for exact kit speed"
+            ),
+        },
+    ]
+    helpers = [
+        {
+            "id": "corectrl",
             "bin": "corectrl",
             "pkg": "corectrl",
-            "note": "AMD GPU fan curves, power limits, per-app profiles",
+            "role": "helper",
+            "note": "AMD fan curves / power — opened by GPU thermal Fix when installed",
+            "installed": corectrl_ok,
+            "feeding": False,
+            "detail": (
+                "ready · one-click thermal Fix can launch it"
+                if corectrl_ok
+                else "optional for AMD fan curves"
+            ),
         },
-        {"bin": "nvtop", "pkg": "nvtop", "note": "GPU util, VRAM, power, clocks"},
-        {"bin": "radeontop", "pkg": "radeontop", "note": "Lightweight AMD GPU stats"},
-        {
-            "bin": "turbostat",
-            "pkg": "linux-tools-common linux-tools-generic",
-            "note": "CPU power, C-states, DRAM hints (needs sudo)",
-        },
-        {
-            "bin": "perf",
-            "pkg": "linux-tools-common linux-tools-generic",
-            "note": "Kernel perf counters & profiling",
-        },
-        {"bin": "iotop", "pkg": "iotop", "note": "Per-process disk I/O"},
-        {"bin": "nethogs", "pkg": "nethogs", "note": "Per-process network usage"},
-        {"bin": "smartctl", "pkg": "smartmontools", "note": "NVMe/SATA health & wear"},
-        {"bin": "dmidecode", "pkg": "dmidecode", "note": "RAM part numbers & configured speed"},
-        {"bin": "sensors", "pkg": "lm-sensors", "note": "lm-sensors — temps, fans, PPT"},
     ]
-    for t in recommended:
-        t["installed"] = bool(shutil.which(t["bin"]))
+    # Backward-compatible flat list for older UI bits
+    recommended = []
+    for t in data_sources + helpers:
+        recommended.append(
+            {
+                "bin": t["bin"],
+                "pkg": t["pkg"],
+                "note": t["note"],
+                "installed": t["installed"],
+                "feeding": t.get("feeding", False),
+                "role": t.get("role", "data"),
+                "detail": t.get("detail", ""),
+                "setup": t.get("setup"),
+                "id": t.get("id", t["bin"]),
+            }
+        )
     return {
-        "sensors": bool(shutil.which("sensors")),
-        "dmidecode": bool(shutil.which("dmidecode")),
-        "smartctl": bool(shutil.which("smartctl")),
-        "nvtop": bool(shutil.which("nvtop")),
-        "corectrl": bool(shutil.which("corectrl")),
+        "sensors": sensors_ok,
+        "dmidecode": dmidecode_ok,
+        "smartctl": bool(smart.get("installed")),
+        "smartctl_feeding": bool(smart.get("readable")),
+        "nvtop": False,  # removed from recommendations; keep key stable
+        "corectrl": corectrl_ok,
+        "data_sources": data_sources,
+        "helpers": helpers,
         "recommended": recommended,
+        "smart": {
+            "readable": bool(smart.get("readable")),
+            "permission_error": bool(smart.get("permission_error")),
+            "drive_count": len(smart.get("drives") or {}),
+            "message": smart.get("message"),
+        },
     }
 
 
@@ -1405,6 +1648,30 @@ def collect_metrics() -> dict:
     snap["load_phase"] = tick_load_phase(snap)
     with _lock:
         attach_stutter(snap, _history)
+    # Optional smartctl NVMe health (cached ~3 min; no-op without permissions)
+    smart = probe_nvme_smart()
+    snap["nvme_smart"] = {
+        "readable": bool(smart.get("readable")),
+        "permission_error": bool(smart.get("permission_error")),
+        "message": smart.get("message"),
+        "drives": smart.get("drives") or {},
+    }
+    # Merge SMART onto static storage labels for the drive list UI
+    if _static and smart.get("readable"):
+        for drive in _static.get("storage") or []:
+            name = drive.get("name") or drive.get("id")
+            health = (smart.get("drives") or {}).get(name)
+            if health:
+                drive["smart"] = health
+        rig_storage = (_static.get("rig") or {}).get("storage")
+        if rig_storage is _static.get("storage"):
+            pass  # same list
+        elif isinstance(rig_storage, list):
+            for drive in rig_storage:
+                name = drive.get("name") or drive.get("id")
+                health = (smart.get("drives") or {}).get(name)
+                if health:
+                    drive["smart"] = health
     active_hints = tuning_hints(snap)
     history = update_tuning_history(active_hints, running_ids, snap)
     views = build_issue_views(active_hints, history, running_ids, games_state)
@@ -1506,6 +1773,8 @@ def sampler():
     prime_game_cpu()
     while True:
         _static["cosmic_theme"] = get_cosmic_theme()
+        # Refresh tool feed status (cheap; smartctl itself is cached)
+        _static["tools"] = tools_status()
         snap = collect_metrics()
         with _lock:
             _latest_full = snap
@@ -1569,9 +1838,13 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/metrics":
             bootstrap = (qs.get("bootstrap") or ["0"])[0] in ("1", "true", "yes")
             with _lock:
+                # Bootstrap keeps last_session.trend once for instant game chart;
+                # steady 1 Hz polls omit the ~64 KB series (client uses history /
+                # /api/game-sessions instead).
                 latest = latest_for_api(
                     _latest_full,
                     include_game_issues=bootstrap,
+                    include_session_trend=bootstrap,
                 )
                 if bootstrap:
                     body = {
@@ -1587,7 +1860,7 @@ class Handler(BaseHTTPRequestHandler):
                         "resolved_insights": get_resolved_insights(),
                         "suppressed_insights": get_suppressed_insights(),
                     }
-                payload = json.dumps(body).encode()
+                payload = json.dumps(body, separators=(",", ":")).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")

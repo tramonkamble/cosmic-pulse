@@ -1028,6 +1028,112 @@ log "Flatpak Steam may need: flatpak override --user --env=MANGOHUD=1 com.valves
     )
 
 
+def script_enable_nvme_smart(**kwargs) -> str:
+    """One-time setup so Pulse can read NVMe SMART without running as root."""
+    return (
+        _header(
+            "enable-nvme-smart",
+            "Allow Cosmic Pulse to read NVMe SMART (wear / spare / TBW)",
+            "low",
+        )
+        + r"""
+log "smartctl needs read access to /dev/nvmeN (char devices are root-only by default)."
+log "This script adds you to the 'disk' group and installs a udev rule."
+need_root
+
+USER_NAME="${SUDO_USER:-$USER}"
+if [[ -z "$USER_NAME" || "$USER_NAME" == root ]]; then
+  echo "Run as: sudo -u <you> is wrong — use: sudo bash $0  (with your login as SUDO_USER)"
+  echo "Or: sudo bash $0 $USER"
+  USER_NAME="${1:-}"
+fi
+if [[ -z "$USER_NAME" || "$USER_NAME" == root ]]; then
+  echo "Pass your username: sudo bash $0 tkep"
+  exit 1
+fi
+
+log "Installing smartmontools if missing…"
+command -v smartctl >/dev/null || apt-get install -y smartmontools
+
+log "Adding $USER_NAME to group 'disk'…"
+usermod -aG disk "$USER_NAME"
+
+RULE=/etc/udev/rules.d/60-nvme-smart-pulse.rules
+log "Writing $RULE"
+cat >"$RULE" <<'EOF'
+# Cosmic Pulse — allow disk group to read NVMe controller SMART
+KERNEL=="nvme[0-9]*", GROUP="disk", MODE="0660"
+EOF
+
+log "Reloading udev rules…"
+udevadm control --reload-rules
+udevadm trigger --subsystem-match=nvme || true
+# Also chmod currently open nodes so we don't need a full reboot for the rule
+for n in /dev/nvme[0-9]*; do
+  [[ -e "$n" ]] || continue
+  chgrp disk "$n" 2>/dev/null || true
+  chmod 0660 "$n" 2>/dev/null || true
+done
+
+log "Testing smartctl as $USER_NAME…"
+if command -v runuser >/dev/null; then
+  runuser -u "$USER_NAME" -- smartctl -a -j /dev/nvme0 2>/dev/null | head -c 200 && echo || true
+else
+  smartctl -a -j /dev/nvme0 2>/dev/null | head -c 120 || true
+fi
+
+log ""
+log "Done. Log out and back in (or reboot) so group membership applies to new sessions."
+log "Then restart Pulse: systemctl --user restart pulse.service"
+log "Dashboard → Drives should show wear % and TB written when SMART is readable."
+"""
+    )
+
+
+def script_display_hdr_off(**kwargs) -> str:
+    """Diagnose HDR and print enable paths — no DRM property writes (compositor owns that)."""
+    return (
+        _header_user(
+            "display-hdr-off",
+            "HDR capable display is in SDR — how to enable",
+            "low",
+        )
+        + r"""
+log "Reading EDID + DRM connector HDR state…"
+python3 - <<'PY'
+from hardware_probe import primary_display_hdr
+import json
+h = primary_display_hdr(0)
+print(json.dumps(h, indent=2))
+if not h.get("capable"):
+    print("\nThis connected display did not advertise HDR static metadata in EDID.")
+elif h.get("active"):
+    print("\nHDR appears active already (HDR_OUTPUT_METADATA or BT.2020 colorspace).")
+else:
+    print("\nHDR capable but OFF — desktop is still SDR.")
+    print("COSMIC currently has no Settings/cosmic-randr HDR switch.")
+    print("Pulse will not force DRM Colorspace/HDR_OUTPUT_METADATA (compositor owns the pipe).")
+PY
+
+log ""
+log "1) Monitor OSD — enable HDR / HDR10 if the panel has that option"
+log "2) Desktop — when COSMIC adds HDR, use Settings → Displays"
+log "3) Per-game nested compositor (optional):"
+if command -v gamescope >/dev/null 2>&1; then
+  log "   gamescope is installed: $(command -v gamescope)"
+else
+  log "   Install: sudo apt install gamescope"
+fi
+log "   Steam launch options (HDR-capable titles only):"
+echo 'gamescope --hdr-enabled --adaptive-sync -- %command%'
+log ""
+log "4) Re-check after changing anything:"
+echo 'python3 -c "from hardware_probe import primary_display_hdr; print(primary_display_hdr(0))"'
+log "Done. When DRM reports active=true, Guidance will clear this card."
+"""
+    )
+
+
 def script_gamemode_recommended(**kwargs) -> str:
     return (
         _header("gamemode-recommended", "Install GameMode (optional)", "low")
@@ -1159,6 +1265,8 @@ SCRIPTS: dict[str, callable] = {
     "game-prefix-reset": script_game_bad_exit,
     "mangohud-recommended": script_mangohud_recommended,
     "gamemode-recommended": script_gamemode_recommended,
+    "display-hdr-off": script_display_hdr_off,
+    "enable-nvme-smart": script_enable_nvme_smart,
     "proton-wayland-launch-fix": script_proton_wayland_launch,
     "stutter-proxy": lambda score=0, est_ms=0, causes=None, **kw: script_stutter(
         float(score),

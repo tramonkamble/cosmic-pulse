@@ -26,7 +26,7 @@ from games import (
     steam_update_summary_parts,
 )
 from gpu_thermal import gpu_thermal_state, profile_for_model
-from hardware_probe import primary_display_refresh_hz
+from hardware_probe import primary_display_hdr, primary_display_refresh_hz
 from load_phase import page_fault_settle, page_fault_warn
 
 PULSE_ROOT = Path(__file__).resolve().parent
@@ -323,6 +323,7 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
         "display": {
             "refresh_hz": refresh_hz,
             "cap_hz": int(round(refresh_hz)) if refresh_hz else 60,
+            **_flatten_display_hdr(),
         },
         "cpu": {
             "overall_pct": cpu_pct,
@@ -420,6 +421,26 @@ def _ldconfig_quick() -> str:
         )
     except Exception:
         return ""
+
+
+def _flatten_display_hdr() -> dict:
+    """HDR metrics for pack detect/emit (cached in hardware_probe)."""
+    try:
+        hdr = primary_display_hdr() or {}
+    except Exception:
+        hdr = {}
+    max_nits = hdr.get("max_nits")
+    return {
+        "hdr_capable": bool(hdr.get("capable")),
+        "hdr_active": bool(hdr.get("active")),
+        "hdr_off": bool(hdr.get("capable")) and not bool(hdr.get("active")),
+        "hdr_connector": hdr.get("connector") or "display",
+        "hdr_colorspace": hdr.get("colorspace_name") or "Default",
+        "hdr_max_nits": max_nits if max_nits is not None else 0,
+        "hdr_summary": hdr.get("summary") or "unknown",
+        "hdr_desktop_toggle": bool(hdr.get("desktop_toggle")),
+        "hdr_desktop": hdr.get("desktop") or "",
+    }
 
 
 def _compare(metric_val: Any, op: str, expected: Any) -> bool:

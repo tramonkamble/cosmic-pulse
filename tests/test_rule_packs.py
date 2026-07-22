@@ -118,6 +118,86 @@ def test_unresolved_template_regex_ignores_json_like_braces():
     assert not _has_unresolved_template("PATH=$HOME/bin")
 
 
+def test_display_hdr_off_rule_fires_when_capable_and_sdr(monkeypatch):
+    import hardware_probe
+    import rule_packs
+
+    monkeypatch.setattr(
+        hardware_probe,
+        "primary_display_hdr",
+        lambda max_age_sec=30.0: {
+            "capable": True,
+            "active": False,
+            "connector": "DP-1",
+            "colorspace_name": "Default",
+            "max_nits": 566.0,
+            "max_fall_nits": 566.0,
+            "desktop": "COSMIC",
+            "desktop_toggle": False,
+            "summary": "off",
+        },
+    )
+    # rule_packs imports the function by name — patch the bound reference too
+    monkeypatch.setattr(
+        rule_packs,
+        "primary_display_hdr",
+        hardware_probe.primary_display_hdr,
+    )
+    snap = _snap()
+    ctx = {"governor": "performance", "swappiness": 10}
+    hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+    assert "display-hdr-off" in emitted
+    hit = next(h for h in hints if h["insight_id"] == "display-hdr-off")
+    assert hit["level"] == "info"
+    assert hit["has_fix_script"]
+    assert "HDR" in hit["title"] or "HDR" in hit["text"]
+
+
+def test_display_hdr_off_rule_skips_when_active(monkeypatch):
+    import hardware_probe
+    import rule_packs
+
+    monkeypatch.setattr(
+        hardware_probe,
+        "primary_display_hdr",
+        lambda max_age_sec=30.0: {
+            "capable": True,
+            "active": True,
+            "connector": "DP-1",
+            "colorspace_name": "BT2020_RGB",
+            "max_nits": 566.0,
+            "desktop": "COSMIC",
+            "desktop_toggle": False,
+            "summary": "on",
+        },
+    )
+    monkeypatch.setattr(rule_packs, "primary_display_hdr", hardware_probe.primary_display_hdr)
+    snap = _snap()
+    ctx = {"governor": "performance", "swappiness": 10}
+    _hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+    assert "display-hdr-off" not in emitted
+
+
+def test_edid_hdr_static_parse():
+    from hardware_probe import _edid_hdr_static
+
+    # Minimal CTA block with HDR static metadata: EOTF=0x07 (SDR+HDR+PQ), max codes 112
+    # Structure: 128-byte base + 128-byte CTA extension
+    base = bytearray(128)
+    base[126] = 1  # one extension
+    cta = bytearray(128)
+    cta[0] = 0x02  # CTA-861
+    cta[2] = 4 + 1 + 6  # dtd start after one data block
+    # extended tag block: tag=7, len=6 → header 0xE6, payload 06 07 01 70 70 2f
+    cta[4] = 0xE6
+    cta[5:11] = bytes([0x06, 0x07, 0x01, 0x70, 0x70, 0x2F])
+    edid = bytes(base) + bytes(cta)
+    hdr = _edid_hdr_static(edid)
+    assert hdr["capable"] is True
+    assert hdr["max_nits"] is not None
+    assert 500 < hdr["max_nits"] < 650
+
+
 def test_get_path_traverses_list_indices():
     metrics = {"cpu": {"temps": {"ccd": [45.2, 46.1]}}}
     assert _get_path(metrics, "cpu.temps.ccd.0") == 45.2

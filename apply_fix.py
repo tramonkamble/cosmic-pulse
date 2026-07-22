@@ -61,6 +61,8 @@ FIX_REQUIRES_ROOT: dict[str, bool] = {
     "vulkan-broken": True,
     "game-prefix-reset": False,
     "proton-wayland-launch-fix": False,
+    "display-hdr-off": False,
+    "enable-nvme-smart": True,
     "system-balanced": False,
 }
 

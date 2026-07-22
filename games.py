@@ -964,19 +964,38 @@ def _norm_cpu(raw: float) -> float:
     return round(min(100.0, raw / threads), 1)
 
 
+# When no Steam AppID is visible, reuse an empty snapshot briefly so the 1 Hz
+# sampler is not paying a full /proc walk every tick. Max delay to notice a newly
+# launched game ≈ this TTL (dashboard is 1 Hz either way).
+_EMPTY_SNAPSHOT_TTL = 2.0
+_empty_snapshot_cache: tuple[float, tuple[set[str], dict[str, set[int]], list]] | None = None
+
+
 def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dict]]:
-    """Single psutil pass: active AppIDs, overlay PID map, rows for classification."""
+    """Discover Steam AppIDs and (only if any) enrich proc rows for classification.
+
+    Phase 1 walks every process with light attrs (pid/name/cmdline) to find AppIDs.
+    When nothing is running, we skip memory_info + cpu_percent and may reuse a
+    short-lived empty cache. Phase 2 enriches PIDs only when an AppID is active —
+    same detection/classification results as the old single heavy pass.
+    """
+    global _empty_snapshot_cache
+    now = time.time()
+    if _empty_snapshot_cache is not None:
+        cached_at, cached = _empty_snapshot_cache
+        if now - cached_at < _EMPTY_SNAPSHOT_TTL and not cached[0]:
+            return cached[0], cached[1], cached[2]
+
     active_appids: set[str] = set()
     overlay_map: dict[str, set[int]] = {}
-    rows: list[dict] = []
+    # Light rows kept for phase 2; avoid holding psutil.Process (can race).
+    light: list[tuple[int, str, str]] = []
 
-    for proc in psutil.process_iter(["pid", "name", "memory_info", "cmdline"]):
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         try:
             pid = proc.info["pid"]
             name = proc.info["name"] or ""
             cmd = " ".join(proc.info["cmdline"] or [])
-            mi = proc.info["memory_info"]
-            raw_cpu = proc.cpu_percent(interval=None)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 
@@ -996,6 +1015,23 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
             if gid_m and pid_m:
                 overlay_map.setdefault(gid_m.group(1), set()).add(int(pid_m.group(1)))
 
+        light.append((pid, name, cmd))
+
+    if not active_appids:
+        empty: tuple[set[str], dict[str, set[int]], list] = (active_appids, overlay_map, [])
+        _empty_snapshot_cache = (now, empty)
+        return empty
+
+    _empty_snapshot_cache = None
+    rows: list[dict] = []
+    for pid, name, cmd in light:
+        try:
+            p = psutil.Process(pid)
+            with p.oneshot():
+                mi = p.memory_info()
+                raw_cpu = p.cpu_percent(interval=None)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
         rows.append(
             {
                 "pid": pid,

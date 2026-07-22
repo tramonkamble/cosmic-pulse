@@ -47,6 +47,42 @@ rules:
       - label: Check current value
         kind: cmd
         cmd: cat /proc/sys/vm/swappiness
+
+  # HDR: detect EDID capability + DRM active state. COSMIC has no one-click desktop HDR yet.
+  - id: display-hdr-off
+    detect:
+      all:
+        - metric: display.hdr_capable
+          eq: true
+        - metric: display.hdr_active
+          eq: false
+    emit:
+      insight_id: display-hdr-off
+      level: info
+      title: HDR capable — currently off
+      text: >-
+        {display.hdr_connector} reports HDR10 (~{display.hdr_max_nits:.0f} nits) but the
+        desktop is in SDR (colorspace {display.hdr_colorspace}). COSMIC does not yet expose
+        a desktop HDR toggle; enable HDR in the monitor OSD and/or use gamescope for
+        per-game HDR when the title supports it.
+      fix_script: display-hdr-off
+      bucket: tools
+      condition_live: true
+    actions:
+      - label: Check live HDR state
+        kind: cmd
+        cmd: python3 -c "from hardware_probe import primary_display_hdr; import json; print(json.dumps(primary_display_hdr(0), indent=2))"
+        note: Run from the Pulse install directory (or PYTHONPATH)
+      - label: Monitor OSD
+        kind: note
+        cmd: Enable HDR / HDR10 in the monitor's on-screen menu if present
+      - label: Install gamescope (per-game HDR)
+        kind: cmd
+        cmd: sudo apt install gamescope
+      - label: Steam launch option (games with HDR support)
+        kind: steam
+        cmd: gamescope --hdr-enabled --adaptive-sync -- %command%
+        note: Nested compositor; try only if the game supports HDR
       - label: See what is using RAM
         kind: cmd
         cmd: ps aux --sort=-%mem | head -20

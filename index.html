@@ -606,6 +606,7 @@
     }
     .bl-pri.done { background: rgba(93,255,122,.12); color: var(--lime); }
     .bl-pri.high { background: rgba(255,77,109,.12); color: var(--hot); }
+    .bl-pri.med { background: rgba(233,184,114,.14); color: var(--amber); }
     .sensor-status { font-size: 1.05rem; color: var(--muted); margin-bottom: .85rem; }
     .sensor-status.ok { color: var(--lime); }
 
@@ -998,13 +999,24 @@
     .viz-grid.viz-focus-rig .viz-area-rig { display: block; }
     .viz-grid.viz-focus-index .viz-area-index { display: block; cursor: pointer; }
     .viz-grid.viz-focus-stutter .viz-area-stutter { display: block; }
-    .viz-area-rig .viz-block { min-height: 22rem; }
+    .viz-area-rig .viz-block { min-height: 26rem; }
     .viz-area-index .viz-block { min-height: 20rem; }
     .viz-area-stutter .viz-block { min-height: 20rem; }
     .viz-area-index:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
     .viz-block {
       background: var(--panel-elevated); border: 1px solid var(--line); border-radius: var(--radius);
       padding: 1rem 1.1rem; display: flex; flex-direction: column; min-height: 0; height: 100%;
+    }
+    /* Rig snapshot: tab already names the view — drop redundant chrome, gain vertical room */
+    .viz-block.rig-block-flush {
+      padding: .55rem .65rem .65rem;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+    .viz-block-head-sr {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
     }
     .viz-block-head {
       display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; flex-shrink: 0;
@@ -1049,54 +1061,474 @@
     .metric-bar-track.temp.hot > span { background: linear-gradient(90deg, #c43d32, var(--hot)); box-shadow: 0 0 14px rgba(237,106,90,.5); }
     .metric-bar-track.temp.info > span { background: linear-gradient(90deg, #4a6fa8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.25); }
     .metric-bar-sub { display: block; margin-top: .3rem; font-size: .8rem; color: var(--muted); }
+    /* ── Rig snapshot: efficient 3-col dashboard ─────────────────────────── */
     .stutter-layout.rig-layout {
-      grid-template-columns: minmax(12rem, 1.1fr) minmax(13rem, 1.4fr) minmax(12rem, 1.15fr);
+      grid-template-columns: minmax(12.5rem, 1.05fr) minmax(16rem, 1.7fr) minmax(13.5rem, 1.2fr);
+      min-height: min(68vh, 36rem);
+      gap: .7rem;
+      align-items: stretch;
     }
-    .rig-layout .stutter-drivers {
+    .rig-layout .rig-col {
+      min-height: 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: .55rem;
+    }
+    .rig-panel {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
       gap: .4rem;
-      justify-content: flex-start;
-      padding-right: .15rem;
-      overflow-y: auto;
+      padding: .55rem .6rem .6rem;
+      border-radius: 12px;
+      background: var(--panel-elevated);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
     }
-    .rig-layout .stutter-side-label { margin: .08rem 0 .1rem; flex-shrink: 0; }
-    .rig-layout .stutter-side-label:first-child { margin-top: 0; }
-    .rig-layout .rig-driver-group { flex-shrink: 0; }
-    .rig-layout .stutter-summary {
-      gap: .42rem;
-      overflow-y: auto;
-      padding-left: .1rem;
-      padding-right: .15rem;
+    .rig-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .45rem;
+      flex-shrink: 0;
+      min-height: 1.35rem;
+      min-width: 0;
     }
-    .rig-detail-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .4rem .55rem;
+    .rig-panel-head .stutter-side-label {
+      margin: 0;
       flex-shrink: 0;
     }
-    .rig-detail-col { display: flex; flex-direction: column; gap: .22rem; min-width: 0; }
-    .rig-detail-col .metric-list-compact { gap: .38rem; }
-    .rig-layout .glance-grid { margin-top: 0; flex-shrink: 0; }
-    .rig-layout .stutter-drivers .core-strip { height: 68px; flex-shrink: 0; margin-top: .1rem; }
-    .rig-layout .stutter-drivers .core-strip-cell { height: 68px; }
-    .rig-layout .stutter-drivers .gpu-engine-strip { height: 68px; flex-shrink: 0; margin-top: .1rem; }
-    .rig-layout .stutter-drivers .gpu-engine-strip .core-strip-cell { height: 68px; }
+    .rig-layout .stutter-side-label {
+      margin: 0 0 .2rem;
+      font-size: .64rem;
+      letter-spacing: .08em;
+    }
+    /* Left: load bars fill, strips sit as a footer card */
+    .rig-col-load > .rig-panel:first-child {
+      flex: 1 1 auto;
+      border-top: 2px solid color-mix(in srgb, var(--blue) 55%, transparent);
+    }
+    .rig-util-list {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      gap: .42rem;
+      min-height: 0;
+    }
+    .rig-panel-strips {
+      flex: 0 0 auto;
+      padding-top: .5rem;
+      padding-bottom: .5rem;
+    }
+    .rig-strips-row {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: .5rem .6rem;
+      align-items: start;
+    }
+    .rig-strip-block {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: .12rem;
+    }
+    /* Center: chart is the hero */
+    .rig-panel-chart {
+      flex: 1 1 auto;
+      min-height: 0;
+      gap: .4rem;
+      position: relative;
+      overflow: hidden;
+      border-color: transparent;
+      background:
+        linear-gradient(var(--panel-elevated), var(--panel-elevated)) padding-box,
+        linear-gradient(105deg, #63d0de 0%, #ffad00 48%, #92ce9b 100%) border-box;
+      border: 1px solid transparent;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, .05),
+        0 0 0 1px rgba(0, 0, 0, .12),
+        0 8px 28px rgba(0, 0, 0, .18);
+    }
+    .rig-panel-chart::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background:
+        radial-gradient(120% 70% at 12% 0%, rgba(99, 208, 222, .1), transparent 55%),
+        radial-gradient(90% 60% at 88% 8%, rgba(255, 173, 0, .08), transparent 50%),
+        radial-gradient(80% 50% at 70% 100%, rgba(146, 206, 155, .06), transparent 55%),
+        linear-gradient(180deg, color-mix(in srgb, var(--panel-elevated) 88%, #000), var(--panel-elevated));
+      z-index: 0;
+    }
+    .rig-panel-chart > * {
+      position: relative;
+      z-index: 1;
+    }
+    .rig-chart-head {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: .38rem;
+      flex-shrink: 0;
+      min-width: 0;
+    }
+    .rig-chart-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .5rem;
+      min-width: 0;
+    }
+    .rig-chart-title-row .stutter-side-label {
+      margin: 0;
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rig-chart-swatches {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: .35rem;
+      flex-shrink: 0;
+      max-width: 55%;
+      overflow: hidden;
+    }
+    .rig-chart-swatch {
+      display: inline-flex;
+      align-items: center;
+      gap: .22rem;
+      min-width: 0;
+      font-size: .6rem;
+      font-weight: 600;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      max-width: 4.2rem;
+    }
+    .rig-chart-swatch > i {
+      width: .55rem;
+      height: .55rem;
+      border-radius: 99px;
+      flex-shrink: 0;
+      box-shadow: 0 0 8px currentColor;
+    }
+    .rig-chart-swatch > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rig-kpis-inline {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: .3rem;
+      width: 100%;
+      min-width: 0;
+    }
+    .rig-layout .rig-kpis-inline .stutter-kpi {
+      min-height: 0;
+      min-width: 0;
+      padding: .32rem .4rem .36rem;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, .28);
+      border: 1px solid rgba(255, 255, 255, .04);
+      overflow: hidden;
+    }
+    .rig-layout .rig-kpis-inline .stutter-kpi .k {
+      font-size: .62rem;
+      margin-bottom: .04rem;
+      letter-spacing: .05em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rig-layout .rig-kpis-inline .stutter-kpi .v {
+      display: block;
+      font-size: .92rem;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rig-layout .rig-kpis-inline .stutter-kpi .s {
+      display: block;
+      font-size: .62rem;
+      margin-top: .04rem;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rig-layout .stutter-chart-box {
+      flex: 1 1 auto;
+      min-height: 12.5rem;
+      min-width: 0;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, .06);
+      background:
+        radial-gradient(80% 55% at 50% 0%, rgba(99, 208, 222, .06), transparent 60%),
+        linear-gradient(180deg, rgba(0, 0, 0, .22), rgba(0, 0, 0, .38));
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15);
+      /* room for legend so labels aren't clipped */
+      padding: .5rem .55rem .15rem;
+    }
+    .rig-layout .stutter-chart-box canvas {
+      max-width: 100%;
+    }
+    /* Right: one vitals surface, 2×2 grid */
+    .rig-col-vitals {
+      overflow: hidden;
+    }
+    .rig-vitals {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      gap: .55rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .rig-vitals-power {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: .28rem;
+    }
+    .rig-vitals-grid {
+      flex: 1 1 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: .5rem .55rem;
+      align-content: start;
+      min-height: 0;
+    }
+    .rig-vital-cell {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: .22rem;
+      padding: .4rem .45rem .45rem;
+      border-radius: 9px;
+      background: rgba(0, 0, 0, .16);
+      border: 1px solid rgba(255, 255, 255, .04);
+    }
+    .rig-vital-cell .stutter-side-label {
+      margin: 0;
+      opacity: .9;
+    }
+    .rig-vital-cell .metric-list-compact {
+      gap: .38rem;
+      flex: 0 0 auto;
+    }
+    /* Compact, stable metric rows across the rig view */
+    .rig-layout .metric-list-compact .metric-bar {
+      min-height: 0;
+      min-width: 0;
+    }
+    .rig-layout .metric-list-compact .metric-bar-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(2.8rem, auto);
+      align-items: baseline;
+      gap: .28rem;
+      margin-bottom: .12rem;
+    }
+    .rig-layout .metric-list-compact .metric-bar-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: .74rem;
+    }
+    .rig-layout .metric-list-compact .metric-bar-label.hw-row {
+      display: inline-flex;
+      align-items: center;
+      gap: .28rem;
+      max-width: 100%;
+    }
+    .rig-layout .metric-list-compact .metric-bar-val {
+      min-width: 2.8rem;
+      max-width: 5.5rem;
+      text-align: right;
+      font-size: .8rem;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rig-layout .metric-list-compact .metric-bar-sub {
+      display: block;
+      min-height: .85em;
+      max-width: 100%;
+      font-size: .62rem;
+      margin-top: .1rem;
+      opacity: .9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rig-layout .metric-list-compact .metric-bar-track {
+      height: 7px;
+    }
+    .rig-layout .rig-util-list .metric-bar-track {
+      height: 10px;
+    }
+    .rig-layout .rig-util-list .metric-bar-label {
+      font-size: .8rem;
+    }
+    .rig-layout .rig-util-list .metric-bar-val {
+      font-size: .88rem;
+      min-width: 3rem;
+      max-width: 6rem;
+    }
+    .rig-layout .rig-util-list .metric-bar-sub {
+      font-size: .66rem;
+    }
+    .rig-layout .glance-grid {
+      margin-top: 0;
+      flex: 0 0 auto;
+      gap: .35rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .rig-layout .glance-cell {
+      padding: .35rem .4rem;
+      min-height: 2.35rem;
+      border-radius: 8px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .rig-layout .glance-cell .hw-icon-box {
+      width: 1.55rem;
+      height: 1.55rem;
+      border-radius: 7px;
+      flex-shrink: 0;
+    }
+    .rig-layout .glance-body {
+      min-width: 0;
+      overflow: hidden;
+    }
+    .rig-layout .glance-val {
+      font-size: .88rem;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rig-layout .glance-sub {
+      font-size: .62rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .rig-layout .glance-bar {
+      width: 3px;
+      flex-shrink: 0;
+    }
+    .rig-layout .core-strip {
+      height: 52px;
+      gap: 2px;
+    }
+    .rig-layout .core-strip-cell {
+      height: 52px;
+    }
+    .rig-layout .gpu-engine-strip {
+      height: auto;
+      min-height: 52px;
+      gap: 5px;
+      align-items: end;
+    }
+    .rig-layout .gpu-engine-strip .core-strip-cell {
+      height: 34px;
+      flex: 0 0 auto;
+    }
+    .rig-layout .gpu-engine-label {
+      font-size: .58rem;
+    }
+    .rig-layout .gpu-engine-pct {
+      font-size: .55rem;
+    }
+    .rig-layout .gpu-engine-label,
+    .rig-layout .gpu-engine-pct {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
     .rig-layout .rig-core-meta {
-      font-size: .64rem; color: var(--muted); text-align: right;
-      margin-top: .12rem; font-variant-numeric: tabular-nums;
-    }
-    @media (min-width: 1200px) {
-      .rig-detail-grid { grid-template-columns: 1fr 1fr 1fr; }
-    }
-    @media (max-width: 1100px) {
-      .rig-detail-grid { grid-template-columns: 1fr; }
+      font-size: .58rem;
+      color: var(--muted);
+      text-align: left;
+      margin-top: .04rem;
+      font-variant-numeric: tabular-nums;
+      min-height: .8rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
     .rig-status {
-      font-size: .72rem; font-weight: 500; color: var(--text-secondary); line-height: 1.35;
-      padding: .1rem 0 .05rem;
+      font-size: .66rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.15;
+      padding: .16rem .38rem;
+      min-height: 1.25rem;
+      max-width: min(10.5rem, 55%);
+      display: inline-flex;
+      align-items: center;
+      border-radius: 7px;
+      background: rgba(0, 0, 0, .22);
+      border: 1px solid rgba(255, 255, 255, .04);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-variant-numeric: tabular-nums;
+      flex: 0 1 auto;
+      min-width: 0;
     }
     .rig-status.hot { color: #ff8a7a; }
     .rig-status.warn { color: #f5c882; }
     .rig-status.ok { color: var(--green); }
+    @media (max-width: 1200px) {
+      .stutter-layout.rig-layout {
+        grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1.4fr) minmax(12rem, 1.1fr);
+        min-height: 30rem;
+      }
+      .rig-layout .glance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .rig-strips-row { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 1100px) {
+      /* Keep area names drivers/chart/summary so shared stutter-layout rules still apply */
+      .stutter-layout.rig-layout {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+          "drivers chart"
+          "summary summary";
+        min-height: 0;
+      }
+      .rig-vitals-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .rig-layout .stutter-chart-box { min-height: 11rem; }
+    }
+    @media (max-width: 700px) {
+      .stutter-layout.rig-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas: "drivers" "chart" "summary";
+      }
+      .rig-vitals-grid { grid-template-columns: 1fr 1fr; }
+      .rig-layout .glance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .rig-kpis-inline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
     .core-strip {
       display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; align-items: end; height: 72px;
     }
@@ -1619,6 +2051,9 @@
     .metric-bar-track.disk-read > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 10px rgba(106,201,141,.3); }
     .metric-bar-track.disk-write > span { background: linear-gradient(90deg, #c43d32, #ed6a5a); box-shadow: 0 0 10px rgba(237,106,90,.35); }
     .metric-bar-track.disk-busy > span { background: linear-gradient(90deg, #6a4f8e, var(--purple)); box-shadow: 0 0 10px rgba(180,142,173,.35); }
+    .metric-bar-track.net-down > span { background: linear-gradient(90deg, #2a8f9c, #63d0de); box-shadow: 0 0 10px rgba(99,208,222,.35); }
+    .metric-bar-track.net-up > span { background: linear-gradient(90deg, #b89a2e, #f6e062); box-shadow: 0 0 10px rgba(246,224,98,.3); }
+    .metric-bar-track.net-link > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.3); }
     .drill-stack { display: flex; flex-direction: column; gap: .65rem; }
     details.drill {
       border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel-solid);
@@ -2297,63 +2732,87 @@
         </div>
       </div>
       <div class="viz-grid viz-focus-rig" id="vizGrid">
-        <div class="viz-block viz-area-rig" id="rigSnapshotBlock">
-          <div class="viz-block-head"><span class="hw-icon-box cpu" data-glyph="activity"></span><h3>Rig snapshot</h3></div>
+        <div class="viz-block viz-area-rig rig-block-flush" id="rigSnapshotBlock">
+          <div class="viz-block-head viz-block-head-sr"><span class="hw-icon-box cpu" data-glyph="activity"></span><h3>Rig snapshot</h3></div>
           <div class="viz-block-body">
             <div class="stutter-layout rig-layout">
-              <div class="stutter-col stutter-drivers">
-                <div class="rig-driver-group">
-                  <div class="stutter-side-label">Utilization</div>
-                  <div class="metric-list metric-list-compact stutter-driver-bars" id="utilMeters"></div>
+              <!-- LEFT: load + activity -->
+              <div class="stutter-col stutter-drivers rig-col rig-col-load">
+                <div class="rig-panel">
+                  <div class="rig-panel-head">
+                    <span class="stutter-side-label">Load</span>
+                    <span class="rig-status ok" id="rigStatus" title="">—</span>
+                  </div>
+                  <div class="metric-list metric-list-compact stutter-driver-bars rig-util-list" id="utilMeters"></div>
                 </div>
-                <div class="rig-driver-group" data-hw="cpu">
-                  <div class="stutter-side-label">CPU cores</div>
-                  <div class="core-strip" id="coreStrip" data-hw="cpu"></div>
-                  <div class="rig-core-meta" id="rigCoreMeta" data-hw="cpu">—</div>
-                </div>
-                <div class="rig-driver-group" data-hw="gpu">
-                  <div class="stutter-side-label">GPU activity</div>
-                  <div class="gpu-engine-strip" id="gpuEngineStrip" data-hw="gpu"></div>
-                  <div class="rig-core-meta" id="rigGpuEngineMeta" data-hw="gpu">—</div>
+                <div class="rig-panel rig-panel-strips">
+                  <div class="rig-strips-row">
+                    <div class="rig-strip-block" data-hw="cpu">
+                      <div class="stutter-side-label">CPU cores</div>
+                      <div class="core-strip" id="coreStrip" data-hw="cpu"></div>
+                      <div class="rig-core-meta" id="rigCoreMeta" data-hw="cpu">—</div>
+                    </div>
+                    <div class="rig-strip-block" data-hw="gpu">
+                      <div class="stutter-side-label">GPU engines</div>
+                      <div class="gpu-engine-strip" id="gpuEngineStrip" data-hw="gpu"></div>
+                      <div class="rig-core-meta" id="rigGpuEngineMeta" data-hw="gpu">—</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="stutter-col stutter-chart-col" data-hw-keep>
-                <div class="stutter-side-label" id="sparkChartLabel">Trend · last 5 min</div>
-                <div class="stutter-chart-box"><canvas id="sparkChart"></canvas></div>
-              </div>
-              <div class="stutter-col stutter-summary" data-hw-keep>
-                <div class="stutter-kpis">
-                  <div class="stutter-kpi">
-                    <span class="k">Avg core</span>
-                    <span class="v" id="rigAvgCore">—</span>
-                    <span class="s" id="rigAvgCoreSub">all threads</span>
+              <!-- CENTER: trend hero -->
+              <div class="stutter-col stutter-chart-col rig-col rig-col-chart" data-hw-keep>
+                <div class="rig-panel rig-panel-chart">
+                  <div class="rig-chart-head">
+                    <div class="rig-chart-title-row">
+                      <span class="stutter-side-label" id="sparkChartLabel">Load · 5 min</span>
+                      <div class="rig-chart-swatches" id="sparkChartSwatches" aria-hidden="true"></div>
+                    </div>
+                    <div class="stutter-kpis rig-kpis-inline">
+                      <div class="stutter-kpi">
+                        <span class="k">Avg core</span>
+                        <span class="v" id="rigAvgCore">—</span>
+                        <span class="s" id="rigAvgCoreSub">threads</span>
+                      </div>
+                      <div class="stutter-kpi">
+                        <span class="k">Hottest</span>
+                        <span class="v" id="rigHottest">—</span>
+                        <span class="s" id="rigHottestSub">sensor</span>
+                      </div>
+                      <div class="stutter-kpi" id="rigGameKpiCell">
+                        <span class="k">Game</span>
+                        <span class="v" id="rigGameKpi">—</span>
+                        <span class="s" id="rigGameSub">fg</span>
+                      </div>
+                    </div>
                   </div>
-                  <div class="stutter-kpi">
-                    <span class="k">Hottest</span>
-                    <span class="v" id="rigHottest">—</span>
-                    <span class="s" id="rigHottestSub">sensor</span>
-                  </div>
-                  <div class="stutter-kpi" id="rigGameKpiCell">
-                    <span class="k">Game</span>
-                    <span class="v" id="rigGameKpi">—</span>
-                    <span class="s" id="rigGameSub">foreground</span>
-                  </div>
+                  <div class="stutter-chart-box"><canvas id="sparkChart"></canvas></div>
                 </div>
-                <div class="rig-status ok" id="rigStatus">—</div>
-                <div class="stutter-side-label">Power &amp; cooling</div>
-                <div class="glance-grid" id="glanceGrid"></div>
-                <div class="rig-detail-grid">
-                  <div class="rig-detail-col">
-                    <div class="stutter-side-label">Temperatures</div>
-                    <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
+              </div>
+              <!-- RIGHT: dense vitals -->
+              <div class="stutter-col stutter-summary rig-col rig-col-vitals" data-hw-keep>
+                <div class="rig-panel rig-vitals">
+                  <div class="rig-vitals-power">
+                    <div class="stutter-side-label">Power &amp; cooling</div>
+                    <div class="glance-grid" id="glanceGrid"></div>
                   </div>
-                  <div class="rig-detail-col">
-                    <div class="stutter-side-label">Bandwidth</div>
-                    <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
-                  </div>
-                  <div class="rig-detail-col" data-hw="storage">
-                    <div class="stutter-side-label">Storage I/O</div>
-                    <div class="metric-list metric-list-compact stutter-driver-bars" id="ioMeters"></div>
+                  <div class="rig-vitals-grid">
+                    <div class="rig-vital-cell">
+                      <div class="stutter-side-label">Temps</div>
+                      <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
+                    </div>
+                    <div class="rig-vital-cell">
+                      <div class="stutter-side-label">Bandwidth</div>
+                      <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
+                    </div>
+                    <div class="rig-vital-cell" data-hw="storage">
+                      <div class="stutter-side-label">Storage</div>
+                      <div class="metric-list metric-list-compact stutter-driver-bars" id="ioMeters"></div>
+                    </div>
+                    <div class="rig-vital-cell" data-hw-keep>
+                      <div class="stutter-side-label">Network</div>
+                      <div class="metric-list metric-list-compact stutter-driver-bars" id="netMeters"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2679,9 +3138,12 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-admin" data-open-key="drill-admin">
-        <summary><span class="drill-icon admin" data-glyph="chip"></span><span class="drill-title">Profiling tools</span><span class="drill-rollup" id="drillAdminSum">—</span></summary>
+        <summary><span class="drill-icon admin" data-glyph="chip"></span><span class="drill-title">Data tools</span><span class="drill-rollup" id="drillAdminSum">—</span></summary>
         <div class="drill-body">
-          <p class="section-lead" style="margin-top:0">Optional packages that improve what Cosmic Pulse can see.</p>
+          <p class="section-lead" style="margin-top:0">
+            Only packages Pulse actually uses. Installing them unlocks better metrics —
+            not a generic shopping list.
+          </p>
           <div class="backlog" id="toolsList"></div>
         </div>
       </details>
@@ -2810,7 +3272,7 @@
     const DEFAULT_ENABLED = {
       util: { cpu: true, gpu: true, ram: true, swap: false, gameCpu: true },
       bw: { vramBw: true, dramBw: true, gtt: true },
-      io: { netDn: false, netUp: false, diskR: true, diskW: true },
+      io: { netDn: true, netUp: true, diskR: true, diskW: true },
     };
     const enabled = {
       util: { ...DEFAULT_ENABLED.util },
@@ -2931,16 +3393,56 @@
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
         interaction: { mode: 'index', intersect: false },
+        layout: { padding: { top: 4, right: 6, bottom: 2, left: 2 } },
         plugins: {
           legend: {
             display: true, position: 'bottom',
-            labels: { color: tickColor, font: { family: 'Inter', size: 11 }, boxWidth: 12, padding: 14 },
+            labels: {
+              color: tickColor,
+              font: { family: 'Inter', size: 10, weight: '500' },
+              boxWidth: 10, boxHeight: 3, padding: 12,
+              usePointStyle: true, pointStyle: 'line',
+            },
           },
-          tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
+          tooltip: {
+            backgroundColor: 'rgba(32, 34, 40, .94)',
+            titleFont: { family: 'Inter', weight: '600', size: 11 },
+            bodyFont: { family: 'Inter', size: 11 },
+            padding: 10,
+            cornerRadius: 8,
+            borderColor: 'rgba(255,255,255,.08)',
+            borderWidth: 1,
+            displayColors: true,
+            boxPadding: 4,
+          },
         },
         scales: {
-          x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 10 } }, grid: { display: false } },
-          y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 10 }, callback: v => v + '%' }, grid: { color: gridColor } },
+          x: {
+            ticks: {
+              color: 'rgba(154, 163, 178, .85)',
+              maxTicksLimit: 6,
+              font: { size: 9, weight: '500' },
+              maxRotation: 0,
+              autoSkipPadding: 8,
+            },
+            grid: { display: false },
+            border: { display: false },
+          },
+          y: {
+            min: 0, max: 100,
+            ticks: {
+              color: 'rgba(154, 163, 178, .85)',
+              font: { size: 9, weight: '500' },
+              callback: v => v + '%',
+              stepSize: 25,
+              padding: 6,
+            },
+            grid: {
+              color: 'rgba(255,255,255,.055)',
+              drawTicks: false,
+            },
+            border: { display: false },
+          },
         },
       },
     });
@@ -3031,8 +3533,8 @@
       { key: 'gtt', label: 'Shared RAM', color: CHART.gtt, yAxis: 'y1', pick: h => h.bandwidth?.gpu?.gtt_rate_mbps ?? 0 },
     ];
     const ioDefs = [
-      { key: 'netDn', label: 'Net ↓', color: CHART.netDn, pick: h => h.network.down_mbps },
-      { key: 'netUp', label: 'Net ↑', color: CHART.netUp, pick: h => h.network.up_mbps },
+      { key: 'netDn', label: 'Net ↓', color: CHART.netDn, pick: h => h.network?.down_mbps ?? 0 },
+      { key: 'netUp', label: 'Net ↑', color: CHART.netUp, pick: h => h.network?.up_mbps ?? 0 },
       { key: 'diskR', label: 'Disk R', color: CHART.diskR, pick: h => h.disk.read_mbps },
       { key: 'diskW', label: 'Disk W', color: CHART.diskW, pick: h => h.disk.write_mbps },
     ];
@@ -3166,12 +3668,13 @@
       const structKey = `${group}|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}|${rollup}|${enabledKey}`;
       const newDatasets = activeDefs.map(d => {
         const raw = points.map(p => getVal(p, d.pick));
-        const data = smoothChartSeries(`${group}:${d.key}:${structKey}`, raw);
+        const alpha = group === 'io' ? CHART_SMOOTH_ALPHA_SPIKY : CHART_SMOOTH_ALPHA;
+        const data = smoothChartSeries(`${group}:${d.key}`, raw, alpha);
         return {
           label: d.label, data,
           borderColor: d.color, backgroundColor: d.color + '20',
           yAxisID: dualAxis ? (d.yAxis || 'y') : 'y',
-          fill: group !== 'io', tension: .3, pointRadius: 0, borderWidth: 3,
+          fill: group !== 'io', tension: .35, pointRadius: 0, borderWidth: 3,
         };
       });
       if (group === 'bw') {
@@ -3184,6 +3687,7 @@
         if (vals.length) stableAxisMax(chart, 'y', Math.max(...vals), 5);
       }
       if (structKey === chart._pulseStructKey && chart.data.datasets.length === newDatasets.length) {
+        chart.data.labels = labels;
         newDatasets.forEach((ds, i) => { chart.data.datasets[i].data = ds.data; });
       } else {
         chart._pulseStructKey = structKey;
@@ -3343,11 +3847,26 @@
       el.textContent = maker ? `GPU Bandwidth — ${maker} ${gpu}` : `GPU Bandwidth — ${gpu}`;
     }
 
+    function smartMetaLine(smart, temp) {
+      if (!smart) {
+        return temp != null ? ` · ${temp}°C` : '';
+      }
+      const parts = [];
+      if (temp != null) parts.push(`${temp}°C`);
+      else if (smart.temperature_c != null) parts.push(`${smart.temperature_c}°C`);
+      if (smart.percentage_used != null) parts.push(`${smart.percentage_used}% worn`);
+      if (smart.available_spare != null) parts.push(`${smart.available_spare}% spare`);
+      if (smart.tb_written != null) parts.push(`${smart.tb_written} TB written`);
+      if (smart.critical_warning) parts.push('SMART warn');
+      return parts.length ? ` · ${parts.join(' · ')}` : '';
+    }
+
     function renderStorageDrives(s, l) {
       const el = document.getElementById('driveList');
       if (!el) return;
       const drives = s?.rig?.storage || s?.storage || [];
       const sensors = l?.sensors || [];
+      const smartMap = l?.nvme_smart?.drives || {};
       const tempById = {};
       sensors.filter(t => t.id?.startsWith('nvme_')).forEach(t => {
         const name = t.drive?.name || t.id.replace(/^nvme_/, '');
@@ -3357,27 +3876,40 @@
         el.innerHTML = '<p class="storage-note">No NVMe drives detected on this system.</p>';
         return;
       }
-      const key = drives.map(d => `${d.id}:${d.label}:${d.size}`).join('|');
+      const smartSig = Object.keys(smartMap).sort().map(k => {
+        const h = smartMap[k] || {};
+        return `${k}:${h.percentage_used}:${h.tb_written}:${h.critical_warning}`;
+      }).join('|');
+      const key = drives.map(d => `${d.id}:${d.label}:${d.size}`).join('|') + '|' + smartSig
+        + '|' + (l?.nvme_smart?.readable ? '1' : '0');
       if (el.dataset.key === key) {
         el.querySelectorAll('.drive-card').forEach((card, i) => {
-          const temp = tempById[drives[i]?.name];
+          const d = drives[i];
+          if (!d) return;
+          const temp = tempById[d.name];
+          const smart = smartMap[d.name] || d.smart;
           const meta = card.querySelector('.drive-meta');
           if (meta) {
-            const pci = drives[i]?.pci_bdf ? ` · ${drives[i].pci_bdf}` : '';
-            meta.textContent = `${drives[i]?.size || '—'}${temp != null ? ` · ${temp}°C` : ''}${pci}`;
+            const pci = d.pci_bdf ? ` · ${d.pci_bdf}` : '';
+            meta.textContent = `${d.size || '—'}${smartMetaLine(smart, temp)}${pci}`;
           }
+          card.classList.toggle('warn', !!(smart?.critical_warning || (smart?.percentage_used ?? 0) >= 90));
         });
         return;
       }
       el.dataset.key = key;
-      el.innerHTML = drives.map(d => {
+      const smartNote = l?.nvme_smart && !l.nvme_smart.readable
+        ? `<p class="storage-note">${esc(l.nvme_smart.message || 'NVMe SMART not readable yet — see Data tools.')}</p>`
+        : '';
+      el.innerHTML = smartNote + drives.map(d => {
         const temp = tempById[d.name];
+        const smart = smartMap[d.name] || d.smart;
         const pci = d.pci_bdf ? ` · ${d.pci_bdf}` : '';
-        const tempStr = temp != null ? ` · ${temp}°C` : '';
-        return `<div class="drive-card" data-drive="${esc(d.name)}">
+        const warn = !!(smart?.critical_warning || (smart?.percentage_used ?? 0) >= 90);
+        return `<div class="drive-card${warn ? ' warn' : ''}" data-drive="${esc(d.name)}">
           <span class="drive-brand">${esc(d.brand || 'NVMe')}</span>
           <span class="drive-name">${esc(d.label || d.model || d.name)}</span>
-          <span class="drive-meta">${esc(d.size || '—')}${tempStr}${esc(pci)}</span>
+          <span class="drive-meta">${esc(d.size || '—')}${esc(smartMetaLine(smart, temp))}${esc(pci)}</span>
         </div>`;
       }).join('');
     }
@@ -3449,10 +3981,15 @@
     let lastRankStructKey = '';
     const meterSmooth = new Map();
     const displaySmooth = new Map();
+    /** @type {Map<string, {smooth: number[], raw: number[]}>} */
     const chartSeriesSmooth = new Map();
+    /** Soft ceilings for rate→activity normalization (rise fast, fall slow). */
+    const rateCeilSmooth = new Map();
     const METER_SMOOTH_ALPHA = 0.22;
     const DISPLAY_SMOOTH_ALPHA = 0.18;
     const CHART_SMOOTH_ALPHA = 0.28;
+    /** Spiky rates (disk/net): stronger damping so sporadic blips don't thrash the line. */
+    const CHART_SMOOTH_ALPHA_SPIKY = 0.12;
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function clampPct(p) {
@@ -3483,20 +4020,76 @@
       return Math.round(smoothDisplay(key, raw));
     }
 
-    function smoothChartSeries(key, data) {
-      if (prefersReducedMotion) return data;
-      const prev = chartSeriesSmooth.get(key);
-      if (!prev || prev.length !== data.length) {
-        chartSeriesSmooth.set(key, data.slice());
-        return data;
+    /**
+     * Temporal EMA for chart series. Keys must be stable (series id only — not
+     * window timestamps) so a sliding 5‑min window doesn't reset smoothing.
+     * When the window slides, each new sample is blended from the previous
+     * smoothed value at the matching wall-clock slot (aligned to series end).
+     */
+    function smoothChartSeries(key, data, alpha = CHART_SMOOTH_ALPHA) {
+      if (!data || !data.length) return data || [];
+      if (prefersReducedMotion) {
+        chartSeriesSmooth.set(key, { smooth: data.slice(), raw: data.slice() });
+        return data.slice();
       }
-      const out = data.map((v, i) => {
-        const p = prev[i];
-        const n = p + CHART_SMOOTH_ALPHA * (v - p);
-        return +n.toFixed(2);
-      });
-      chartSeriesSmooth.set(key, out);
+      const a = Math.min(1, Math.max(0.02, alpha));
+      const state = chartSeriesSmooth.get(key);
+      const prevS = state?.smooth;
+      const prevR = state?.raw;
+
+      // Causal seed when first seen or length jumped a lot (bootstrap / span change)
+      if (!prevS || !prevS.length || Math.abs(prevS.length - data.length) > 8) {
+        const out = [];
+        let s = Number(data[0]) || 0;
+        for (const raw of data) {
+          const v = Number(raw) || 0;
+          s = s + a * (v - s);
+          out.push(+s.toFixed(2));
+        }
+        chartSeriesSmooth.set(key, { smooth: out, raw: data.map(Number) });
+        return out;
+      }
+
+      // Align to series end: length can grow/shrink as the 5m window fills.
+      // Prefer shifted baseline when the window advanced by ~1 bucket.
+      const out = new Array(data.length);
+      const lenDiff = data.length - prevS.length;
+      for (let i = 0; i < data.length; i++) {
+        const v = Number(data[i]) || 0;
+        // Map this index onto previous series (end-aligned)
+        let baseIdx = i - lenDiff;
+        if (prevR && prevR.length === prevS.length && baseIdx >= 0 && baseIdx < prevR.length) {
+          const dStay = Math.abs(v - (prevR[baseIdx] ?? v));
+          const dShift = baseIdx + 1 < prevR.length
+            ? Math.abs(v - (prevR[baseIdx + 1] ?? v))
+            : Infinity;
+          // Sliding window: current raw[i] ≈ previous raw[i+1]
+          if (dShift + 0.05 < dStay) baseIdx = baseIdx + 1;
+        }
+        let p;
+        if (baseIdx >= 0 && baseIdx < prevS.length) p = prevS[baseIdx];
+        else if (i > 0) p = out[i - 1];
+        else p = v;
+        out[i] = +(p + a * (v - p)).toFixed(2);
+      }
+      chartSeriesSmooth.set(key, { smooth: out, raw: data.map(x => Number(x) || 0) });
       return out;
+    }
+
+    /** Soft max for rate series: rises with peaks, decays slowly so scale doesn't thrash. */
+    function softRateCeil(key, values, floor = 16) {
+      const nums = (values || []).map(Number).filter(v => !isNaN(v) && v >= 0);
+      const peak = nums.length ? Math.max(floor, ...nums) : floor;
+      const prev = rateCeilSmooth.get(key) ?? peak;
+      const next = peak >= prev ? peak : prev + (peak - prev) * 0.05;
+      rateCeilSmooth.set(key, next);
+      return Math.max(floor, next);
+    }
+
+    /** Map rate samples to 0–100 activity against a soft ceiling. */
+    function ratesToActivity(key, rates, floor = 16) {
+      const ceil = softRateCeil(key, rates, floor);
+      return rates.map(r => clampPct(((Number(r) || 0) / ceil) * 100));
     }
 
     function stableAxisMax(chart, axisId, dataMax, min = 8) {
@@ -3848,27 +4441,55 @@
     }
 
     function renderTools(tools) {
-      const rec = tools?.recommended || [];
+      const data = tools?.data_sources || tools?.recommended?.filter(t => t.role !== 'helper') || [];
+      const helpers = tools?.helpers || tools?.recommended?.filter(t => t.role === 'helper') || [];
       const el = document.getElementById('toolsList');
-      if (!rec.length) {
+      if (!el) return;
+      const rows = [];
+      const renderRow = (t) => {
+        const installed = !!t.installed;
+        const feeding = !!t.feeding;
+        let badge = 'missing';
+        let badgeCls = 'high';
+        if (installed && feeding) { badge = 'feeding'; badgeCls = 'done'; }
+        else if (installed && t.role === 'helper') { badge = 'ready'; badgeCls = 'done'; }
+        else if (installed) { badge = 'idle'; badgeCls = 'med'; }
+        const setup = t.setup === 'enable-nvme-smart'
+          ? `<div class="sub" style="margin-top:.35rem">Needs device access — copy Guidance fix script <code>enable-nvme-smart</code> or run:
+              <code style="display:block;margin-top:.25rem;font-size:.85rem;color:var(--blue)">sudo usermod -aG disk $USER &amp;&amp; echo 'KERNEL=="nvme[0-9]*", GROUP="disk", MODE="0660"' | sudo tee /etc/udev/rules.d/60-nvme-smart-pulse.rules</code>
+              Then log out/in and restart Pulse.</div>`
+          : '';
+        return `<div class="bl-item">
+          <span class="bl-pri ${badgeCls}">${hwIcon(feeding || (installed && t.role === 'helper') ? 'ok' : 'warn', 'hw-pill-glyph')}${badge}</span>
+          <div>
+            <strong>${esc(t.bin)}</strong>
+            <div class="sub" style="margin:.15rem 0 0">${esc(t.note || '')}</div>
+            ${t.detail ? `<div class="sub" style="margin-top:.2rem;color:var(--text-secondary)">${esc(t.detail)}</div>` : ''}
+            ${!installed ? `<code style="display:block;margin-top:.35rem;font-size:.9rem;color:var(--blue)">sudo apt install ${esc(t.pkg)}</code>` : ''}
+            ${setup}
+          </div>
+        </div>`;
+      };
+      if (data.length) {
+        rows.push('<div class="sub" style="margin:.2rem 0 .45rem;font-weight:600;letter-spacing:.02em">DATA SOURCES</div>');
+        data.forEach(t => rows.push(renderRow(t)));
+      }
+      if (helpers.length) {
+        rows.push('<div class="sub" style="margin:.85rem 0 .45rem;font-weight:600;letter-spacing:.02em">HELPERS (not live metrics)</div>');
+        helpers.forEach(t => rows.push(renderRow(t)));
+      }
+      if (!rows.length) {
         el.innerHTML = '<div class="sub">No tool list configured</div>';
         return;
       }
-      const missing = rec.filter(t => !t.installed).length;
-      el.innerHTML = rec.map(t => `
-        <div class="bl-item">
-          <span class="bl-pri ${t.installed ? 'done' : 'high'}">${hwIcon(t.installed ? 'ok' : 'warn', 'hw-pill-glyph')}${t.installed ? 'ok' : 'missing'}</span>
-          <div>
-            <strong>${t.bin}</strong>
-            <div class="sub" style="margin:.15rem 0 0">${t.note}</div>
-            ${t.installed ? '' : `<code style="display:block;margin-top:.35rem;font-size:.9rem;color:var(--blue)">sudo apt install ${t.pkg}</code>`}
-          </div>
-        </div>`).join('');
+      el.innerHTML = rows.join('');
       const adminSum = document.getElementById('drillAdminSum');
-      const installed = rec.length - missing;
-      adminSum.textContent = missing
-        ? `${installed}/${rec.length} installed · ${missing} missing`
-        : `${rec.length} installed`;
+      const all = [...data, ...helpers];
+      const feeding = data.filter(t => t.feeding).length;
+      const installed = all.filter(t => t.installed).length;
+      if (adminSum) {
+        adminSum.textContent = `${feeding}/${data.length} feeding · ${installed}/${all.length} installed`;
+      }
     }
 
     const GAME_RATING_TIERS = ['excellent', 'good', 'fair', 'poor', 'bad'];
@@ -4296,27 +4917,33 @@
       { id: 'gpu', label: 'GPU', icon: 'gpu', cls: 'gpu', hw: 'gpu' },
       { id: 'vram', label: 'VRAM', icon: 'gpu', cls: 'vram', hw: 'gpu' },
       { id: 'swap', label: 'Swap', icon: 'ram', cls: 'swap', hw: 'memory' },
-      { id: 'game', label: 'Game process', icon: 'game', cls: 'game', hw: 'cpu gpu' },
+      { id: 'game', label: 'Game', icon: 'game', cls: 'game', hw: 'cpu gpu' },
     ];
+    /* Compact right-panel vitals — fewer rows so the column doesn't thrash height every tick.
+       Full sensor detail stays in the hardware strip / drill panels. */
     const TEMP_SPECS = [
-      { id: 'cpu-pkg', label: 'CPU package', icon: 'cpu', key: 'package', hw: 'cpu' },
-      { id: 'cpu-ccd0', label: 'CPU die 1', icon: 'cpu', key: 'ccd0', hw: 'cpu' },
-      { id: 'cpu-ccd1', label: 'CPU die 2', icon: 'cpu', key: 'ccd1', hw: 'cpu' },
-      { id: 'gpu-junc', label: 'GPU hotspot', icon: 'gpu', gpu: true, key: 'junction_c', hw: 'gpu' },
+      { id: 'cpu-pkg', label: 'CPU', icon: 'cpu', key: 'package', hw: 'cpu' },
+      { id: 'gpu-junc', label: 'GPU', icon: 'gpu', gpu: true, key: 'junction_c', hw: 'gpu' },
       { id: 'gpu-mem', label: 'VRAM', icon: 'temp', gpu: true, key: 'mem_temp_c', hw: 'gpu' },
     ];
     const BW_SPECS = [
-      { id: 'vram-bw', label: 'Memory bus', icon: 'gpu', cls: 'bw-gpu', hw: 'gpu' },
-      { id: 'dram-bw', label: 'RAM bandwidth', icon: 'ram', cls: 'bw-mem', hw: 'memory' },
-      { id: 'dram-psi', label: 'Memory wait', icon: 'cpu', cls: 'mem', hw: 'memory' },
+      { id: 'vram-bw', label: 'GPU bus', icon: 'gpu', cls: 'bw-gpu', hw: 'gpu' },
+      { id: 'dram-bw', label: 'RAM BW', icon: 'ram', cls: 'bw-mem', hw: 'memory' },
+      { id: 'dram-psi', label: 'Wait', icon: 'cpu', cls: 'mem', hw: 'memory' },
     ];
     const IO_SPECS = [
       { id: 'disk-read', label: 'Read', icon: 'storage', cls: 'disk-read', hw: 'storage' },
       { id: 'disk-write', label: 'Write', icon: 'storage', cls: 'disk-write', hw: 'storage' },
-      { id: 'io-stall', label: 'I/O wait', icon: 'cpu', cls: 'stutter-io', hw: 'storage' },
-      { id: 'disk-busy', label: 'Disk busy', icon: 'storage', cls: 'disk-busy', hw: 'storage' },
+      { id: 'disk-busy', label: 'Busy', icon: 'storage', cls: 'disk-busy', hw: 'storage' },
+    ];
+    const NET_SPECS = [
+      { id: 'net-down', label: 'Down', icon: 'net', cls: 'net-down', hw: '' },
+      { id: 'net-up', label: 'Up', icon: 'net', cls: 'net-up', hw: '' },
+      { id: 'net-link', label: 'Link', icon: 'net', cls: 'net-link', hw: '' },
     ];
     const DISK_RATE_CEIL = 500;
+    /** Soft ceiling for net bar fill — scales with link speed when known. */
+    const NET_RATE_CEIL_DEFAULT = 100;
     const STUTTER_COMP_SPECS = [
       { id: 'major_faults', label: 'Page faults', cls: 'stutter-faults', hw: 'cpu memory' },
       { id: 'mem_stall', label: 'Memory wait', cls: 'stutter-mem', hw: 'memory' },
@@ -4368,9 +4995,10 @@
 
     function ensureMetricList(containerId, specs, trackKey = 'cls') {
       const el = document.getElementById(containerId);
-      if (el.dataset.hwVer !== '3') {
+      // Bump when compact vitals specs change so lists rebuild once after deploy
+      if (el.dataset.hwVer !== '5') {
         delete el.dataset.init;
-        el.dataset.hwVer = '3';
+        el.dataset.hwVer = '5';
       }
       if (el.dataset.init) return;
       el.innerHTML = specs.map(s => `
@@ -4412,42 +5040,197 @@
       return 'temp';
     }
 
+    function sparkBucketAvg(p, fn) {
+      const slice = Array.isArray(p) ? p : [p];
+      return avg(slice, fn);
+    }
+    /** Peak within bucket — preserves short spikes before we damp them on the chart. */
+    function sparkBucketMax(p, fn) {
+      const slice = Array.isArray(p) ? p : [p];
+      const vals = slice.map(fn).filter(x => x != null && !isNaN(x));
+      return vals.length ? Math.max(...vals) : 0;
+    }
+
+    /** Parse #rgb / #rrggbb into [r,g,b]. */
+    function hexToRgb(hex) {
+      if (!hex || typeof hex !== 'string') return [160, 170, 180];
+      let h = hex.replace('#', '').trim();
+      if (h.length === 3) h = h.split('').map(c => c + c).join('');
+      if (h.length !== 6) return [160, 170, 180];
+      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+    }
+
+    function rgbaFromHex(hex, a) {
+      const [r, g, b] = hexToRgb(hex);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+
+    /** Vertical gradient fill under a spark series (falls back to flat rgba). */
+    function sparkAreaFill(hex, topA, botA) {
+      return (ctx) => {
+        const chart = ctx.chart;
+        const { ctx: c, chartArea } = chart;
+        if (!chartArea) return rgbaFromHex(hex, topA);
+        const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+        g.addColorStop(0, rgbaFromHex(hex, topA));
+        g.addColorStop(0.55, rgbaFromHex(hex, (topA + botA) * 0.45));
+        g.addColorStop(1, rgbaFromHex(hex, botA));
+        return g;
+      };
+    }
+
+    function updateSparkSwatches(series) {
+      const el = document.getElementById('sparkChartSwatches');
+      if (!el) return;
+      const key = series.map(s => `${s.key}:${s.color}`).join('|');
+      if (el.dataset.key === key) return;
+      el.dataset.key = key;
+      el.innerHTML = series.map(s =>
+        `<span class="rig-chart-swatch" title="${esc(s.label)}">`
+        + `<i style="background:${s.color};color:${s.color}"></i>`
+        + `<span>${esc(s.label)}</span></span>`
+      ).join('');
+    }
+
     function renderSparkChart() {
       const last = rawHistory.at(-1)?.ts ?? 0;
       const cut = rawHistory.filter(h => h.ts >= last - 300);
       const { labels, points } = bucketize(cut, 5);
-      const structKey = `spark|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}`;
-      const sparkDefs = [
-        { key: 'cpu', label: 'CPU', pick: p => avg(p, h => h.cpu.overall_pct), color: CHART.cpu, focus: ['cpu'] },
-        { key: 'gpu', label: 'GPU', pick: p => avg(p, h => h.gpu.discrete.busy_pct ?? 0), color: CHART.gpu, focus: ['gpu'] },
-        { key: 'ram', label: 'RAM', pick: p => avg(p, h => h.memory.pct), color: CHART.ram, focus: ['memory'] },
-        { key: 'diskR', label: 'Disk R', pick: p => avg(p, h => h.disk?.read_mbps ?? 0), color: CHART.diskR, focus: ['storage'] },
-        { key: 'diskW', label: 'Disk W', pick: p => avg(p, h => h.disk?.write_mbps ?? 0), color: CHART.diskW, focus: ['storage'] },
+      // Dataset structure key: only what changes series count/identity (not wall-clock labels)
+      const focusKey = hwFocus || 'all';
+      const structKey = `spark|${focusKey}`;
+
+      // All series plotted as 0–100 so Y never auto-rescales.
+      // Disk/net use soft-ceiling activity (not raw MB/s) — that was the main "jumps all over" bug.
+      const pctDefs = [
+        {
+          key: 'cpu', label: 'CPU', color: CHART.cpu, focus: ['cpu'],
+          pick: p => sparkBucketAvg(p, h => h.cpu?.overall_pct ?? 0),
+          alpha: CHART_SMOOTH_ALPHA, kind: 'pct',
+          fillTop: 0.28, fillBot: 0.02,
+        },
+        {
+          key: 'gpu', label: 'GPU', color: CHART.gpu, focus: ['gpu'],
+          pick: p => sparkBucketAvg(p, h => h.gpu?.discrete?.busy_pct ?? 0),
+          alpha: CHART_SMOOTH_ALPHA, kind: 'pct',
+          fillTop: 0.22, fillBot: 0.015,
+        },
+        {
+          key: 'ram', label: 'RAM', color: CHART.ram, focus: ['memory'],
+          pick: p => sparkBucketAvg(p, h => h.memory?.pct ?? 0),
+          alpha: 0.22, kind: 'pct',
+          fillTop: 0.16, fillBot: 0.01,
+        },
       ];
-      const activeSpark = sparkDefs.filter(d => !hwFocus || d.focus.includes(hwFocus));
-      const newDatasets = activeSpark.map(d => {
-        const raw = points.map(p => d.pick(p));
-        const data = smoothChartSeries(`${structKey}:${d.key}`, raw);
-        const primary = activeSpark[0]?.key === d.key;
+      const rateDefs = [
+        {
+          key: 'diskR', label: 'Disk R', color: CHART.diskR, focus: ['storage'],
+          pick: p => sparkBucketMax(p, h => h.disk?.read_mbps ?? 0),
+          alpha: CHART_SMOOTH_ALPHA_SPIKY, kind: 'rate', floor: 24,
+          fillTop: 0.18, fillBot: 0.02,
+        },
+        {
+          key: 'diskW', label: 'Disk W', color: CHART.diskW, focus: ['storage'],
+          pick: p => sparkBucketMax(p, h => h.disk?.write_mbps ?? 0),
+          alpha: CHART_SMOOTH_ALPHA_SPIKY, kind: 'rate', floor: 24,
+          fillTop: 0.14, fillBot: 0.015,
+        },
+      ];
+
+      let active;
+      if (hwFocus === 'storage') {
+        active = rateDefs;
+      } else if (hwFocus === 'cpu' || hwFocus === 'gpu' || hwFocus === 'memory') {
+        active = pctDefs.filter(d => d.focus.includes(hwFocus));
+      } else {
+        // Overview: CPU/GPU/RAM primary; one combined disk-activity line (faint) if any disk I/O
+        active = [...pctDefs];
+        const diskCombined = points.map(p => Math.max(
+          sparkBucketMax(p, h => h.disk?.read_mbps ?? 0),
+          sparkBucketMax(p, h => h.disk?.write_mbps ?? 0),
+        ));
+        const diskPeak = Math.max(0, ...diskCombined);
+        if (diskPeak > 0.5) {
+          active.push({
+            key: 'diskAct', label: 'Disk', color: '#b8a06a', focus: ['storage'],
+            preRaw: diskCombined,
+            alpha: CHART_SMOOTH_ALPHA_SPIKY, kind: 'rate', floor: 24,
+            fillTop: 0.08, fillBot: 0.01,
+          });
+        }
+      }
+
+      const newDatasets = active.map((d, idx) => {
+        let raw = d.preRaw || points.map(p => d.pick(p));
+        if (d.kind === 'rate') {
+          raw = ratesToActivity(`spark-ceil:${d.key}`, raw, d.floor || 16);
+        }
+        const data = smoothChartSeries(`spark:${d.key}`, raw, d.alpha);
+        const primary = idx === 0;
+        const isRate = d.kind === 'rate';
+        const n = data.length;
+        // Endpoint dots: only the latest sample lights up (reads as “now”)
+        const pointRadius = n ? data.map((_, i) => (i === n - 1 ? (primary ? 3.2 : 2.4) : 0)) : [];
+        const pointHoverRadius = n ? data.map((_, i) => (i === n - 1 ? 5 : 3)) : [];
         return {
-          label: d.label, data, borderColor: d.color,
-          backgroundColor: d.color + (primary ? '28' : '14'),
-          fill: primary, tension: .35, pointRadius: 0,
-          borderWidth: primary ? 2.5 : 1.5, yAxisID: 'y',
+          label: d.label,
+          data,
+          borderColor: d.color,
+          backgroundColor: sparkAreaFill(d.color, d.fillTop ?? 0.18, d.fillBot ?? 0.02),
+          fill: !isRate || hwFocus === 'storage',
+          tension: 0.42,
+          cubicInterpolationMode: 'monotone',
+          borderWidth: primary ? 2.75 : (isRate ? 1.45 : 2.0),
+          borderJoinStyle: 'round',
+          borderCapStyle: 'round',
+          borderDash: isRate && !hwFocus ? [5, 4] : undefined,
+          pointRadius,
+          pointHoverRadius,
+          pointBackgroundColor: d.color,
+          pointBorderColor: rgbaFromHex(d.color, 0.35),
+          pointBorderWidth: 2,
+          pointHitRadius: 6,
+          yAxisID: 'y',
+          order: isRate ? 4 : idx,
         };
       });
+
+      // Keep Y locked 0–100; label as % (rate lines are activity % of recent soft peak)
+      sparkChart.options.scales.y.min = 0;
+      sparkChart.options.scales.y.max = 100;
+      sparkChart.options.scales.y.ticks.callback = v => `${v}%`;
+
       if (structKey === sparkChart._pulseStructKey && sparkChart.data.datasets.length === newDatasets.length) {
-        newDatasets.forEach((ds, i) => { sparkChart.data.datasets[i].data = ds.data; });
+        sparkChart.data.labels = labels;
+        newDatasets.forEach((ds, i) => {
+          const cur = sparkChart.data.datasets[i];
+          cur.data = ds.data;
+          cur.label = ds.label;
+          cur.borderColor = ds.borderColor;
+          cur.backgroundColor = ds.backgroundColor;
+          cur.fill = ds.fill;
+          cur.borderWidth = ds.borderWidth;
+          cur.borderDash = ds.borderDash;
+          cur.pointRadius = ds.pointRadius;
+          cur.pointHoverRadius = ds.pointHoverRadius;
+          cur.pointBackgroundColor = ds.pointBackgroundColor;
+          cur.pointBorderColor = ds.pointBorderColor;
+        });
       } else {
         sparkChart._pulseStructKey = structKey;
         sparkChart.data.labels = labels;
         sparkChart.data.datasets = newDatasets;
       }
+      updateSparkSwatches(active);
       const chartLabel = document.getElementById('sparkChartLabel');
       if (chartLabel) {
-        chartLabel.textContent = hwFocus
-          ? `${HW_FOCUS_LABELS[hwFocus]} trend · last 5 min`
-          : 'Trend · last 5 min';
+        if (hwFocus === 'storage') {
+          chartLabel.textContent = 'Disk activity · 5 min';
+        } else if (hwFocus) {
+          chartLabel.textContent = `${HW_FOCUS_LABELS[hwFocus]} · 5 min`;
+        } else {
+          chartLabel.textContent = 'Load · 5 min';
+        }
       }
       sparkChart.update('none');
     }
@@ -4532,15 +5315,21 @@
 
       const statusEl = document.getElementById('rigStatus');
       if (statusEl) {
-        const bits = [
-          `CPU ${c.overall_pct ?? '—'}%`,
-          `GPU ${g.busy_pct ?? '—'}%`,
-          `RAM ${m.pct ?? '—'}%`,
-          m.swap_pct > 5 ? `swap ${m.swap_pct}%` : null,
-        ].filter(Boolean);
+        const cpu = c.overall_pct != null ? Math.round(c.overall_pct) : '—';
+        const gpu = g.busy_pct != null ? Math.round(g.busy_pct) : '—';
+        const ram = m.pct != null ? Math.round(m.pct) : '—';
+        // Compact chip for the load panel header (full line in title tooltip)
+        let text = `${cpu}/${gpu}/${ram}`;
+        let full = `CPU ${cpu}% · GPU ${gpu}% · RAM ${ram}%`;
+        if ((m.swap_pct || 0) > 5) {
+          const sw = Math.round(m.swap_pct);
+          text += ` s${sw}`;
+          full += ` · swap ${sw}%`;
+        }
         const loadMax = Math.max(c.overall_pct ?? 0, g.busy_pct ?? 0, m.pct ?? 0);
         const cls = loadMax >= 90 ? 'hot' : loadMax >= 75 ? 'warn' : 'ok';
-        statusEl.textContent = bits.join(' · ');
+        statusEl.textContent = text;
+        statusEl.title = full;
         statusEl.className = `rig-status ${cls}`;
       }
     }
@@ -4549,17 +5338,17 @@
       const last = rawHistory.at(-1)?.ts ?? 0;
       const cut = rawHistory.filter(h => h.ts >= last - 300);
       const { labels, points } = bucketize(cut, 5);
-      const structKey = `stutter|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}`;
+      const structKey = 'stutter';
       const scoreRaw = points.map(p => {
         const slice = Array.isArray(p) ? p : [p];
         return avg(slice, h => h.stutter?.score ?? 0);
       });
-      const scoreLine = smoothChartSeries(`${structKey}:score`, scoreRaw);
+      const scoreLine = smoothChartSeries('stutter:score', scoreRaw, 0.22);
       const estRaw = points.map(p => {
         const slice = Array.isArray(p) ? p : [p];
         return avg(slice, h => h.stutter?.est_ms ?? 0);
       });
-      const estLine = smoothChartSeries(`${structKey}:est`, estRaw);
+      const estLine = smoothChartSeries('stutter:est', estRaw, CHART_SMOOTH_ALPHA_SPIKY);
       const eventPoints = [];
       points.forEach((p, i) => {
         const slice = Array.isArray(p) ? p : [p];
@@ -4591,9 +5380,10 @@
           grid: { drawOnChartArea: false },
         };
       }
-      const peakEst = Math.max(40, ...estLine.filter(v => v > 0));
-      stutterChart.options.scales.y1.max = Math.ceil(peakEst / 20) * 20 + 20;
+      const peakEst = Math.max(0, ...estLine.filter(v => v > 0), 0);
+      stableAxisMax(stutterChart, 'y1', Math.max(40, peakEst), 40);
       if (structKey === stutterChart._pulseStructKey && stutterChart.data.datasets.length === newDatasets.length) {
+        stutterChart.data.labels = labels;
         newDatasets.forEach((ds, i) => { stutterChart.data.datasets[i].data = ds.data; });
       } else {
         stutterChart._pulseStructKey = structKey;
@@ -4912,14 +5702,14 @@
       const cut = rawHistory.filter(h => h.ts >= last - 300);
       const { labels, points } = bucketize(cut, 5);
       const focusKey = hwFocus || 'all';
-      const structKey = `index|${focusKey}|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}`;
+      const structKey = `index|${focusKey}`;
       const indexRaw = points.map(p => {
         const slice = Array.isArray(p) ? p : [p];
         return avg(slice, indexHistoryPick);
       });
-      const indexLine = smoothChartSeries(`${structKey}:idx`, indexRaw);
+      const indexLine = smoothChartSeries(`index:${focusKey}:idx`, indexRaw, 0.22);
       const headRaw = indexLine.map(v => Math.max(0, 100 - (v || 0)));
-      const headLine = smoothChartSeries(`${structKey}:head`, headRaw);
+      const headLine = smoothChartSeries(`index:${focusKey}:head`, headRaw, 0.22);
       const mainLabel = hwFocus
         ? `${HW_FOCUS_LABELS[hwFocus]} load`
         : 'Pulse Index';
@@ -4940,7 +5730,13 @@
         },
       ];
       if (structKey === indexChart._pulseStructKey && indexChart.data.datasets.length === newDatasets.length) {
-        newDatasets.forEach((ds, i) => { indexChart.data.datasets[i].data = ds.data; });
+        indexChart.data.labels = labels;
+        newDatasets.forEach((ds, i) => {
+          indexChart.data.datasets[i].data = ds.data;
+          indexChart.data.datasets[i].label = ds.label;
+          indexChart.data.datasets[i].borderColor = ds.borderColor;
+          indexChart.data.datasets[i].backgroundColor = ds.backgroundColor;
+        });
       } else {
         indexChart._pulseStructKey = structKey;
         indexChart.data.labels = labels;
@@ -5220,17 +6016,22 @@
       const g = l.gpu?.discrete || {}, c = l.cpu || {};
       const pkg = c.temps?.package;
       const junc = g.junction_c;
+      const power = g.power_w != null ? Math.round(g.power_w) : null;
+      const fan = g.fan_rpm != null ? Math.round(g.fan_rpm) : null;
+      const mhz = g.gfx_mhz != null ? Math.round(g.gfx_mhz) : null;
+      // Short fixed-ish labels — avoid "GPU · 2650 MHz" vs "GPU · — MHz" reflow noise
       const items = [
-        { icon: 'gpu', label: 'GPU', hw: 'gpu', val: `${g.power_w ?? '—'}W`, sub: `${g.gfx_mhz ?? '—'} MHz`, pct: Math.min(100, ((g.power_w || 0) / 355) * 100), cls: 'gpu' },
-        { icon: 'fan', label: 'Fan', hw: 'gpu', val: `${g.fan_rpm ?? '—'}`, sub: 'rpm', pct: Math.min(100, ((g.fan_rpm || 0) / 2800) * 100), cls: 'gpu' },
-        { icon: 'temp', label: 'GPU hotspot', hw: 'gpu', val: junc != null ? `${junc}°` : '—', sub: gpuThermalProf().label || 'GPU', pct: gpuTempPct(junc), cls: `temp${gpuJuncUiClass(junc)}` },
-        { icon: 'cpu', label: 'CPU', hw: 'cpu', val: pkg != null ? `${pkg}°` : '—', sub: 'package', pct: tempPct(pkg), cls: 'cpu' },
+        { icon: 'gpu', label: 'Power', hw: 'gpu', val: power != null ? `${power}W` : '—', sub: mhz != null ? `${mhz}MHz` : 'GPU', pct: Math.min(100, ((power || 0) / 355) * 100), cls: 'gpu' },
+        { icon: 'fan', label: 'Fan', hw: 'gpu', val: fan != null ? `${fan}` : '—', sub: 'rpm', pct: Math.min(100, ((fan || 0) / 2800) * 100), cls: 'gpu' },
+        { icon: 'temp', label: 'Hot', hw: 'gpu', val: junc != null ? `${Math.round(junc)}°` : '—', sub: 'GPU', pct: gpuTempPct(junc), cls: `temp${gpuJuncUiClass(junc)}` },
+        { icon: 'cpu', label: 'Pkg', hw: 'cpu', val: pkg != null ? `${Math.round(pkg)}°` : '—', sub: 'CPU', pct: tempPct(pkg), cls: 'cpu' },
       ];
       const boxCls = { gpu: 'gpu', fan: 'gpu', temp: 'temp', cpu: 'cpu' };
       const glanceEl = document.getElementById('glanceGrid');
-      if (glanceEl.dataset.hwVer !== '3') {
+      if (!glanceEl) return;
+      if (glanceEl.dataset.hwVer !== '4') {
         delete glanceEl.dataset.init;
-        glanceEl.dataset.hwVer = '3';
+        glanceEl.dataset.hwVer = '4';
       }
       if (!glanceEl.dataset.init) {
         glanceEl.innerHTML = items.map((it, i) => `
@@ -5253,7 +6054,10 @@
         cell.classList.remove('gpu', 'cpu', 'temp', 'hot', 'warn');
         it.cls.split(/\s+/).filter(Boolean).forEach(c => cell.classList.add(c));
         cell.querySelector('[data-gi-val]').textContent = it.val;
-        cell.querySelector('[data-gi-sub]').textContent = `${it.label} · ${it.sub}`;
+        // Compact sub: "Power 2650MHz" style without extra middots when space is tight
+        cell.querySelector('[data-gi-sub]').textContent = it.sub && it.sub !== it.label
+          ? `${it.label} · ${it.sub}`
+          : it.label;
         setMeterHeight(cell.querySelector('[data-gi-bar]'), it.pct, 3);
       });
     }
@@ -5332,7 +6136,8 @@
 
     function hwStatusCardAccent(item) {
       if (item.id?.startsWith('io_')) return 'accent-io';
-      if (item.id === 'network_combined' || item.id?.startsWith('nic_') || item.id === 'wifi') return 'accent-net';
+      if (item.id?.startsWith('net_') || item.id === 'network_combined'
+          || item.id?.startsWith('nic_') || item.id === 'wifi') return 'accent-net';
       if (item.hw === 'storage' || item.id?.startsWith('nvme_')) return 'accent-storage';
       if (item.iconCls === 'gpu') return 'accent-gpu';
       if (item.iconCls === 'cpu') return 'accent-cpu';
@@ -5398,11 +6203,94 @@
       ];
     }
 
+    /** Format bit-rate (Mbps float) for compact status cards — stable width units. */
+    function fmtNetRate(mbps) {
+      if (mbps == null || Number.isNaN(mbps)) return '—';
+      const v = Number(mbps);
+      if (v >= 1000) return `${(v / 1000).toFixed(1)}G`;
+      if (v >= 10) return `${v.toFixed(0)}M`;
+      if (v >= 1) return `${v.toFixed(1)}M`;
+      if (v > 0.05) return `${(v * 1000).toFixed(0)}K`;
+      if (v > 0) return '<50K';
+      return '0';
+    }
+
+    function fmtDiskRate(mbps) {
+      if (mbps == null || Number.isNaN(mbps)) return '—';
+      const v = Number(mbps);
+      if (v >= 100) return `${v.toFixed(0)} MB/s`;
+      if (v >= 10) return `${v.toFixed(1)} MB/s`;
+      if (v > 0) return `${v.toFixed(1)} MB/s`;
+      return '0';
+    }
+
+    function fmtLinkSpeed(mbps) {
+      if (mbps == null || mbps <= 0) return '—';
+      if (mbps >= 1000) {
+        const g = mbps / 1000;
+        return Number.isInteger(g) ? `${g}G` : `${g.toFixed(1)}G`;
+      }
+      return `${mbps}M`;
+    }
+
+    function buildNetStatusGroup(l) {
+      const net = l?.network || {};
+      const down = net.down_mbps ?? 0;
+      const up = net.up_mbps ?? 0;
+      const primary = net.primary || '—';
+      const speed = net.primary_speed_mbps;
+      const linkLabel = net.primary_up === false ? 'Down' : fmtLinkSpeed(speed);
+      const per = net.per_nic || {};
+      const nicTip = Object.keys(per).length
+        ? Object.entries(per).map(([n, v]) => {
+            const st = v.is_up === false ? 'down' : 'up';
+            return `${n} (${st}): ↓${fmtNetRate(v.down_mbps)} ↑${fmtNetRate(v.up_mbps)}`;
+          }).join(' · ')
+        : 'No tracked interfaces';
+      return [
+        {
+          id: 'net_down', display: 'Down', icon: 'net', iconCls: 'cpu', hw: '',
+          tooltip: `Aggregate download · ${nicTip}`,
+          sensor: { value: down, unit: '', kind: 'net_rate', display: fmtNetRate(down) },
+        },
+        {
+          id: 'net_up', display: 'Up', icon: 'net', iconCls: 'cpu', hw: '',
+          tooltip: `Aggregate upload · ${nicTip}`,
+          sensor: { value: up, unit: '', kind: 'net_rate', display: fmtNetRate(up) },
+        },
+        {
+          id: 'net_link', display: primary === '—' ? 'Link' : primary,
+          icon: 'net', iconCls: 'cpu', hw: '',
+          tooltip: primary !== '—'
+            ? `${primary} · ${net.primary_up === false ? 'link down' : `link ${fmtLinkSpeed(speed)}`} · ${net.up_count ?? 0}/${net.nic_count ?? 0} up`
+            : 'Primary network interface',
+          sensor: {
+            value: speed ?? (net.primary_up ? 1 : 0),
+            unit: '',
+            kind: 'net_link',
+            display: linkLabel,
+          },
+          warnAt: net.primary_up === false ? -1 : undefined,
+          hotAt: undefined,
+          linkDown: net.primary_up === false,
+        },
+      ];
+    }
+
     function renderSensorStrip(sensors, l) {
       const groups = buildHwStatusGroups(sensors);
       const io = buildIoStatusGroup(l);
-      const flat = [...groups.temps, ...io, ...groups.storage, ...groups.network];
-      const sig = JSON.stringify(flat.map(i => [i.id, i.sensor?.value, i.sensor?.unit]));
+      const netIo = buildNetStatusGroup(l);
+      // Network row: live rates first, then NIC temp sensors if present
+      const network = [...netIo, ...groups.network];
+      const flat = [...groups.temps, ...io, ...groups.storage, ...network];
+      const sig = JSON.stringify(flat.map(i => [
+        i.id,
+        i.sensor?.value,
+        i.sensor?.unit,
+        i.sensor?.display,
+        i.linkDown,
+      ]));
       const el = document.getElementById('sensorStrip');
       if (!el) return;
       if (!flat.length) {
@@ -5420,7 +6308,7 @@
           renderHwStatusRow('Temps', groups.temps)
           + renderHwStatusRow('I/O', io, { secondary: true })
           + renderHwStatusRow('Drives', groups.storage, { secondary: true })
-          + renderHwStatusRow('Network', groups.network, { secondary: true });
+          + renderHwStatusRow('Network', network, { secondary: true });
         el.dataset.mode = 'live';
         lastSensorStripKey = '';
       }
@@ -5431,17 +6319,22 @@
         if (!card) return;
         const s = item.sensor;
         card.classList.remove('hot', 'warn');
+        if (item.linkDown) card.classList.add('warn');
         if (s?.kind === 'temp') {
           const tc = item.isGpuJunc ? gpuJuncUiClass(s.value).trim() : tempClass(s.value);
           if (tc) card.classList.add(tc);
-        } else if (s?.value != null) {
+        } else if (s?.value != null && s?.kind !== 'net_rate' && s?.kind !== 'net_link') {
           if (item.hotAt != null && s.value >= item.hotAt) card.classList.add('hot');
           else if (item.warnAt != null && s.value >= item.warnAt) card.classList.add('warn');
         }
         const valEl = card.querySelector('[data-sval]');
         if (valEl) {
-          const unit = s?.unit || (s?.kind === 'temp' ? '°C' : '');
-          valEl.textContent = s?.value != null ? `${s.value}${unit}` : '—';
+          if (s?.display != null) {
+            valEl.textContent = s.display;
+          } else {
+            const unit = s?.unit || (s?.kind === 'temp' ? '°C' : '');
+            valEl.textContent = s?.value != null ? `${s.value}${unit}` : '—';
+          }
         }
       });
     }
@@ -5456,10 +6349,13 @@
       syncMetricHwTags('bwMeters', BW_SPECS);
       ensureMetricList('ioMeters', IO_SPECS);
       syncMetricHwTags('ioMeters', IO_SPECS);
+      ensureMetricList('netMeters', NET_SPECS);
+      syncMetricHwTags('netMeters', NET_SPECS);
 
       const c = l.cpu, m = l.memory, g = l.gpu.discrete, gt = l.game_totals;
       const bw = l.bandwidth || {};
       const disk = l.disk || {};
+      const net = l.network || {};
 
       setMetricBar('utilMeters', 'cpu', c.overall_pct, `${c.overall_pct}%`, `Load ${c.load?.join(' / ') ?? '—'}`, 'cpu');
       setMetricBar('utilMeters', 'ram', m.pct, `${m.pct}%`, `${m.used_gb} / ${m.total_gb} GB used`, 'mem');
@@ -5472,19 +6368,20 @@
       const temps = c.temps || {};
       const tempVals = {
         'cpu-pkg': temps.package,
-        'cpu-ccd0': temps.ccd?.[0],
-        'cpu-ccd1': temps.ccd?.[1],
         'gpu-junc': g.junction_c,
         'gpu-mem': g.mem_temp_c,
       };
       TEMP_SPECS.forEach(s => {
         const v = tempVals[s.id];
         const gpuJunc = s.id === 'gpu-junc';
+        const sub = s.id === 'cpu-pkg'
+          ? (temps.ccd?.[0] != null ? `die ${temps.ccd[0]}°` : 'package')
+          : (s.id === 'gpu-junc' ? 'hotspot' : 'memory');
         setMetricBar(
           'tempMeters', s.id,
           gpuJunc ? gpuTempPct(v) : tempPct(v),
-          v != null ? `${v}°C` : '—',
-          s.label,
+          v != null ? `${Math.round(v)}°` : '—',
+          sub,
           gpuJunc ? gpuJuncValCls(v) : tempValCls(v),
           gpuJunc ? gpuJuncTrackCls(v) : tempTrackCls(v),
         );
@@ -5492,26 +6389,41 @@
 
       const vramPeak = bw.gpu?.vram_peak_gbps || 1;
       const dramPeak = bw.memory?.dram_peak_gbps || 1;
-      setMetricBar('bwMeters', 'vram-bw', bw.gpu?.vram_busy_pct ?? ((bw.gpu?.vram_est_gbps ?? 0) / vramPeak) * 100,
-        `${bw.gpu?.vram_est_gbps ?? '—'} GB/s`, `${bw.gpu?.vram_busy_pct ?? '—'}% busy · peak ${vramPeak} GB/s`, '', 'bw-gpu');
-      setMetricBar('bwMeters', 'dram-bw', bw.memory?.dram_util_pct ?? ((bw.memory?.dram_est_gbps ?? 0) / dramPeak) * 100,
-        `${bw.memory?.dram_est_gbps ?? '—'} GB/s`, `${bw.memory?.dram_util_pct ?? 0}% demand · ${bw.memory?.spec_label || 'DDR5'} ${dramPeak} peak`, '', 'bw-mem');
+      const vramGbps = bw.gpu?.vram_est_gbps;
+      const dramGbps = bw.memory?.dram_est_gbps;
+      setMetricBar('bwMeters', 'vram-bw', bw.gpu?.vram_busy_pct ?? ((vramGbps ?? 0) / vramPeak) * 100,
+        vramGbps != null ? `${Number(vramGbps).toFixed(0)} GB/s` : '—',
+        `${bw.gpu?.vram_busy_pct ?? '—'}% busy`, '', 'bw-gpu');
+      setMetricBar('bwMeters', 'dram-bw', bw.memory?.dram_util_pct ?? ((dramGbps ?? 0) / dramPeak) * 100,
+        dramGbps != null ? `${Number(dramGbps).toFixed(0)} GB/s` : '—',
+        `${bw.memory?.dram_util_pct ?? 0}% demand`, '', 'bw-mem');
       setMetricBar('bwMeters', 'dram-psi', Math.min(100, (bw.memory?.psi_avg10 ?? 0) * 5),
-        `${bw.memory?.psi_avg10 ?? 0}% wait`, `Page faults ${(bw.memory?.pgfault_per_s ?? 0).toLocaleString()}/s`, 'mem');
+        `${bw.memory?.psi_avg10 ?? 0}%`,
+        'stall', 'mem');
 
       const diskRead = disk.read_mbps ?? 0;
       const diskWrite = disk.write_mbps ?? 0;
-      const ioWait = diskIoWaitPct(l) ?? 0;
       const diskBusy = disk.busy_pct ?? 0;
       setMetricBar('ioMeters', 'disk-read', Math.min(100, (diskRead / DISK_RATE_CEIL) * 100),
-        `${diskRead || '—'} MB/s`, 'Aggregate read throughput', '', 'disk-read');
+        fmtDiskRate(diskRead), 'read', '', 'disk-read');
       setMetricBar('ioMeters', 'disk-write', Math.min(100, (diskWrite / DISK_RATE_CEIL) * 100),
-        `${diskWrite || '—'} MB/s`, 'Aggregate write throughput', '', 'disk-write');
-      setMetricBar('ioMeters', 'io-stall', Math.min(100, ioWait * 5),
-        `${ioWait}% wait`, 'Disk wait — not zram swap churn', '', 'stutter-io');
+        fmtDiskRate(diskWrite), 'write', '', 'disk-write');
       setMetricBar('ioMeters', 'disk-busy', diskBusy,
-        `${diskBusy}%`, 'Disk queue busy time', '', 'disk-busy');
+        `${Math.round(diskBusy)}%`, 'queue', '', 'disk-busy');
 
+      const netDown = net.down_mbps ?? 0;
+      const netUp = net.up_mbps ?? 0;
+      const linkSpeed = net.primary_speed_mbps || 0;
+      const netCeil = Math.max(NET_RATE_CEIL_DEFAULT, linkSpeed > 0 ? linkSpeed : NET_RATE_CEIL_DEFAULT);
+      const primaryName = net.primary || 'nic';
+      setMetricBar('netMeters', 'net-down', Math.min(100, (netDown / netCeil) * 100),
+        fmtNetRate(netDown), primaryName, '', 'net-down');
+      setMetricBar('netMeters', 'net-up', Math.min(100, (netUp / netCeil) * 100),
+        fmtNetRate(netUp), primaryName, '', 'net-up');
+      setMetricBar('netMeters', 'net-link',
+        net.primary_up === false ? 0 : (linkSpeed > 0 ? 100 : (net.primary_up ? 100 : 0)),
+        net.primary_up === false ? 'Down' : fmtLinkSpeed(linkSpeed),
+        net.primary_up === false ? 'link down' : 'up', '', 'net-link');
       renderCoreStrip(l.cpu.per_core || []);
       renderGpuEngineStrip(l.gpu?.discrete?.engines || [
         { id: 'gfx', label: 'Shaders', pct: g.busy_pct },
@@ -7354,12 +8266,27 @@
     let lastSeenSessionEnd = 0;
 
     function resolveLastSession(gp, gid) {
-      const cached = (gameSessionsCache?.sessions || []).find(s => s.game_id === gid)
-        || gameSessionsCache?.sessions?.[0];
-      if (!gid) return gp?.last_session || cached || null;
-      if (gp?.last_session?.game_id === gid) return gp.last_session;
-      if (cached?.game_id === gid) return cached;
-      return gp?.last_session || cached || null;
+      const sessions = gameSessionsCache?.sessions || [];
+      const cached = (gid && sessions.find(s => s.game_id === gid))
+        || sessions[0]
+        || null;
+      let base = null;
+      if (!gid) base = gp?.last_session || cached || null;
+      else if (gp?.last_session?.game_id === gid) base = gp.last_session;
+      else if (cached?.game_id === gid) base = cached;
+      else base = gp?.last_session || cached || null;
+      // Steady metrics omit last_session.trend (~64 KB); merge from /api/game-sessions.
+      if (base && !(base.trend && base.trend.length) && sessions.length) {
+        const match = sessions.find(s =>
+          (base.ended_ts && s.ended_ts === base.ended_ts)
+          || (base.started_ts && s.started_ts === base.started_ts)
+          || (base.game_id && s.game_id === base.game_id && s.trend?.length)
+        );
+        if (match?.trend?.length) {
+          return { ...base, trend: match.trend };
+        }
+      }
+      return base;
     }
 
     function applyGamePerfTrendChart(trend, title) {

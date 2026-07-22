@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -361,6 +363,171 @@ def nvme_sensor_tiles(sens: dict, drives: list[dict] | None = None) -> list[dict
     return tiles
 
 
+# NVMe SMART via smartctl — optional; needs read access to /dev/nvmeN (root or udev).
+_nvme_smart_cache: tuple[float, dict] = (0.0, {})
+
+
+def _parse_smartctl_nvme(payload: dict) -> dict | None:
+    """Normalize smartctl -j NVMe health into a compact dict."""
+    if not payload or not isinstance(payload, dict):
+        return None
+    log = payload.get("nvme_smart_health_information_log") or {}
+    if not log and not payload.get("model_name"):
+        return None
+    # NVMe data units are 1000 × 512 B = 512_000 bytes each (spec).
+    units_written = log.get("data_units_written")
+    units_read = log.get("data_units_read")
+    tb_written = None
+    tb_read = None
+    if units_written is not None:
+        tb_written = round(float(units_written) * 512_000 / (1000**4), 2)
+    if units_read is not None:
+        tb_read = round(float(units_read) * 512_000 / (1000**4), 2)
+    temp = log.get("temperature")
+    if temp is None and isinstance(payload.get("temperature"), dict):
+        temp = payload["temperature"].get("current")
+    crit = log.get("critical_warning")
+    if isinstance(crit, dict):
+        crit = crit.get("value", 0)
+    return {
+        "model": (payload.get("model_name") or "").strip() or None,
+        "serial": (payload.get("serial_number") or "").strip() or None,
+        "percentage_used": log.get("percentage_used"),
+        "available_spare": log.get("available_spare"),
+        "available_spare_threshold": log.get("available_spare_threshold"),
+        "critical_warning": int(crit) if crit is not None else 0,
+        "temperature_c": int(temp) if temp is not None else None,
+        "media_errors": log.get("media_errors"),
+        "num_err_log_entries": log.get("num_err_log_entries"),
+        "power_on_hours": log.get("power_on_hours"),
+        "power_cycles": log.get("power_cycles"),
+        "data_units_written": units_written,
+        "data_units_read": units_read,
+        "tb_written": tb_written,
+        "tb_read": tb_read,
+        "unsafe_shutdowns": log.get("unsafe_shutdowns"),
+    }
+
+
+def probe_nvme_smart(max_age_sec: float = 180.0) -> dict:
+    """Read NVMe SMART when smartctl can open the devices.
+
+    Without elevated access smartctl returns permission errors; we still report
+    that so the tools panel can show "installed · needs access".
+    """
+    global _nvme_smart_cache
+    import time as _time
+
+    now = _time.time()
+    if now - _nvme_smart_cache[0] < max_age_sec and _nvme_smart_cache[1]:
+        return dict(_nvme_smart_cache[1])
+
+    installed = bool(shutil.which("smartctl"))
+    result: dict = {
+        "installed": installed,
+        "readable": False,
+        "permission_error": False,
+        "drives": {},
+        "message": "smartctl not installed",
+    }
+    if not installed:
+        _nvme_smart_cache = (now, result)
+        return dict(result)
+
+    # Controllers (/dev/nvme0) and namespaces (/dev/nvme0n1) — prefer controller.
+    candidates: list[tuple[str, str]] = []  # (block_name, dev_path)
+    for ctrl in sorted(Path("/sys/class/nvme").glob("nvme*")):
+        if not ctrl.name[4:].isdigit():
+            continue
+        block_name = None
+        for child in sorted(ctrl.iterdir()):
+            if child.name.startswith(ctrl.name) and "n" in child.name[len(ctrl.name) :]:
+                block_name = child.name
+                break
+        if not block_name:
+            # fallback: first nvmeXn1 under /sys/block matching controller
+            for block in sorted(Path("/sys/block").glob(f"{ctrl.name}n*")):
+                block_name = block.name
+                break
+        if not block_name:
+            continue
+        ctrl_dev = Path(f"/dev/{ctrl.name}")
+        ns_dev = Path(f"/dev/{block_name}")
+        if ctrl_dev.exists():
+            candidates.append((block_name, str(ctrl_dev)))
+        elif ns_dev.exists():
+            candidates.append((block_name, str(ns_dev)))
+
+    if not candidates:
+        result["message"] = "smartctl installed · no NVMe devices found"
+        _nvme_smart_cache = (now, result)
+        return dict(result)
+
+    readable = 0
+    perm_denied = 0
+    other_fail = 0
+    for block_name, dev_path in candidates:
+        try:
+            proc = subprocess.run(
+                ["smartctl", "-a", "-j", dev_path],
+                capture_output=True,
+                text=True,
+                timeout=4,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            other_fail += 1
+            continue
+        raw = proc.stdout or ""
+        try:
+            payload = json.loads(raw) if raw.strip() else {}
+        except json.JSONDecodeError:
+            payload = {}
+        messages = (payload.get("smartctl") or {}).get("messages") or []
+        msg_text = " ".join(
+            m.get("string", "") if isinstance(m, dict) else str(m) for m in messages
+        ).lower()
+        has_log = bool(payload.get("nvme_smart_health_information_log"))
+        if not has_log:
+            # exit 2 = open failed (almost always permissions for /dev/nvmeN)
+            if "permission" in msg_text or proc.returncode == 2:
+                perm_denied += 1
+                continue
+            other_fail += 1
+            continue
+        parsed = _parse_smartctl_nvme(payload)
+        if not parsed:
+            other_fail += 1
+            continue
+        parsed["device"] = dev_path
+        parsed["ok"] = parsed.get("critical_warning", 0) == 0 and (
+            parsed.get("percentage_used") is None or parsed["percentage_used"] < 90
+        )
+        result["drives"][block_name] = parsed
+        readable += 1
+
+    result["readable"] = readable > 0
+    result["permission_error"] = perm_denied > 0 and readable == 0
+    if readable:
+        result["message"] = f"SMART feeding · {readable} NVMe"
+    elif perm_denied:
+        result["message"] = (
+            "installed · needs device access (disk group + udev, or run as root once via setup script)"
+        )
+    elif other_fail:
+        result["message"] = "installed · smartctl could not read SMART logs"
+    else:
+        result["message"] = "installed · no data"
+
+    _nvme_smart_cache = (now, result)
+    return dict(result)
+
+
+def invalidate_nvme_smart_cache() -> None:
+    global _nvme_smart_cache
+    _nvme_smart_cache = (0.0, {})
+
+
 def enrich_memory_spec(spec: dict) -> dict:
     """Add brand/kit/label from dmidecode sticks when PART_DB is not used."""
     sticks = spec.get("sticks") or []
@@ -437,3 +604,322 @@ def primary_display_refresh_hz(max_age_sec: float = 120.0) -> float | None:
 
     _display_refresh_cache = (now, hz)
     return hz
+
+
+# CTA-861 HDR static metadata extended tag (EDID).
+_EDID_EXT_TAG_HDR_STATIC = 6
+# DRM Colorspace enum values commonly used for HDR output (AMD/Intel).
+_DRM_COLORSPACE_HDR = frozenset({9, 10})  # BT2020_RGB, BT2020_YCC
+
+_display_hdr_cache: tuple[float, dict] = (0.0, {})
+
+
+def _edid_hdr_static(edid: bytes) -> dict:
+    """Parse CTA-861 HDR Static Metadata Data Block from raw EDID bytes."""
+    out: dict = {
+        "capable": False,
+        "eotf_mask": 0,
+        "max_nits": None,
+        "max_fall_nits": None,
+    }
+    if not edid or len(edid) < 128:
+        return out
+    # Walk 128-byte extension blocks for CTA-861 (tag 0x02).
+    off = 128
+    while off + 4 <= len(edid):
+        if edid[off] != 0x02:
+            off += 128
+            continue
+        dtd_start = edid[off + 2]
+        p = off + 4
+        end = off + dtd_start if dtd_start else off + 127
+        end = min(end, len(edid))
+        while p < end:
+            header = edid[p]
+            btag = header >> 5
+            blen = header & 0x1F
+            payload = edid[p + 1 : p + 1 + blen]
+            p += 1 + blen
+            if btag != 7 or not payload:
+                continue
+            if payload[0] != _EDID_EXT_TAG_HDR_STATIC:
+                continue
+            eotf = payload[1] if len(payload) > 1 else 0
+            out["eotf_mask"] = eotf
+            # bit0 traditional SDR, bit1 traditional HDR, bit2 PQ (ST.2084), bit3 HLG
+            out["capable"] = bool(eotf & 0b1110)
+            if len(payload) > 3 and payload[3]:
+                out["max_nits"] = round(50.0 * (2.0 ** (payload[3] / 32.0)), 1)
+            if len(payload) > 4 and payload[4]:
+                out["max_fall_nits"] = round(50.0 * (2.0 ** (payload[4] / 32.0)), 1)
+            return out
+        off += 128
+    return out
+
+
+def _drm_connected_hdr_state() -> dict:
+    """Read Colorspace / HDR_OUTPUT_METADATA from the first connected DRM connector."""
+    import ctypes
+    import ctypes.util
+
+    result: dict = {
+        "connector": None,
+        "colorspace": 0,
+        "colorspace_name": "Default",
+        "hdr_metadata_blob": 0,
+        "active": False,
+        "max_bpc": None,
+    }
+    libname = ctypes.util.find_library("drm")
+    if not libname:
+        return result
+    lib = ctypes.CDLL(libname)
+
+    class drmModeRes(ctypes.Structure):
+        _fields_ = [
+            ("count_fbs", ctypes.c_int),
+            ("fbs", ctypes.POINTER(ctypes.c_uint32)),
+            ("count_crtcs", ctypes.c_int),
+            ("crtcs", ctypes.POINTER(ctypes.c_uint32)),
+            ("count_connectors", ctypes.c_int),
+            ("connectors", ctypes.POINTER(ctypes.c_uint32)),
+            ("count_encoders", ctypes.c_int),
+            ("encoders", ctypes.POINTER(ctypes.c_uint32)),
+            ("min_width", ctypes.c_uint32),
+            ("max_width", ctypes.c_uint32),
+            ("min_height", ctypes.c_uint32),
+            ("max_height", ctypes.c_uint32),
+        ]
+
+    class drmModeModeInfo(ctypes.Structure):
+        _fields_ = [
+            ("clock", ctypes.c_uint32),
+            ("hdisplay", ctypes.c_uint16),
+            ("hsync_start", ctypes.c_uint16),
+            ("hsync_end", ctypes.c_uint16),
+            ("htotal", ctypes.c_uint16),
+            ("hskew", ctypes.c_uint16),
+            ("vdisplay", ctypes.c_uint16),
+            ("vsync_start", ctypes.c_uint16),
+            ("vsync_end", ctypes.c_uint16),
+            ("vtotal", ctypes.c_uint16),
+            ("vscan", ctypes.c_uint16),
+            ("vrefresh", ctypes.c_uint32),
+            ("flags", ctypes.c_uint32),
+            ("type", ctypes.c_uint32),
+            ("name", ctypes.c_char * 32),
+        ]
+
+    class drmModeConnector(ctypes.Structure):
+        _fields_ = [
+            ("connector_id", ctypes.c_uint32),
+            ("encoder_id", ctypes.c_uint32),
+            ("connector_type", ctypes.c_uint32),
+            ("connector_type_id", ctypes.c_uint32),
+            ("connection", ctypes.c_uint32),
+            ("mmWidth", ctypes.c_uint32),
+            ("mmHeight", ctypes.c_uint32),
+            ("subpixel", ctypes.c_uint32),
+            ("count_modes", ctypes.c_int),
+            ("modes", ctypes.POINTER(drmModeModeInfo)),
+            ("count_props", ctypes.c_int),
+            ("props", ctypes.POINTER(ctypes.c_uint32)),
+            ("prop_values", ctypes.POINTER(ctypes.c_uint64)),
+            ("count_encoders", ctypes.c_int),
+            ("encoders", ctypes.POINTER(ctypes.c_uint32)),
+        ]
+
+    class drmModePropertyEnum(ctypes.Structure):
+        _fields_ = [("value", ctypes.c_uint64), ("name", ctypes.c_char * 32)]
+
+    class drmModePropertyRes(ctypes.Structure):
+        _fields_ = [
+            ("prop_id", ctypes.c_uint32),
+            ("flags", ctypes.c_uint32),
+            ("name", ctypes.c_char * 32),
+            ("count_values", ctypes.c_int),
+            ("values", ctypes.POINTER(ctypes.c_uint64)),
+            ("count_enums", ctypes.c_int),
+            ("enums", ctypes.POINTER(drmModePropertyEnum)),
+            ("count_blobs", ctypes.c_int),
+            ("blob_ids", ctypes.POINTER(ctypes.c_uint32)),
+        ]
+
+    lib.drmModeGetResources.argtypes = [ctypes.c_int]
+    lib.drmModeGetResources.restype = ctypes.POINTER(drmModeRes)
+    lib.drmModeFreeResources.argtypes = [ctypes.POINTER(drmModeRes)]
+    lib.drmModeGetConnectorCurrent.argtypes = [ctypes.c_int, ctypes.c_uint32]
+    lib.drmModeGetConnectorCurrent.restype = ctypes.POINTER(drmModeConnector)
+    lib.drmModeGetConnector.argtypes = [ctypes.c_int, ctypes.c_uint32]
+    lib.drmModeGetConnector.restype = ctypes.POINTER(drmModeConnector)
+    lib.drmModeFreeConnector.argtypes = [ctypes.POINTER(drmModeConnector)]
+    lib.drmModeGetProperty.argtypes = [ctypes.c_int, ctypes.c_uint32]
+    lib.drmModeGetProperty.restype = ctypes.POINTER(drmModePropertyRes)
+    lib.drmModeFreeProperty.argtypes = [ctypes.POINTER(drmModePropertyRes)]
+
+    type_names = {
+        1: "VGA",
+        10: "DP",
+        11: "HDMI-A",
+        12: "HDMI-B",
+        14: "eDP",
+        15: "DSI",
+        16: "VIRTUAL",
+        17: "DSI",
+        18: "DPI",
+        19: "Writeback",
+        20: "SPI",
+        21: "USB",
+    }
+
+    for card in sorted(Path("/dev/dri").glob("card*")):
+        try:
+            fd = os.open(card, os.O_RDWR | os.O_CLOEXEC)
+        except OSError:
+            continue
+        found: dict | None = None
+        try:
+            res_ptr = lib.drmModeGetResources(fd)
+            if not res_ptr:
+                continue
+            res = res_ptr.contents
+            try:
+                for i in range(res.count_connectors):
+                    cid = res.connectors[i]
+                    conn_ptr = lib.drmModeGetConnectorCurrent(fd, cid)
+                    if not conn_ptr:
+                        conn_ptr = lib.drmModeGetConnector(fd, cid)
+                    if not conn_ptr:
+                        continue
+                    conn = conn_ptr.contents
+                    if conn.connection != 1:  # DRM_MODE_CONNECTED
+                        lib.drmModeFreeConnector(conn_ptr)
+                        continue
+                    ctype = type_names.get(conn.connector_type, f"type{conn.connector_type}")
+                    result["connector"] = f"{ctype}-{conn.connector_type_id}"
+                    cs_val = 0
+                    cs_name = "Default"
+                    hdr_blob = 0
+                    max_bpc = None
+                    for j in range(conn.count_props):
+                        prop_ptr = lib.drmModeGetProperty(fd, conn.props[j])
+                        if not prop_ptr:
+                            continue
+                        prop = prop_ptr.contents
+                        name = prop.name.decode(errors="replace")
+                        val = int(conn.prop_values[j])
+                        if name == "Colorspace":
+                            cs_val = val
+                            for k in range(prop.count_enums):
+                                if int(prop.enums[k].value) == val:
+                                    cs_name = prop.enums[k].name.decode(errors="replace")
+                                    break
+                        elif name == "HDR_OUTPUT_METADATA":
+                            hdr_blob = val
+                        elif name == "max bpc":
+                            max_bpc = val
+                        lib.drmModeFreeProperty(prop_ptr)
+                    result["colorspace"] = cs_val
+                    result["colorspace_name"] = cs_name
+                    result["hdr_metadata_blob"] = hdr_blob
+                    result["max_bpc"] = max_bpc
+                    # Active when compositor set HDR static metadata blob, or BT.2020 colorspace.
+                    result["active"] = bool(hdr_blob) or cs_val in _DRM_COLORSPACE_HDR
+                    lib.drmModeFreeConnector(conn_ptr)
+                    found = dict(result)
+                    break
+            finally:
+                lib.drmModeFreeResources(res_ptr)
+        finally:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        if found is not None:
+            return found
+    return result
+
+
+def _edid_for_connector(connector: str | None) -> bytes:
+    """Load EDID bytes for a DRM connector name like DP-1, preferring connected outputs."""
+    drm_root = Path("/sys/class/drm")
+    candidates: list[Path] = []
+    if connector:
+        for p in drm_root.glob(f"card*-{connector}"):
+            candidates.append(p)
+    if not candidates:
+        for p in sorted(drm_root.glob("card*-*")):
+            status = p / "status"
+            if status.is_file() and status.read_text(errors="ignore").strip() == "connected":
+                candidates.append(p)
+    for p in candidates:
+        edid_path = p / "edid"
+        if edid_path.is_file():
+            try:
+                data = edid_path.read_bytes()
+                if data:
+                    return data
+            except OSError:
+                continue
+    return b""
+
+
+def primary_display_hdr(max_age_sec: float = 30.0) -> dict:
+    """Primary connected display HDR capability and live state.
+
+    Returns keys used by rule packs under ``display.*``:
+      capable, active, connector, colorspace_name, max_nits, max_fall_nits,
+      desktop_toggle (bool — whether the session compositor exposes a known HDR switch).
+    """
+    global _display_hdr_cache
+    import time as _time
+
+    now = _time.time()
+    if now - _display_hdr_cache[0] < max_age_sec and _display_hdr_cache[1]:
+        return dict(_display_hdr_cache[1])
+
+    # Default empty state — not capable, not active.
+    state: dict = {
+        "capable": False,
+        "active": False,
+        "connector": None,
+        "colorspace_name": "Default",
+        "max_nits": None,
+        "max_fall_nits": None,
+        "desktop": (os.environ.get("XDG_CURRENT_DESKTOP") or "").split(":")[0],
+        "desktop_toggle": False,
+        "summary": "unknown",
+    }
+
+    try:
+        drm = _drm_connected_hdr_state()
+        state["connector"] = drm.get("connector")
+        state["colorspace_name"] = drm.get("colorspace_name") or "Default"
+        state["active"] = bool(drm.get("active"))
+
+        edid = _edid_for_connector(state["connector"])
+        hdr = _edid_hdr_static(edid)
+        state["capable"] = bool(hdr.get("capable"))
+        state["max_nits"] = hdr.get("max_nits")
+        state["max_fall_nits"] = hdr.get("max_fall_nits")
+
+        # COSMIC (and most non-KDE/GNOME-nightly sessions) do not yet expose a
+        # stable desktop HDR toggle via cosmic-randr / Settings.
+        desktop = (state["desktop"] or "").lower()
+        if "kde" in desktop or "plasma" in desktop:
+            state["desktop_toggle"] = True  # System Settings → Display → HDR
+        else:
+            state["desktop_toggle"] = False
+
+        if not state["capable"]:
+            state["summary"] = "not_capable"
+        elif state["active"]:
+            state["summary"] = "on"
+        else:
+            state["summary"] = "off"
+    except Exception:
+        # Never break the metrics sampler for display probing.
+        state["summary"] = "probe_error"
+
+    _display_hdr_cache = (now, state)
+    return dict(state)
