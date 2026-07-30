@@ -62,7 +62,7 @@ Ensure `~/.local/bin` is on your `PATH` so the `cosmic-pulse` command works.
 | Steam | Game-aware Guidance and log scans |
 | Second monitor or LAN device | Dashboard is meant to run beside your game |
 
-Optional: `dmidecode`, `smartctl`, `corectrl`, `nvtop` — surfaced in the tools panel when present.
+Optional: `dmidecode`, `smartmontools` (provides `smartctl`), `corectrl`, `nvtop` — surfaced in the tools panel when present.
 
 ## Install options
 

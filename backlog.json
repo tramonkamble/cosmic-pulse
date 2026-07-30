@@ -189,7 +189,19 @@
     "id": "pop-audio-gaming",
     "priority": "medium",
     "title": "Pop audio for gaming",
-    "notes": "Out-of-box sound issues: PipeWire/Pulse latency (quantum, default clock rate, timer period), crackling/pops under load, Bluetooth vs wired headsets, monitor HDMI audio, optional low-latency pro-audio profile, per-game device selection, Wine/Proton audio backends."
+    "notes": "Umbrella under pop-gaming-playbook. Out-of-box sound issues for gaming: PipeWire/Pulse latency (quantum, clock rate), crackling/pops under load, Bluetooth vs wired, HDMI/monitor audio, low-latency profile, per-game device, Wine/Proton audio backends. Children: audio-pipeline-basics (v1 detect), later optional audio-stutter-link. Prefer rule-pack YAML once metrics exist; keep probe cheap (on-demand or ~10\u201330s cache, not 1 Hz)."
+  },
+  {
+    "id": "audio-pipeline-basics",
+    "priority": "medium",
+    "title": "Audio pipeline basics (detect + Guidance)",
+    "notes": "Child of pop-audio-gaming \u00b7 keep small. Probe PipeWire (preferred) or Pulse once per diagnostics TTL / on Guidance open \u2014 not every metrics tick. Detect only the high-value basics: (1) Default sink missing or suspended. (2) Odd default sample rate \u2014 flag if not 48000 or 44100 (e.g. 32000, 96000 forced when games expect 48k) or sink/node rate mismatch vs graph rate. (3) Large quantum / high latency \u2014 soft info when quantum suggests multi-10s-of-ms buffering (crackles under load often need lower quantum; don't auto-change). (4) Optional: xrun/underrun counter if cheap via pw-top/pw-dump stats or journal. Emit Guidance info/warn cards + fix script notes (check `wpctl status`, `pw-metadata -n settings`, reset rate to 48000, avoid Bluetooth for competitive). Do not rewrite user PipeWire conf without explicit apply. Ship as metrics under audio.* for rule packs (audio.default_rate, audio.quantum, audio.sink_state, audio.xruns)."
+  },
+  {
+    "id": "audio-stutter-link",
+    "priority": "low",
+    "title": "Audio underruns \u2194 stutter panel (light link)",
+    "notes": "Child of pop-audio-gaming \u00b7 after audio-pipeline-basics. If xruns/underruns are available, show a small note on Stutter when recent audio underruns coincide with hitch score \u2014 not a new stutter component weight v1. Copy: 'Audio underruns may feel like hitching; check sample rate / quantum.' Optional later: one stutter mix segment only if signal is reliable. Avoid false blame for GPU/CPU hitches."
   },
   {
     "id": "pop-display-wayland",

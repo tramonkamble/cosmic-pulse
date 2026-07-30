@@ -43,11 +43,47 @@
       --meter-h: 18px;
       --rank-bar-h: 14px;
       --meter-ease: 1.85s cubic-bezier(0.28, 0.82, 0.32, 1);
+      /*
+        Metric families — same meaning → same color everywhere (charts, bars, KPIs).
+        Groups are analogous hues so related metrics read as one system.
+          CPU / compute  …… sky blue
+          GPU / graphics …… violet
+          Memory         …… emerald (+ chartreuse for swap)
+          Storage        …… amber / orange
+          Network        …… cyan
+          Thermal/power  …… rose / warm orange
+          Stutter/game   …… fuchsia / pink
+      */
+      --m-cpu: #38bdf8;
+      --m-cpu-deep: #0284c7;
+      --m-gpu: #a78bfa;
+      --m-gpu-deep: #7c3aed;
+      --m-gpu-vram: #c4b5fd;
+      --m-gpu-gtt: #ddd6fe;
+      --m-mem: #34d399;
+      --m-mem-deep: #059669;
+      --m-swap: #a3e635;
+      --m-disk: #f59e0b;
+      --m-disk-deep: #d97706;
+      --m-disk-write: #fb923c;
+      --m-net: #22d3ee;
+      --m-net-deep: #0e7490;
+      --m-net-up: #67e8f9;
+      --m-power: #fb923c;
+      --m-thermal: #fb7185;
+      --m-thermal-deep: #e11d48;
+      --m-thermal-warn: #fbbf24;
+      --m-stutter: #e879f9;
+      --m-game: #f472b6;
+      --m-league: #818cf8;
       /* legacy aliases for chart/inline refs */
-      --cyan: var(--blue);
+      --cyan: var(--m-net);
       --magenta: var(--accent);
-      --violet: var(--purple);
-      --lime: var(--green);
+      --violet: var(--m-gpu);
+      --lime: var(--m-mem);
+      --chart-cpu: var(--m-cpu);
+      --chart-gpu: var(--m-gpu);
+      --chart-ram: var(--m-mem);
     }
     * { box-sizing: border-box; }
     button { font-family: inherit; color: inherit; }
@@ -167,8 +203,9 @@
       display: block; height: 100%; border-radius: 99px;
       transition: width var(--meter-ease);
     }
-    .meter.gpu > span { background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 70%, #000), var(--orange)); }
-    .meter.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); }
+    .meter.cpu > span { background: linear-gradient(90deg, var(--m-cpu-deep), var(--m-cpu)); }
+    .meter.gpu > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-gpu)); }
+    .meter.mem > span { background: linear-gradient(90deg, var(--m-mem-deep), var(--m-mem)); }
     .meter-label { display: flex; justify-content: space-between; font-size: 1.05rem; color: var(--muted); margin-bottom: .5rem; font-weight: 500; }
     /* Recommendations — clear hierarchy, generous spacing (Cosmic / HIG inspired) */
     .rec-status { margin: -.35rem 0 1rem; font-size: 1rem; color: var(--muted); font-weight: 400; }
@@ -942,25 +979,25 @@
     .sum-cell.hot .sum-value { color: #ff8a7a; }
     .sum-cell.warn .sum-value { color: #f5c882; }
     .sum-cell.info .sum-value { color: #8ec0ff; }
-    .sum-cell.cpu .sum-value { color: var(--blue); }
-    .sum-cell.mem .sum-value { color: var(--green); }
-    .sum-cell.gpu .sum-value { color: var(--orange); }
+    .sum-cell.cpu .sum-value { color: var(--m-cpu); }
+    .sum-cell.mem .sum-value { color: var(--m-mem); }
+    .sum-cell.gpu .sum-value { color: var(--m-gpu); }
     .sum-cell.game .sum-value { color: var(--accent); }
-    .sum-cell.league .sum-value { color: var(--purple); }
+    .sum-cell.league .sum-value { color: var(--m-league); }
     .sum-detail { font-size: .88rem; color: var(--text-secondary); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sum-meter { height: 6px; background: rgba(0,0,0,.35); border-radius: 99px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
     .sum-meter > span {
       display: block; height: 100%; border-radius: 99px; min-width: 2px;
       transition: width var(--meter-ease);
     }
-    .sum-meter.cpu > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.5); }
-    .sum-meter.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 10px rgba(106,201,141,.45); }
-    .sum-meter.gpu > span { background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 70%, #000), var(--orange)); box-shadow: 0 0 10px color-mix(in srgb, var(--orange) 45%, transparent); }
-    .sum-meter.health > span { background: linear-gradient(90deg, var(--green), var(--blue)); }
-    .sum-meter.health.hot > span { background: linear-gradient(90deg, #c43d32, var(--hot)); box-shadow: 0 0 10px rgba(237,106,90,.5); }
-    .sum-meter.health.warn > span { background: linear-gradient(90deg, #b8863a, var(--amber)); }
-    .sum-meter.league > span { background: linear-gradient(90deg, var(--purple), var(--blue)); box-shadow: 0 0 10px rgba(180,142,173,.4); }
-    .sum-meter.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 75%, #000), var(--accent)); }
+    .sum-meter.cpu > span { background: linear-gradient(90deg, var(--m-cpu-deep), var(--m-cpu)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-cpu) 45%, transparent); }
+    .sum-meter.mem > span { background: linear-gradient(90deg, var(--m-mem-deep), var(--m-mem)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-mem) 40%, transparent); }
+    .sum-meter.gpu > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-gpu)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-gpu) 45%, transparent); }
+    .sum-meter.health > span { background: linear-gradient(90deg, var(--m-mem), var(--m-cpu)); }
+    .sum-meter.health.hot > span { background: linear-gradient(90deg, var(--m-thermal-deep), var(--m-thermal)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-thermal) 45%, transparent); }
+    .sum-meter.health.warn > span { background: linear-gradient(90deg, var(--m-disk-deep), var(--m-thermal-warn)); }
+    .sum-meter.league > span { background: linear-gradient(90deg, var(--m-league), var(--m-cpu)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-league) 40%, transparent); }
+    .sum-meter.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--m-game) 70%, #000), var(--m-game)); }
     .viz-panel-head {
       display: flex; flex-wrap: wrap; align-items: center; gap: .65rem 1rem;
       margin-bottom: .85rem;
@@ -1032,13 +1069,13 @@
     .metric-bar-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .35rem; }
     .metric-bar-label { font-size: .92rem; font-weight: 500; color: var(--text); }
     .metric-bar-val { font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
-    .metric-bar-val.cpu { color: var(--blue); }
-    .metric-bar-val.mem { color: var(--green); }
-    .metric-bar-val.gpu { color: var(--orange); }
-    .metric-bar-val.temp { color: var(--purple); }
-    .metric-bar-val.temp.warn { color: var(--amber); }
-    .metric-bar-val.temp.hot { color: #ff8a7a; }
-    .metric-bar-val.temp.info { color: #8ec0ff; }
+    .metric-bar-val.cpu { color: var(--m-cpu); }
+    .metric-bar-val.mem { color: var(--m-mem); }
+    .metric-bar-val.gpu { color: var(--m-gpu); }
+    .metric-bar-val.temp { color: var(--m-thermal); }
+    .metric-bar-val.temp.warn { color: var(--m-thermal-warn); }
+    .metric-bar-val.temp.hot { color: var(--m-thermal); }
+    .metric-bar-val.temp.info { color: var(--m-cpu); }
     .metric-bar-track {
       height: 12px; background: rgba(0,0,0,.38); border-radius: 99px; overflow: hidden;
       border: 1px solid rgba(255,255,255,.07);
@@ -1047,19 +1084,19 @@
       display: block; height: 100%; border-radius: 99px; min-width: 3px;
       transition: width var(--meter-ease);
     }
-    .metric-bar-track.cpu > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 14px rgba(98,160,234,.45); }
-    .metric-bar-track.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 14px rgba(106,201,141,.4); }
-    .metric-bar-track.gpu > span { background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 65%, #000), var(--orange)); box-shadow: 0 0 14px color-mix(in srgb, var(--orange) 40%, transparent); }
-    .metric-bar-track.swap > span { background: linear-gradient(90deg, color-mix(in srgb, var(--purple) 55%, #000), var(--purple)); }
-    .metric-bar-track.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #000), var(--accent)); }
-    .metric-bar-track.vram > span { background: linear-gradient(90deg, var(--orange), color-mix(in srgb, var(--orange) 55%, #fff)); }
-    .metric-bar-track.bw-gpu > span { background: linear-gradient(90deg, var(--accent), #ff9f6b); }
-    .metric-bar-track.bw-mem > span { background: linear-gradient(90deg, #2d7a52, var(--green)); }
-    .metric-bar-track.league > span { background: linear-gradient(90deg, var(--purple), var(--blue)); box-shadow: 0 0 12px rgba(180,142,173,.4); }
-    .metric-bar-track.temp > span { background: linear-gradient(90deg, #5a8fd4, var(--blue)); }
-    .metric-bar-track.temp.warn > span { background: linear-gradient(90deg, #c49a3a, var(--amber)); box-shadow: 0 0 12px rgba(233,184,114,.4); }
-    .metric-bar-track.temp.hot > span { background: linear-gradient(90deg, #c43d32, var(--hot)); box-shadow: 0 0 14px rgba(237,106,90,.5); }
-    .metric-bar-track.temp.info > span { background: linear-gradient(90deg, #4a6fa8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.25); }
+    .metric-bar-track.cpu > span { background: linear-gradient(90deg, var(--m-cpu-deep), var(--m-cpu)); box-shadow: 0 0 14px color-mix(in srgb, var(--m-cpu) 40%, transparent); }
+    .metric-bar-track.mem > span { background: linear-gradient(90deg, var(--m-mem-deep), var(--m-mem)); box-shadow: 0 0 14px color-mix(in srgb, var(--m-mem) 38%, transparent); }
+    .metric-bar-track.gpu > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-gpu)); box-shadow: 0 0 14px color-mix(in srgb, var(--m-gpu) 40%, transparent); }
+    .metric-bar-track.swap > span { background: linear-gradient(90deg, color-mix(in srgb, var(--m-swap) 55%, #000), var(--m-swap)); }
+    .metric-bar-track.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--m-game) 70%, #000), var(--m-game)); }
+    .metric-bar-track.vram > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-gpu-vram)); }
+    .metric-bar-track.bw-gpu > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-gpu)); }
+    .metric-bar-track.bw-mem > span { background: linear-gradient(90deg, var(--m-mem-deep), var(--m-mem)); }
+    .metric-bar-track.league > span { background: linear-gradient(90deg, var(--m-league), var(--m-cpu)); box-shadow: 0 0 12px color-mix(in srgb, var(--m-league) 35%, transparent); }
+    .metric-bar-track.temp > span { background: linear-gradient(90deg, var(--m-cpu-deep), var(--m-cpu)); }
+    .metric-bar-track.temp.warn > span { background: linear-gradient(90deg, var(--m-disk-deep), var(--m-thermal-warn)); box-shadow: 0 0 12px color-mix(in srgb, var(--m-thermal-warn) 40%, transparent); }
+    .metric-bar-track.temp.hot > span { background: linear-gradient(90deg, var(--m-thermal-deep), var(--m-thermal)); box-shadow: 0 0 14px color-mix(in srgb, var(--m-thermal) 45%, transparent); }
+    .metric-bar-track.temp.info > span { background: linear-gradient(90deg, var(--m-cpu-deep), var(--m-cpu)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-cpu) 25%, transparent); }
     .metric-bar-sub { display: block; margin-top: .3rem; font-size: .8rem; color: var(--muted); }
     /* ── Rig snapshot: efficient 3-col dashboard ─────────────────────────── */
     .stutter-layout.rig-layout {
@@ -1535,7 +1572,7 @@
     .core-strip-cell { background: rgba(0,0,0,.35); border-radius: 4px 4px 0 0; position: relative; height: 72px; border: 1px solid rgba(255,255,255,.05); }
     .core-strip-fill {
       position: absolute; bottom: 0; left: 0; right: 0; border-radius: 3px 3px 0 0;
-      background: linear-gradient(180deg, var(--blue), var(--accent)); min-height: 3px;
+      background: linear-gradient(180deg, var(--m-cpu), var(--m-cpu-deep)); min-height: 3px;
       transition: height var(--meter-ease);
     }
     .gpu-engine-strip {
@@ -1543,7 +1580,13 @@
     }
     .gpu-engine-cell { display: flex; flex-direction: column; gap: .18rem; min-width: 0; }
     .gpu-engine-strip .core-strip-fill {
-      background: linear-gradient(180deg, var(--purple), color-mix(in srgb, var(--purple) 55%, var(--blue)));
+      background: linear-gradient(180deg, var(--m-gpu), var(--m-gpu-deep));
+    }
+    .gpu-engine-cell[data-engine="vram"] .core-strip-fill {
+      background: linear-gradient(180deg, var(--m-gpu-vram), var(--m-gpu-deep));
+    }
+    .gpu-engine-cell[data-engine="mm"] .core-strip-fill {
+      background: linear-gradient(180deg, var(--m-gpu-gtt), var(--m-gpu));
     }
     .gpu-engine-label {
       font-size: .62rem; color: var(--muted); text-align: center;
@@ -1574,9 +1617,9 @@
     .index-gauge-center .score {
       font-size: 1.75rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
     }
-    .index-gauge-center .score.severe { color: #b48ead; }
+    .index-gauge-center .score.severe { color: var(--m-stutter); }
     .index-gauge-center .score.hot { color: #9b7ec8; }
-    .index-gauge-center .score.warn { color: #62a0ea; }
+    .index-gauge-center .score.warn { color: var(--m-cpu); }
     .index-gauge-center .score.ok { color: var(--green); }
     .index-gauge-center .sub {
       font-size: .72rem; font-weight: 600; color: var(--muted); letter-spacing: .04em;
@@ -1585,16 +1628,16 @@
       font-size: .72rem; font-weight: 500; color: var(--text-secondary); line-height: 1.3;
       padding: .15rem 0 .05rem;
     }
-    .index-status.severe { color: #b48ead; }
+    .index-status.severe { color: var(--m-stutter); }
     .index-status.hot { color: #9b7ec8; }
-    .index-status.warn { color: #62a0ea; }
+    .index-status.warn { color: var(--m-cpu); }
     .index-status.ok { color: var(--green); }
-    .index-mix-seg.cpu { background: var(--blue); }
-    .index-mix-seg.gpu { background: var(--orange); }
-    .index-mix-seg.mem { background: var(--green); }
-    #indexMixLegend i.cpu { background: var(--blue); }
-    #indexMixLegend i.gpu { background: var(--orange); }
-    #indexMixLegend i.mem { background: var(--green); }
+    .index-mix-seg.cpu { background: var(--m-cpu); }
+    .index-mix-seg.gpu { background: var(--m-gpu); }
+    .index-mix-seg.mem { background: var(--m-mem); }
+    #indexMixLegend i.cpu { background: var(--m-cpu); }
+    #indexMixLegend i.gpu { background: var(--m-gpu); }
+    #indexMixLegend i.mem { background: var(--m-mem); }
     .index-tick.sev-hot { background: rgba(155,126,200,.75); }
     .index-tick.sev-warn { background: rgba(98,160,234,.55); }
     .index-tick.sev-ok { background: rgba(106,201,141,.45); }
@@ -1654,9 +1697,9 @@
       text-align: right;
     }
     .index-rank-bar-row .rank-bar { min-width: 0; height: 7px; }
-    .index-rank-bar-row .rank-bar.live.cpu > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); }
-    .index-rank-bar-row .rank-bar.live.gpu > span { background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 65%, #000), var(--orange)); }
-    .index-rank-bar-row .rank-bar.live.mem > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); }
+    .index-rank-bar-row .rank-bar.live.cpu > span { background: linear-gradient(90deg, var(--m-cpu-deep), var(--m-cpu)); }
+    .index-rank-bar-row .rank-bar.live.gpu > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-gpu)); }
+    .index-rank-bar-row .rank-bar.live.mem > span { background: linear-gradient(90deg, var(--m-mem-deep), var(--m-mem)); }
     .index-rank-foot {
       font-size: .64rem; color: var(--text-secondary); line-height: 1.35;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -1677,14 +1720,27 @@
       font-size: .875rem; font-weight: 600; color: var(--text-secondary);
       letter-spacing: .04em; text-transform: uppercase; flex: 1; min-width: 0;
     }
-    .sensor-strip-link,
     .sensor-strip-toggle {
-      font-family: inherit; font-size: .875rem; font-weight: 500;
-      color: var(--accent); background: transparent; border: none; cursor: pointer;
-      padding: .25rem .45rem; border-radius: 8px;
+      font-family: inherit; font-size: .8rem; font-weight: 500;
+      color: var(--text-secondary); background: rgba(0,0,0,.2);
+      border: 1px solid var(--line); cursor: pointer;
+      padding: .28rem .65rem; border-radius: 999px;
     }
-    .sensor-strip-link:hover,
-    .sensor-strip-toggle:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .sensor-strip-toggle:hover {
+      color: var(--text); border-color: color-mix(in srgb, var(--line) 70%, var(--text) 15%);
+      background: rgba(255,255,255,.04);
+    }
+    .sensor-strip-toggle[aria-expanded="true"] {
+      color: var(--m-cpu);
+      border-color: color-mix(in srgb, var(--m-cpu) 35%, var(--line));
+      background: color-mix(in srgb, var(--m-cpu) 10%, transparent);
+    }
+    .sensor-strip-link {
+      font-family: inherit; font-size: .8rem; font-weight: 500;
+      color: var(--accent); background: transparent; border: none; cursor: pointer;
+      padding: .28rem .4rem; border-radius: 8px;
+    }
+    .sensor-strip-link:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
     .hw-status {
       display: flex; flex-direction: column; gap: .5rem;
       margin-top: 0; padding-top: 0;
@@ -1722,11 +1778,11 @@
       box-shadow: inset 3px 0 0 var(--hw-card-accent, rgba(255,255,255,.14));
       min-width: 0; width: 100%;
     }
-    .hw-status-card.accent-cpu { --hw-card-accent: var(--blue); }
-    .hw-status-card.accent-gpu { --hw-card-accent: var(--orange); }
-    .hw-status-card.accent-storage { --hw-card-accent: var(--green); }
-    .hw-status-card.accent-net { --hw-card-accent: #63d0de; }
-    .hw-status-card.accent-io { --hw-card-accent: var(--blue); }
+    .hw-status-card.accent-cpu { --hw-card-accent: var(--m-cpu); }
+    .hw-status-card.accent-gpu { --hw-card-accent: var(--m-gpu); }
+    .hw-status-card.accent-storage { --hw-card-accent: var(--m-disk); }
+    .hw-status-card.accent-net { --hw-card-accent: var(--m-net); }
+    .hw-status-card.accent-io { --hw-card-accent: var(--m-net); }
     .hw-status-card .hw-icon-box {
       width: 1.85rem; height: 1.85rem; border-radius: 8px; flex-shrink: 0;
     }
@@ -1771,10 +1827,10 @@
       height: 0%; min-height: 3px;
       transition: height var(--meter-ease);
     }
-    .glance-cell.gpu { --glance-accent: var(--orange); }
-    .glance-cell.cpu { --glance-accent: var(--blue); }
-    .glance-cell.temp.hot { --glance-accent: var(--hot); }
-    .glance-cell.temp.warn { --glance-accent: var(--amber); }
+    .glance-cell.gpu { --glance-accent: var(--m-gpu); }
+    .glance-cell.cpu { --glance-accent: var(--m-cpu); }
+    .glance-cell.temp.hot { --glance-accent: var(--m-thermal); }
+    .glance-cell.temp.warn { --glance-accent: var(--m-thermal-warn); }
     .glance-cell.temp { --glance-accent: var(--purple); }
     .sensor-chip.placeholder { opacity: .5; border-style: dashed; background: transparent; color: var(--muted); }
     .sensor-chip {
@@ -1960,11 +2016,11 @@
       background: rgba(255,255,255,.06); border: 1px solid var(--line);
     }
     .stutter-mix-seg { min-width: 2px; transition: flex-grow var(--meter-ease); }
-    .stutter-mix-seg.major_faults { background: #9b7ec8; }
-    .stutter-mix-seg.mem_stall { background: var(--blue); }
-    .stutter-mix-seg.io_stall { background: #63d0de; }
-    .stutter-mix-seg.swap { background: var(--amber); }
-    .stutter-mix-seg.disk_spike { background: #ed6a5a; }
+    .stutter-mix-seg.major_faults { background: var(--m-gpu); }
+    .stutter-mix-seg.mem_stall { background: var(--m-mem); }
+    .stutter-mix-seg.io_stall { background: var(--m-net); }
+    .stutter-mix-seg.swap { background: var(--m-swap); }
+    .stutter-mix-seg.disk_spike { background: var(--m-disk); }
     .stutter-mix-legend {
       display: flex; flex-wrap: wrap; gap: .25rem .45rem; font-size: .64rem; color: var(--muted);
     }
@@ -1972,11 +2028,11 @@
     .stutter-mix-legend i {
       width: .45rem; height: .45rem; border-radius: 2px; flex-shrink: 0;
     }
-    .stutter-mix-legend i.major_faults { background: #9b7ec8; }
-    .stutter-mix-legend i.mem_stall { background: var(--blue); }
-    .stutter-mix-legend i.io_stall { background: #63d0de; }
-    .stutter-mix-legend i.swap { background: var(--amber); }
-    .stutter-mix-legend i.disk_spike { background: #ed6a5a; }
+    .stutter-mix-legend i.major_faults { background: var(--m-gpu); }
+    .stutter-mix-legend i.mem_stall { background: var(--m-mem); }
+    .stutter-mix-legend i.io_stall { background: var(--m-net); }
+    .stutter-mix-legend i.swap { background: var(--m-swap); }
+    .stutter-mix-legend i.disk_spike { background: var(--m-disk); }
     .stutter-timeline { display: flex; flex-direction: column; gap: .25rem; }
     .stutter-timeline-head {
       display: flex; justify-content: space-between; font-size: .64rem; font-weight: 600;
@@ -2042,61 +2098,165 @@
       font-family: ui-monospace, monospace; margin-top: .4rem;
       overscroll-behavior: contain;
     }
-    .metric-bar-track.stutter > span { background: linear-gradient(90deg, #7a5c9e, #ed6a5a); box-shadow: 0 0 12px rgba(180,142,173,.45); }
-    .metric-bar-track.stutter-faults > span { background: linear-gradient(90deg, #6a4f8e, #9b7ec8); box-shadow: 0 0 12px rgba(155,126,200,.4); }
-    .metric-bar-track.stutter-mem > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 12px rgba(98,160,234,.4); }
-    .metric-bar-track.stutter-io > span { background: linear-gradient(90deg, #3a9fad, #63d0de); box-shadow: 0 0 12px rgba(99,208,222,.35); }
-    .metric-bar-track.stutter-swap > span { background: linear-gradient(90deg, #b8863a, var(--amber)); box-shadow: 0 0 12px rgba(233,184,114,.35); }
-    .metric-bar-track.stutter-disk > span { background: linear-gradient(90deg, #c43d32, #ed6a5a); box-shadow: 0 0 12px rgba(237,106,90,.4); }
-    .metric-bar-track.disk-read > span { background: linear-gradient(90deg, #3d8f5f, var(--green)); box-shadow: 0 0 10px rgba(106,201,141,.3); }
-    .metric-bar-track.disk-write > span { background: linear-gradient(90deg, #c43d32, #ed6a5a); box-shadow: 0 0 10px rgba(237,106,90,.35); }
-    .metric-bar-track.disk-busy > span { background: linear-gradient(90deg, #6a4f8e, var(--purple)); box-shadow: 0 0 10px rgba(180,142,173,.35); }
-    .metric-bar-track.net-down > span { background: linear-gradient(90deg, #2a8f9c, #63d0de); box-shadow: 0 0 10px rgba(99,208,222,.35); }
-    .metric-bar-track.net-up > span { background: linear-gradient(90deg, #b89a2e, #f6e062); box-shadow: 0 0 10px rgba(246,224,98,.3); }
-    .metric-bar-track.net-link > span { background: linear-gradient(90deg, #3d7ec8, var(--blue)); box-shadow: 0 0 10px rgba(98,160,234,.3); }
-    .drill-stack { display: flex; flex-direction: column; gap: .65rem; }
+    .metric-bar-track.stutter > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-stutter)); box-shadow: 0 0 12px color-mix(in srgb, var(--m-stutter) 40%, transparent); }
+    .metric-bar-track.stutter-faults > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-gpu)); box-shadow: 0 0 12px color-mix(in srgb, var(--m-gpu) 35%, transparent); }
+    .metric-bar-track.stutter-mem > span { background: linear-gradient(90deg, var(--m-mem-deep), var(--m-mem)); box-shadow: 0 0 12px color-mix(in srgb, var(--m-mem) 35%, transparent); }
+    .metric-bar-track.stutter-io > span { background: linear-gradient(90deg, var(--m-net-deep), var(--m-net)); box-shadow: 0 0 12px color-mix(in srgb, var(--m-net) 35%, transparent); }
+    .metric-bar-track.stutter-swap > span { background: linear-gradient(90deg, color-mix(in srgb, var(--m-swap) 55%, #000), var(--m-swap)); box-shadow: 0 0 12px color-mix(in srgb, var(--m-swap) 35%, transparent); }
+    .metric-bar-track.stutter-disk > span { background: linear-gradient(90deg, var(--m-disk-deep), var(--m-disk)); box-shadow: 0 0 12px color-mix(in srgb, var(--m-disk) 40%, transparent); }
+    .metric-bar-track.disk-read > span { background: linear-gradient(90deg, var(--m-disk-deep), var(--m-disk)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-disk) 30%, transparent); }
+    .metric-bar-track.disk-write > span { background: linear-gradient(90deg, color-mix(in srgb, var(--m-disk-write) 60%, #000), var(--m-disk-write)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-disk-write) 30%, transparent); }
+    .metric-bar-track.disk-busy > span { background: linear-gradient(90deg, var(--m-disk-deep), var(--m-disk)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-disk) 30%, transparent); }
+    .metric-bar-track.net-down > span { background: linear-gradient(90deg, var(--m-net-deep), var(--m-net)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-net) 35%, transparent); }
+    .metric-bar-track.net-up > span { background: linear-gradient(90deg, var(--m-net-deep), var(--m-net-up)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-net-up) 30%, transparent); }
+    .metric-bar-track.net-link > span { background: linear-gradient(90deg, var(--m-net-deep), var(--m-net)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-net) 30%, transparent); }
+    /*
+      Drill accordion cards — collapsed = compact “settings row”
+      (icon · title+preview stack · chevron), not a tall empty slab.
+    */
+    .drill-stack { display: flex; flex-direction: column; gap: .4rem; }
     details.drill {
-      border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel-solid);
-      overflow: hidden; box-shadow: var(--shadow);
+      border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel-solid) 92%, transparent);
+      overflow: hidden;
+      box-shadow: none;
+      transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+    details.drill:hover {
+      border-color: color-mix(in srgb, var(--line) 70%, var(--text) 12%);
+      background: color-mix(in srgb, var(--panel-elevated) 55%, var(--panel-solid) 45%);
+    }
+    details.drill[open] {
+      border-color: var(--line);
+      background: var(--panel-solid);
+      box-shadow: var(--shadow);
     }
     details.drill.drill-primary {
-      border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
-      background: color-mix(in srgb, var(--panel-solid) 94%, var(--accent) 6%);
+      border-color: color-mix(in srgb, var(--m-game) 22%, var(--line));
+      background: color-mix(in srgb, var(--panel-solid) 92%, var(--m-game) 8%);
     }
-    details.drill.drill-primary summary { font-weight: 600; }
-    details.drill.drill-secondary { opacity: .96; }
+    details.drill.drill-primary:hover {
+      border-color: color-mix(in srgb, var(--m-game) 35%, var(--line));
+    }
+    details.drill.drill-secondary { opacity: 1; }
     .drill-icon {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 1.85rem; height: 1.85rem; border-radius: 8px; flex-shrink: 0;
+      width: 2.1rem; height: 2.1rem; border-radius: 9px; flex-shrink: 0;
+      border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
     }
-    .drill-icon.game { color: var(--accent); background: rgba(233,84,32,.12); }
-    .drill-icon.sensors { color: #63d0de; background: rgba(99,208,222,.1); }
-    .drill-icon.charts { color: var(--blue); background: rgba(98,160,234,.1); }
-    .drill-icon.bw { color: var(--green); background: rgba(106,201,141,.1); }
-    .drill-icon.compute { color: var(--blue); background: rgba(98,160,234,.1); }
-    .drill-icon.league { color: var(--purple); background: rgba(180,142,173,.12); }
-    .drill-icon.storage { color: var(--purple); background: rgba(180,142,173,.1); }
-    .drill-icon.checks { color: var(--amber); background: rgba(233,184,114,.1); }
+    .drill-icon.game { color: var(--m-game); background: color-mix(in srgb, var(--m-game) 12%, transparent); }
+    .drill-icon.sensors { color: var(--m-thermal); background: color-mix(in srgb, var(--m-thermal) 10%, transparent); }
+    .drill-icon.charts { color: var(--m-cpu); background: color-mix(in srgb, var(--m-cpu) 10%, transparent); }
+    .drill-icon.bw { color: var(--m-mem); background: color-mix(in srgb, var(--m-mem) 10%, transparent); }
+    .drill-icon.compute { color: var(--m-cpu); background: color-mix(in srgb, var(--m-cpu) 10%, transparent); }
+    .drill-icon.league { color: var(--m-league); background: color-mix(in srgb, var(--m-league) 12%, transparent); }
+    .drill-icon.storage { color: var(--m-disk); background: color-mix(in srgb, var(--m-disk) 10%, transparent); }
+    .drill-icon.checks { color: var(--m-thermal-warn); background: color-mix(in srgb, var(--m-thermal-warn) 10%, transparent); }
     .drill-icon.admin { color: var(--muted); background: rgba(255,255,255,.05); }
-    body.game-prominent-active #rigGameKpiCell { display: none; }
-    body.cosmic-frosted details.drill { background: var(--panel); }
-    details.drill summary {
-      list-style: none; cursor: pointer; padding: 1rem 1.25rem;
-      display: grid; grid-template-columns: auto auto 1fr auto; gap: .65rem 1rem; align-items: center;
-      font-weight: 500; margin: 0; min-height: 3.25rem; box-sizing: border-box;
+    /* Chart KPIs stay visible even when the game session strip is promoted */
+    #rigChartKpis .stutter-kpi[data-kpi="cpu"] .v { color: var(--m-cpu); }
+    #rigChartKpis .stutter-kpi[data-kpi="gpu"] .v { color: var(--m-gpu); }
+    #rigChartKpis .stutter-kpi[data-kpi="ram"] .v { color: var(--m-mem); }
+    body.cosmic-frosted details.drill { background: color-mix(in srgb, var(--panel) 90%, transparent); }
+    body.cosmic-frosted details.drill[open] { background: var(--panel); }
+
+    details.drill > summary {
+      list-style: none;
+      cursor: pointer;
+      margin: 0;
+      padding: .55rem .7rem .55rem .65rem;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      min-height: 0;
+      box-sizing: border-box;
+      font-weight: 500;
+      color: var(--text);
+      user-select: none;
     }
-    details.drill summary::-webkit-details-marker { display: none; }
-    details.drill summary::after {
-      content: "▾"; font-size: .85rem; color: var(--muted); grid-column: 3;
+    details.drill > summary::-webkit-details-marker { display: none; }
+    /* Kill the old mis-placed ▾ pseudo (was grid-column: 3 over the preview) */
+    details.drill > summary::after { content: none !important; display: none !important; }
+    details.drill[open] > summary {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: .65rem;
     }
-    details.drill[open] summary::after { content: "▴"; color: var(--accent); }
-    details.drill[open] summary { border-bottom: 1px solid var(--line); }
-    .drill-title { font-size: 1.05rem; color: var(--text); white-space: nowrap; font-weight: 500; }
+
+    .drill-summary-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: .12rem;
+    }
+    .drill-title {
+      font-size: .95rem;
+      color: var(--text);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    details.drill.drill-primary .drill-title { font-weight: 650; }
     .drill-rollup {
-      font-size: .95rem; color: var(--text-secondary); font-weight: 400; text-align: right;
-      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: .78rem;
+      line-height: 1.3;
+      color: var(--muted);
+      font-weight: 400;
+      text-align: left;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
-    .drill-body { padding: 1.25rem 1.5rem; overflow-anchor: none; }
+    details.drill[open] .drill-rollup {
+      color: var(--text-secondary);
+    }
+
+    /* Chevron as a quiet control chip on the trailing edge */
+    .drill-chevron {
+      flex-shrink: 0;
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+      background: rgba(0, 0, 0, .18);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      transition: background .15s, color .15s, border-color .15s, transform .15s;
+    }
+    .drill-chevron::before {
+      content: "";
+      width: .38rem;
+      height: .38rem;
+      border-right: 1.75px solid currentColor;
+      border-bottom: 1.75px solid currentColor;
+      transform: rotate(45deg) translate(-1px, -1px);
+      transition: transform .18s ease;
+      margin-top: -2px;
+    }
+    details.drill:hover .drill-chevron {
+      color: var(--text-secondary);
+      border-color: var(--line);
+      background: rgba(255, 255, 255, .04);
+    }
+    details.drill[open] .drill-chevron {
+      color: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+    details.drill[open] .drill-chevron::before {
+      transform: rotate(225deg) translate(-1px, -1px);
+      margin-top: 2px;
+    }
+
+    .drill-body { padding: 1rem 1.15rem 1.2rem; overflow-anchor: none; }
     main { overflow-anchor: auto; }
     .drill-body .card { box-shadow: none; }
     .drill-body .grid { margin: 0; }
@@ -2134,37 +2294,50 @@
     .drill-sensor-card .ds-unit {
       font-size: .75rem; color: var(--muted); line-height: 1.2;
     }
-    .drill-sensor-card.accent-cpu { --ds-accent: var(--blue); }
-    .drill-sensor-card.accent-gpu { --ds-accent: var(--orange); }
-    .drill-sensor-card.accent-storage { --ds-accent: var(--green); }
-    .drill-sensor-card.accent-net { --ds-accent: #63d0de; }
-    .drill-sensor-card.accent-mem { --ds-accent: var(--green); }
+    .drill-sensor-card.accent-cpu { --ds-accent: var(--m-cpu); }
+    .drill-sensor-card.accent-gpu { --ds-accent: var(--m-gpu); }
+    .drill-sensor-card.accent-storage { --ds-accent: var(--m-disk); }
+    .drill-sensor-card.accent-net { --ds-accent: var(--m-net); }
+    .drill-sensor-card.accent-mem { --ds-accent: var(--m-mem); }
     .drill-sensor-card.accent-sys { --ds-accent: rgba(255,255,255,.22); }
     .drill-sensor-card.hot { border-color: color-mix(in srgb, #ff8a7a 35%, var(--line)); }
     .drill-sensor-card.warn { border-color: color-mix(in srgb, #f5c882 35%, var(--line)); }
     .drill-sensor-card.hot .ds-val { color: #ff9f8a; }
     .drill-sensor-card.warn .ds-val { color: #f5d08a; }
     .warn-panel-head {
-      display: flex; align-items: baseline; flex-wrap: wrap; gap: .55rem .85rem; margin-bottom: .4rem;
+      display: flex; align-items: baseline; flex-wrap: wrap; gap: .45rem .75rem;
+      margin: 0 0 .35rem;
+      min-height: 0;
     }
-    .warn-panel-head h2 { margin: 0; }
+    .warn-panel-head:empty { display: none; margin: 0; }
     .warn-session {
-      font-size: .8rem; font-weight: 500; color: var(--accent);
-      padding: .22rem .55rem; border-radius: 6px;
-      border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
-      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      font-size: .75rem; font-weight: 500; color: var(--m-game);
+      padding: .18rem .5rem; border-radius: 6px;
+      border: 1px solid color-mix(in srgb, var(--m-game) 32%, var(--line));
+      background: color-mix(in srgb, var(--m-game) 10%, transparent);
     }
     .warn-session.warn-session-switch {
-      color: var(--amber);
-      border-color: color-mix(in srgb, var(--amber) 40%, var(--line));
-      background: color-mix(in srgb, var(--amber) 12%, transparent);
+      color: var(--m-thermal-warn);
+      border-color: color-mix(in srgb, var(--m-thermal-warn) 40%, var(--line));
+      background: color-mix(in srgb, var(--m-thermal-warn) 12%, transparent);
     }
-    .warn-meta { margin: 0 0 .7rem; font-size: .92rem; color: var(--muted); line-height: 1.4; }
-    .warn-counts { min-height: 0; margin-bottom: .75rem; }
+    .warn-session[hidden] { display: none !important; }
+    .warn-meta { margin: 0 0 .55rem; font-size: .82rem; color: var(--muted); line-height: 1.35; }
+    .warn-counts { min-height: 0; margin-bottom: .55rem; }
     .warn-counts:empty { display: none; margin: 0; }
     .warn-list {
-      display: flex; flex-direction: column; gap: .55rem;
-      min-height: 3rem; max-height: min(42rem, 58vh);
+      display: flex; flex-direction: column; gap: .45rem;
+      min-height: 0; max-height: min(28rem, 48vh);
+    }
+    /* Collapsed warnings row: slightly warmer border when issues are open */
+    details.drill#warningsSection:not([open]) {
+      border-color: color-mix(in srgb, var(--m-thermal-warn) 18%, var(--line));
+    }
+    details.drill#warningsSection.warn-has-hot:not([open]) {
+      border-color: color-mix(in srgb, var(--m-thermal) 28%, var(--line));
+    }
+    details.drill#warningsSection.warn-all-clear:not([open]) {
+      border-color: color-mix(in srgb, var(--m-mem) 16%, var(--line));
     }
     .warn-more {
       margin-top: .85rem; padding-top: .75rem; border-top: 1px solid var(--line);
@@ -2240,8 +2413,8 @@
     .chip.off { opacity: .35; }
     details summary { cursor: pointer; color: var(--muted); font-size: 1.1rem; margin-bottom: .85rem; font-weight: 500; }
     details[open] summary { color: var(--text); margin-bottom: 1rem; }
-    details.drill summary { color: var(--text); margin-bottom: 0; }
-    details.drill[open] summary { margin-bottom: 0; }
+    details.drill > summary { color: var(--text); margin-bottom: 0; font-size: inherit; }
+    details.drill[open] > summary { margin-bottom: 0; }
     .rank-head { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
     .rank-score { font-size: 2.85rem; color: var(--text); line-height: 1.05; letter-spacing: -0.018em; font-weight: 600; }
 
@@ -2256,8 +2429,8 @@
     @media (prefers-reduced-motion: reduce) {
       :root { --meter-ease: 0ms linear; }
     }
-    .rank-bar.tier > span { background: linear-gradient(90deg, var(--purple), var(--blue)); }
-    .rank-bar.live > span { background: linear-gradient(90deg, var(--accent), var(--green)); }
+    .rank-bar.tier > span { background: linear-gradient(90deg, var(--m-league), var(--m-cpu)); }
+    .rank-bar.live > span { background: linear-gradient(90deg, var(--m-game), var(--m-mem)); }
     .vs-pos { color: var(--lime); }
     .vs-neg { color: var(--amber); }
     .mem-note { font-size: 1.05rem; color: var(--muted); margin-top: .65rem; }
@@ -2312,16 +2485,16 @@
       color: var(--text-secondary);
     }
     .hw-icon-box .hw-glyph svg { width: 1.15rem; height: 1.15rem; }
-    .hw-icon-box.health { color: var(--green); background: rgba(106,201,141,.1); border-color: rgba(106,201,141,.22); }
-    .hw-icon-box.cpu { color: var(--blue); background: rgba(98,160,234,.1); border-color: rgba(98,160,234,.22); }
-    .hw-icon-box.mem { color: var(--green); background: rgba(106,201,141,.1); border-color: rgba(106,201,141,.22); }
-    .hw-icon-box.gpu { color: #ff8a55; background: rgba(233,84,32,.1); border-color: rgba(233,84,32,.22); }
-    .hw-icon-box.game { color: var(--accent); background: rgba(233,84,32,.12); border-color: rgba(233,84,32,.25); }
-    .hw-icon-box.league { color: var(--purple); background: rgba(180,142,173,.12); border-color: rgba(180,142,173,.25); }
-    .hw-icon-box.temp { color: #c49aef; background: rgba(180,142,173,.1); border-color: rgba(180,142,173,.22); }
-    .hw-icon-box.stutter { color: var(--amber); background: rgba(233,184,114,.1); border-color: rgba(233,184,114,.25); }
-    .hw-icon-box.chassis { color: #7ec8e8; background: rgba(99,208,222,.09); border-color: rgba(99,208,222,.2); }
-    .hw-icon-box.storage { color: #c49aef; background: rgba(180,142,173,.1); border-color: rgba(180,142,173,.22); }
+    .hw-icon-box.health { color: var(--m-mem); background: color-mix(in srgb, var(--m-mem) 12%, transparent); border-color: color-mix(in srgb, var(--m-mem) 22%, transparent); }
+    .hw-icon-box.cpu { color: var(--m-cpu); background: color-mix(in srgb, var(--m-cpu) 12%, transparent); border-color: color-mix(in srgb, var(--m-cpu) 22%, transparent); }
+    .hw-icon-box.mem { color: var(--m-mem); background: color-mix(in srgb, var(--m-mem) 12%, transparent); border-color: color-mix(in srgb, var(--m-mem) 22%, transparent); }
+    .hw-icon-box.gpu { color: var(--m-gpu); background: color-mix(in srgb, var(--m-gpu) 12%, transparent); border-color: color-mix(in srgb, var(--m-gpu) 22%, transparent); }
+    .hw-icon-box.game { color: var(--m-game); background: color-mix(in srgb, var(--m-game) 12%, transparent); border-color: color-mix(in srgb, var(--m-game) 25%, transparent); }
+    .hw-icon-box.league { color: var(--m-league); background: color-mix(in srgb, var(--m-league) 12%, transparent); border-color: color-mix(in srgb, var(--m-league) 25%, transparent); }
+    .hw-icon-box.temp { color: var(--m-thermal); background: color-mix(in srgb, var(--m-thermal) 12%, transparent); border-color: color-mix(in srgb, var(--m-thermal) 22%, transparent); }
+    .hw-icon-box.stutter { color: var(--m-stutter); background: color-mix(in srgb, var(--m-stutter) 12%, transparent); border-color: color-mix(in srgb, var(--m-stutter) 25%, transparent); }
+    .hw-icon-box.chassis { color: var(--m-net); background: color-mix(in srgb, var(--m-net) 10%, transparent); border-color: color-mix(in srgb, var(--m-net) 20%, transparent); }
+    .hw-icon-box.storage { color: var(--m-disk); background: color-mix(in srgb, var(--m-disk) 12%, transparent); border-color: color-mix(in srgb, var(--m-disk) 22%, transparent); }
     .sum-head { display: flex; align-items: center; gap: .55rem; margin-bottom: .15rem; }
     .sum-head .sum-label { margin: 0; }
     .mfr-mark {
@@ -2432,11 +2605,11 @@
     }
     .rig-tile.active::before { opacity: .38; }
     .rig-tile.active::after { opacity: .62; }
-    .rig-tile.chassis { --rig-accent: #63d0de; --rig-glow: rgba(99,208,222,.13); }
-    .rig-tile.cpu { --rig-accent: var(--blue); --rig-glow: rgba(98,160,234,.13); }
-    .rig-tile.gpu { --rig-accent: var(--orange); --rig-glow: rgba(255,173,0,.14); }
-    .rig-tile.memory { --rig-accent: var(--green); --rig-glow: rgba(146,206,155,.14); }
-    .rig-tile.storage { --rig-accent: var(--purple); --rig-glow: rgba(180,142,173,.13); }
+    .rig-tile.chassis { --rig-accent: var(--m-net); --rig-glow: color-mix(in srgb, var(--m-net) 13%, transparent); }
+    .rig-tile.cpu { --rig-accent: var(--m-cpu); --rig-glow: color-mix(in srgb, var(--m-cpu) 14%, transparent); }
+    .rig-tile.gpu { --rig-accent: var(--m-gpu); --rig-glow: color-mix(in srgb, var(--m-gpu) 14%, transparent); }
+    .rig-tile.memory { --rig-accent: var(--m-mem); --rig-glow: color-mix(in srgb, var(--m-mem) 14%, transparent); }
+    .rig-tile.storage { --rig-accent: var(--m-disk); --rig-glow: color-mix(in srgb, var(--m-disk) 13%, transparent); }
     .rig-tile-body {
       flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;
       gap: .34rem; padding: .72rem .85rem .74rem 1rem; position: relative; z-index: 1;
@@ -2551,9 +2724,9 @@
         0 0 0 1px color-mix(in srgb, var(--hw-hero-accent) 32%, transparent),
         0 10px 30px color-mix(in srgb, var(--hw-hero-accent) 16%, transparent);
     }
-    .sum-cell.hw-focus-hero.cpu { --hw-hero-accent: var(--blue); }
-    .sum-cell.hw-focus-hero.mem { --hw-hero-accent: var(--green); }
-    .sum-cell.hw-focus-hero.gpu { --hw-hero-accent: var(--orange); }
+    .sum-cell.hw-focus-hero.cpu { --hw-hero-accent: var(--m-cpu); }
+    .sum-cell.hw-focus-hero.mem { --hw-hero-accent: var(--m-mem); }
+    .sum-cell.hw-focus-hero.gpu { --hw-hero-accent: var(--m-gpu); }
     .sum-cell.hw-focus-hero .sum-value { font-size: 1.62rem; }
     @media (max-width: 600px) {
       .sum-cell.hw-focus-hero {
@@ -2715,8 +2888,11 @@
       <div class="sensor-strip-wrap">
         <div class="sensor-strip-head">
           <span class="sensor-strip-title">Hardware sensors</span>
-          <button type="button" class="sensor-strip-link" id="sensorStripDrillLink">All sensors →</button>
-          <button type="button" class="sensor-strip-toggle" id="sensorStripToggle" aria-expanded="false">Show all</button>
+          <button type="button" class="sensor-strip-toggle" id="sensorStripToggle"
+            aria-expanded="false"
+            title="Temps always show. Expand for I/O, drives, and network.">Show more</button>
+          <button type="button" class="sensor-strip-link" id="sensorStripDrillLink"
+            title="Open the full Sensors panel">Details →</button>
         </div>
         <div class="hw-status collapsed" id="sensorStrip" aria-label="Hardware sensors"></div>
       </div>
@@ -2768,21 +2944,22 @@
                       <span class="stutter-side-label" id="sparkChartLabel">Load · 5 min</span>
                       <div class="rig-chart-swatches" id="sparkChartSwatches" aria-hidden="true"></div>
                     </div>
-                    <div class="stutter-kpis rig-kpis-inline">
-                      <div class="stutter-kpi">
-                        <span class="k">Avg core</span>
-                        <span class="v" id="rigAvgCore">—</span>
-                        <span class="s" id="rigAvgCoreSub">threads</span>
+                    <!-- Three live readouts aligned with the chart series (CPU / GPU / RAM) -->
+                    <div class="stutter-kpis rig-kpis-inline" id="rigChartKpis">
+                      <div class="stutter-kpi" data-kpi="cpu">
+                        <span class="k">CPU</span>
+                        <span class="v" id="rigKpiCpu">—</span>
+                        <span class="s" id="rigKpiCpuSub">overall</span>
                       </div>
-                      <div class="stutter-kpi">
-                        <span class="k">Hottest</span>
-                        <span class="v" id="rigHottest">—</span>
-                        <span class="s" id="rigHottestSub">sensor</span>
+                      <div class="stutter-kpi" data-kpi="gpu">
+                        <span class="k">GPU</span>
+                        <span class="v" id="rigKpiGpu">—</span>
+                        <span class="s" id="rigKpiGpuSub">busy</span>
                       </div>
-                      <div class="stutter-kpi" id="rigGameKpiCell">
-                        <span class="k">Game</span>
-                        <span class="v" id="rigGameKpi">—</span>
-                        <span class="s" id="rigGameSub">fg</span>
+                      <div class="stutter-kpi" data-kpi="ram">
+                        <span class="k">RAM</span>
+                        <span class="v" id="rigKpiRam">—</span>
+                        <span class="s" id="rigKpiRamSub">used</span>
                       </div>
                     </div>
                   </div>
@@ -2943,22 +3120,38 @@
       </div>
     </section>
 
-    <section class="card section-target" id="warningsSection">
-      <div class="warn-panel-head">
-        <h2>Warnings</h2>
-        <span class="warn-session" id="warnGameCtx" hidden></span>
-      </div>
-      <p class="warn-meta" id="tuningMeta">Checking…</p>
-      <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
-      <div class="warn-list stable-scroll" id="warningList"></div>
-      <div class="warn-more" id="warnMoreFixes" hidden>
-        <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Guidance</button>
-      </div>
-    </section>
-
     <div class="drill-stack">
+      <details class="drill drill-primary section-target" id="warningsSection" data-open-key="warnings" data-hw-keep>
+        <summary class="drill-summary">
+          <span class="drill-icon checks" data-glyph="temp"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Warnings</span>
+            <span class="drill-rollup" id="drillWarningsSum">Checking…</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="drill-body">
+          <div class="warn-panel-head">
+            <span class="warn-session" id="warnGameCtx" hidden></span>
+          </div>
+          <p class="warn-meta" id="tuningMeta">Checking…</p>
+          <div class="warn-counts stable-toolbar" id="tuningSummary"></div>
+          <div class="warn-list stable-scroll" id="warningList"></div>
+          <div class="warn-more" id="warnMoreFixes" hidden>
+            <button type="button" class="warn-more-link" id="warnMoreFixesBtn">View all in Guidance</button>
+          </div>
+        </div>
+      </details>
+
       <details class="drill drill-primary" id="drill-game" data-open-key="drill-game" data-hw="cpu gpu all">
-        <summary><span class="drill-icon game" data-glyph="game"></span><span class="drill-title">Game performance</span><span class="drill-rollup" id="drillGameSum">—</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon game" data-glyph="game"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Game performance</span>
+            <span class="drill-rollup" id="drillGameSum">—</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body">
           <div class="game-perf-live" id="gamePerfLive">
             <p class="section-lead" id="gamePerfLead">Live session stats while a Steam game is running.</p>
@@ -2986,7 +3179,14 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-sensors" data-open-key="drill-sensors" data-hw="all">
-        <summary><span class="drill-icon sensors" data-glyph="temp"></span><span class="drill-title">Sensors</span><span class="drill-rollup" id="drillSensorsSum">—</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon sensors" data-glyph="temp"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Sensors</span>
+            <span class="drill-rollup" id="drillSensorsSum">—</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body section-target" id="sensorsSection">
           <div class="sensor-status" id="sensorStatus"></div>
           <div id="sensorGroups"></div>
@@ -2994,7 +3194,14 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-charts" data-open-key="drill-charts" data-hw="all">
-        <summary><span class="drill-icon charts" data-glyph="activity"></span><span class="drill-title">Charts</span><span class="drill-rollup" id="drillChartsSum">—</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon charts" data-glyph="activity"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Charts</span>
+            <span class="drill-rollup" id="drillChartsSum">—</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body section-target" id="chartsSection">
           <div class="chart-controls-top">
             <span class="ctrl-label">Span</span>
@@ -3044,7 +3251,14 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-bandwidth" data-open-key="drill-bandwidth" data-hw="memory gpu all">
-        <summary><span class="drill-icon bw" data-glyph="ram"></span><span class="drill-title">Bandwidth</span><span class="drill-rollup" id="drillBwSum">—</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon bw" data-glyph="ram"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Bandwidth</span>
+            <span class="drill-rollup" id="drillBwSum">—</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body section-target" id="bandwidthSection">
           <div class="grid g-bw">
             <div class="card" data-hw="gpu all">
@@ -3060,7 +3274,14 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-compute" data-open-key="drill-compute" data-hw="cpu gpu all">
-        <summary><span class="drill-icon compute" data-glyph="cpu"></span><span class="drill-title">Compute</span><span class="drill-rollup" id="drillComputeSum">—</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon compute" data-glyph="cpu"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Compute</span>
+            <span class="drill-rollup" id="drillComputeSum">—</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body section-target" id="coresSection">
           <div class="grid g-mid">
             <div class="card" data-hw="cpu all">
@@ -3078,7 +3299,14 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-league" data-open-key="drill-league" data-hw="all">
-        <summary><span class="drill-icon league" data-glyph="league"></span><span class="drill-title">Pulse Index</span><span class="drill-rollup" id="drillLeagueSum">—</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon league" data-glyph="league"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Pulse Index</span>
+            <span class="drill-rollup" id="drillLeagueSum">—</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body section-target" id="leagueSection">
           <div class="rank-head">
             <div>
@@ -3103,7 +3331,14 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-storage" data-open-key="drill-storage">
-        <summary><span class="drill-icon storage" data-glyph="storage"></span><span class="drill-title">Drives & history</span><span class="drill-rollup" id="drillStorageSum">—</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon storage" data-glyph="storage"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Drives & history</span>
+            <span class="drill-rollup" id="drillStorageSum">—</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body section-target" id="storageSection">
           <div class="storage-panel">
             <h3 class="guidance-section-title" style="margin-top:0">NVMe drives</h3>
@@ -3130,7 +3365,14 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-troubleshoot" data-open-key="drill-troubleshoot">
-        <summary><span class="drill-icon checks" data-glyph="health"></span><span class="drill-title">System checks</span><span class="drill-rollup">Moved to Guidance</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon checks" data-glyph="health"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">System checks</span>
+            <span class="drill-rollup">Moved to Guidance</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body">
           <p class="section-lead" style="margin-top:0">Steam, libraries, and log scans now live in <strong>Guidance</strong> under the <strong>Scan</strong> filter. Critical items are promoted to Outstanding automatically.</p>
           <button class="btn" type="button" id="openGuidanceScan">Open Guidance → Scan</button>
@@ -3138,7 +3380,14 @@
       </details>
 
       <details class="drill drill-secondary" id="drill-admin" data-open-key="drill-admin">
-        <summary><span class="drill-icon admin" data-glyph="chip"></span><span class="drill-title">Data tools</span><span class="drill-rollup" id="drillAdminSum">—</span></summary>
+        <summary class="drill-summary">
+          <span class="drill-icon admin" data-glyph="chip"></span>
+          <span class="drill-summary-text">
+            <span class="drill-title">Data tools</span>
+            <span class="drill-rollup" id="drillAdminSum">—</span>
+          </span>
+          <span class="drill-chevron" aria-hidden="true"></span>
+        </summary>
         <div class="drill-body">
           <p class="section-lead" style="margin-top:0">
             Only packages Pulse actually uses. Installing them unlocks better metrics —
@@ -3194,11 +3443,103 @@
   </main>
 
   <script>
-    const CHART = {
-      cpu: '#63d0de', gpu: '#ffad00', ram: '#92ce9b', swap: '#e79bfd',
-      vramBw: '#ffad00', dramBw: '#92ce9b', gtt: '#f6e062',
-      netDn: '#63d0de', netUp: '#f6e062', diskR: '#92ce9b', diskW: '#fca1a0', gameCpu: '#e69bfd',
+    /**
+     * Canonical metric palette — mirrors CSS --m-* tokens.
+     * Same metric key → same color on every chart, bar, and KPI.
+     * Families stay grouped by function (CPU blues, GPU violets, …).
+     */
+    const METRIC = {
+      cpu: '#38bdf8',
+      cpuDeep: '#0284c7',
+      gpu: '#a78bfa',
+      gpuDeep: '#7c3aed',
+      gpuVram: '#c4b5fd',
+      gpuGtt: '#ddd6fe',
+      mem: '#34d399',
+      memDeep: '#059669',
+      swap: '#a3e635',
+      disk: '#f59e0b',
+      diskDeep: '#d97706',
+      diskWrite: '#fb923c',
+      net: '#22d3ee',
+      netDeep: '#0e7490',
+      netUp: '#67e8f9',
+      power: '#fb923c',
+      thermal: '#fb7185',
+      thermalWarn: '#fbbf24',
+      stutter: '#e879f9',
+      game: '#f472b6',
+      league: '#818cf8',
     };
+    // Chart.js series map (kept for existing call sites)
+    const CHART = {
+      cpu: METRIC.cpu,
+      gpu: METRIC.gpu,
+      ram: METRIC.mem,
+      swap: METRIC.swap,
+      vramBw: METRIC.gpuVram,
+      dramBw: METRIC.mem,
+      gtt: METRIC.gpuGtt,
+      netDn: METRIC.net,
+      netUp: METRIC.netUp,
+      diskR: METRIC.disk,
+      diskW: METRIC.diskWrite,
+      diskAct: METRIC.disk,
+      gameCpu: METRIC.game,
+      stutter: METRIC.stutter,
+      headroom: METRIC.league,
+    };
+
+    function syncMetricCssVars() {
+      const root = document.documentElement.style;
+      const map = {
+        '--m-cpu': METRIC.cpu,
+        '--m-cpu-deep': METRIC.cpuDeep,
+        '--m-gpu': METRIC.gpu,
+        '--m-gpu-deep': METRIC.gpuDeep,
+        '--m-gpu-vram': METRIC.gpuVram,
+        '--m-gpu-gtt': METRIC.gpuGtt,
+        '--m-mem': METRIC.mem,
+        '--m-mem-deep': METRIC.memDeep,
+        '--m-swap': METRIC.swap,
+        '--m-disk': METRIC.disk,
+        '--m-disk-deep': METRIC.diskDeep,
+        '--m-disk-write': METRIC.diskWrite,
+        '--m-net': METRIC.net,
+        '--m-net-deep': METRIC.netDeep,
+        '--m-net-up': METRIC.netUp,
+        '--m-power': METRIC.power,
+        '--m-thermal': METRIC.thermal,
+        '--m-thermal-warn': METRIC.thermalWarn,
+        '--m-stutter': METRIC.stutter,
+        '--m-game': METRIC.game,
+        '--m-league': METRIC.league,
+        '--chart-cpu': METRIC.cpu,
+        '--chart-gpu': METRIC.gpu,
+        '--chart-ram': METRIC.mem,
+      };
+      Object.entries(map).forEach(([k, v]) => root.setProperty(k, v));
+      // Keep CHART in lockstep for Chart.js
+      Object.assign(CHART, {
+        cpu: METRIC.cpu,
+        gpu: METRIC.gpu,
+        ram: METRIC.mem,
+        swap: METRIC.swap,
+        vramBw: METRIC.gpuVram,
+        dramBw: METRIC.mem,
+        gtt: METRIC.gpuGtt,
+        netDn: METRIC.net,
+        netUp: METRIC.netUp,
+        diskR: METRIC.disk,
+        diskW: METRIC.diskWrite,
+        diskAct: METRIC.disk,
+        gameCpu: METRIC.game,
+        stutter: METRIC.stutter,
+        headroom: METRIC.league,
+      });
+    }
+    syncMetricCssVars();
+
     let lastCosmicKey = '';
 
     function applyCosmicTheme(t) {
@@ -3243,18 +3584,10 @@
       const themeMeta = document.querySelector('meta[name="theme-color"]');
       if (themeMeta) themeMeta.content = t.bg;
 
-      if (t.chart) {
-        Object.assign(CHART, {
-          cpu: t.chart.cpu,
-          gpu: t.chart.gpu,
-          ram: t.chart.ram,
-          vramBw: t.chart.gpu,
-          dramBw: t.chart.ram,
-          gameCpu: t.chart.accent,
-          diskW: t.chart.hot,
-          swap: t.purple,
-        });
-      }
+      // Metric families stay fixed for consistency across charts/bars.
+      // Only "game" may follow Cosmic accent so per-title actions match the shell.
+      if (t.accent) METRIC.game = t.accent;
+      syncMetricCssVars();
       return true;
     }
     const ROLL_LABELS = { 1: 'Live', 60: '1m', 300: '5m', 600: '10m' };
@@ -3640,15 +3973,25 @@
     }
     const pct = (v, max) => Math.min(100, Math.round((v / max) * 100));
 
+    /**
+     * Bucket history onto a fixed epoch grid so a sliding window does not
+     * reshuffle past points every tick (that made Live overview lines "crawl").
+     * Only the open last bucket still updates as new samples land.
+     */
     function bucketize(cut, bucket) {
       if (!cut.length) return { labels: [], points: [] };
       if (bucket <= 1) return { labels: cut.map(h => fmtTime(h.ts)), points: cut };
-      const buckets = [], t0 = cut[0].ts, end = cut.at(-1).ts;
+      const t0 = Math.floor(cut[0].ts / bucket) * bucket;
+      const end = cut.at(-1).ts;
+      const buckets = [];
       for (let t = t0; t <= end; t += bucket) {
         const slice = cut.filter(h => h.ts >= t && h.ts < t + bucket);
-        if (slice.length) buckets.push(slice);
+        if (slice.length) buckets.push({ t, slice });
       }
-      return { labels: buckets.map((_, i) => fmtTime(t0 + i * bucket + bucket / 2)), points: buckets };
+      return {
+        labels: buckets.map(b => fmtTime(b.t + bucket / 2)),
+        points: buckets.map(b => b.slice),
+      };
     }
 
     function avg(slice, fn) {
@@ -4066,6 +4409,14 @@
           // Sliding window: current raw[i] ≈ previous raw[i+1]
           if (dShift + 0.05 < dStay) baseIdx = baseIdx + 1;
         }
+        // Unchanged raw at a frozen bucket → keep prior smooth value (no float crawl)
+        if (
+          baseIdx >= 0 && baseIdx < prevS.length && prevR
+          && Math.abs(v - (prevR[baseIdx] ?? NaN)) < 0.08
+        ) {
+          out[i] = prevS[baseIdx];
+          continue;
+        }
         let p;
         if (baseIdx >= 0 && baseIdx < prevS.length) p = prevS[baseIdx];
         else if (i > 0) p = out[i - 1];
@@ -4081,14 +4432,21 @@
       const nums = (values || []).map(Number).filter(v => !isNaN(v) && v >= 0);
       const peak = nums.length ? Math.max(floor, ...nums) : floor;
       const prev = rateCeilSmooth.get(key) ?? peak;
-      const next = peak >= prev ? peak : prev + (peak - prev) * 0.05;
+      // Rise immediately on new peaks; decay very slowly so older points barely rescale.
+      const next = peak >= prev ? peak : prev + (peak - prev) * 0.02;
       rateCeilSmooth.set(key, next);
       return Math.max(floor, next);
     }
 
-    /** Map rate samples to 0–100 activity against a soft ceiling. */
-    function ratesToActivity(key, rates, floor = 16) {
-      const ceil = softRateCeil(key, rates, floor);
+    /**
+     * Map rate samples to 0–100 activity.
+     * Uses a fixed reference (refMbps) so historical shape does not squash/stretch
+     * when a new spike raises the soft ceiling. Soft ceiling only lifts the ref
+     * when sustained load exceeds it (rare), with very slow decay.
+     */
+    function ratesToActivity(key, rates, floor = 16, refMbps = null) {
+      const fixed = refMbps != null ? refMbps : floor;
+      const ceil = Math.max(fixed, softRateCeil(key, rates, fixed));
       return rates.map(r => clampPct(((Number(r) || 0) / ceil) * 100));
     }
 
@@ -4348,6 +4706,7 @@
     }
 
     const DRILL_IDS = new Set([
+      'warningsSection',
       'drill-sensors', 'drill-charts', 'drill-bandwidth', 'drill-compute',
       'drill-league', 'drill-game', 'drill-storage', 'drill-troubleshoot', 'drill-admin',
     ]);
@@ -4459,13 +4818,20 @@
               <code style="display:block;margin-top:.25rem;font-size:.85rem;color:var(--blue)">sudo usermod -aG disk $USER &amp;&amp; echo 'KERNEL=="nvme[0-9]*", GROUP="disk", MODE="0660"' | sudo tee /etc/udev/rules.d/60-nvme-smart-pulse.rules</code>
               Then log out/in and restart Pulse.</div>`
           : '';
+        // Title = package people search for in apt; bin is what Pulse runs.
+        const pkg = t.pkg || t.bin || t.id || 'tool';
+        const bin = t.bin || pkg;
+        const title = pkg;
+        const binNote = bin !== pkg
+          ? `<span style="color:var(--muted)"> · provides <code>${esc(bin)}</code></span>`
+          : '';
         return `<div class="bl-item">
           <span class="bl-pri ${badgeCls}">${hwIcon(feeding || (installed && t.role === 'helper') ? 'ok' : 'warn', 'hw-pill-glyph')}${badge}</span>
           <div>
-            <strong>${esc(t.bin)}</strong>
+            <strong>${esc(title)}</strong>${binNote}
             <div class="sub" style="margin:.15rem 0 0">${esc(t.note || '')}</div>
             ${t.detail ? `<div class="sub" style="margin-top:.2rem;color:var(--text-secondary)">${esc(t.detail)}</div>` : ''}
-            ${!installed ? `<code style="display:block;margin-top:.35rem;font-size:.9rem;color:var(--blue)">sudo apt install ${esc(t.pkg)}</code>` : ''}
+            ${!installed ? `<code style="display:block;margin-top:.35rem;font-size:.9rem;color:var(--blue)">sudo apt install ${esc(pkg)}</code>` : ''}
             ${setup}
           </div>
         </div>`;
@@ -4526,7 +4892,7 @@
             { k: 'CPU', v: `${gp.game_cpu_avg ?? '—'}%`, s: `now ${gt?.cpu_pct ?? '—'}%` },
             { k: 'GPU', v: `${gp.gpu_busy_avg ?? '—'}%`, s: 'session avg' },
           ],
-          drillRollup: `${gameName} · rating ${gp.rating ?? '—'}/100 · smooth ${gp.smoothness_avg ?? '—'}%`,
+          drillRollup: `${gameName} · ${gp.rating ?? '—'}/100 · ${gp.smoothness_avg ?? '—'}% smooth`,
         };
       }
       if (gp?.active && !gp.recording) {
@@ -4549,7 +4915,7 @@
             { k: 'RAM', v: `${((gt?.rss_mb || 0) / 1024).toFixed(1)} GB`, s: 'game process' },
             { k: 'Grace', v: `${remain}s`, s: 'until recording' },
           ],
-          drillRollup: `${gameName} · load ${remain}s · ${gt?.cpu_pct ?? '—'}% CPU`,
+          drillRollup: `${gameName} · loading ${remain}s`,
         };
       }
       const last = resolveLastSession(gp, gid);
@@ -4573,7 +4939,7 @@
             { k: 'CPU', v: `${last.game_cpu_avg ?? '—'}%`, s: 'session avg' },
             { k: 'GPU', v: `${last.gpu_busy_avg ?? '—'}%`, s: 'session avg' },
           ],
-          drillRollup: `${gameName} · last ${last.rating}/100 · smooth ${last.smoothness_avg ?? '—'}%`,
+          drillRollup: `${gameName} · last ${last.rating}/100 · ${last.smoothness_avg ?? '—'}% smooth`,
         };
       }
       if (gt?.running) {
@@ -4602,8 +4968,8 @@
             { k: 'RAM', v: lingering ? '—' : `${((gt.rss_mb || 0) / 1024).toFixed(1)} GB`, s: 'game process' },
           ],
           drillRollup: lingering
-            ? `${gameName} · loading · ${Math.ceil(lingerSec ?? 0)}s hold`
-            : `${runName} · … · ${gt.cpu_pct}% CPU`,
+            ? `${gameName} · loading`
+            : `${gameName} · ${gt.cpu_pct}% CPU`,
         };
       }
       return {
@@ -4618,7 +4984,7 @@
         context: 'Launch a Steam game',
         meter: 0,
         stats: [],
-        drillRollup: 'No game running',
+        drillRollup: 'Awaiting Steam game',
       };
     }
 
@@ -4892,21 +5258,27 @@
 
       const sh = l.sensor_health;
       document.getElementById('drillSensorsSum').textContent = sh
-        ? `${sh.ok}/${sh.total} reporting · CPU ${c.temps.package ?? '—'}°C · GPU ${g.junction_c ?? '—'}°C`
-        : '—';
+        ? `${sh.ok}/${sh.total} live · CPU ${c.temps?.package ?? '—'}° · GPU ${g.junction_c ?? '—'}°`
+        : 'Sensors offline';
 
       const st = l.stutter || {};
+      const hitchMs = st.session?.hitch_ms_1pct;
       document.getElementById('drillChartsSum').textContent =
-        `CPU ${c.overall_pct}% · GPU ${g.busy_pct ?? '—'}% · hitch ${st.score ?? 0} · 1% ~${st.session?.hitch_ms_1pct ?? '—'}ms`;
+        `CPU ${Math.round(c.overall_pct ?? 0)}% · GPU ${g.busy_pct != null ? Math.round(g.busy_pct) : '—'}% · hitch ${st.score ?? 0}${hitchMs != null ? ` · 1% ${hitchMs}ms` : ''}`;
 
       document.getElementById('drillBwSum').textContent =
-        `VRAM ${bw.gpu?.vram_est_gbps ?? '—'} GB/s · DRAM ${bw.memory?.dram_est_gbps ?? '—'} GB/s · stall ${bw.memory?.psi_avg10 ?? 0}%`;
+        `VRAM ${bw.gpu?.vram_est_gbps ?? '—'} · DRAM ${bw.memory?.dram_est_gbps ?? '—'} GB/s · stall ${bw.memory?.psi_avg10 ?? 0}%`;
 
+      const vramU = g.vram_used_mb, vramT = g.vram_total_mb;
+      const vramBit = (vramU != null && vramT != null)
+        ? ` · VRAM ${Math.round(vramU / 1024 * 10) / 10}/${Math.round(vramT / 1024)}G`
+        : '';
       document.getElementById('drillComputeSum').textContent =
-        `CPU ${c.overall_pct}% · GPU ${g.busy_pct ?? '—'}% · VRAM ${g.vram_used_mb ?? '—'}/${g.vram_total_mb ?? '—'} MB`;
+        `CPU ${Math.round(c.overall_pct ?? 0)}% · GPU ${g.busy_pct != null ? Math.round(g.busy_pct) : '—'}%${vramBit}`;
 
-      document.getElementById('drillLeagueSum').textContent =
-        `Index ${comparison ? leagueIdx : '—'}/100 · ${comparison?.composite_rank ?? '—'} · CPU ${comparison?.cpu?.tier_rank ?? '—'}`;
+      document.getElementById('drillLeagueSum').textContent = comparison
+        ? `Index ${leagueIdx}/100 · class ${comparison.composite_rank ?? '—'}`
+        : 'Building index…';
 
       renderGameSummaryCell(l.game_performance, gt, l.stutter);
     }
@@ -5051,6 +5423,118 @@
       return vals.length ? Math.max(...vals) : 0;
     }
 
+    /**
+     * Append-only Live overview ring (1 Hz).
+     * Past points are NEVER recomputed — only a new tip is pushed each second.
+     * This is what keeps the graph readable; re-bucketing rawHistory always wiggled.
+     */
+    const SPARK_WINDOW_SEC = 300;
+    const SPARK_DISK_REF_MBPS = 100; // 100 MB/s → 100% (NVMe can do more; gaming-relevant scale)
+    const SPARK_TEMP_MIN = 30;  // right-axis °C floor
+    const SPARK_TEMP_MAX = 105; // right-axis °C ceiling (matches temp bar scale)
+    const sparkRing = {
+      ts: [],
+      labels: [],
+      cpu: [],
+      gpu: [],
+      ram: [],
+      disk: [],
+      cpuTemp: [],
+      gpuTemp: [],
+      lastTs: 0,
+      ema: { cpu: null, gpu: null, ram: null, disk: null, cpuTemp: null, gpuTemp: null },
+      seeded: false,
+    };
+
+    function sparkDiskActivity(disk) {
+      const r = Number(disk?.read_mbps) || 0;
+      const w = Number(disk?.write_mbps) || 0;
+      // Throughput only — busy_pct often pegs at 100% under light sustained I/O.
+      return clampPct((Math.max(r, w) / SPARK_DISK_REF_MBPS) * 100);
+    }
+
+    function sparkCpuTempC(h) {
+      const t = h?.cpu?.temps || {};
+      if (t.package != null && !isNaN(t.package)) return +t.package;
+      const ccd = t.ccd || [];
+      const nums = ccd.filter(v => v != null && !isNaN(v));
+      return nums.length ? Math.max(...nums) : null;
+    }
+
+    function sparkGpuTempC(h) {
+      const g = h?.gpu?.discrete || {};
+      if (g.junction_c != null && !isNaN(g.junction_c)) return +g.junction_c;
+      if (g.edge_c != null && !isNaN(g.edge_c)) return +g.edge_c;
+      return null;
+    }
+
+    function sparkEmaPush(key, raw, alpha, { clamp01 = true } = {}) {
+      let v = Number(raw);
+      if (raw == null || isNaN(v)) v = clamp01 ? 0 : null;
+      if (v == null) {
+        // Carry last temp if sensor blips; don't invent zeros on the °C axis
+        const prev = sparkRing.ema[key];
+        return prev == null ? null : +prev.toFixed(1);
+      }
+      if (clamp01) v = clampPct(v);
+      const prev = sparkRing.ema[key];
+      const a = prev == null ? 1 : alpha;
+      const s = prev == null ? v : prev + a * (v - prev);
+      sparkRing.ema[key] = s;
+      return +s.toFixed(1);
+    }
+
+    function sparkRingTrim() {
+      const max = SPARK_WINDOW_SEC;
+      while (sparkRing.ts.length > max) {
+        sparkRing.ts.shift();
+        sparkRing.labels.shift();
+        sparkRing.cpu.shift();
+        sparkRing.gpu.shift();
+        sparkRing.ram.shift();
+        sparkRing.disk.shift();
+        sparkRing.cpuTemp.shift();
+        sparkRing.gpuTemp.shift();
+      }
+    }
+
+    function sparkRingPushSample(h, alphas) {
+      sparkRing.ts.push(h.ts);
+      sparkRing.labels.push(fmtTime(h.ts));
+      sparkRing.cpu.push(sparkEmaPush('cpu', h.cpu?.overall_pct ?? 0, alphas.pct));
+      sparkRing.gpu.push(sparkEmaPush('gpu', h.gpu?.discrete?.busy_pct ?? 0, alphas.pct));
+      sparkRing.ram.push(sparkEmaPush('ram', h.memory?.pct ?? 0, alphas.pct * 0.9));
+      sparkRing.disk.push(sparkEmaPush('disk', sparkDiskActivity(h.disk), alphas.pct * 0.85));
+      sparkRing.cpuTemp.push(sparkEmaPush('cpuTemp', sparkCpuTempC(h), alphas.temp, { clamp01: false }));
+      sparkRing.gpuTemp.push(sparkEmaPush('gpuTemp', sparkGpuTempC(h), alphas.temp, { clamp01: false }));
+    }
+
+    /** One-shot seed from rawHistory so the chart isn't empty after reload. */
+    function sparkRingSeedFromHistory() {
+      if (sparkRing.seeded || !rawHistory.length) return;
+      sparkRing.seeded = true;
+      const cut = rawHistory.filter(h => h.ts >= (rawHistory.at(-1).ts - SPARK_WINDOW_SEC));
+      let last = 0;
+      for (const h of cut) {
+        if (h.ts - last < 0.85) continue;
+        last = h.ts;
+        sparkRingPushSample(h, { pct: 0.4, temp: 0.35 });
+      }
+      sparkRingTrim();
+      if (sparkRing.ts.length) sparkRing.lastTs = sparkRing.ts.at(-1);
+    }
+
+    /** Append the latest metrics point (call once per poll). */
+    function sparkRingIngest(latest) {
+      if (!latest || latest.ts == null) return;
+      sparkRingSeedFromHistory();
+      const ts = latest.ts;
+      if (sparkRing.lastTs && ts - sparkRing.lastTs < 0.75) return;
+      sparkRing.lastTs = ts;
+      sparkRingPushSample(latest, { pct: 0.32, temp: 0.28 });
+      sparkRingTrim();
+    }
+
     /** Parse #rgb / #rrggbb into [r,g,b]. */
     function hexToRgb(hex) {
       if (!hex || typeof hex !== 'string') return [160, 170, 180];
@@ -5093,115 +5577,145 @@
     }
 
     function renderSparkChart() {
-      const last = rawHistory.at(-1)?.ts ?? 0;
-      const cut = rawHistory.filter(h => h.ts >= last - 300);
-      const { labels, points } = bucketize(cut, 5);
-      // Dataset structure key: only what changes series count/identity (not wall-clock labels)
-      const focusKey = hwFocus || 'all';
-      const structKey = `spark|${focusKey}`;
+      // Ingest newest sample into append-only ring (no recompute of history)
+      if (lastLatest) sparkRingIngest(lastLatest);
+      else if (rawHistory.length) sparkRingIngest(rawHistory.at(-1));
 
-      // All series plotted as 0–100 so Y never auto-rescales.
-      // Disk/net use soft-ceiling activity (not raw MB/s) — that was the main "jumps all over" bug.
-      const pctDefs = [
+      const focusKey = hwFocus || 'all';
+      const labels = sparkRing.labels;
+      const n = labels.length;
+
+      // Load series (left axis %) + thermal series (right axis °C)
+      const loadSeries = [
         {
           key: 'cpu', label: 'CPU', color: CHART.cpu, focus: ['cpu'],
-          pick: p => sparkBucketAvg(p, h => h.cpu?.overall_pct ?? 0),
-          alpha: CHART_SMOOTH_ALPHA, kind: 'pct',
-          fillTop: 0.28, fillBot: 0.02,
+          data: sparkRing.cpu, fillTop: 0.22, fillBot: 0.02, primary: true, axis: 'y',
         },
         {
           key: 'gpu', label: 'GPU', color: CHART.gpu, focus: ['gpu'],
-          pick: p => sparkBucketAvg(p, h => h.gpu?.discrete?.busy_pct ?? 0),
-          alpha: CHART_SMOOTH_ALPHA, kind: 'pct',
-          fillTop: 0.22, fillBot: 0.015,
+          data: sparkRing.gpu, fillTop: 0.16, fillBot: 0.015, axis: 'y',
         },
         {
           key: 'ram', label: 'RAM', color: CHART.ram, focus: ['memory'],
-          pick: p => sparkBucketAvg(p, h => h.memory?.pct ?? 0),
-          alpha: 0.22, kind: 'pct',
-          fillTop: 0.16, fillBot: 0.01,
+          data: sparkRing.ram, fillTop: 0.1, fillBot: 0.01, axis: 'y',
+        },
+        {
+          key: 'disk', label: 'Disk', color: CHART.diskAct || CHART.diskR, focus: ['storage'],
+          data: sparkRing.disk, fillTop: 0.05, fillBot: 0.01, isDisk: true, axis: 'y',
         },
       ];
-      const rateDefs = [
+      // Temps: same families as load (CPU blue, GPU violet) but dashed + right axis
+      const tempSeries = [
         {
-          key: 'diskR', label: 'Disk R', color: CHART.diskR, focus: ['storage'],
-          pick: p => sparkBucketMax(p, h => h.disk?.read_mbps ?? 0),
-          alpha: CHART_SMOOTH_ALPHA_SPIKY, kind: 'rate', floor: 24,
-          fillTop: 0.18, fillBot: 0.02,
+          key: 'cpuTemp', label: 'CPU °C', color: METRIC.cpuDeep || CHART.cpu, focus: ['cpu'],
+          data: sparkRing.cpuTemp, axis: 'y1', isTemp: true,
         },
         {
-          key: 'diskW', label: 'Disk W', color: CHART.diskW, focus: ['storage'],
-          pick: p => sparkBucketMax(p, h => h.disk?.write_mbps ?? 0),
-          alpha: CHART_SMOOTH_ALPHA_SPIKY, kind: 'rate', floor: 24,
-          fillTop: 0.14, fillBot: 0.015,
+          key: 'gpuTemp', label: 'GPU °C', color: METRIC.gpuDeep || CHART.gpu, focus: ['gpu'],
+          data: sparkRing.gpuTemp, axis: 'y1', isTemp: true,
         },
       ];
 
       let active;
       if (hwFocus === 'storage') {
-        active = rateDefs;
-      } else if (hwFocus === 'cpu' || hwFocus === 'gpu' || hwFocus === 'memory') {
-        active = pctDefs.filter(d => d.focus.includes(hwFocus));
+        active = loadSeries.filter(s => s.key === 'disk');
+      } else if (hwFocus === 'cpu') {
+        active = [
+          ...loadSeries.filter(d => d.focus.includes('cpu')),
+          ...tempSeries.filter(d => d.focus.includes('cpu')),
+        ];
+      } else if (hwFocus === 'gpu') {
+        active = [
+          ...loadSeries.filter(d => d.focus.includes('gpu')),
+          ...tempSeries.filter(d => d.focus.includes('gpu')),
+        ];
+      } else if (hwFocus === 'memory') {
+        active = loadSeries.filter(d => d.focus.includes('memory'));
       } else {
-        // Overview: CPU/GPU/RAM primary; one combined disk-activity line (faint) if any disk I/O
-        active = [...pctDefs];
-        const diskCombined = points.map(p => Math.max(
-          sparkBucketMax(p, h => h.disk?.read_mbps ?? 0),
-          sparkBucketMax(p, h => h.disk?.write_mbps ?? 0),
-        ));
-        const diskPeak = Math.max(0, ...diskCombined);
-        if (diskPeak > 0.5) {
-          active.push({
-            key: 'diskAct', label: 'Disk', color: '#b8a06a', focus: ['storage'],
-            preRaw: diskCombined,
-            alpha: CHART_SMOOTH_ALPHA_SPIKY, kind: 'rate', floor: 24,
-            fillTop: 0.08, fillBot: 0.01,
-          });
-        }
+        // Overview: CPU/GPU/RAM load + both temps; disk if active
+        active = loadSeries.filter(s => s.key !== 'disk');
+        const diskPeak = sparkRing.disk.length ? Math.max(...sparkRing.disk) : 0;
+        if (diskPeak >= 12) active.push(loadSeries.find(s => s.key === 'disk'));
+        // Only plot temps when we have real samples
+        const hasCpuT = sparkRing.cpuTemp.some(v => v != null);
+        const hasGpuT = sparkRing.gpuTemp.some(v => v != null);
+        if (hasCpuT) active.push(tempSeries[0]);
+        if (hasGpuT) active.push(tempSeries[1]);
       }
 
+      const structKey = `spark|${focusKey}|${active.map(s => s.key).join(',')}`;
+
       const newDatasets = active.map((d, idx) => {
-        let raw = d.preRaw || points.map(p => d.pick(p));
-        if (d.kind === 'rate') {
-          raw = ratesToActivity(`spark-ceil:${d.key}`, raw, d.floor || 16);
-        }
-        const data = smoothChartSeries(`spark:${d.key}`, raw, d.alpha);
+        const isDisk = !!d.isDisk;
+        const isTemp = !!d.isTemp;
         const primary = idx === 0;
-        const isRate = d.kind === 'rate';
-        const n = data.length;
-        // Endpoint dots: only the latest sample lights up (reads as “now”)
-        const pointRadius = n ? data.map((_, i) => (i === n - 1 ? (primary ? 3.2 : 2.4) : 0)) : [];
-        const pointHoverRadius = n ? data.map((_, i) => (i === n - 1 ? 5 : 3)) : [];
+        const pointRadius = n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? (primary ? 3 : 2.2) : 0)) : [];
         return {
           label: d.label,
-          data,
+          data: d.data.slice(),
           borderColor: d.color,
-          backgroundColor: sparkAreaFill(d.color, d.fillTop ?? 0.18, d.fillBot ?? 0.02),
-          fill: !isRate || hwFocus === 'storage',
-          tension: 0.42,
-          cubicInterpolationMode: 'monotone',
-          borderWidth: primary ? 2.75 : (isRate ? 1.45 : 2.0),
+          backgroundColor: isTemp || isDisk
+            ? 'transparent'
+            : sparkAreaFill(d.color, d.fillTop ?? 0.18, d.fillBot ?? 0.02),
+          fill: !isTemp && !isDisk,
+          tension: 0,
+          borderWidth: isTemp ? 1.65 : (primary ? 2.6 : (isDisk ? 1.5 : 2.1)),
           borderJoinStyle: 'round',
           borderCapStyle: 'round',
-          borderDash: isRate && !hwFocus ? [5, 4] : undefined,
+          borderDash: isTemp ? [5, 4] : (isDisk ? [4, 3] : undefined),
           pointRadius,
-          pointHoverRadius,
+          pointHoverRadius: n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? 5 : 3)) : [],
           pointBackgroundColor: d.color,
           pointBorderColor: rgbaFromHex(d.color, 0.35),
           pointBorderWidth: 2,
           pointHitRadius: 6,
-          yAxisID: 'y',
-          order: isRate ? 4 : idx,
+          yAxisID: d.axis || 'y',
+          order: isTemp ? 5 : (isDisk ? 4 : idx),
+          spanGaps: true,
         };
       });
 
-      // Keep Y locked 0–100; label as % (rate lines are activity % of recent soft peak)
       sparkChart.options.scales.y.min = 0;
       sparkChart.options.scales.y.max = 100;
       sparkChart.options.scales.y.ticks.callback = v => `${v}%`;
+      sparkChart.options.scales.y.title = {
+        display: true,
+        text: 'Load %',
+        color: 'rgba(154, 163, 178, .75)',
+        font: { size: 9, weight: '500', family: 'Inter' },
+      };
+      // Right axis for °C — fixed range so thermal lines don't rescale every tick
+      if (!sparkChart.options.scales.y1) {
+        sparkChart.options.scales.y1 = {
+          position: 'right',
+          min: SPARK_TEMP_MIN,
+          max: SPARK_TEMP_MAX,
+          grid: { drawOnChartArea: false },
+          border: { display: false },
+          ticks: {
+            color: 'rgba(251, 113, 133, .85)',
+            font: { size: 9, weight: '500' },
+            callback: v => `${v}°`,
+            stepSize: 25,
+            padding: 4,
+          },
+          title: {
+            display: true,
+            text: 'Temp °C',
+            color: 'rgba(251, 113, 133, .75)',
+            font: { size: 9, weight: '500', family: 'Inter' },
+          },
+        };
+      } else {
+        sparkChart.options.scales.y1.min = SPARK_TEMP_MIN;
+        sparkChart.options.scales.y1.max = SPARK_TEMP_MAX;
+      }
+      if (sparkChart.options.scales.x?.ticks) {
+        sparkChart.options.scales.x.ticks.maxTicksLimit = 5;
+      }
 
       if (structKey === sparkChart._pulseStructKey && sparkChart.data.datasets.length === newDatasets.length) {
-        sparkChart.data.labels = labels;
+        sparkChart.data.labels = labels.slice();
         newDatasets.forEach((ds, i) => {
           const cur = sparkChart.data.datasets[i];
           cur.data = ds.data;
@@ -5218,14 +5732,14 @@
         });
       } else {
         sparkChart._pulseStructKey = structKey;
-        sparkChart.data.labels = labels;
+        sparkChart.data.labels = labels.slice();
         sparkChart.data.datasets = newDatasets;
       }
       updateSparkSwatches(active);
       const chartLabel = document.getElementById('sparkChartLabel');
       if (chartLabel) {
         if (hwFocus === 'storage') {
-          chartLabel.textContent = 'Disk activity · 5 min';
+          chartLabel.textContent = `Disk · 5 min · ${SPARK_DISK_REF_MBPS} MB/s = 100%`;
         } else if (hwFocus) {
           chartLabel.textContent = `${HW_FOCUS_LABELS[hwFocus]} · 5 min`;
         } else {
@@ -5236,21 +5750,52 @@
     }
 
     function renderRigInsight(l) {
-      const c = l.cpu || {}, m = l.memory || {}, g = l.gpu?.discrete || {}, gt = l.game_totals || {};
+      const c = l.cpu || {}, m = l.memory || {}, g = l.gpu?.discrete || {};
       const cores = c.per_core || [];
       const peakCore = cores.length ? cores.reduce((a, b) => (b.pct > a.pct ? b : a), cores[0]) : null;
       const lowCore = cores.length ? cores.reduce((a, b) => (b.pct < a.pct ? b : a), cores[0]) : null;
       const peakPct = peakCore ? smoothDisplayPct('rig-peak-core', peakCore.pct) : 0;
-      const avgRaw = cores.length ? cores.reduce((a, b) => a + b.pct, 0) / cores.length : 0;
-      const avgPct = smoothDisplayPct('rig-avg-core', avgRaw);
 
-      const avgEl = document.getElementById('rigAvgCore');
-      if (avgEl) {
-        avgEl.textContent = cores.length ? `${avgPct}%` : '—';
-        avgEl.className = `v ${avgPct >= 75 ? 'moderate' : avgPct >= 50 ? 'mild' : 'ok'}`;
-      }
-      const avgSub = document.getElementById('rigAvgCoreSub');
-      if (avgSub) avgSub.textContent = cores.length ? `${cores.length} threads` : 'no data';
+      // Chart-header KPIs: same three series as the Load · 5 min graph (live “now”)
+      const cpuNow = c.overall_pct != null ? smoothDisplayPct('rig-kpi-cpu', c.overall_pct) : null;
+      const gpuNow = g.busy_pct != null ? smoothDisplayPct('rig-kpi-gpu', g.busy_pct) : null;
+      const ramNow = m.pct != null ? smoothDisplayPct('rig-kpi-ram', m.pct) : null;
+
+      const setKpi = (id, subId, value, sub, severity) => {
+        const el = document.getElementById(id);
+        const subEl = document.getElementById(subId);
+        if (el) {
+          el.textContent = value;
+          el.className = `v${severity ? ` ${severity}` : ''}`;
+        }
+        if (subEl) subEl.textContent = sub;
+      };
+      const sev = (p) => (p == null ? '' : p >= 90 ? 'severe' : p >= 75 ? 'moderate' : p >= 50 ? 'mild' : 'ok');
+
+      setKpi(
+        'rigKpiCpu', 'rigKpiCpuSub',
+        cpuNow != null ? `${cpuNow}%` : '—',
+        peakCore ? `peak core ${peakPct}%` : 'overall',
+        sev(cpuNow),
+      );
+      const gpuHot = g.junction_c != null ? Math.round(g.junction_c) : null;
+      setKpi(
+        'rigKpiGpu', 'rigKpiGpuSub',
+        gpuNow != null ? `${gpuNow}%` : '—',
+        gpuHot != null ? `${gpuHot}° hotspot` : (g.edge_c != null ? `${Math.round(g.edge_c)}° edge` : 'busy'),
+        sev(gpuNow),
+      );
+      const ramGiB = m.used_gb != null && m.total_gb != null
+        ? `${m.used_gb.toFixed?.(1) ?? m.used_gb}/${Math.round(m.total_gb)}G`
+        : (m.used_bytes && m.total_bytes
+          ? `${(m.used_bytes / 1e9).toFixed(1)}/${Math.round(m.total_bytes / 1e9)}G`
+          : null);
+      setKpi(
+        'rigKpiRam', 'rigKpiRamSub',
+        ramNow != null ? `${ramNow}%` : '—',
+        ramGiB || ((m.swap_pct || 0) > 1 ? `swap ${Math.round(m.swap_pct)}%` : 'used'),
+        sev(ramNow),
+      );
 
       const coreMeta = document.getElementById('rigCoreMeta');
       if (coreMeta) {
@@ -5276,49 +5821,11 @@
         }
       }
 
-      const tempCandidates = [
-        { label: 'CPU pkg', v: c.temps?.package, hw: 'cpu' },
-        { label: 'CPU die 1', v: c.temps?.ccd?.[0], hw: 'cpu' },
-        { label: 'CPU die 2', v: c.temps?.ccd?.[1], hw: 'cpu' },
-        { label: 'GPU hotspot', v: g.junction_c, hw: 'gpu' },
-        { label: 'VRAM', v: g.mem_temp_c, hw: 'gpu' },
-      ].filter(t => t.v != null && !isNaN(t.v));
-      if (hwFocus) tempCandidates.sort((a, b) => (a.hw === hwFocus ? -1 : b.hw === hwFocus ? 1 : 0));
-      const hottest = tempCandidates.length
-        ? tempCandidates.reduce((a, b) => (b.v > a.v ? b : a), tempCandidates[0])
-        : null;
-
-      const hotEl = document.getElementById('rigHottest');
-      if (hotEl) {
-        hotEl.textContent = hottest ? `${hottest.v}°` : '—';
-        const tc = hottest?.label?.includes('GPU hotspot') ? gpuJuncUiClass(hottest.v).trim() : tempClass(hottest?.v);
-        hotEl.className = `v ${tc === 'hot' ? 'severe' : tc === 'warn' ? 'moderate' : ''}`;
-      }
-      const hotSub = document.getElementById('rigHottestSub');
-      if (hotSub) hotSub.textContent = hottest?.label || 'sensor';
-
-      const gameEl = document.getElementById('rigGameKpi');
-      if (gameEl) {
-        gameEl.textContent = gt?.running ? `${gt.cpu_pct}%` : 'Idle';
-        gameEl.className = `v ${gt?.running ? 'ok' : ''}`;
-      }
-      const gameSub = document.getElementById('rigGameSub');
-      if (gameSub) {
-        if (document.body.classList.contains('game-prominent-active')) {
-          gameSub.textContent = 'See session card above';
-        } else {
-          gameSub.textContent = gt?.running
-            ? (gt.primary_name || gt.game_name || 'running').slice(0, 28)
-            : 'no foreground game';
-        }
-      }
-
       const statusEl = document.getElementById('rigStatus');
       if (statusEl) {
-        const cpu = c.overall_pct != null ? Math.round(c.overall_pct) : '—';
-        const gpu = g.busy_pct != null ? Math.round(g.busy_pct) : '—';
-        const ram = m.pct != null ? Math.round(m.pct) : '—';
-        // Compact chip for the load panel header (full line in title tooltip)
+        const cpu = cpuNow != null ? cpuNow : '—';
+        const gpu = gpuNow != null ? gpuNow : '—';
+        const ram = ramNow != null ? ramNow : '—';
         let text = `${cpu}/${gpu}/${ram}`;
         let full = `CPU ${cpu}% · GPU ${gpu}% · RAM ${ram}%`;
         if ((m.swap_pct || 0) > 5) {
@@ -5358,18 +5865,18 @@
       });
       const newDatasets = [
         {
-          label: 'Hitch score', data: scoreLine, borderColor: '#b48ead',
-          backgroundColor: 'rgba(180,142,173,.14)', fill: true, tension: .35,
+          label: 'Hitch score', data: scoreLine, borderColor: CHART.stutter || METRIC.stutter,
+          backgroundColor: sparkAreaFill(CHART.stutter || METRIC.stutter, 0.18, 0.02), fill: true, tension: .35,
           pointRadius: 0, borderWidth: 2.5, yAxisID: 'y',
         },
         {
-          label: 'Est. ms', data: estLine, borderColor: '#ed6a5a',
+          label: 'Est. ms', data: estLine, borderColor: METRIC.thermal,
           backgroundColor: 'transparent', fill: false, tension: .35,
           pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y1',
         },
         {
           type: 'scatter', label: 'Hitch event', data: eventPoints,
-          borderColor: '#ff8a7a', backgroundColor: '#ff8a7a',
+          borderColor: METRIC.thermal, backgroundColor: METRIC.thermal,
           pointRadius: 5, pointStyle: 'triangle', yAxisID: 'y', showLine: false,
         },
       ];
@@ -5716,15 +6223,15 @@
       const mainColor = hwFocus === 'cpu' ? CHART.cpu
         : hwFocus === 'gpu' ? CHART.gpu
         : hwFocus === 'memory' ? CHART.ram
-        : '#b48ead';
+        : METRIC.league;
       const newDatasets = [
         {
           label: mainLabel, data: indexLine, borderColor: mainColor,
-          backgroundColor: mainColor + '24', fill: true, tension: .35,
+          backgroundColor: sparkAreaFill(mainColor, 0.2, 0.02), fill: true, tension: .35,
           pointRadius: 0, borderWidth: 2.5, yAxisID: 'y',
         },
         {
-          label: 'Headroom', data: headLine, borderColor: '#62a0ea',
+          label: 'Headroom', data: headLine, borderColor: CHART.headroom || METRIC.cpu,
           backgroundColor: 'transparent', fill: false, tension: .35,
           pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y',
         },
@@ -6830,14 +7337,18 @@
       const sessionHits = lastActiveGameId
         ? visible.filter(h => hintForActiveGame(h, lastActiveGameId)).length
         : 0;
+      const counts = { hot: 0, warn: 0, info: 0 };
+      visible.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
+      const nAttn = visible.length;
+
       const metaEl = document.getElementById('tuningMeta');
       if (metaEl) {
-        if (!visible.length) {
+        if (!nAttn) {
           metaEl.innerHTML = hwFocus
             ? `No ${HW_FOCUS_LABELS[hwFocus]} warnings for this rig focus`
-            : '<span style="color:var(--green)">✓ No outstanding issues</span> · Guidance has scripts and step-by-step help';
+            : '<span style="color:var(--m-mem)">✓ No outstanding issues</span> · Guidance has scripts and step-by-step help';
         } else {
-          const parts = [`${visible.length} need${visible.length === 1 ? 's' : ''} attention`];
+          const parts = [`${nAttn} need${nAttn === 1 ? 's' : ''} attention`];
           if (hwFocus) parts.push(`${HW_FOCUS_LABELS[hwFocus]} focus`);
           if (sessionHits && lastActiveGameId) {
             parts.push(`${sessionHits} for ${gameLabel(lastActiveGameId)}`);
@@ -6845,8 +7356,34 @@
           metaEl.textContent = parts.join(' · ');
         }
       }
-      const counts = { hot: 0, warn: 0, info: 0 };
-      visible.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
+
+      // Compact collapsed preview (matches other drill cards)
+      const rollEl = document.getElementById('drillWarningsSum');
+      const warnDrill = document.getElementById('warningsSection');
+      if (rollEl) {
+        if (!nAttn) {
+          rollEl.textContent = hwFocus
+            ? `Clear for ${HW_FOCUS_LABELS[hwFocus]}`
+            : 'All clear';
+        } else {
+          const bits = [];
+          if (counts.hot) bits.push(`${counts.hot} critical`);
+          if (counts.warn) bits.push(`${counts.warn} important`);
+          if (counts.info) bits.push(`${counts.info} moderate`);
+          let line = bits.join(' · ') || `${nAttn} open`;
+          if (sessionHits && lastActiveGameId) {
+            line += ` · ${sessionHits} for ${gameLabel(lastActiveGameId)}`;
+          } else if (hwFocus) {
+            line += ` · ${HW_FOCUS_LABELS[hwFocus]}`;
+          }
+          rollEl.textContent = line;
+        }
+      }
+      if (warnDrill) {
+        warnDrill.classList.toggle('warn-all-clear', nAttn === 0);
+        warnDrill.classList.toggle('warn-has-hot', counts.hot > 0);
+      }
+
       const pillsKey = JSON.stringify({ counts, hwFocus });
       if (pillsKey !== lastWarningsPillsKey) {
         lastWarningsPillsKey = pillsKey;
@@ -8297,8 +8834,8 @@
         {
           label: 'Smooth %',
           data: points.map(p => p.smoothness ?? null),
-          borderColor: CHART.gameCpu || '#6fcf97',
-          backgroundColor: 'rgba(111,207,151,.12)',
+          borderColor: METRIC.mem,
+          backgroundColor: sparkAreaFill(METRIC.mem, 0.16, 0.02),
           fill: true,
           borderWidth: 2.5,
           pointRadius: 0,
@@ -8307,7 +8844,7 @@
         {
           label: 'Stutter',
           data: points.map(p => p.stutter_score ?? null),
-          borderColor: '#f5c882',
+          borderColor: METRIC.stutter,
           backgroundColor: 'transparent',
           borderWidth: 2,
           pointRadius: 0,
@@ -8316,7 +8853,7 @@
         {
           label: 'Game process',
           data: points.map(p => p.game_cpu ?? null),
-          borderColor: CHART.cpu,
+          borderColor: METRIC.cpu,
           backgroundColor: 'transparent',
           borderWidth: 2,
           pointRadius: 0,
@@ -8594,7 +9131,7 @@
       document.getElementById('storeEstimate').textContent =
         `At 1 sample/sec, ~${est} MB max with ${days}-day retention (older samples are removed automatically).`;
       document.getElementById('drillStorageSum').textContent =
-        `${(s.samples || 0).toLocaleString()} samples · ${s.size_mb ?? 0} MB · ${days}d retention`;
+        `${(s.samples || 0).toLocaleString()} samples · ${s.size_mb ?? 0} MB · keep ${days}d`;
       const presets = s.retention_presets || [3, 7, 10, 14, 30];
       const min = s.retention_min ?? 1;
       const max = s.retention_max ?? 90;
@@ -8766,8 +9303,12 @@
       const btn = document.getElementById('sensorStripToggle');
       if (!el || !btn) return;
       el.classList.toggle('collapsed', !sensorStripExpanded);
-      btn.textContent = sensorStripExpanded ? 'Show temps only' : 'Show all';
+      // Collapsed = Temps only; expanded = Temps + I/O + Drives + Network
+      btn.textContent = sensorStripExpanded ? 'Temps only' : 'Show more';
       btn.setAttribute('aria-expanded', sensorStripExpanded ? 'true' : 'false');
+      btn.title = sensorStripExpanded
+        ? 'Hide I/O, drives, and network — keep temperatures'
+        : 'Temps always show. Expand for I/O, drives, and network.';
     }
 
     document.querySelectorAll('.viz-tab').forEach(btn => {

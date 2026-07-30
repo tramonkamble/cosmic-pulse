@@ -228,11 +228,32 @@ def slim_history_point(snap: dict) -> dict:
         if sess
         else {},
     }
+    # Temps for Live overview dual-axis chart (package + GPU hotspot)
+    cpu_temps = cpu.get("temps") or {}
+    ccd = cpu_temps.get("ccd") or []
+    package_c = cpu_temps.get("package")
+    if package_c is None and ccd:
+        try:
+            package_c = max(v for v in ccd if v is not None)
+        except ValueError:
+            package_c = None
     return {
         "ts": snap.get("ts"),
-        "cpu": {"overall_pct": cpu.get("overall_pct")},
+        "cpu": {
+            "overall_pct": cpu.get("overall_pct"),
+            "temps": {
+                "package": package_c,
+            },
+        },
         "memory": {"pct": mem.get("pct"), "swap_pct": mem.get("swap_pct")},
-        "gpu": {"discrete": {"busy_pct": dgpu.get("busy_pct")}},
+        "gpu": {
+            "discrete": {
+                "busy_pct": dgpu.get("busy_pct"),
+                "junction_c": dgpu.get("junction_c"),
+                "edge_c": dgpu.get("edge_c"),
+                "mem_temp_c": dgpu.get("mem_temp_c"),
+            }
+        },
         "disk": slim_disk,
         "network": slim_net,
         "bandwidth": slim_bw,
@@ -1117,9 +1138,10 @@ def disk_rates() -> dict:
     dt = now - prev[2]
     if dt <= 0:
         return {"read_mbps": 0, "write_mbps": 0, "busy_pct": busy_pct}
+    # Bytes → megabytes/s (UI labels "MB/s"). Do NOT *8 — that is megabits (network).
     return {
-        "read_mbps": round((d.read_bytes - prev[0]) * 8 / dt / 1e6, 2),
-        "write_mbps": round((d.write_bytes - prev[1]) * 8 / dt / 1e6, 2),
+        "read_mbps": round((d.read_bytes - prev[0]) / dt / 1e6, 2),
+        "write_mbps": round((d.write_bytes - prev[1]) / dt / 1e6, 2),
         "busy_pct": busy_pct,
     }
 
@@ -1218,7 +1240,7 @@ def tools_status() -> dict:
         {
             "id": "smartctl",
             "bin": "smartctl",
-            "pkg": "smartmontools",
+            "pkg": "smartmontools",  # apt package name (UI title); binary is smartctl
             "role": "data",
             "note": "NVMe wear %, spare capacity, TB written, media errors",
             "installed": bool(smart.get("installed")),

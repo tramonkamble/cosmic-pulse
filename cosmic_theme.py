@@ -186,10 +186,8 @@ def load_cosmic_theme() -> dict:
         "radius": radius_s,
         "radius_lg": radius_m,
         "space_m": space_m,
+        # Series colors are owned by the UI metric palette (index.html METRIC/CHART).
         "chart": {
-            "cpu": blue,
-            "gpu": orange,
-            "ram": green,
             "accent": accent,
             "hot": destructive,
             "warn": warning,

@@ -428,7 +428,7 @@ def probe_nvme_smart(max_age_sec: float = 180.0) -> dict:
         "readable": False,
         "permission_error": False,
         "drives": {},
-        "message": "smartctl not installed",
+        "message": "smartmontools not installed (provides smartctl)",
     }
     if not installed:
         _nvme_smart_cache = (now, result)
@@ -459,7 +459,7 @@ def probe_nvme_smart(max_age_sec: float = 180.0) -> dict:
             candidates.append((block_name, str(ns_dev)))
 
     if not candidates:
-        result["message"] = "smartctl installed · no NVMe devices found"
+        result["message"] = "smartmontools installed · no NVMe devices found"
         _nvme_smart_cache = (now, result)
         return dict(result)
 
@@ -515,7 +515,7 @@ def probe_nvme_smart(max_age_sec: float = 180.0) -> dict:
             "installed · needs device access (disk group + udev, or run as root once via setup script)"
         )
     elif other_fail:
-        result["message"] = "installed · smartctl could not read SMART logs"
+        result["message"] = "installed · smartctl cannot read SMART (need disk group / udev)"
     else:
         result["message"] = "installed · no data"
 
