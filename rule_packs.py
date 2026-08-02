@@ -638,13 +638,29 @@ def _resolve_fix_script(
             return ""
 
 
-def _resolve_level(emit: dict, metrics: dict) -> str:
-    level_when = emit.get("level_when")
-    if isinstance(level_when, dict):
+def _resolve_level_when(level_when: object, metrics: dict, default: str = "info") -> str:
+    """Resolve level_when trees: detect → then, else (string or nested level_when)."""
+    if not isinstance(level_when, dict):
+        return str(level_when) if level_when is not None else default
+    if "detect" in level_when:
         if eval_condition(level_when.get("detect"), metrics):
-            return str(level_when.get("then", emit.get("level", "info")))
-        return str(level_when.get("else", emit.get("level", "info")))
-    return str(emit.get("level", "info"))
+            then = level_when.get("then", default)
+            if isinstance(then, dict) and "detect" in then:
+                return _resolve_level_when(then, metrics, default)
+            return str(then)
+        else_branch = level_when.get("else", default)
+        if isinstance(else_branch, dict) and "detect" in else_branch:
+            return _resolve_level_when(else_branch, metrics, default)
+        return str(else_branch)
+    return default
+
+
+def _resolve_level(emit: dict, metrics: dict) -> str:
+    default = str(emit.get("level", "info"))
+    level_when = emit.get("level_when")
+    if level_when is None:
+        return default
+    return _resolve_level_when(level_when, metrics, default)
 
 
 def _pack_hint(

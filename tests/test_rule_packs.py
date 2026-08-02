@@ -13,10 +13,12 @@ from rule_packs import (
     _get_path,
     _has_unresolved_template,
     _render_actions,
+    _resolve_level_when,
     eval_condition,
     evaluate_rule_packs,
     flatten_metrics,
     list_packs,
+    reload_packs,
     render_template,
 )
 
@@ -55,11 +57,83 @@ def _snap(**overrides) -> dict:
 
 
 def test_list_packs_loads_builtin_default():
+    reload_packs()
     packs = list_packs()
     ids = {p["id"] for p in packs}
     assert "pulse-default" in ids
     default = next(p for p in packs if p["id"] == "pulse-default")
     assert default["rule_count"] >= 24
+
+
+def test_nested_level_when_resolves_severe_hot():
+    metrics = {
+        "stutter_detail": {"severity": "severe"},
+    }
+    tree = {
+        "detect": {"metric": "stutter_detail.severity", "eq": "severe"},
+        "then": "hot",
+        "else": {
+            "detect": {"metric": "stutter_detail.severity", "eq": "moderate"},
+            "then": "warn",
+            "else": "info",
+        },
+    }
+    assert _resolve_level_when(tree, metrics) == "hot"
+    metrics["stutter_detail"]["severity"] = "moderate"
+    assert _resolve_level_when(tree, metrics) == "warn"
+    metrics["stutter_detail"]["severity"] = "mild"
+    assert _resolve_level_when(tree, metrics) == "info"
+
+
+def test_gpu_junction_critical_alert_even_without_fan_curve():
+    """Guidance-only thermal alert must fire on is_hot (e.g. RDNA3 fan_curve_helpful=false)."""
+    reload_packs()
+    snap = _snap(
+        gpu={
+            "discrete": {
+                "busy_pct": 90,
+                "vram_pct": 40,
+                "mem_busy_pct": 20,
+                "junction_c": 105,
+                "gfx_mhz": 2400,
+                "gtt": {"rate_mbps": 0, "pct": 0, "sustained_high": False},
+                "thermal_profile": {
+                    "model": "RX 7900 XTX",
+                    "label": "RDNA3",
+                    "hot_c": 100,
+                    "warm_c": 90,
+                    "fan_curve_helpful": False,
+                    "design_note": "runs hot by design",
+                },
+                "thermal_state": {
+                    "throttling": False,
+                    "by_design": True,
+                    "observed_peak_mhz": 2500,
+                },
+            },
+        },
+    )
+    ctx = {"governor": "performance", "swappiness": 10, "gpu_model": "RX 7900 XTX"}
+    hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+    assert "gpu-thermal-ceiling" in emitted
+    assert "gpu-thermal-by-design" not in emitted
+    hit = next(h for h in hints if h["insight_id"] == "gpu-thermal-ceiling")
+    assert hit["level"] == "hot"
+    assert "Alert" in hit["title"] or "critical" in hit["title"].lower()
+
+
+def test_swap_thrash_is_hot_when_actively_swapping():
+    reload_packs()
+    snap = _snap(
+        memory={"swap_pct": 12},
+        bandwidth={"memory": {"pgmajfault_per_s": 0, "psi_avg10": 0, "swap_out_kbps": 120}},
+    )
+    ctx = {"governor": "performance", "swappiness": 10}
+    hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+    assert "memory-swap-thrash" in emitted
+    hit = next(h for h in hints if h["insight_id"] == "memory-swap-thrash")
+    assert hit["level"] == "hot"
+    assert "Alert" in hit["title"] or "swap" in hit["title"].lower()
 
 
 def test_governor_rule_fires_from_pack():

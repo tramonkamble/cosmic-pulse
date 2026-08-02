@@ -1,5 +1,6 @@
 # Memory pressure rules
 rules:
+  # Active swap-out is a Guidance alert (hot). High fill alone stays warn.
   - id: memory-swap-thrash
     detect:
       any:
@@ -9,14 +10,21 @@ rules:
           gt: 25
     emit:
       insight_id: memory-swap-thrash
-      level: warn
-      title: Swap thrash — fix memory first
+      level_when:
+        detect:
+          metric: memory.swap_out_kbps
+          gt: 50
+        then: hot
+        else: warn
+      title: Alert — swap thrash
       text: >-
-        The system is pushing data to swap. This is a common stutter cause —
-        free RAM before tuning graphics.
+        The system is pushing data to swap (fill {memory.swap_pct:.0f}%, out
+        ~{memory.swap_out_kbps:.0f} KB/s). Free RAM before tuning graphics —
+        this is a common stutter cause.
       fix_script: memory-swap-thrash
       fix_kwargs:
         swap_pct: memory.swap_pct
+      condition_live: true
     actions:
       - label: Lower swappiness now
         kind: cmd

@@ -115,9 +115,9 @@
   },
   {
     "id": "alerts",
-    "priority": "medium",
+    "priority": "done",
     "title": "Threshold alerts",
-    "notes": "Toast/audio when junction >100\u00b0C or swap thrash"
+    "notes": "DONE Aug 2026 \u2014 Guidance only (no OS toast/audio). Threshold cards: gpu-thermal-ceiling hot on thermal.is_hot for any GPU (incl. RDNA3); by-design info suppressed while critical; memory-swap-thrash level hot when swap_out_kbps>50 else warn; stutter-proxy severe\u2192hot via nested level_when. Hide still works via suppressed_insights. Deferred: desktop notifications."
   },
   {
     "id": "frametime-proxy",

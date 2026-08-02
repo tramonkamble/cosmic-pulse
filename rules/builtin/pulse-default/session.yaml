@@ -14,15 +14,18 @@ rules:
               gte: 3
     emit:
       insight_id: stutter-proxy
+      # Guidance-only severity: severe → hot alert, moderate → warn, else info
       level_when:
         detect:
-          any:
-            - metric: stutter_detail.severity
-              eq: moderate
-            - metric: stutter_detail.severity
-              eq: severe
-        then: warn
-        else: info
+          metric: stutter_detail.severity
+          eq: severe
+        then: hot
+        else:
+          detect:
+            metric: stutter_detail.severity
+            eq: moderate
+          then: warn
+          else: info
       title: Hitching detected (stutter proxy)
       text: >-
         ~{stutter_detail.est_ms}ms est. hitch · score {stutter.score:.0f}/100 ·
