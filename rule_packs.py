@@ -13,6 +13,7 @@ from typing import Any
 import yaml
 
 from apply_fix import fix_available, requires_root
+from audio_probe import audio_metrics
 from diagnostics import _PROMOTE_SEVERITIES, scan_findings
 from fix_scripts import get_fix_script
 from games import (
@@ -26,7 +27,6 @@ from games import (
     steam_update_summary_parts,
 )
 from gpu_thermal import gpu_thermal_state, profile_for_model
-from audio_probe import audio_metrics
 from hardware_probe import primary_display_hdr, primary_display_refresh_hz
 from load_phase import page_fault_settle, page_fault_warn
 
@@ -1003,7 +1003,7 @@ def _detect_summary(detect: Any) -> str:
 
 def reload_packs() -> list[dict]:
     """Force rescan of pack directories and refresh game overrides."""
-    packs = _load_packs(force=True)
+    _load_packs(force=True)
     return list_packs(include_disabled=True)
 
 

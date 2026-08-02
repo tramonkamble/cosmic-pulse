@@ -426,7 +426,6 @@ def _check_game_prefixes(findings: list[dict]) -> None:
     """
     compat_root = steam_root() / "steamapps" / "compatdata"
     for appid in installed_appids():
-        meta_name = game_name_for_appid(appid)
         prefix = compat_root / appid
         if not prefix.is_dir():
             continue

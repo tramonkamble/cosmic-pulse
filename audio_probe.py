@@ -8,7 +8,6 @@ diagnostics / Guidance open.
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import subprocess
@@ -406,7 +405,6 @@ def probe_audio(*, force: bool = False) -> dict[str, Any]:
         latency_ms = round(1000.0 * quantum / rate, 2)
 
     other_sinks = [s for s in sinks if s.get("name") != default_name]
-    usb_alts = [s for s in other_sinks if s.get("usb_or_dac")]
     # Prefer real listening devices over unused SPDIF/IEC958 motherboard outs
     listening_alts = [s for s in other_sinks if _is_listening_alt(s)]
 

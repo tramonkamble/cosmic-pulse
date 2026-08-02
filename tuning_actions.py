@@ -137,7 +137,6 @@ def fix_script_for_insight(
     """Regenerate or recall a fix script for an insight (lazy API load)."""
     ctx = ctx or system_context()
     gctx = active_game_context(snap.get("game_totals") or {})
-    active_appid = gctx.get("appid")
     game_scoped = insight_id in _GAME_SCOPED_INSIGHTS
     for h in build_tuning_hints(snap, mem_spec, ctx):
         if h.get("insight_id") == insight_id:

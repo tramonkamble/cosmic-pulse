@@ -2103,7 +2103,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"ok": False, "error": "invalid JSON"}, status=400)
             return
         if path == "/api/rule-packs":
-            from rule_packs import list_packs, reload_packs, set_pack_enabled
+            from rule_packs import reload_packs, set_pack_enabled
 
             action = body.get("action") if isinstance(body.get("action"), str) else ""
             if action == "reload":
