@@ -39,15 +39,18 @@
       --radius: 8px;
       --radius-lg: 16px;
       /*
-        UI scale — default 1.5 matches the second-monitor density pass.
-        Almost all layout uses rem, which tracks html font-size (not body).
-        Normalize so 1.5 keeps a ~16px rem root (current look); 1.0 shrinks, 2.0 grows.
+        UI scale — rem root tracks html font-size.
+        100% = 16px (normal desktop), 150% = 24px (second-monitor default), 200% = 32px.
+        Dense labels use --fs-* floors so chrome stays readable when scaled.
       */
       --ui-scale: 1.5;
-      --ui-root: calc(16px * var(--ui-scale) / 1.5);
-      --bar-h: calc(200px * var(--ui-scale) / 1.5);
-      --meter-h: calc(18px * var(--ui-scale) / 1.5);
-      --rank-bar-h: calc(14px * var(--ui-scale) / 1.5);
+      --ui-root: calc(16px * var(--ui-scale));
+      --bar-h: calc(133px * var(--ui-scale));
+      --meter-h: calc(12px * var(--ui-scale));
+      --rank-bar-h: calc(9.5px * var(--ui-scale));
+      --fs-2xs: 0.72rem;   /* was often 0.55–0.62 — too small on a TV/second head */
+      --fs-xs: 0.78rem;
+      --fs-sm: 0.85rem;
       --meter-ease: 1.85s cubic-bezier(0.28, 0.82, 0.32, 1);
       /*
         Metric families — same meaning → same color everywhere (charts, bars, KPIs).
@@ -114,8 +117,8 @@
     }
     body {
       margin: 0; color: var(--text); min-height: 100vh;
-      font-size: 1.125rem; /* ~18px at default scale 1.5 */
-      line-height: 1.62;
+      font-size: 1rem; /* body tracks root; scale slider multiplies everything rem-based */
+      line-height: 1.55;
       font-family: "Inter", system-ui, -apple-system, sans-serif;
       font-weight: 400;
       letter-spacing: 0.012em;
@@ -189,7 +192,7 @@
     .host-badge .host-badge-mark {
       display: inline-flex; align-items: center; justify-content: center;
       width: 1.45rem; height: 1.45rem; border-radius: 8px; flex-shrink: 0;
-      font-size: .72rem; font-weight: 800; letter-spacing: 0;
+      font-size: var(--fs-xs); font-weight: 800; letter-spacing: 0;
       color: #fff;
       overflow: hidden;
     }
@@ -254,7 +257,7 @@
     }
     .host-badge.system76 .host-badge-mark {
       background: linear-gradient(145deg, #6aabdc, #3d6a9e);
-      font-size: .58rem;
+      font-size: var(--fs-2xs);
     }
     /* COSMIC desktop (active session only) */
     .host-badge.cosmic {
@@ -278,7 +281,7 @@
     }
     .host-badge.kde .host-badge-mark {
       background: linear-gradient(145deg, #3daee9, #1d6fa5);
-      font-size: .7rem;
+      font-size: var(--fs-xs);
     }
     /* GNOME */
     .host-badge.gnome {
@@ -300,7 +303,7 @@
     }
     .host-badge.de .host-badge-mark {
       background: linear-gradient(145deg, var(--m-league), #4f46a5);
-      font-size: .62rem;
+      font-size: var(--fs-2xs);
     }
     .host-badge.linux .host-badge-mark {
       background: linear-gradient(145deg, #6b7280, #374151);
@@ -326,7 +329,7 @@
     }
     .host-badge.mesa .host-badge-mark {
       background: linear-gradient(145deg, #f48c06, #d00000);
-      font-size: .7rem;
+      font-size: var(--fs-xs);
     }
     body.is-system76 header {
       background:
@@ -473,7 +476,7 @@
       font-style: italic;
     }
     .rec-status {
-      font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
       padding: .12rem .45rem; border-radius: 999px; border: 1px solid var(--line);
       color: var(--muted); margin-right: .35rem;
     }
@@ -483,7 +486,7 @@
     .rec-actions-head { display: flex; flex-wrap: wrap; gap: .35rem; margin-left: auto; align-items: center; }
     .rec-head { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .6rem; }
     .rec-rank {
-      font-size: .72rem; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums;
+      font-size: var(--fs-xs); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums;
       padding: .22rem .45rem; border-radius: 6px; border: 1px solid var(--line); background: rgba(255,255,255,.03);
     }
     .rec-action-bar {
@@ -492,7 +495,7 @@
       border: 1px solid var(--line); background: rgba(0,0,0,.1);
     }
     .rec-action-label {
-      font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+      font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em;
       text-transform: uppercase; color: var(--muted);
     }
     .guidance-page { display: flex; flex-direction: column; gap: 1.1rem; }
@@ -650,7 +653,7 @@
       align-items: center; gap: 0 .7rem; min-width: 0;
     }
     .guidance-index-games-label {
-      font-size: .72rem; font-weight: 600; letter-spacing: .08em;
+      font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em;
       text-transform: uppercase; color: var(--muted); white-space: nowrap;
       padding: .2rem 0;
     }
@@ -688,12 +691,12 @@
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 28%, transparent);
     }
     .guidance-game-trigger-count {
-      flex-shrink: 0; font-size: .68rem; font-weight: 600; font-variant-numeric: tabular-nums;
+      flex-shrink: 0; font-size: var(--fs-2xs); font-weight: 600; font-variant-numeric: tabular-nums;
       padding: .14rem .38rem; border-radius: 999px; line-height: 1.1;
       background: rgba(255,255,255,.07); border: 1px solid var(--line); color: var(--muted);
     }
     .guidance-game-trigger-chevron {
-      flex-shrink: 0; font-size: .72rem; color: var(--muted); line-height: 1;
+      flex-shrink: 0; font-size: var(--fs-xs); color: var(--muted); line-height: 1;
       transition: transform .15s ease, color .15s;
     }
     .guidance-game-trigger.open .guidance-game-trigger-chevron {
@@ -742,7 +745,7 @@
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 28%, transparent);
     }
     .guidance-game-menu-count {
-      font-size: .68rem; font-weight: 600; font-variant-numeric: tabular-nums;
+      font-size: var(--fs-2xs); font-weight: 600; font-variant-numeric: tabular-nums;
       min-width: 1.1rem; text-align: center;
       padding: .12rem .34rem; border-radius: 999px; line-height: 1.1;
       background: rgba(255,255,255,.07); border: 1px solid var(--line); color: var(--muted);
@@ -757,14 +760,14 @@
     }
     .game-issues-name { font-weight: 500; }
     .game-issues-live {
-      font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
       color: var(--accent); padding: .18rem .45rem; border-radius: 6px;
       border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
       background: color-mix(in srgb, var(--accent) 10%, transparent);
     }
     .game-issues-count { font-size: .88rem; color: var(--muted); margin-left: auto; }
     .rec-sev {
-      font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+      font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
       padding: .28rem .55rem; border-radius: 6px; line-height: 1.2; white-space: nowrap;
     }
     .rec-sev.hot {
@@ -904,7 +907,7 @@
       border-radius: 10px; background: var(--panel-solid); font-size: 1.05rem; border: 1px solid var(--line);
     }
     .bl-pri {
-      font-size: .62rem; font-weight: 700; text-transform: uppercase; padding: .15rem .4rem;
+      font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; padding: .15rem .4rem;
       border-radius: 999px; background: rgba(157,77,255,.15); color: var(--violet); white-space: nowrap;
     }
     .bl-pri.done { background: rgba(93,255,122,.12); color: var(--lime); }
@@ -1090,7 +1093,7 @@
       line-height: 1;
     }
     #sumHealthCell .health-sev .lbl {
-      font-size: .6rem;
+      font-size: var(--fs-2xs);
       font-weight: 700;
       letter-spacing: .04em;
       text-transform: uppercase;
@@ -1126,7 +1129,7 @@
       display: flex;
       align-items: flex-start;
       gap: .35rem;
-      font-size: .72rem;
+      font-size: var(--fs-xs);
       line-height: 1.3;
       color: var(--text-secondary);
       padding: .28rem .35rem;
@@ -1151,7 +1154,7 @@
     }
     #sumHealthCell .health-clear-note {
       margin-top: auto;
-      font-size: .72rem;
+      font-size: var(--fs-xs);
       line-height: 1.35;
       color: var(--muted);
       padding: .35rem .4rem;
@@ -1169,7 +1172,7 @@
     .sum-game-badge { min-height: 1.35rem; display: flex; align-items: center; }
     .sum-game-badge:empty { display: none; }
     .rating-tier-pill {
-      font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+      font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
       padding: .18rem .45rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.1);
     }
     .rating-tier-pill.excellent {
@@ -1378,7 +1381,7 @@
       font-variant-numeric: tabular-nums; color: var(--text);
     }
     .sum-game-stat .s {
-      font-size: .68rem; color: var(--muted); line-height: 1.25;
+      font-size: var(--fs-2xs); color: var(--muted); line-height: 1.25;
       white-space: normal;
       overflow-wrap: anywhere;
     }
@@ -1526,7 +1529,7 @@
       min-width: 0;
     }
     .sum-mini .k {
-      font-size: .58rem;
+      font-size: var(--fs-2xs);
       font-weight: 700;
       letter-spacing: .045em;
       text-transform: uppercase;
@@ -1756,7 +1759,7 @@
     }
     .rig-layout .stutter-side-label {
       margin: 0 0 .2rem;
-      font-size: .64rem;
+      font-size: var(--fs-2xs);
       letter-spacing: .08em;
     }
     /* Left: load bars fill, strips sit as a footer card */
@@ -1859,7 +1862,7 @@
       align-items: center;
       gap: .22rem;
       min-width: 0;
-      font-size: .6rem;
+      font-size: var(--fs-2xs);
       font-weight: 600;
       letter-spacing: .03em;
       text-transform: uppercase;
@@ -1895,7 +1898,7 @@
       overflow: hidden;
     }
     .rig-layout .rig-kpis-inline .stutter-kpi .k {
-      font-size: .62rem;
+      font-size: var(--fs-2xs);
       margin-bottom: .04rem;
       letter-spacing: .05em;
       overflow: hidden;
@@ -1913,7 +1916,7 @@
     }
     .rig-layout .rig-kpis-inline .stutter-kpi .s {
       display: block;
-      font-size: .62rem;
+      font-size: var(--fs-2xs);
       margin-top: .04rem;
       font-variant-numeric: tabular-nums;
       overflow: hidden;
@@ -2000,7 +2003,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: .74rem;
+      font-size: var(--fs-xs);
     }
     .rig-layout .metric-list-compact .metric-bar-label.hw-row {
       display: inline-flex;
@@ -2023,7 +2026,7 @@
       display: block;
       min-height: .85em;
       max-width: 100%;
-      font-size: .62rem;
+      font-size: var(--fs-2xs);
       margin-top: .1rem;
       opacity: .9;
       white-space: nowrap;
@@ -2045,7 +2048,7 @@
       max-width: 6rem;
     }
     .rig-layout .rig-util-list .metric-bar-sub {
-      font-size: .66rem;
+      font-size: var(--fs-2xs);
     }
     .rig-layout .glance-grid {
       margin-top: 0;
@@ -2080,7 +2083,7 @@
       white-space: nowrap;
     }
     .rig-layout .glance-sub {
-      font-size: .62rem;
+      font-size: var(--fs-2xs);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -2107,10 +2110,10 @@
       flex: 0 0 auto;
     }
     .rig-layout .gpu-engine-label {
-      font-size: .58rem;
+      font-size: var(--fs-2xs);
     }
     .rig-layout .gpu-engine-pct {
-      font-size: .55rem;
+      font-size: var(--fs-2xs);
     }
     .rig-layout .gpu-engine-label,
     .rig-layout .gpu-engine-pct {
@@ -2120,7 +2123,7 @@
       max-width: 100%;
     }
     .rig-layout .rig-core-meta {
-      font-size: .58rem;
+      font-size: var(--fs-2xs);
       color: var(--muted);
       text-align: left;
       margin-top: .04rem;
@@ -2132,7 +2135,7 @@
       max-width: 100%;
     }
     .rig-status {
-      font-size: .66rem;
+      font-size: var(--fs-2xs);
       font-weight: 500;
       color: var(--text-secondary);
       line-height: 1.15;
@@ -2206,11 +2209,11 @@
       background: linear-gradient(180deg, var(--m-gpu-gtt), var(--m-gpu));
     }
     .gpu-engine-label {
-      font-size: .62rem; color: var(--muted); text-align: center;
+      font-size: var(--fs-2xs); color: var(--muted); text-align: center;
       font-variant-numeric: tabular-nums; letter-spacing: .02em;
     }
     .gpu-engine-pct {
-      font-size: .58rem; color: var(--text-secondary); text-align: center;
+      font-size: var(--fs-2xs); color: var(--text-secondary); text-align: center;
       font-variant-numeric: tabular-nums;
     }
     .index-gauge {
@@ -2239,10 +2242,10 @@
     .index-gauge-center .score.warn { color: var(--m-cpu); }
     .index-gauge-center .score.ok { color: var(--sev-ok); }
     .index-gauge-center .sub {
-      font-size: .72rem; font-weight: 600; color: var(--muted); letter-spacing: .04em;
+      font-size: var(--fs-xs); font-weight: 600; color: var(--muted); letter-spacing: .04em;
     }
     .index-status {
-      font-size: .72rem; font-weight: 500; color: var(--text-secondary); line-height: 1.3;
+      font-size: var(--fs-xs); font-weight: 500; color: var(--text-secondary); line-height: 1.3;
       padding: .15rem 0 .05rem;
     }
     .index-status.severe { color: var(--m-stutter); }
@@ -2276,7 +2279,7 @@
       background: rgba(180,142,173,.08); border: 1px solid rgba(180,142,173,.22); border-radius: 10px;
     }
     .index-build-strip .meta {
-      font-size: .7rem; color: var(--text-secondary); line-height: 1.35; flex: 1; min-width: 0;
+      font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.35; flex: 1; min-width: 0;
     }
     .index-build-strip .meta .vs-pos,
     .index-build-strip .meta .vs-neg { font-weight: 600; }
@@ -2300,17 +2303,17 @@
     .index-rank-head .part .hw-icon-box { width: 1.55rem; height: 1.55rem; border-radius: 7px; flex-shrink: 0; }
     .index-rank-head .rank-badge { font-size: .78rem; padding: .26rem .52rem; flex-shrink: 0; }
     .index-rank-name {
-      font-size: .66rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .index-rank-bars { display: flex; flex-direction: column; gap: .24rem; }
     .index-rank-bar-row {
       display: grid; grid-template-columns: 2.35rem 1fr 2rem; gap: .3rem; align-items: center;
     }
     .index-rank-bar-row .lbl {
-      font-size: .56rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+      font-size: var(--fs-2xs); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
     }
     .index-rank-bar-row .val {
-      font-size: .68rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-secondary);
+      font-size: var(--fs-2xs); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-secondary);
       text-align: right;
     }
     .index-rank-bar-row .rank-bar { min-width: 0; height: 7px; }
@@ -2318,7 +2321,7 @@
     .index-rank-bar-row .rank-bar.live.gpu > span { background: linear-gradient(90deg, var(--m-gpu-deep), var(--m-gpu)); }
     .index-rank-bar-row .rank-bar.live.mem > span { background: linear-gradient(90deg, var(--m-mem-deep), var(--m-mem)); }
     .index-rank-foot {
-      font-size: .64rem; color: var(--text-secondary); line-height: 1.35;
+      font-size: var(--fs-2xs); color: var(--text-secondary); line-height: 1.35;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .index-rank-foot .vs-pos,
@@ -2494,7 +2497,7 @@
       padding: .45rem .55rem .25rem;
     }
     .stutter-side-label {
-      font-size: .68rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+      font-size: var(--fs-2xs); font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
       color: var(--muted); margin-bottom: .45rem;
     }
     .metric-list-compact { gap: .5rem; }
@@ -2503,7 +2506,7 @@
     .metric-list-compact .metric-bar-val { font-size: .84rem; }
     .metric-list-compact .metric-bar-track { height: 8px; }
     .metric-list-compact .metric-bar-sub {
-      font-size: .68rem; margin-top: .15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: var(--fs-2xs); margin-top: .15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .stutter-summary {
       display: flex; flex-direction: column; gap: .62rem; min-width: 0; justify-content: flex-start;
@@ -2542,7 +2545,7 @@
     .stutter-gauge-center .score.moderate { color: #f5c882; }
     .stutter-gauge-center .score.mild { color: #8ec0ff; }
     .stutter-gauge-center .score.ok { color: var(--sev-ok); }
-    .stutter-gauge-center .smooth { font-size: .72rem; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+    .stutter-gauge-center .smooth { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); letter-spacing: .04em; }
     .stutter-kpis {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; min-width: 0;
     }
@@ -2614,12 +2617,12 @@
     .game-perf-history table { width: 100%; font-size: .78rem; }
     .game-perf-markers {
       display: flex; flex-wrap: wrap; gap: .35rem; margin: .45rem 0 .65rem;
-      font-size: .68rem; color: var(--muted);
+      font-size: var(--fs-2xs); color: var(--muted);
     }
     .mh-badge {
       display: inline-flex; align-items: center; gap: .28rem;
       padding: .12rem .45rem; border-radius: 99px;
-      font-size: .68rem; font-weight: 650; letter-spacing: .03em;
+      font-size: var(--fs-2xs); font-weight: 650; letter-spacing: .03em;
       text-transform: uppercase;
       color: #b8e0ff;
       background: color-mix(in srgb, #4a9eff 18%, transparent);
@@ -2638,7 +2641,7 @@
       background: rgba(255,255,255,.05); border: 1px solid var(--line);
     }
     .stutter-status {
-      font-size: .72rem; font-weight: 500; color: var(--text-secondary); line-height: 1.3;
+      font-size: var(--fs-xs); font-weight: 500; color: var(--text-secondary); line-height: 1.3;
       padding: .15rem 0 .05rem;
     }
     .stutter-status.mild { color: var(--sev-info); }
@@ -2647,7 +2650,7 @@
     .stutter-mix { display: flex; flex-direction: column; gap: .32rem; }
     .stutter-mix-head {
       display: flex; justify-content: space-between; align-items: baseline; gap: .5rem;
-      font-size: .66rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+      font-size: var(--fs-2xs); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
     }
     .stutter-mix-bar {
       display: flex; height: 16px; border-radius: 99px; overflow: hidden;
@@ -2661,7 +2664,7 @@
     .stutter-mix-seg.swap { background: var(--m-swap); }
     .stutter-mix-seg.disk_spike { background: var(--m-disk-write); }
     .stutter-mix-legend {
-      display: flex; flex-wrap: wrap; gap: .25rem .45rem; font-size: .64rem; color: var(--muted);
+      display: flex; flex-wrap: wrap; gap: .25rem .45rem; font-size: var(--fs-2xs); color: var(--muted);
     }
     .stutter-mix-legend span { display: inline-flex; align-items: center; gap: .22rem; }
     .stutter-mix-legend i {
@@ -2674,7 +2677,7 @@
     .stutter-mix-legend i.disk_spike { background: var(--m-disk-write); }
     .stutter-timeline { display: flex; flex-direction: column; gap: .25rem; }
     .stutter-timeline-head {
-      display: flex; justify-content: space-between; font-size: .64rem; font-weight: 600;
+      display: flex; justify-content: space-between; font-size: var(--fs-2xs); font-weight: 600;
       letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
     }
     .stutter-timeline-track {
@@ -2682,7 +2685,7 @@
     }
     .stutter-timeline-foot {
       display: flex; justify-content: space-between; align-items: center; gap: .5rem;
-      font-size: .62rem; color: var(--muted); margin-top: .1rem;
+      font-size: var(--fs-2xs); color: var(--muted); margin-top: .1rem;
     }
     .stutter-timeline-foot .detail {
       flex: 1; text-align: center; font-variant-numeric: tabular-nums;
@@ -2715,7 +2718,7 @@
     .diag-item.ok { border-left-color: var(--sev-ok); }
     .diag-head { display: flex; flex-wrap: wrap; gap: .45rem .65rem; align-items: center; margin-bottom: .45rem; }
     .diag-cat {
-      font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+      font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
       color: var(--text-secondary); padding: .2rem .45rem; border-radius: 5px;
       background: rgba(255,255,255,.04); border: 1px solid var(--line);
     }
@@ -3244,7 +3247,7 @@
       border: 1px solid var(--tp-line, var(--line));
     }
     .theme-preview-tab {
-      font-size: .65rem; font-weight: 500; padding: .22rem .45rem; border-radius: 6px;
+      font-size: var(--fs-2xs); font-weight: 500; padding: .22rem .45rem; border-radius: 6px;
       color: var(--tp-muted, var(--muted));
     }
     .theme-preview-tab.on {
@@ -3260,7 +3263,7 @@
       box-shadow: 0 4px 14px rgba(0,0,0,.12);
     }
     .theme-preview-card-title {
-      font-size: .72rem; font-weight: 600; color: var(--tp-text, var(--text)); margin: 0 0 .35rem;
+      font-size: var(--fs-xs); font-weight: 600; color: var(--tp-text, var(--text)); margin: 0 0 .35rem;
     }
     .theme-preview-card-line {
       height: .35rem; border-radius: 99px; margin-bottom: .28rem;
@@ -3271,7 +3274,7 @@
       display: flex; flex-wrap: wrap; gap: .35rem; align-items: center;
     }
     .theme-preview-btn {
-      font-size: .65rem; font-weight: 600; padding: .28rem .5rem; border-radius: 7px;
+      font-size: var(--fs-2xs); font-weight: 600; padding: .28rem .5rem; border-radius: 7px;
       background: var(--tp-accent, var(--accent));
       color: var(--tp-accent-on, var(--accent-on));
     }
@@ -3281,7 +3284,7 @@
       border: 1px solid var(--tp-line, var(--line));
     }
     .theme-preview-pill {
-      font-size: .62rem; padding: .2rem .45rem; border-radius: 999px;
+      font-size: var(--fs-2xs); padding: .2rem .45rem; border-radius: 999px;
       border: 1px solid var(--tp-line, var(--line));
       background: var(--tp-elevated, var(--panel-elevated));
       color: var(--tp-text-sec, var(--text-secondary));
@@ -3317,7 +3320,7 @@
     }
     .pack-card-meta { font-size: .82rem; color: var(--muted); margin: 0; line-height: 1.4; }
     .pack-badge {
-      font-size: .68rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+      font-size: var(--fs-2xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
       padding: .15rem .4rem; border-radius: 6px;
       border: 1px solid var(--line); color: var(--muted);
     }
@@ -3349,7 +3352,7 @@
     .rule-row-title { font-weight: 500; color: var(--text); line-height: 1.3; }
     .rule-row-meta { color: var(--muted); font-size: .75rem; line-height: 1.35; }
     .rule-level {
-      font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
       padding: .12rem .35rem; border-radius: 5px; border: 1px solid var(--line);
     }
     .rule-level.warn { color: var(--sev-warn); border-color: color-mix(in srgb, var(--sev-warn) 35%, var(--line)); }
@@ -3457,7 +3460,7 @@
       background: var(--panel-solid);
     }
     .drive-brand {
-      font-size: .72rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+      font-size: var(--fs-xs); font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
       color: var(--muted); padding: .18rem .45rem; border-radius: 6px;
       border: 1px solid var(--line); background: rgba(255,255,255,.03);
     }
@@ -3497,18 +3500,18 @@
     .sum-head .sum-label { margin: 0; }
     .mfr-mark {
       display: inline-flex; align-items: center; justify-content: center;
-      font-family: inherit; font-size: .58rem; font-weight: 700; letter-spacing: .05em;
+      font-family: inherit; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .05em;
       line-height: 1; padding: .28rem .46rem; border-radius: 6px;
       white-space: nowrap; flex-shrink: 0;
     }
-    .mfr-mark.sm { font-size: .52rem; padding: .22rem .38rem; border-radius: 5px; }
+    .mfr-mark.sm { font-size: var(--fs-2xs); padding: .22rem .38rem; border-radius: 5px; }
     .mfr-mark.amd { color: #fff; background: linear-gradient(180deg, #ed1c24, #c41218); }
     .mfr-mark.intel { color: #e8f4ff; background: linear-gradient(180deg, #0071c5, #005a9e); }
     .mfr-mark.nvidia { color: #f0ffe0; background: linear-gradient(180deg, #76b900, #5a9100); }
     .mfr-mark.xfx { color: #fff; background: linear-gradient(180deg, #f07828, #d45a10); }
-    .mfr-mark.gskill { color: #fff; background: linear-gradient(180deg, #e42313, #b8180c); font-size: .5rem; letter-spacing: .02em; }
+    .mfr-mark.gskill { color: #fff; background: linear-gradient(180deg, #e42313, #b8180c); font-size: var(--fs-2xs); letter-spacing: .02em; }
     .mfr-mark.system76 { color: #d4e8ff; background: linear-gradient(180deg, #3d6a9e, #2a4a72); }
-    .mfr-mark.sapphire { color: #e8f4ff; background: linear-gradient(180deg, #2e86de, #1a5fad); font-size: .5rem; }
+    .mfr-mark.sapphire { color: #e8f4ff; background: linear-gradient(180deg, #2e86de, #1a5fad); font-size: var(--fs-2xs); }
     .mfr-mark.asus { color: #e8e8e8; background: linear-gradient(180deg, #4a4a4a, #2a2a2a); }
     .mfr-mark.msi { color: #ffe8e8; background: linear-gradient(180deg, #e41e1e, #a80f0f); }
     .mfr-mark.corsair { color: #2a2200; background: linear-gradient(180deg, #ffcc00, #d4a800); }
@@ -3617,7 +3620,7 @@
       display: flex; align-items: center; gap: .5rem; min-width: 0; flex-wrap: wrap;
     }
     .rig-tile-type {
-      font-size: .56rem; font-weight: 650; letter-spacing: .12em; text-transform: uppercase;
+      font-size: var(--fs-2xs); font-weight: 650; letter-spacing: .12em; text-transform: uppercase;
       color: color-mix(in srgb, var(--rig-accent, var(--muted)) 42%, var(--muted));
       line-height: 1;
     }
@@ -3625,7 +3628,7 @@
       color: color-mix(in srgb, var(--rig-accent) 58%, var(--text-secondary));
     }
     .rig-tile-brand {
-      font-size: .6rem; font-weight: 700; letter-spacing: .08em; line-height: 1;
+      font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .08em; line-height: 1;
       text-transform: uppercase; white-space: nowrap;
       padding-left: .48rem;
       border-left: 1px solid color-mix(in srgb, var(--brand-color, var(--line)) 40%, var(--line));
@@ -4527,7 +4530,10 @@
                   <input type="range" id="uiScaleRange" min="1" max="2" step="0.05" value="1.5"
                     aria-label="UI scale" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1.5" />
                   <span class="options-scale-val" id="uiScaleVal">150%</span>
-                  <p class="options-scale-hint">Scales the whole UI (type + spacing). Applies when you release the slider. 100%–200%; default 150%.</p>
+                  <p class="options-scale-hint">
+                    Scales type and spacing for the whole UI (release to apply).
+                    100% ≈ normal desktop, 150% default for a second monitor, 200% largest.
+                  </p>
                 </div>
               </div>
             </div>
@@ -10992,11 +10998,48 @@
       return clamped;
     }
 
+    function currentUiScale() {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--ui-scale');
+      return clampUiScale(parseFloat(String(raw).trim()) || UI_SCALE_DEFAULT);
+    }
+
+    /** Chart.js uses px fonts — scale from a 100% baseline size. */
+    function chartPx(baseAt100) {
+      return Math.max(10, Math.round(Number(baseAt100) * currentUiScale()));
+    }
+
+    function applyChartFontScale() {
+      const tick = chartPx(10);
+      const legend = chartPx(11);
+      const charts = [
+        typeof utilChart !== 'undefined' ? utilChart : null,
+        typeof bwChart !== 'undefined' ? bwChart : null,
+        typeof ioChart !== 'undefined' ? ioChart : null,
+        typeof sparkChart !== 'undefined' ? sparkChart : null,
+        typeof stutterChart !== 'undefined' ? stutterChart : null,
+        typeof indexChart !== 'undefined' ? indexChart : null,
+        typeof gamePerfChart !== 'undefined' ? gamePerfChart : null,
+        typeof gamePerfSessionsChart !== 'undefined' ? gamePerfSessionsChart : null,
+      ].filter(Boolean);
+      for (const ch of charts) {
+        try {
+          const lab = ch.options?.plugins?.legend?.labels;
+          if (lab?.font) lab.font.size = legend;
+          const scales = ch.options?.scales || {};
+          for (const sc of Object.values(scales)) {
+            if (sc?.ticks?.font) sc.ticks.font.size = tick;
+          }
+          ch.update('none');
+        } catch (_) { /* chart not ready */ }
+      }
+    }
+
     function applyUiScale(scale) {
       const clamped = clampUiScale(scale);
       // Drives html rem root via --ui-root (calc on --ui-scale).
       document.documentElement.style.setProperty('--ui-scale', String(clamped));
       updateUiScaleLabel(clamped);
+      applyChartFontScale();
       return clamped;
     }
 
