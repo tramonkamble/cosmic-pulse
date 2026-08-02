@@ -8,6 +8,7 @@ import time
 from typing import Any
 
 from games import game_meta
+from mangohud_logs import summarize_for_session
 from stutter import _percentile
 
 MIN_SESSION_SAMPLES = 30  # ~30s at 1 Hz after load grace
@@ -154,13 +155,43 @@ class GameSessionTracker:
             out["last_session"] = self._last_session
         return out
 
+    def _attach_mangohud(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Merge MangoHud CSV stats when a matching log exists for this session."""
+        try:
+            mh = summarize_for_session(
+                started_ts=float(row["started_ts"]),
+                ended_ts=float(row.get("ended_ts") or time.time()),
+                game_name=row.get("game_name"),
+            )
+        except Exception:
+            mh = None
+        if not mh:
+            row["mangohud"] = False
+            return row
+        row["mangohud"] = True
+        row["fps_avg"] = mh.get("fps_avg")
+        row["fps_1pct"] = mh.get("fps_1pct")
+        row["fps_0_1pct"] = mh.get("fps_0_1pct")
+        row["frametime_avg"] = mh.get("frametime_avg")
+        row["frametime_1pct"] = mh.get("frametime_1pct")
+        row["mangohud_path"] = mh.get("path")
+        row["mangohud_samples"] = mh.get("sample_count")
+        # Prefer measured 1% frametime for hitch display when available
+        if mh.get("frametime_1pct") is not None:
+            row["hitch_ms_1pct_proxy"] = row.get("hitch_ms_1pct")
+            row["hitch_ms_1pct"] = mh["frametime_1pct"]
+            row["hitch_source"] = "mangohud"
+        else:
+            row["hitch_source"] = "proxy"
+        return row
+
     def _finalize(self) -> dict[str, Any] | None:
         if not self._active or self._active["sample_count"] < MIN_SESSION_SAMPLES:
             self._active = None
             return None
         row = _aggregate(self._active)
         self._active = None
-        return row
+        return self._attach_mangohud(row)
 
     def _clear_all(self) -> dict[str, Any] | None:
         finished = self._finalize() if self._active else None
@@ -225,6 +256,27 @@ class GameSessionTracker:
         live["active"] = True
         live["recording"] = True
         live["phase"] = "playing"
+        # Opportunistic live peek at a growing MangoHud log (cheap mtime scan)
+        try:
+            mh = summarize_for_session(
+                started_ts=float(live["started_ts"]),
+                ended_ts=float(live.get("ended_ts") or time.time()),
+                game_name=live.get("game_name"),
+            )
+        except Exception:
+            mh = None
+        if mh:
+            live["mangohud"] = True
+            live["fps_avg"] = mh.get("fps_avg")
+            live["fps_1pct"] = mh.get("fps_1pct")
+            live["fps_0_1pct"] = mh.get("fps_0_1pct")
+            live["frametime_avg"] = mh.get("frametime_avg")
+            live["frametime_1pct"] = mh.get("frametime_1pct")
+            live["mangohud_path"] = mh.get("path")
+            live["hitch_source"] = "mangohud"
+        else:
+            live["mangohud"] = False
+            live["hitch_source"] = "proxy"
         return live
 
 

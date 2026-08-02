@@ -1273,8 +1273,19 @@ def _pick_primary(rows: list[dict], *, require_main: bool = False) -> dict | Non
     return max(rows, key=lambda r: (r["cpu_pct"], r["rss_mb"]))
 
 
-def detect_games() -> dict[str, dict]:
-    """Return per-AppID running state for Steam-launched games."""
+# Auto detect cadence: full walk every tick while a game is running, ~3s when idle.
+_DETECT_IDLE_SEC = 3.0
+_detect_result_cache: tuple[float, dict[str, dict], bool] | None = None
+
+
+def invalidate_detect_games_cache() -> None:
+    """Drop throttled detect cache."""
+    global _detect_result_cache
+    _detect_result_cache = None
+
+
+def _detect_games_uncached() -> dict[str, dict]:
+    """Full /proc walk + classification (no rate throttle)."""
     active_appids, overlay_map, proc_rows = _collect_process_snapshot()
     if not active_appids:
         return {}
@@ -1356,9 +1367,29 @@ def detect_games() -> dict[str, dict]:
     return out
 
 
+def detect_games(*, force: bool = False) -> dict[str, dict]:
+    """Return per-AppID running state for Steam-launched games.
+
+    Auto cadence only: every metrics tick while a game is running, about every
+    3s when idle. Metrics still sample at 1 Hz; only the /proc walk is throttled.
+    """
+    global _detect_result_cache
+    now = time.time()
+    if not force and _detect_result_cache is not None:
+        cached_at, cached_state, had_running = _detect_result_cache
+        # Idle → throttle; gaming → re-walk every call (1 Hz sampler)
+        if not had_running and (now - cached_at) < _DETECT_IDLE_SEC:
+            return cached_state
+
+    state = _detect_games_uncached()
+    had_running = any(bool(g.get("running")) for g in state.values())
+    _detect_result_cache = (now, state, had_running)
+    return state
+
+
 def prime_game_cpu() -> None:
     """Warm psutil cpu_percent baseline for game processes (one detect_games pass)."""
-    detect_games()
+    detect_games(force=True)
 
 
 def running_game_ids(state: dict[str, dict]) -> list[str]:

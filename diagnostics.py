@@ -32,7 +32,16 @@ _NOISE_PATTERNS = re.compile(
     r"conversation failed|"
     r"Bluetooth: hci0: No support for _PRR|"
     r"invalid context state for evaluate context|"
-    r"xHC error in resume",
+    r"xHC error in resume|"
+    # Optical tray / empty media — not gaming-relevant
+    r"\bdev sr\d+\b|"
+    r"critical medium error|"
+    r"Buffer I/O error on dev sr|"
+    r"Sense Key :|"
+    r"Add\. Sense:|"
+    r"I/O error.*cdrom|"
+    r"UDF-fs:|"
+    r"ISOFS:",
     re.I,
 )
 
@@ -204,17 +213,7 @@ def _check_libraries(findings: list[dict]) -> None:
             )
         )
 
-    if "libdxvk" not in libs and "libvulkan_radeon.so" in libs:
-        findings.append(
-            _finding(
-                "lib-dxvk-bundled",
-                "libraries",
-                "info",
-                "DXVK not in system path",
-                "Normal with Proton — DXVK is usually bundled per game prefix.",
-                source="ldconfig",
-            )
-        )
+    # No "DXVK not in system path" — normal with Proton (bundled per prefix).
 
     for bin_name, pkg, note in _OPTIONAL_BINS:
         if bin_name == "steam" and steam_root().exists():
@@ -250,27 +249,8 @@ def _check_boot_and_kernel(findings: list[dict]) -> None:
             )
         )
 
-    err_log = _run(["journalctl", "-b", "-p", "err", "--no-pager", "-n", "80"], timeout=10)
-    err_lines = []
-    for line in err_log.splitlines():
-        if _NOISE_PATTERNS.search(line):
-            continue
-        if "error" in line.lower() or "fail" in line.lower():
-            err_lines.append(line)
-    if err_lines:
-        uniq = list(dict.fromkeys(err_lines))[:8]
-        findings.append(
-            _finding(
-                "boot-journal-errors",
-                "boot",
-                "warn" if len(uniq) > 3 else "info",
-                f"Boot journal errors ({len(uniq)} unique)",
-                "Non-fatal errors since last boot — review if games crash or hardware acts up.",
-                detail="\n".join(uniq)[:2000],
-                fix="journalctl -b -p err --no-pager | less",
-                source="journalctl",
-            )
-        )
+    # Generic "boot journal errors" dump removed — too noisy (optical, BT, desktop
+    # spam). Keep failed units + GPU kernel warnings which are more actionable.
 
     gpu_warn = []
     for line in _run(
@@ -297,25 +277,8 @@ def _check_boot_and_kernel(findings: list[dict]) -> None:
         )
 
 
-def _check_updates_and_disk(findings: list[dict]) -> None:
-    upgradable = _run(["apt", "list", "--upgradable"], timeout=15)
-    if upgradable:
-        lines = [ln for ln in upgradable.splitlines() if ln and not ln.startswith("Listing")]
-        n = len(lines)
-        if n >= 5:
-            findings.append(
-                _finding(
-                    "apt-upgrades-pending",
-                    "updates",
-                    "info" if n < 30 else "warn",
-                    f"{n} package updates available",
-                    "Pending apt upgrades — kernel/mesa updates often fix gaming issues.",
-                    detail="\n".join(lines[:12]) + ("\n…" if n > 12 else ""),
-                    fix="sudo apt update && sudo apt upgrade",
-                    source="apt",
-                )
-            )
-
+def _check_disk(findings: list[dict]) -> None:
+    """Steam volume free space only — no package-manager update nagging."""
     try:
         usage = shutil.disk_usage(steam_root())
         free_gb = usage.free / 1024**3
@@ -532,7 +495,7 @@ def run_diagnostics() -> dict:
     findings: list[dict] = []
     _check_libraries(findings)
     _check_boot_and_kernel(findings)
-    _check_updates_and_disk(findings)
+    _check_disk(findings)
     _check_steam_logs(findings)
     _check_steam_install_health(findings)
     _check_game_prefixes(findings)

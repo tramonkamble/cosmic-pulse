@@ -26,6 +26,7 @@ from games import (
     steam_update_summary_parts,
 )
 from gpu_thermal import gpu_thermal_state, profile_for_model
+from audio_probe import audio_metrics
 from hardware_probe import primary_display_hdr, primary_display_refresh_hz
 from load_phase import page_fault_settle, page_fault_warn
 
@@ -39,13 +40,46 @@ _PACK_CACHE: dict[str, Any] = {"mtime": 0.0, "packs": []}
 
 
 def rule_search_paths() -> list[Path]:
+    """Ordered roots that may contain <pack_id>/pack.yaml trees."""
     paths: list[Path] = []
+    seen: set[str] = set()
+
+    def _add(p: Path) -> None:
+        try:
+            key = str(p.expanduser().resolve())
+        except OSError:
+            key = str(p.expanduser())
+        if key in seen:
+            return
+        seen.add(key)
+        paths.append(Path(key))
+
     extra = os.environ.get("PULSE_RULE_PATH", "")
     if extra:
-        paths.extend(Path(p) for p in extra.split(os.pathsep) if p.strip())
-    paths.append(BUILTIN_RULES)
-    paths.append(USER_RULES)
+        for part in extra.split(os.pathsep):
+            if part.strip():
+                _add(Path(part.strip()))
+    try:
+        from pulse_config import get_rule_pack_paths
+
+        for part in get_rule_pack_paths():
+            _add(Path(part))
+    except Exception:
+        pass
+    _add(BUILTIN_RULES)
+    _add(USER_RULES)
+    # Community packs cloned under XDG data (optional)
+    _add(Path.home() / ".local" / "share" / "pulse" / "rule-packs")
     return paths
+
+
+def _disabled_pack_ids() -> set[str]:
+    try:
+        from pulse_config import get_disabled_packs
+
+        return set(get_disabled_packs())
+    except Exception:
+        return set()
 
 
 def _get_path(obj: Any, path: str) -> Any:
@@ -403,6 +437,7 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
             "gamemoded": bool(shutil.which("gamemoded")),
             "gamemode_lib": "libgamemode.so.0" in _ldconfig_quick(),
         },
+        "audio": _safe_audio_metrics(),
         "mem_spec": {
             "spd_mts": mem_spec.get("spd_mts") or 4800,
             "configured_mts": mem_spec.get("configured_mts") or mem_spec.get("speed_mts") or 6000,
@@ -410,6 +445,48 @@ def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
             "part": mem_spec.get("part") or "",
         },
     }
+
+
+def _safe_audio_metrics() -> dict:
+    try:
+        return audio_metrics()
+    except Exception:
+        return {
+            "present": False,
+            "backend": "none",
+            "pipewire": False,
+            "default_rate": 0,
+            "quantum": 0,
+            "latency_ms": 0.0,
+            "default_sink": "",
+            "default_sink_desc": "unavailable",
+            "default_sink_state": "",
+            "sink_count": 0,
+            "default_missing": True,
+            "default_unavailable": True,
+            "default_bluetooth": False,
+            "default_hdmi": False,
+            "hdmi_over_alt": False,
+            "alt_sink_name": "",
+            "alt_sink_desc": "",
+            "rate_odd": False,
+            "rate_very_odd": False,
+            "large_quantum": False,
+            "very_large_quantum": False,
+            "min_quantum": 0,
+            "stock_min_quantum": False,
+            "conf_not_applied": False,
+            "conf_min_quantum": 0,
+            "conf_quantum": 0,
+            "conf_pulse_min_quantum": 0,
+            "aggressive_pulse_min": False,
+            "conf_multi_context_properties": False,
+            "user_conf_present": False,
+            "conf_hdmi_over_usb_priority": False,
+            "xrun_mentions": 0,
+            "xruns_recent": False,
+            "xrun_sample": "",
+        }
 
 
 def _ldconfig_quick() -> str:
@@ -681,57 +758,73 @@ def _pack_dir_mtime(root: Path) -> float:
     return latest
 
 
-def _load_packs(force: bool = False) -> list[dict]:
+def _load_packs(force: bool = False, *, include_disabled: bool = False) -> list[dict]:
+    """Load installed packs. By default skips packs in pulse_config.disabled_packs."""
     latest = max((_pack_dir_mtime(p) for p in rule_search_paths()), default=0.0)
+    # Also invalidate when enable/disable list changes (config mtime not in path scan)
+    try:
+        from pulse_config import CONFIG_PATH
+
+        if CONFIG_PATH.exists():
+            latest = max(latest, CONFIG_PATH.stat().st_mtime)
+    except Exception:
+        pass
+
     if not force and _PACK_CACHE["packs"] and latest <= _PACK_CACHE["mtime"]:
-        return _PACK_CACHE["packs"]
+        packs = _PACK_CACHE["packs"]
+    else:
+        had_cached_packs = bool(_PACK_CACHE["packs"])
+        packs = []
+        seen_ids: set[str] = set()
+        for root in rule_search_paths():
+            if not root.is_dir():
+                continue
+            for manifest in sorted(root.glob("*/pack.yaml")) + sorted(root.glob("*/pack.yml")):
+                try:
+                    pack = yaml.safe_load(manifest.read_text()) or {}
+                except (OSError, yaml.YAMLError):
+                    continue
+                pack_id = str(pack.get("id") or manifest.parent.name)
+                if pack_id in seen_ids:
+                    continue
+                seen_ids.add(pack_id)
+                pack_dir = manifest.parent
+                rules: list[dict] = []
+                for entry in pack.get("rules") or []:
+                    rule_path = pack_dir / str(entry)
+                    rules.extend(_load_rule_file(rule_path))
+                for inline in pack.get("inline_rules") or []:
+                    if isinstance(inline, dict):
+                        rules.append(inline)
+                packs.append(
+                    {
+                        "id": pack_id,
+                        "name": pack.get("name", pack_id),
+                        "version": pack.get("version", "0"),
+                        "priority": int(pack.get("priority") or 0),
+                        "dir": pack_dir,
+                        "manifest": pack,
+                        "rules": rules,
+                    }
+                )
 
-    had_cached_packs = bool(_PACK_CACHE["packs"])
-    packs: list[dict] = []
-    seen_ids: set[str] = set()
-    for root in rule_search_paths():
-        if not root.is_dir():
-            continue
-        for manifest in sorted(root.glob("*/pack.yaml")) + sorted(root.glob("*/pack.yml")):
+        packs.sort(key=lambda p: p["priority"], reverse=True)
+        _PACK_CACHE["mtime"] = latest
+        _PACK_CACHE["packs"] = packs
+        if had_cached_packs or force:
             try:
-                pack = yaml.safe_load(manifest.read_text()) or {}
-            except (OSError, yaml.YAMLError):
-                continue
-            pack_id = str(pack.get("id") or manifest.parent.name)
-            if pack_id in seen_ids:
-                continue
-            seen_ids.add(pack_id)
-            pack_dir = manifest.parent
-            rules: list[dict] = []
-            for entry in pack.get("rules") or []:
-                rule_path = pack_dir / str(entry)
-                rules.extend(_load_rule_file(rule_path))
-            for inline in pack.get("inline_rules") or []:
-                if isinstance(inline, dict):
-                    rules.append(inline)
-            packs.append(
-                {
-                    "id": pack_id,
-                    "name": pack.get("name", pack_id),
-                    "version": pack.get("version", "0"),
-                    "priority": int(pack.get("priority") or 0),
-                    "dir": pack_dir,
-                    "manifest": pack,
-                    "rules": rules,
-                }
-            )
+                from games import reload_game_pack_data
 
-    packs.sort(key=lambda p: p["priority"], reverse=True)
-    _PACK_CACHE["mtime"] = latest
-    _PACK_CACHE["packs"] = packs
-    if had_cached_packs or force:
-        try:
-            from games import reload_game_pack_data
+                reload_game_pack_data()
+            except Exception:
+                pass
 
-            reload_game_pack_data()
-        except Exception:
-            pass
-    return packs
+    if include_disabled:
+        return packs
+    disabled = _disabled_pack_ids()
+    if not disabled:
+        return packs
+    return [p for p in packs if p["id"] not in disabled]
 
 
 def _normalize_override_entry(appid: str, raw: dict) -> dict:
@@ -753,9 +846,9 @@ def _normalize_override_entry(appid: str, raw: dict) -> dict:
 
 
 def get_legacy_game_ids() -> dict[str, str]:
-    """Merged legacy game_id → AppID map from all enabled packs (lowest priority first)."""
+    """Merged legacy game_id → AppID map from enabled packs (lowest priority first)."""
     merged: dict[str, str] = {}
-    for pack in reversed(_load_packs()):
+    for pack in reversed(_load_packs(include_disabled=False)):
         manifest = pack.get("manifest") or {}
         legacy = manifest.get("legacy_game_ids") or {}
         if isinstance(legacy, dict):
@@ -766,9 +859,9 @@ def get_legacy_game_ids() -> dict[str, str]:
 
 
 def get_game_overrides() -> dict[str, dict]:
-    """Merged per-AppID detection overrides from all enabled packs (lowest priority first)."""
+    """Merged per-AppID detection overrides from enabled packs (lowest priority first)."""
     merged: dict[str, dict] = {}
-    for pack in reversed(_load_packs()):
+    for pack in reversed(_load_packs(include_disabled=False)):
         manifest = pack.get("manifest") or {}
         overrides = manifest.get("game_overrides") or {}
         if not isinstance(overrides, dict):
@@ -794,22 +887,146 @@ def game_context_kwargs(metrics: dict) -> dict[str, Any]:
     }
 
 
-def list_packs() -> list[dict]:
-    return [
-        {
-            "id": p["id"],
-            "name": p["name"],
-            "version": p["version"],
-            "priority": p["priority"],
-            "rule_count": len(p["rules"]),
-            "override_count": sum(
-                1 for aid in (p.get("manifest") or {}).get("game_overrides") or {}
-            ),
-            "legacy_id_count": len((p.get("manifest") or {}).get("legacy_game_ids") or {}),
-            "path": str(p["dir"]),
-        }
-        for p in _load_packs()
-    ]
+def list_packs(*, include_disabled: bool = True) -> list[dict]:
+    """Installed packs with enable state (for Options UI / API)."""
+    disabled = _disabled_pack_ids()
+    out: list[dict] = []
+    for p in _load_packs(include_disabled=True):
+        enabled = p["id"] not in disabled
+        if not include_disabled and not enabled:
+            continue
+        buckets: dict[str, int] = {}
+        for rule in p["rules"]:
+            emit = rule.get("emit") or {}
+            b = str(emit.get("bucket") or rule.get("bucket") or "general")
+            buckets[b] = buckets.get(b, 0) + 1
+        builtin = "rules/builtin" in str(p["dir"]).replace("\\", "/")
+        out.append(
+            {
+                "id": p["id"],
+                "name": p["name"],
+                "version": p["version"],
+                "priority": p["priority"],
+                "rule_count": len(p["rules"]),
+                "override_count": sum(
+                    1 for aid in (p.get("manifest") or {}).get("game_overrides") or {}
+                ),
+                "legacy_id_count": len((p.get("manifest") or {}).get("legacy_game_ids") or {}),
+                "path": str(p["dir"]),
+                "enabled": enabled,
+                "builtin": builtin,
+                "buckets": buckets,
+            }
+        )
+    return out
+
+
+def list_rules(*, pack_id: str | None = None, q: str | None = None) -> list[dict]:
+    """Flat catalog of rules across packs (read-only browser)."""
+    needle = (q or "").strip().lower()
+    rows: list[dict] = []
+    disabled = _disabled_pack_ids()
+    for pack in _load_packs(include_disabled=True):
+        if pack_id and pack["id"] != pack_id:
+            continue
+        for rule in pack["rules"]:
+            emit = rule.get("emit") or {}
+            rid = str(rule.get("id") or emit.get("insight_id") or "")
+            insight = str(emit.get("insight_id") or "")
+            title = str(emit.get("title") or rid)
+            bucket = str(emit.get("bucket") or rule.get("bucket") or "general")
+            level = str(emit.get("level") or "info")
+            detect = rule.get("detect")
+            detect_summary = _detect_summary(detect)
+            blob = " ".join(
+                [
+                    pack["id"],
+                    rid,
+                    insight,
+                    title,
+                    bucket,
+                    level,
+                    detect_summary,
+                ]
+            ).lower()
+            if needle and needle not in blob:
+                continue
+            rows.append(
+                {
+                    "pack_id": pack["id"],
+                    "pack_name": pack["name"],
+                    "pack_enabled": pack["id"] not in disabled,
+                    "rule_id": rid,
+                    "insight_id": insight,
+                    "title": title,
+                    "level": level,
+                    "bucket": bucket,
+                    "detect_summary": detect_summary,
+                    "actions": len(rule.get("actions") or []),
+                    "fix_script": bool(emit.get("fix_script")),
+                }
+            )
+    return rows
+
+
+def _detect_summary(detect: Any) -> str:
+    """Human-readable one-liner for a detect tree."""
+    if not isinstance(detect, dict):
+        return ""
+    if "metric" in detect:
+        metric = detect.get("metric", "?")
+        for op in ("eq", "ne", "gt", "gte", "lt", "lte", "in", "exists"):
+            if op in detect:
+                if op == "exists":
+                    return f"{metric} exists"
+                return f"{metric} {op} {detect[op]}"
+        return str(metric)
+    if "all" in detect and isinstance(detect["all"], list):
+        parts = [_detect_summary(x) for x in detect["all"][:4]]
+        parts = [p for p in parts if p]
+        s = " AND ".join(parts)
+        if len(detect["all"]) > 4:
+            s += " …"
+        return s
+    if "any" in detect and isinstance(detect["any"], list):
+        parts = [_detect_summary(x) for x in detect["any"][:4]]
+        parts = [p for p in parts if p]
+        s = " OR ".join(parts)
+        if len(detect["any"]) > 4:
+            s += " …"
+        return s
+    if "not" in detect:
+        inner = _detect_summary(detect["not"])
+        return f"NOT ({inner})" if inner else "NOT …"
+    return ""
+
+
+def reload_packs() -> list[dict]:
+    """Force rescan of pack directories and refresh game overrides."""
+    packs = _load_packs(force=True)
+    return list_packs(include_disabled=True)
+
+
+def set_pack_enabled(pack_id: str, enabled: bool) -> dict:
+    """Enable/disable a pack via pulse_config.disabled_packs."""
+    from pulse_config import get_disabled_packs, save_config
+
+    pid = (pack_id or "").strip()
+    if not pid:
+        return {"ok": False, "error": "pack_id required"}
+    known = {p["id"] for p in _load_packs(include_disabled=True)}
+    if pid not in known:
+        return {"ok": False, "error": f"unknown pack: {pid}"}
+    disabled = set(get_disabled_packs())
+    if enabled:
+        disabled.discard(pid)
+    else:
+        disabled.add(pid)
+    save_config(disabled_packs=sorted(disabled))
+    _load_packs(force=True)
+    packs = list_packs(include_disabled=True)
+    hit = next((p for p in packs if p["id"] == pid), None)
+    return {"ok": True, "pack": hit, "packs": packs}
 
 
 def resolve_fix_script_for_insight(
@@ -821,7 +1038,7 @@ def resolve_fix_script_for_insight(
     """Rebuild fix script from pack rules + live metrics (fallback for /api/fix-script)."""
     metrics = flatten_metrics(snap, mem_spec, ctx)
     game_kwargs = game_context_kwargs(metrics)
-    for pack in _load_packs():
+    for pack in _load_packs(include_disabled=False):
         if not match_pack(pack["manifest"], metrics):
             continue
         for rule in pack["rules"]:
@@ -839,13 +1056,13 @@ def evaluate_rule_packs(
     mem_spec: dict,
     ctx: dict,
 ) -> tuple[list[dict], set[str]]:
-    """Evaluate installed packs; return hints and insight_ids emitted."""
+    """Evaluate enabled packs; return hints and insight_ids emitted."""
     metrics = flatten_metrics(snap, mem_spec, ctx)
     game_kwargs = game_context_kwargs(metrics)
     hints: list[dict] = []
     emitted: set[str] = set()
 
-    for pack in _load_packs():
+    for pack in _load_packs(include_disabled=False):
         if not match_pack(pack["manifest"], metrics):
             continue
         for rule in pack["rules"]:

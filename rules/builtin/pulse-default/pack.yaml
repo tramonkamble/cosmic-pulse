@@ -22,4 +22,5 @@ rules:
   - session.yaml
   - steam.yaml
   - tools.yaml
+  - audio.yaml
   - resolutions.yaml

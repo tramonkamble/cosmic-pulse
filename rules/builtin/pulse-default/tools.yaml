@@ -1,51 +1,52 @@
 # Recommended optional gaming tools
 rules:
   - id: mangohud-recommended
+    # Live PATH check only — do not require diagnostics scan (TTL can lag install/removal).
     detect:
-      all:
-        - metric: tools.mangohud
-          eq: false
-        - metric: diag.bin_missing_mangohud
-          eq: true
+      metric: tools.mangohud
+      eq: false
     emit:
       insight_id: mangohud-recommended
       level: info
-      title: Install MangoHud for real frametime
+      title: "Recommended: MangoHud for real FPS / frametime"
       text: >-
-        MangoHud is optional but gives true in-game FPS and frametime logging.
-        Pulse stutter score is a kernel proxy until MangoHud logging is enabled.
+        Optional overlay for true in-game FPS and frametime. With logging on
+        (sample conf → ~/mangohud-logs), Pulse attaches FPS avg / 1% lows to
+        finished sessions. Kernel stutter stays as proxy when no log is present.
+        Not required — skip if you prefer a clean HUD.
       fix_script: mangohud-recommended
       bucket: tools
       condition_live: true
+      games: all
     actions:
       - label: Install MangoHud
         kind: cmd
         cmd: sudo apt install mangohud
+        note: One-time; Pop!_OS package
       - label: Steam launch option
         kind: steam
         cmd: mangohud %command%
-        note: Steam → game → Properties → Launch Options
+        note: Steam → game → Properties → Launch Options (per game)
       - label: Or with GameMode
         kind: steam
         cmd: gamemoderun mangohud %command%
+        note: Lower latency + overlay together
 
   - id: gamemode-recommended
     detect:
-      all:
-        - metric: tools.gamemoded
-          eq: false
-        - metric: diag.bin_missing_gamemoded
-          eq: true
+      metric: tools.gamemoded
+      eq: false
     emit:
       insight_id: gamemode-recommended
       level: info
-      title: Install GameMode for launch tuning
+      title: "Recommended: GameMode for launch tuning"
       text: >-
-        GameMode asks the kernel for lower latency while a game runs.
-        Wrap Steam launches with gamemoderun for an easy performance boost.
+        GameMode asks the system for lower latency while a game runs.
+        Wrap Steam launches with gamemoderun for an easy boost — optional, not required.
       fix_script: gamemode-recommended
       bucket: tools
       condition_live: true
+      games: all
     actions:
       - label: Install GameMode
         kind: cmd

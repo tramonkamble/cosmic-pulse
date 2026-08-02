@@ -64,6 +64,20 @@ FIX_REQUIRES_ROOT: dict[str, bool] = {
     "display-hdr-off": False,
     "enable-nvme-smart": True,
     "system-balanced": False,
+    "mangohud-recommended": True,  # apt install
+    "gamemode-recommended": True,
+    # Audio pipeline — inspect / session-only quantum; no root
+    "audio-pipeline": False,
+    "audio-default-sink-missing": False,
+    "audio-hdmi-default-alt": False,
+    "audio-bluetooth-default": False,
+    "audio-odd-sample-rate": False,
+    "audio-large-quantum": False,
+    "audio-xruns-recent": False,
+    "audio-stock-min-quantum": False,
+    "audio-conf-not-applied": False,
+    "audio-conf-multi-context": False,
+    "audio-hdmi-priority-conf": False,
 }
 
 

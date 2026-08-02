@@ -1010,20 +1010,149 @@ log "4) Try Proton Experimental or another Proton build in Steam → Properties 
     )
 
 
+def script_audio_pipeline(**kwargs) -> str:
+    """Inspect PipeWire/Pulse routing, rate, quantum — gaming stutter checklist."""
+    return (
+        _header_user(
+            "audio-pipeline",
+            "Audio pipeline check (PipeWire / Pulse)",
+            "low",
+        )
+        + r"""
+log "=== Backend ==="
+if command -v pipewire >/dev/null 2>&1; then
+  pipewire --version 2>/dev/null || true
+fi
+pactl info 2>/dev/null | sed -n '1,20p' || log "pactl not available"
+
+log ""
+log "=== Default devices ==="
+echo "  sink:   $(pactl get-default-sink 2>/dev/null || echo '?')"
+echo "  source: $(pactl get-default-source 2>/dev/null || echo '?')"
+
+log ""
+log "=== Sinks (outputs) ==="
+if command -v wpctl >/dev/null 2>&1; then
+  wpctl status 2>/dev/null | sed -n '/Audio/,/Video/p' | head -40
+else
+  pactl list short sinks 2>/dev/null || true
+fi
+
+log ""
+log "=== Clock (rate / quantum) ==="
+if command -v pw-metadata >/dev/null 2>&1; then
+  pw-metadata -n settings 2>/dev/null || true
+  RATE=$(pw-metadata -n settings 2>/dev/null | sed -n "s/.*key:'clock.rate' value:'\([0-9]*\)'.*/\1/p" | head -1)
+  QUANT=$(pw-metadata -n settings 2>/dev/null | sed -n "s/.*key:'clock.quantum' value:'\([0-9]*\)'.*/\1/p" | head -1)
+  if [[ -n "$RATE" && -n "$QUANT" && "$RATE" -gt 0 ]]; then
+    # integer ms approx
+    MS=$(( 1000 * QUANT / RATE ))
+    log "≈ ${MS} ms buffering (quantum ${QUANT} @ ${RATE} Hz)"
+  fi
+else
+  log "pw-metadata not found — install pipewire tools"
+fi
+
+log ""
+log ""
+log "=== User conf drop-ins ==="
+if [[ -d "$HOME/.config/pipewire" ]]; then
+  find "$HOME/.config/pipewire" -type f \( -name '*.conf' -o -name '*.yml' \) 2>/dev/null | while read -r f; do
+    echo "  -- $f"
+    # flag multiple context.properties (second block can wipe clock settings)
+    n=$(grep -cE 'context\.properties\s*=' "$f" 2>/dev/null || echo 0)
+    if [[ "${n:-0}" -ge 2 ]]; then
+      log "  !! $n context.properties blocks — merge into ONE or clock.* may be ignored"
+    fi
+    grep -E 'default\.clock\.|pulse\.min\.quantum|priority\.session' "$f" 2>/dev/null | sed 's/^/     /' || true
+  done
+else
+  log "(no ~/.config/pipewire — using stock Pop defaults)"
+fi
+if [[ -d "$HOME/.config/wireplumber" ]]; then
+  find "$HOME/.config/wireplumber" -type f -name '*.conf' 2>/dev/null | while read -r f; do
+    echo "  -- $f"
+    grep -E 'priority\.session|hdmi|usb-|schiit|dac' "$f" 2>/dev/null | sed 's/^/     /' || true
+  done
+fi
+
+log ""
+log "=== Conf vs live (common Pop crackle root cause) ==="
+LIVE_MIN=$(pw-metadata -n settings 2>/dev/null | sed -n "s/.*key:'clock.min-quantum' value:'\([0-9]*\)'.*/\1/p" | head -1)
+echo "  live min-quantum: ${LIVE_MIN:-?}"
+if [[ "${LIVE_MIN:-}" == "32" ]]; then
+  log "  Stock Pop min-quantum=32: games can request tiny buffers → crackles under load"
+  log "  Permanent floor example (ONE context.properties block only):"
+  cat <<'EOF'
+    # ~/.config/pipewire/pipewire.conf.d/51-gaming-floor.conf
+    context.properties = {
+        default.clock.rate          = 48000
+        default.clock.quantum       = 512
+        default.clock.min-quantum   = 256
+        default.clock.max-quantum   = 2048
+        link.max-buffers            = 16
+    }
+EOF
+  log "  Then: systemctl --user restart pipewire pipewire-pulse wireplumber"
+fi
+
+log ""
+log "=== Gaming tips ==="
+echo "  • Prefer 48000 Hz (or 44100) — avoid forced 96000 for games"
+echo "  • Wired DAC/headphones > Bluetooth for competitive audio"
+echo "  • HDMI/monitor default is fine for media; use DAC for games"
+echo "  • Crackles under load → raise quantum (e.g. 512→1024) for the session:"
+echo "      pw-metadata -n settings 0 clock.force-quantum 1024"
+echo "  • Too much latency → try 256 or 512 (may xrun if GPU-bound):"
+echo "      pw-metadata -n settings 0 clock.force-quantum 512"
+echo "  • Clear forced quantum: pw-metadata -n settings 0 clock.force-quantum 0"
+echo "  • Set default sink (wpctl id from 'wpctl status'):"
+echo "      wpctl set-default <ID>"
+echo "  • Pulse does not rewrite ~/.config/pipewire automatically."
+
+log ""
+log "=== Recent underrun / xrun journal (user, 2h) ==="
+journalctl --user -u pipewire -u pipewire-pulse -u wireplumber \
+  --since '2 hours ago' -p warning --no-pager -n 30 2>/dev/null \
+  | grep -iE 'xrun|underrun|overrun' || log "(none matched)"
+
+log "Done — fix conf structure if min-quantum stayed at 32 after edits."
+"""
+    )
+
+
 def script_mangohud_recommended(**kwargs) -> str:
     return (
-        _header("mangohud-recommended", "Install MangoHud (optional)", "low")
+        _header("mangohud-recommended", "Install MangoHud (recommended, optional)", "low")
         + """
-log "MangoHud adds an in-game overlay and CSV frametime logs"
-sudo apt install -y mangohud
+log "MangoHud — in-game FPS overlay + CSV frametime logs for Pulse sessions"
+need_root
+log "Installing package…"
+apt-get install -y mangohud
 log ""
-log "Steam → game → Properties → Launch Options:"
-echo 'mangohud %command%'
+log "Per-game Steam launch options (Properties → Launch Options):"
+echo '  mangohud %command%'
+echo '  gamemoderun mangohud %command%   # if GameMode is installed'
 log ""
-log "Optional logging in ~/.config/MangoHud/MangoHud.conf:"
-echo 'output_folder=$HOME/mangohud-logs'
-echo 'autostart_log=5'
-log "Flatpak Steam may need: flatpak override --user --env=MANGOHUD=1 com.valvesoftware.Steam"
+log "Enable CSV logging so Pulse can show real FPS on finished sessions"
+mkdir -p "$HOME/.config/MangoHud" "$HOME/mangohud-logs"
+if [[ ! -f "$HOME/.config/MangoHud/MangoHud.conf" ]]; then
+  cat > "$HOME/.config/MangoHud/MangoHud.conf" <<'EOF'
+# Cosmic Pulse — sample logging stanza (edit as you like)
+output_folder=%HOME%/mangohud-logs
+log_interval=1000
+autostart_log=5
+EOF
+  # Expand home for MangoHud (it may not expand %HOME%)
+  sed -i "s|%HOME%|$HOME|g" "$HOME/.config/MangoHud/MangoHud.conf"
+  log "Wrote $HOME/.config/MangoHud/MangoHud.conf"
+else
+  log "Config already exists — left untouched: $HOME/.config/MangoHud/MangoHud.conf"
+fi
+log ""
+log "Flatpak Steam (if you use it):"
+echo '  flatpak override --user --filesystem=home --env=MANGOHUD=1 com.valvesoftware.Steam'
+log "Done. Relaunch a game with the launch option to see the overlay."
 """
     )
 
@@ -1265,6 +1394,17 @@ SCRIPTS: dict[str, callable] = {
     "game-prefix-reset": script_game_bad_exit,
     "mangohud-recommended": script_mangohud_recommended,
     "gamemode-recommended": script_gamemode_recommended,
+    "audio-pipeline": script_audio_pipeline,
+    "audio-default-sink-missing": script_audio_pipeline,
+    "audio-hdmi-default-alt": script_audio_pipeline,
+    "audio-bluetooth-default": script_audio_pipeline,
+    "audio-odd-sample-rate": script_audio_pipeline,
+    "audio-large-quantum": script_audio_pipeline,
+    "audio-xruns-recent": script_audio_pipeline,
+    "audio-stock-min-quantum": script_audio_pipeline,
+    "audio-conf-not-applied": script_audio_pipeline,
+    "audio-conf-multi-context": script_audio_pipeline,
+    "audio-hdmi-priority-conf": script_audio_pipeline,
     "display-hdr-off": script_display_hdr_off,
     "enable-nvme-smart": script_enable_nvme_smart,
     "proton-wayland-launch-fix": script_proton_wayland_launch,

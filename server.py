@@ -41,6 +41,7 @@ from hardware_probe import (
     igpu_label,
     igpu_sensor_prefix,
     nvme_sensor_tiles,
+    platform_identity,
     probe_nvme_smart,
     probe_storage,
 )
@@ -59,6 +60,7 @@ from pulse_config import (
     get_insight_pref_sets,
     get_resolved_insights,
     get_suppressed_insights,
+    get_tuning_log_max,
     load_config,
     resolve_insight,
     unresolve_insight,
@@ -318,9 +320,60 @@ _tuning_by_id: dict[str, dict] = {}
 _tuning_dirty = False
 _tuning_last_save = 0.0
 TUNING_LOG = data_dir() / ".tuning_log.json"
-TUNING_MAX = 48
 TUNING_SAVE_SEC = 12.0
 BACKLOG_FILE = ROOT / "backlog.json"
+
+
+def _tuning_log_file_stats() -> dict:
+    """Size/count metadata for Options → Guidance log."""
+    entries = len(_tuning_history)
+    size_bytes = 0
+    if TUNING_LOG.exists():
+        try:
+            size_bytes = TUNING_LOG.stat().st_size
+        except OSError:
+            size_bytes = 0
+    return {
+        "tuning_log_path": str(TUNING_LOG),
+        "tuning_log_entries": entries,
+        "tuning_log_size_kb": round(size_bytes / 1024, 1),
+        "tuning_log_max": get_tuning_log_max(),
+    }
+
+
+def enrich_store_stats(base: dict | None = None) -> dict:
+    out = dict(base if base is not None else store_stats())
+    out.update(_tuning_log_file_stats())
+    return out
+
+
+def clear_tuning_log_memory(*, save: bool = True) -> int:
+    """Drop in-memory Guidance history and optionally wipe the log file."""
+    global _tuning_history, _tuning_dirty
+    n = len(_tuning_history)
+    _tuning_history = []
+    _rebuild_tuning_index()
+    _tuning_dirty = False
+    if save:
+        try:
+            TUNING_LOG.write_text("[]\n")
+        except OSError:
+            pass
+    return n
+
+
+def trim_tuning_log_to_max() -> dict:
+    """Cap history to configured max (newest kept via current sort order)."""
+    global _tuning_history, _tuning_dirty
+    cap = get_tuning_log_max()
+    before = len(_tuning_history)
+    if before > cap:
+        del _tuning_history[cap:]
+        _rebuild_tuning_index()
+        _tuning_dirty = True
+        save_tuning_log()
+        _tuning_dirty = False
+    return {"before": before, "after": len(_tuning_history), "max": cap}
 
 
 def read_int(path: Path, scale: float = 1.0) -> int | None:
@@ -1506,8 +1559,9 @@ def update_tuning_history(
     ):
         _tuning_dirty = True
     _tuning_history.sort(key=guidance_sort_key)
-    if len(_tuning_history) > TUNING_MAX:
-        del _tuning_history[TUNING_MAX:]
+    cap = get_tuning_log_max()
+    if len(_tuning_history) > cap:
+        del _tuning_history[cap:]
         _rebuild_tuning_index()
     _tuning_dirty = True
     _maybe_save_tuning_log()
@@ -1746,10 +1800,15 @@ def sampler():
     storage_drives = probe_storage()
     product = read_str(Path("/sys/class/dmi/id/product_name")) or "Unknown"
     product_ver = read_str(Path("/sys/class/dmi/id/product_version")) or ""
+    sys_vendor = read_str(Path("/sys/class/dmi/id/sys_vendor")) or ""
     board_vendor = read_str(Path("/sys/class/dmi/id/board_vendor")) or ""
     board_name = read_str(Path("/sys/class/dmi/id/board_name")) or ""
     cpu_model = open("/proc/cpuinfo").read().split("model name\t: ", 1)[-1].split("\n", 1)[0]
     machine = f"{product} ({product_ver})" if product_ver else product
+    host_platform = platform_identity()
+    # Prefer chassis OEM (sys_vendor) so System76 Thelio is recognized reliably
+    s76_vendor = sys_vendor or board_vendor or (host_platform.get("vendor") or {}).get("name") or ""
+    _platform_last_refresh = time.time()
     _static = {
         "hostname": os.uname().nodename,
         "machine": machine,
@@ -1768,8 +1827,9 @@ def sampler():
         "dram_peak_gbps": _mem_spec.get("peak_gbps", 89.6),
         "pcie_peak_gbps": PCIE_PEAK_GBPS,
         "memory": _mem_spec,
+        "platform": host_platform,
         "rig": {
-            "chassis": chassis_identity(machine, os.uname().nodename, board_vendor),
+            "chassis": chassis_identity(machine, os.uname().nodename, s76_vendor),
             "cpu": cpu_identity(cpu_model),
             "gpu": _gpu_spec,
             "memory": memory_identity(_mem_spec),
@@ -1797,6 +1857,14 @@ def sampler():
         _static["cosmic_theme"] = get_cosmic_theme()
         # Refresh tool feed status (cheap; smartctl itself is cached)
         _static["tools"] = tools_status()
+        # Re-detect running DE rarely — session hops are uncommon
+        now_plat = time.time()
+        if now_plat - _platform_last_refresh > 900:  # 15 min
+            try:
+                _static["platform"] = platform_identity()
+                _platform_last_refresh = now_plat
+            except Exception:
+                pass
         snap = collect_metrics()
         with _lock:
             _latest_full = snap
@@ -1831,6 +1899,37 @@ class Handler(BaseHTTPRequestHandler):
             data = (ROOT / "index.html").read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        elif path.startswith("/assets/"):
+            # Brand logos and other static assets (no path traversal)
+            rel = path[len("/assets/") :].lstrip("/")
+            asset_root = (ROOT / "assets").resolve()
+            try:
+                fp = (asset_root / rel).resolve()
+            except OSError:
+                fp = None
+            under_assets = fp and (
+                fp == asset_root or str(fp).startswith(str(asset_root) + os.sep)
+            )
+            if not under_assets or not fp.is_file():
+                self.send_response(404)
+                self.end_headers()
+                return
+            data = fp.read_bytes()
+            ctype = "application/octet-stream"
+            if fp.suffix == ".svg":
+                ctype = "image/svg+xml"
+            elif fp.suffix == ".png":
+                ctype = "image/png"
+            elif fp.suffix == ".jpg" or fp.suffix == ".jpeg":
+                ctype = "image/jpeg"
+            elif fp.suffix == ".webp":
+                ctype = "image/webp"
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "public, max-age=86400")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -1933,7 +2032,31 @@ class Handler(BaseHTTPRequestHandler):
             diag = {**diag, "scan_findings": scan}
             self._json(diag)
         elif path == "/api/store":
-            self._json(store_stats())
+            self._json(enrich_store_stats())
+        elif path == "/api/rule-packs":
+            from rule_packs import list_packs, list_rules
+
+            qs = parse_qs(parsed.query)
+            if (qs.get("view") or ["packs"])[0] == "rules":
+                pack_id = (qs.get("pack") or [None])[0]
+                q = (qs.get("q") or [None])[0]
+                self._json(
+                    {
+                        "ok": True,
+                        "rules": list_rules(pack_id=pack_id, q=q),
+                        "packs": list_packs(include_disabled=True),
+                    }
+                )
+            else:
+                packs = list_packs(include_disabled=True)
+                self._json(
+                    {
+                        "ok": True,
+                        "packs": packs,
+                        "enabled_count": sum(1 for p in packs if p.get("enabled")),
+                        "rule_count": sum(p.get("rule_count") or 0 for p in packs if p.get("enabled")),
+                    }
+                )
         elif path == "/api/trends":
             metric = (qs.get("metric") or ["gpu_junction_c"])[0]
             hours = float((qs.get("hours") or ["24"])[0])
@@ -1978,6 +2101,39 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(raw or "{}")
         except json.JSONDecodeError:
             self._json({"ok": False, "error": "invalid JSON"}, status=400)
+            return
+        if path == "/api/rule-packs":
+            from rule_packs import list_packs, reload_packs, set_pack_enabled
+
+            action = body.get("action") if isinstance(body.get("action"), str) else ""
+            if action == "reload":
+                packs = reload_packs()
+                self._json({"ok": True, "packs": packs})
+                return
+            if action in ("enable", "disable"):
+                pack_id = body.get("pack_id")
+                if not pack_id or not isinstance(pack_id, str):
+                    self._json({"ok": False, "error": "pack_id required"}, status=400)
+                    return
+                result = set_pack_enabled(pack_id.strip(), enabled=(action == "enable"))
+                self._json(result, status=200 if result.get("ok") else 400)
+                return
+            if action == "set_enabled":
+                pack_id = body.get("pack_id")
+                enabled = body.get("enabled")
+                if not pack_id or not isinstance(pack_id, str):
+                    self._json({"ok": False, "error": "pack_id required"}, status=400)
+                    return
+                if not isinstance(enabled, bool):
+                    self._json({"ok": False, "error": "enabled must be boolean"}, status=400)
+                    return
+                result = set_pack_enabled(pack_id.strip(), enabled=enabled)
+                self._json(result, status=200 if result.get("ok") else 400)
+                return
+            self._json(
+                {"ok": False, "error": "action must be reload, enable, disable, or set_enabled"},
+                status=400,
+            )
             return
         if path == "/api/apply-fix":
             insight_id = body.get("insight_id")
@@ -2027,7 +2183,78 @@ class Handler(BaseHTTPRequestHandler):
                         {"ok": False, "error": "retention_days must be an integer"}, status=400
                     )
                     return
-            self._json(update_settings(body))
+            if "ui_scale" in body:
+                try:
+                    float(body["ui_scale"])
+                except (TypeError, ValueError):
+                    self._json(
+                        {"ok": False, "error": "ui_scale must be a number"}, status=400
+                    )
+                    return
+            if "tuning_log_max" in body:
+                try:
+                    int(body["tuning_log_max"])
+                except (TypeError, ValueError):
+                    self._json(
+                        {"ok": False, "error": "tuning_log_max must be an integer"}, status=400
+                    )
+                    return
+            if "theme_mode" in body:
+                mode = body["theme_mode"]
+                if not isinstance(mode, str) or mode.strip().lower() not in (
+                    "cosmic",
+                    "system",
+                    "dark",
+                    "light",
+                ):
+                    self._json(
+                        {
+                            "ok": False,
+                            "error": "theme_mode must be cosmic, system, dark, or light",
+                        },
+                        status=400,
+                    )
+                    return
+
+            action = body.get("action") if isinstance(body.get("action"), str) else None
+            # Confirm gate for destructive actions (store also enforces).
+            if action in (
+                "clear_samples",
+                "clear_tuning_log",
+                "reset_guidance_prefs",
+                "reset_all_pulse_data",
+            ) and body.get("confirm") != "RESET":
+                out = enrich_store_stats()
+                out["ok"] = False
+                out["error"] = "Type RESET to confirm this action"
+                self._json(out, status=400)
+                return
+
+            result = update_settings(body)
+            if not result.get("ok"):
+                self._json(enrich_store_stats(result))
+                return
+
+            details = dict(result.get("details") or {})
+            if action == "clear_tuning_log" or action == "reset_all_pulse_data":
+                with _lock:
+                    n = clear_tuning_log_memory(save=True)
+                details["cleared_tuning_entries"] = n
+            if action == "trim_tuning_log" or "tuning_log_max" in body:
+                with _lock:
+                    details["trim_tuning_log"] = trim_tuning_log_to_max()
+            if action in ("clear_diag_cache", "reset_all_pulse_data"):
+                invalidate_diagnostics_cache()
+                details["cleared_diag_cache"] = True
+            if action in ("clear_samples", "reset_all_pulse_data"):
+                # Ask clients to drop in-memory chart buffers.
+                details["client_clear_history"] = True
+
+            out = enrich_store_stats(result)
+            out["ok"] = True
+            if details:
+                out["details"] = details
+            self._json(out)
             return
         self.send_response(404)
         self.end_headers()

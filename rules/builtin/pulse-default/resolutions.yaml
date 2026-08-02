@@ -81,10 +81,10 @@ rules:
     emit:
       insight_id: resolution-load-settle
       level: info
-      title: Let the save finish loading
+      title: Load phase — wait for assets to settle
       text: >-
-        {memory.pgmajfault_per_s}/s major page faults — assets still streaming;
-        wait ~30s before heavy camera moves.
+        Load-phase settle: {memory.pgmajfault_per_s}/s major page faults — assets still streaming
+        into RAM. Wait ~30s after the loading bar before heavy camera moves (avoids false stutter warnings).
       fix_script: resolution-load-settle
       game_context: true
       fix_kwargs:

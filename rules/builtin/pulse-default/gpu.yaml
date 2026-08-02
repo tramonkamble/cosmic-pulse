@@ -21,6 +21,10 @@ rules:
       - label: "In-game: lower shadow / LOD / draw distance"
         kind: game
         cmd: Lower Level of Detail, Shadow quality, and cap FPS 60–90
+      - label: Fan curve (CoreCtrl / CoolerControl)
+        kind: note
+        cmd: Open CoreCtrl (AMD) or CoolerControl and steepen the GPU fan curve under load
+        note: Optional GUI tools — install from Pop!_Shop if missing
 
   - id: gpu-thermal-ceiling-throttle
     detect:
@@ -43,6 +47,10 @@ rules:
       - label: "In-game: lower shadow / LOD / draw distance"
         kind: game
         cmd: Lower Level of Detail, Shadow quality, and cap FPS 60–90
+      - label: Fan curve (CoreCtrl / CoolerControl)
+        kind: note
+        cmd: Open CoreCtrl (AMD) or CoolerControl and steepen the GPU fan curve under load
+        note: Optional GUI tools — install from Pop!_Shop if missing
 
   - id: gpu-thermal-warm
     detect:
@@ -67,6 +75,10 @@ rules:
       - label: Check GPU power
         kind: cmd
         cmd: sensors | grep -iE 'junction|ppt'
+      - label: Fan curve (CoreCtrl / CoolerControl)
+        kind: note
+        cmd: Open CoreCtrl (AMD) or CoolerControl and steepen the GPU fan curve under load
+        note: Optional GUI tools — install from Pop!_Shop if missing
 
   - id: gpu-thermal-by-design
     detect:

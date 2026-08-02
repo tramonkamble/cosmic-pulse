@@ -923,3 +923,513 @@ def primary_display_hdr(max_age_sec: float = 30.0) -> dict:
 
     _display_hdr_cache = (now, state)
     return dict(state)
+
+
+def _read_os_release() -> dict[str, str]:
+    """Parse /etc/os-release (and Pop's copy) into a key/value map."""
+    out: dict[str, str] = {}
+    for path in (Path("/etc/os-release"), Path("/etc/pop-os/os-release")):
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            val = val.strip().strip('"').strip("'")
+            out[key] = val
+        if out:
+            break
+    return out
+
+
+def _read_dmi(name: str) -> str:
+    try:
+        return Path(f"/sys/class/dmi/id/{name}").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+# Process names that identify a live graphical session (ordered by specificity).
+_DE_PROCESS_HINTS: tuple[tuple[str, str, str], ...] = (
+    # id, display label, match substring in /proc/*/comm or cmdline basename
+    ("cosmic", "COSMIC", "cosmic-comp"),
+    ("cosmic", "COSMIC", "cosmic-session"),
+    ("kde", "KDE Plasma", "plasmashell"),
+    ("kde", "KDE Plasma", "kwin_wayland"),
+    ("kde", "KDE Plasma", "kwin_x11"),
+    ("gnome", "GNOME", "gnome-shell"),
+    ("cinnamon", "Cinnamon", "cinnamon"),
+    ("mate", "MATE", "mate-session"),
+    ("xfce", "XFCE", "xfce4-session"),
+    ("budgie", "Budgie", "budgie-panel"),
+    ("sway", "Sway", "sway"),
+    ("hyprland", "Hyprland", "Hyprland"),
+    ("i3", "i3", "i3"),
+)
+
+
+def _proc_names() -> set[str]:
+    """Basenames of running processes (cheap /proc walk)."""
+    names: set[str] = set()
+    try:
+        for ent in Path("/proc").iterdir():
+            if not ent.name.isdigit():
+                continue
+            try:
+                comm = (ent / "comm").read_text(encoding="utf-8", errors="replace").strip()
+            except OSError:
+                continue
+            if comm:
+                names.add(comm)
+    except OSError:
+        pass
+    return names
+
+
+def _loginctl_active_desktop(user: str | None = None) -> dict:
+    """Best-effort active seat session Desktop/Type for this user."""
+    out: dict = {"desktop": None, "type": None, "active": False}
+    if not shutil.which("loginctl"):
+        return out
+    try:
+        listing = subprocess.check_output(
+            ["loginctl", "list-sessions", "--no-legend"],
+            text=True,
+            timeout=1.5,
+            stderr=subprocess.DEVNULL,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return out
+    want_user = user or os.environ.get("USER") or os.environ.get("LOGNAME") or ""
+    best: dict | None = None
+    for line in listing.splitlines():
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+        sid, _uid, uname = parts[0], parts[1], parts[2]
+        if want_user and uname != want_user:
+            continue
+        try:
+            raw = subprocess.check_output(
+                [
+                    "loginctl",
+                    "show-session",
+                    sid,
+                    "-p",
+                    "Desktop",
+                    "-p",
+                    "Type",
+                    "-p",
+                    "Active",
+                    "-p",
+                    "State",
+                    "-p",
+                    "Remote",
+                ],
+                text=True,
+                timeout=1.0,
+                stderr=subprocess.DEVNULL,
+            )
+        except (subprocess.SubprocessError, OSError):
+            continue
+        props = {}
+        for pline in raw.splitlines():
+            if "=" in pline:
+                k, _, v = pline.partition("=")
+                props[k] = v.strip()
+        if props.get("Remote", "").lower() in ("yes", "true", "1"):
+            continue
+        state = (props.get("State") or "").lower()
+        active = (props.get("Active") or "").lower() in ("yes", "true", "1")
+        desktop = (props.get("Desktop") or "").strip()
+        stype = (props.get("Type") or "").strip().lower() or None
+        # Prefer active graphical sessions
+        score = 0
+        if active:
+            score += 4
+        if state == "active":
+            score += 2
+        if stype in ("wayland", "x11", "mir"):
+            score += 2
+        if desktop:
+            score += 1
+        cand = {"desktop": desktop or None, "type": stype, "active": active, "_score": score}
+        if best is None or cand["_score"] > best["_score"]:
+            best = cand
+    if best:
+        best.pop("_score", None)
+        return best
+    return out
+
+
+def _normalize_de_id(raw: str | None) -> tuple[str | None, str | None]:
+    """Map free-form desktop strings to (id, label)."""
+    if not raw:
+        return None, None
+    s = raw.strip().lower()
+    if not s:
+        return None, None
+    # Colon-separated XDG_CURRENT_DESKTOP lists (e.g. ubuntu:GNOME)
+    tokens = [t.strip() for t in re.split(r"[:;,\s]+", s) if t.strip()]
+    joined = " ".join(tokens)
+    rules: list[tuple[str, str, tuple[str, ...]]] = [
+        ("cosmic", "COSMIC", ("cosmic",)),
+        ("kde", "KDE Plasma", ("kde", "plasma")),
+        ("gnome", "GNOME", ("gnome",)),
+        ("cinnamon", "Cinnamon", ("cinnamon", "x-cinnamon")),
+        ("mate", "MATE", ("mate",)),
+        ("xfce", "XFCE", ("xfce",)),
+        ("budgie", "Budgie", ("budgie",)),
+        ("sway", "Sway", ("sway",)),
+        ("hyprland", "Hyprland", ("hyprland",)),
+        ("i3", "i3", ("i3",)),
+        ("lxqt", "LXQt", ("lxqt",)),
+        ("unity", "Unity", ("unity",)),
+    ]
+    for de_id, label, keys in rules:
+        if any(k in joined or k in tokens for k in keys):
+            return de_id, label
+    # Unknown but present — surface raw first token
+    pretty = tokens[0].upper() if tokens else raw.strip()
+    return "other", pretty
+
+
+def detect_running_desktop() -> dict:
+    """Detect the *running* DE/compositor — not merely installed configs.
+
+    Priority:
+      1. Live compositor/session processes (/proc)
+      2. loginctl active seat session
+      3. Environment (XDG_CURRENT_DESKTOP / DESKTOP_SESSION) — last resort;
+         systemd user services often inherit a stale or empty env.
+    """
+    procs = _proc_names()
+    from_proc_id: str | None = None
+    from_proc_label: str | None = None
+    for de_id, label, needle in _DE_PROCESS_HINTS:
+        if needle in procs:
+            from_proc_id, from_proc_label = de_id, label
+            break
+
+    login = _loginctl_active_desktop()
+    from_login_id, from_login_label = _normalize_de_id(login.get("desktop"))
+
+    env_raw = (
+        os.environ.get("XDG_CURRENT_DESKTOP")
+        or os.environ.get("XDG_SESSION_DESKTOP")
+        or os.environ.get("DESKTOP_SESSION")
+        or ""
+    )
+    from_env_id, from_env_label = _normalize_de_id(env_raw)
+
+    session_type = (
+        login.get("type")
+        or (os.environ.get("XDG_SESSION_TYPE") or "").lower()
+        or None
+    )
+    if session_type == "":
+        session_type = None
+
+    # Process evidence wins (kwin vs cosmic-comp is definitive).
+    if from_proc_id:
+        de_id, de_label, source = from_proc_id, from_proc_label, "process"
+    elif from_login_id:
+        de_id, de_label, source = from_login_id, from_login_label, "loginctl"
+    elif from_env_id:
+        de_id, de_label, source = from_env_id, from_env_label, "environ"
+    else:
+        de_id, de_label, source = None, None, None
+
+    cosmic_cfg = (Path.home() / ".config" / "cosmic").is_dir()
+    is_cosmic = de_id == "cosmic"
+    # Config on disk ≠ active session (very common: Cosmic daily, KDE for gaming).
+    cosmic_available = cosmic_cfg or is_cosmic
+
+    detail = None
+    if session_type in ("wayland", "x11"):
+        detail = session_type.capitalize()
+    title_bits = [de_label or "Unknown desktop"]
+    if session_type:
+        title_bits.append(session_type)
+    title_bits.append(f"via {source}" if source else "undetected")
+    if cosmic_available and not is_cosmic:
+        title_bits.append("COSMIC also installed")
+
+    return {
+        "id": de_id,
+        "name": de_label,
+        "detail": detail,
+        "session_type": session_type,
+        "source": source,
+        "is_cosmic": is_cosmic,
+        "cosmic_available": cosmic_available,
+        "xdg_current_desktop": os.environ.get("XDG_CURRENT_DESKTOP") or None,
+        "loginctl_desktop": login.get("desktop"),
+        "title": " · ".join(title_bits),
+    }
+
+
+def _kernel_badge_detail(release: str) -> str:
+    """Shorten uname -r for the badge while keeping Pop build numbers."""
+    # 7.0.11-76070011-generic → 7.0.11-76070011
+    detail = re.sub(r"-(generic|amd64|x86_64)$", "", release, flags=re.I)
+    if len(detail) > 22:
+        # Fall back to major.minor.patch only if still huge
+        head = release.split("-", 1)[0]
+        return head or detail[:22]
+    return detail
+
+
+def _mesa_pkg_version() -> tuple[str | None, str | None, str | None]:
+    """Return (raw_version, short_display, package_name) from dpkg/rpm."""
+    pkgs = (
+        "mesa-vulkan-drivers",
+        "mesa-libgallium",
+        "libgl1-mesa-dri",
+        "mesa-common-dev",
+    )
+    if shutil.which("dpkg-query"):
+        for pkg in pkgs:
+            try:
+                # Newline per arch so multi-arch installs don't concatenate versions
+                raw = subprocess.check_output(
+                    ["dpkg-query", "-W", "-f=${Version}\\n", pkg],
+                    text=True,
+                    timeout=2,
+                    stderr=subprocess.DEVNULL,
+                )
+            except (subprocess.SubprocessError, OSError, FileNotFoundError):
+                continue
+            # First non-empty arch line
+            raw = next((ln.strip() for ln in raw.splitlines() if ln.strip()), "")
+            if not raw:
+                continue
+            # 26.1.6~kisak1~n → 26.1.6 (+ flavor in title/detail)
+            short = re.split(r"[~+]", raw, maxsplit=1)[0]
+            return raw, short, pkg
+    if shutil.which("rpm"):
+        for pkg in ("mesa-vulkan-drivers", "mesa-libGL", "mesa-dri-drivers"):
+            try:
+                raw = subprocess.check_output(
+                    ["rpm", "-q", "--qf", "%{VERSION}", pkg],
+                    text=True,
+                    timeout=2,
+                    stderr=subprocess.DEVNULL,
+                ).strip()
+            except (subprocess.SubprocessError, OSError, FileNotFoundError):
+                continue
+            if raw and "not installed" not in raw.lower():
+                short = re.split(r"[~+]", raw, maxsplit=1)[0]
+                return raw, short, pkg
+    return None, None, None
+
+
+def _mesa_glx_version() -> tuple[str | None, str | None]:
+    """Fallback: glxinfo -B 'Version: x.y.z' when packages are unavailable."""
+    if not shutil.which("glxinfo"):
+        return None, None
+    env = os.environ.copy()
+    # Prefer existing display; skip if none (headless/service)
+    if not env.get("DISPLAY") and not env.get("WAYLAND_DISPLAY"):
+        return None, None
+    try:
+        out = subprocess.check_output(
+            ["glxinfo", "-B"],
+            text=True,
+            timeout=4,
+            stderr=subprocess.DEVNULL,
+            env=env,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return None, None
+    m = re.search(r"^\s*Version:\s*([\d.]+)", out, re.M)
+    if not m:
+        # OpenGL core profile version string sometimes embeds Mesa
+        m = re.search(r"Mesa\s+([\d.]+)", out)
+    if not m:
+        return None, None
+    ver = m.group(1)
+    return ver, ver
+
+
+def detect_mesa() -> dict:
+    """Mesa graphics stack version for host chrome (AMD/Intel gaming path)."""
+    raw, short, pkg = _mesa_pkg_version()
+    source = "package" if raw else None
+    if not raw:
+        raw, short = _mesa_glx_version()
+        source = "glxinfo" if raw else None
+    # Extra flavor from package epoch/revision (kisak, etc.)
+    flavor = None
+    if raw and "~" in raw:
+        # 26.1.6~kisak1~n → kisak1
+        flavor = raw.split("~", 1)[1].split("~", 1)[0] or None
+    return {
+        "version": short or raw,
+        "version_raw": raw,
+        "package": pkg,
+        "flavor": flavor,
+        "source": source,
+        "present": bool(raw),
+    }
+
+
+def platform_identity() -> dict:
+    """Pop!_OS / System76 / running-DE host identity for dashboard chrome.
+
+    Desktop detection reflects the *active* session (process/loginctl), not
+    merely that COSMIC config exists on disk.
+    """
+    osr = _read_os_release()
+    pretty = osr.get("PRETTY_NAME") or osr.get("NAME") or "Linux"
+    name = osr.get("NAME") or pretty
+    version = osr.get("VERSION") or osr.get("VERSION_ID") or ""
+    version_id = osr.get("VERSION_ID") or ""
+    os_id = (osr.get("ID") or "").lower()
+    id_like = (osr.get("ID_LIKE") or "").lower()
+    is_pop = os_id == "pop" or "pop" in name.lower() or "pop!_os" in pretty.lower()
+
+    vendor = _read_dmi("sys_vendor") or _read_dmi("board_vendor")
+    product = _read_dmi("product_name")
+    product_version = _read_dmi("product_version")
+    board = _read_dmi("board_name")
+    is_s76 = "system76" in vendor.lower() or "system76" in product.lower()
+
+    model_short = product
+    if product_version and product_version.lower() not in (product or "").lower():
+        model_short = product or product_version
+
+    desktop = detect_running_desktop()
+    is_cosmic = bool(desktop.get("is_cosmic"))
+
+    kernel = ""
+    try:
+        kernel = os.uname().release
+    except OSError:
+        pass
+
+    mesa = detect_mesa()
+
+    badges: list[dict] = []
+    if is_pop:
+        badges.append(
+            {
+                "id": "pop",
+                "label": "Pop!_OS",
+                "detail": version or version_id or None,
+                "title": pretty,
+            }
+        )
+    elif pretty:
+        badges.append(
+            {
+                "id": "linux",
+                "label": name.split()[0] if name else "Linux",
+                "detail": version_id or version or None,
+                "title": pretty,
+            }
+        )
+
+    if is_s76:
+        badges.append(
+            {
+                "id": "system76",
+                "label": "System76",
+                "detail": model_short or None,
+                "title": " · ".join(
+                    p for p in (vendor or "System76", model_short, product_version) if p
+                ),
+            }
+        )
+
+    # Running DE badge — always surface when known (KDE, COSMIC, GNOME, …)
+    if desktop.get("id") and desktop.get("name"):
+        de_id = desktop["id"]
+        badge_id = de_id if de_id in ("cosmic", "kde", "gnome", "other") else "de"
+        # Map well-known ids to CSS classes we style; others use generic .de
+        if de_id not in ("cosmic", "kde", "gnome"):
+            badge_id = "de"
+        detail = desktop.get("detail")
+        title = desktop.get("title") or desktop["name"]
+        if desktop.get("cosmic_available") and not is_cosmic:
+            title = f"{title} · COSMIC installed (not active)"
+        badges.append(
+            {
+                "id": badge_id,
+                "label": desktop["name"],
+                "detail": detail,
+                "title": title,
+                "de_id": de_id,
+            }
+        )
+    elif desktop.get("cosmic_available"):
+        badges.append(
+            {
+                "id": "cosmic",
+                "label": "COSMIC",
+                "detail": "installed",
+                "title": "COSMIC config present — not the active session",
+            }
+        )
+
+    # Kernel + Mesa — gaming stack versions gamers care about for bug reports
+    if kernel:
+        badges.append(
+            {
+                "id": "kernel",
+                "label": "Kernel",
+                "detail": _kernel_badge_detail(kernel),
+                "title": f"Linux {kernel}",
+            }
+        )
+    if mesa.get("present") and mesa.get("version"):
+        title_bits = [f"Mesa {mesa.get('version_raw') or mesa['version']}"]
+        if mesa.get("package"):
+            title_bits.append(mesa["package"])
+        if mesa.get("flavor"):
+            title_bits.append(mesa["flavor"])
+        if mesa.get("source"):
+            title_bits.append(f"via {mesa['source']}")
+        detail = mesa["version"]
+        if mesa.get("flavor") and "kisak" in (mesa.get("flavor") or "").lower():
+            detail = f"{mesa['version']} kisak"
+        badges.append(
+            {
+                "id": "mesa",
+                "label": "Mesa",
+                "detail": detail,
+                "title": " · ".join(title_bits),
+            }
+        )
+
+    return {
+        "os": {
+            "id": os_id or None,
+            "name": name,
+            "pretty": pretty,
+            "version": version,
+            "version_id": version_id or None,
+            "is_pop": is_pop,
+            "id_like": id_like or None,
+        },
+        "vendor": {
+            "name": vendor or None,
+            "product": product or None,
+            "product_version": product_version or None,
+            "board": board or None,
+            "model_short": model_short or None,
+            "is_system76": is_s76,
+        },
+        "desktop": desktop,
+        "kernel": kernel or None,
+        "mesa": mesa,
+        "badges": badges,
+        "is_pop": is_pop,
+        "is_system76": is_s76,
+        "is_cosmic": is_cosmic,
+    }

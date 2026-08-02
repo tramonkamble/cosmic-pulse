@@ -13,13 +13,27 @@ import time
 from paths import data_dir
 from pulse_config import (
     DEFAULT_RETENTION_DAYS,
+    DEFAULT_THEME_MODE,
+    DEFAULT_TUNING_LOG_MAX,
+    DEFAULT_UI_SCALE,
     RETENTION_MAX_DAYS,
     RETENTION_MIN_DAYS,
     RETENTION_PRESETS,
+    THEME_MODES,
+    TUNING_LOG_MAX_CAP,
+    TUNING_LOG_MIN,
+    TUNING_LOG_PRESETS,
+    UI_SCALE_MAX,
+    UI_SCALE_MIN,
+    UI_SCALE_STEP,
     estimate_max_mb,
     get_resolved_insights,
     get_retention_days,
     get_suppressed_insights,
+    get_theme_mode,
+    get_tuning_log_max,
+    get_ui_scale,
+    load_config,
     resolve_insight,
     save_config,
     save_retention_days,
@@ -64,7 +78,15 @@ _SAMPLE_EXTRA_COLS = (
     ("stutter_est_ms", "REAL"),
     ("stutter_event", "INTEGER"),
 )
-_SESSION_EXTRA_COLS = (("trend_json", "TEXT"),)
+_SESSION_EXTRA_COLS = (
+    ("trend_json", "TEXT"),
+    ("fps_avg", "REAL"),
+    ("fps_1pct", "REAL"),
+    ("fps_0_1pct", "REAL"),
+    ("frametime_avg", "REAL"),
+    ("frametime_1pct", "REAL"),
+    ("mangohud_path", "TEXT"),
+)
 
 _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
@@ -173,6 +195,28 @@ def prune_old() -> int:
         c.execute("DELETE FROM session_markers WHERE ts < ?", (cutoff,))
         c.commit()
         return cur.rowcount
+
+
+def clear_history() -> dict:
+    """Wipe SQLite samples, game sessions, and session markers (schema kept)."""
+    with _lock:
+        c = _get_conn()
+        samples = c.execute("SELECT COUNT(*) FROM samples").fetchone()[0]
+        sessions = c.execute("SELECT COUNT(*) FROM game_sessions").fetchone()[0]
+        markers = c.execute("SELECT COUNT(*) FROM session_markers").fetchone()[0]
+        c.execute("DELETE FROM samples")
+        c.execute("DELETE FROM game_sessions")
+        c.execute("DELETE FROM session_markers")
+        c.commit()
+        try:
+            c.execute("VACUUM")
+        except sqlite3.Error:
+            pass
+    return {
+        "cleared_samples": samples,
+        "cleared_sessions": sessions,
+        "cleared_markers": markers,
+    }
 
 
 def flatten_sample(snap: dict) -> dict:
@@ -353,6 +397,10 @@ def _decode_session(row: sqlite3.Row) -> dict:
             data["trend"] = []
     else:
         data["trend"] = []
+    # MangoHud presence: stored path/fps columns (not a separate flag in SQLite)
+    has_mh = data.get("fps_avg") is not None or bool(data.get("mangohud_path"))
+    data["mangohud"] = has_mh
+    data["hitch_source"] = "mangohud" if has_mh else "proxy"
     return data
 
 
@@ -366,8 +414,10 @@ def save_game_session(row: dict) -> int:
                 game_id, game_name, started_ts, ended_ts, duration_sec,
                 rating, rating_tier, smoothness_avg, stutter_score_avg,
                 hitch_ms_1pct, hitch_events, game_cpu_avg, gpu_busy_avg,
-                ram_pct_avg, sample_count, trend_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ram_pct_avg, sample_count, trend_json,
+                fps_avg, fps_1pct, fps_0_1pct, frametime_avg, frametime_1pct,
+                mangohud_path
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row["game_id"],
@@ -386,6 +436,12 @@ def save_game_session(row: dict) -> int:
                 row.get("ram_pct_avg"),
                 row.get("sample_count"),
                 trend_json,
+                row.get("fps_avg"),
+                row.get("fps_1pct"),
+                row.get("fps_0_1pct"),
+                row.get("frametime_avg"),
+                row.get("frametime_1pct"),
+                row.get("mangohud_path"),
             ),
         )
         _get_conn().commit()
@@ -491,6 +547,11 @@ def stats() -> dict:
         session_count = c.execute("SELECT COUNT(*) FROM game_sessions").fetchone()[0]
     size_mb = round(DB_PATH.stat().st_size / 1024**2, 2) if DB_PATH.exists() else 0
     days = get_retention_days()
+    scale = get_ui_scale()
+    log_max = get_tuning_log_max()
+    theme_mode = get_theme_mode()
+    suppressed = get_suppressed_insights()
+    resolved = get_resolved_insights()
     return {
         "path": str(DB_PATH),
         "samples": count,
@@ -501,11 +562,29 @@ def stats() -> dict:
         "retention_presets": RETENTION_PRESETS,
         "retention_min": RETENTION_MIN_DAYS,
         "retention_max": RETENTION_MAX_DAYS,
+        "ui_scale": scale,
+        "ui_scale_default": DEFAULT_UI_SCALE,
+        "ui_scale_min": UI_SCALE_MIN,
+        "ui_scale_max": UI_SCALE_MAX,
+        "ui_scale_step": UI_SCALE_STEP,
+        "theme_mode": theme_mode,
+        "theme_mode_default": DEFAULT_THEME_MODE,
+        "theme_modes": list(THEME_MODES),
+        "tuning_log_max": log_max,
+        "tuning_log_default": DEFAULT_TUNING_LOG_MAX,
+        "tuning_log_presets": TUNING_LOG_PRESETS,
+        "tuning_log_min": TUNING_LOG_MIN,
+        "tuning_log_max_cap": TUNING_LOG_MAX_CAP,
         "size_mb": size_mb,
         "est_max_mb": estimate_max_mb(days),
         "games": {r["game_id"]: r["n"] for r in games},
         "game_sessions": session_count,
+        "suppressed_insights": suppressed,
+        "resolved_insights": resolved,
+        "suppressed_count": len(suppressed),
+        "resolved_count": len(resolved),
         "metrics": METRICS,
+        "pulse_config": load_config(),
     }
 
 
@@ -519,11 +598,21 @@ def set_retention(days: int) -> dict:
     return out
 
 
+RESET_CONFIRM_TOKEN = "RESET"
+
+
 def update_settings(body: dict) -> dict:
     updates: dict = {}
     acted = False
+    details: dict = {}
     if "retention_days" in body:
         updates["retention_days"] = body["retention_days"]
+    if "ui_scale" in body:
+        updates["ui_scale"] = body["ui_scale"]
+    if "tuning_log_max" in body:
+        updates["tuning_log_max"] = body["tuning_log_max"]
+    if "theme_mode" in body:
+        updates["theme_mode"] = body["theme_mode"]
     if "suppressed_insights" in body:
         updates["suppressed_insights"] = body["suppressed_insights"]
     if "suppress_insight" in body and isinstance(body["suppress_insight"], str):
@@ -538,6 +627,43 @@ def update_settings(body: dict) -> dict:
     if "unresolve_insight" in body and isinstance(body["unresolve_insight"], str):
         unresolve_insight(body["unresolve_insight"].strip())
         acted = True
+
+    action = body.get("action")
+    if isinstance(action, str) and action:
+        # Server handles memory-side actions; store only runs DB/config pieces.
+        confirm = body.get("confirm")
+        needs_confirm = action in (
+            "clear_samples",
+            "clear_tuning_log",
+            "reset_guidance_prefs",
+            "reset_all_pulse_data",
+        )
+        if needs_confirm and confirm != RESET_CONFIRM_TOKEN:
+            out = stats()
+            out["ok"] = False
+            out["error"] = f"Type {RESET_CONFIRM_TOKEN} to confirm this action"
+            return out
+        if action == "clear_samples":
+            details["clear_history"] = clear_history()
+            acted = True
+        elif action == "reset_guidance_prefs":
+            save_config(suppressed_insights=[], resolved_insights=[])
+            details["reset_guidance_prefs"] = True
+            acted = True
+        elif action == "reset_all_pulse_data":
+            details["clear_history"] = clear_history()
+            save_config(suppressed_insights=[], resolved_insights=[])
+            details["reset_guidance_prefs"] = True
+            acted = True
+        elif action in ("clear_tuning_log", "trim_tuning_log", "clear_diag_cache"):
+            # No DB work here — server applies and still returns stats.
+            acted = True
+        else:
+            out = stats()
+            out["ok"] = False
+            out["error"] = f"unknown action: {action}"
+            return out
+
     if not updates and not acted:
         out = stats()
         out["ok"] = False
@@ -553,4 +679,6 @@ def update_settings(body: dict) -> dict:
     out["pruned"] = pruned
     out["suppressed_insights"] = get_suppressed_insights()
     out["resolved_insights"] = get_resolved_insights()
+    if details:
+        out["details"] = details
     return out

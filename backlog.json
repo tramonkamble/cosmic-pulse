@@ -127,9 +127,9 @@
   },
   {
     "id": "systemd-service",
-    "priority": "low",
+    "priority": "done",
     "title": "Autostart on login",
-    "notes": "systemd user unit for perf-dashboard"
+    "notes": "DONE Jul 2026. install.sh --service + deploy/cosmic-pulse.service user unit; deb package unit. systemctl --user enable/start cosmic-pulse."
   },
   {
     "id": "csv-export",
@@ -189,13 +189,13 @@
     "id": "pop-audio-gaming",
     "priority": "medium",
     "title": "Pop audio for gaming",
-    "notes": "Umbrella under pop-gaming-playbook. Out-of-box sound issues for gaming: PipeWire/Pulse latency (quantum, clock rate), crackling/pops under load, Bluetooth vs wired, HDMI/monitor audio, low-latency profile, per-game device, Wine/Proton audio backends. Children: audio-pipeline-basics (v1 detect), later optional audio-stutter-link. Prefer rule-pack YAML once metrics exist; keep probe cheap (on-demand or ~10\u201330s cache, not 1 Hz)."
+    "notes": "Umbrella under pop-gaming-playbook. v1 DONE via audio-pipeline-basics (detect + Guidance). Still open later: Bluetooth vs wired depth, HDMI/monitor profiles, low-latency profile, per-game device, Wine/Proton audio backends. Child audio-stutter-link still low. Prefer rule-pack YAML; probe cached ~20s not 1 Hz."
   },
   {
     "id": "audio-pipeline-basics",
-    "priority": "medium",
+    "priority": "done",
     "title": "Audio pipeline basics (detect + Guidance)",
-    "notes": "Child of pop-audio-gaming \u00b7 keep small. Probe PipeWire (preferred) or Pulse once per diagnostics TTL / on Guidance open \u2014 not every metrics tick. Detect only the high-value basics: (1) Default sink missing or suspended. (2) Odd default sample rate \u2014 flag if not 48000 or 44100 (e.g. 32000, 96000 forced when games expect 48k) or sink/node rate mismatch vs graph rate. (3) Large quantum / high latency \u2014 soft info when quantum suggests multi-10s-of-ms buffering (crackles under load often need lower quantum; don't auto-change). (4) Optional: xrun/underrun counter if cheap via pw-top/pw-dump stats or journal. Emit Guidance info/warn cards + fix script notes (check `wpctl status`, `pw-metadata -n settings`, reset rate to 48000, avoid Bluetooth for competitive). Do not rewrite user PipeWire conf without explicit apply. Ship as metrics under audio.* for rule packs (audio.default_rate, audio.quantum, audio.sink_state, audio.xruns)."
+    "notes": "DONE Jul 2026. audio_probe.py (20s cache): PipeWire/Pulse backend, default sink, rate/quantum/latency_ms, HDMI/BT/USB classify, journal xrun scan. Metrics audio.* in rule_packs.flatten_metrics. rules/audio.yaml: missing sink, HDMI-over-listening-alt (USB/analog; ignores bare SPDIF), Bluetooth default, odd rate, large quantum (~\u226520ms info), recent xruns. Fix script audio-pipeline (user, no root). tests/test_audio_probe.py. Does not rewrite PipeWire conf. audio-stutter-link still open (UI note on stutter panel)."
   },
   {
     "id": "audio-stutter-link",
@@ -207,7 +207,7 @@
     "id": "pop-display-wayland",
     "priority": "medium",
     "title": "Pop display & compositor",
-    "notes": "Cosmic/Wayland gaming quirks: X11 vs Wayland game launches, PROTON_ENABLE_WAYLAND=0 / SDL_VIDEODRIVER=x11 launch templates, fractional scaling hitches, HDR/VRR/FSR setup, fullscreen vs borderless, dual-monitor + second-head Pulse tips, compositor bypass where applicable."
+    "notes": "PARTIAL Jul 2026. proton-wayland-launch-fix rule + set_steam_launch_options Fix for X11 override. Still open: fractional scaling, HDR/VRR guidance depth, dual-DE notes, gamescope/mangoapp paths."
   },
   {
     "id": "pop-runtimes-steam",
@@ -223,57 +223,57 @@
   },
   {
     "id": "options-panel",
-    "priority": "medium",
+    "priority": "done",
     "title": "Options panel (umbrella)",
-    "notes": "Third tab or header gear \u2192 dedicated Options view (not buried in Drives & history). Single settings surface; persist in .pulse_config.json via pulse_config.py + POST /api/store. Sections below. Apply live where possible (theme, units) without full reload; confirm destructive actions. sessionStorage stays ephemeral (tab, drill open state); durable prefs in config only. Entry: options-page (rename), options-themes, options-logs, options-layout, options-data-reset, options-guidance, options-advanced."
+    "notes": "DONE Jul 2026. Third tab Options with sections: general (UI scale), data retention, guidance log rotation, rule packs, clear/reset, themes card. Persists via pulse_config + POST /api/store. Children still open: options-guidance, options-guidance-live, options-layout, options-advanced."
   },
   {
     "id": "options-page",
-    "priority": "medium",
+    "priority": "done",
     "title": "Options \u2014 General & appearance",
-    "notes": "Child of options-panel. Migrate retention presets from drill-storage into Options. UI scale slider; default chart span/rollup; reduced-motion override; units imperial/metric (\u00b0F/\u00b0C, MB vs MiB labels). Poll interval display (read-only until options-advanced). Export: CSV snippet of last N minutes (ties csv-export backlog)."
+    "notes": "DONE v1 Jul 2026. Retention presets migrated to Options; UI scale slider 100\u2013200% with live apply; storage drill links to Options. Deferred: chart span/rollup defaults, reduced-motion, unit labels, CSV snippet."
   },
   {
     "id": "options-themes",
-    "priority": "medium",
+    "priority": "done",
     "title": "Options \u2014 Themes",
-    "notes": "Child of options-panel. Theme mode: follow Cosmic desktop (today\u2019s cosmic_theme path) / follow system prefers-color-scheme / force light / force dark. Optional accent override (Pop orange vs muted). Preview swatch before apply. Wire applyCosmicTheme() + CSS vars; store theme_mode + follow_cosmic in .pulse_config.json."
+    "notes": "DONE v1 Jul 2026. theme_mode cosmic|system|dark|light in config; Cosmic auto default; live chrome apply; preview panel on Options side card. Deferred: accent override swatch, full metric themes (future)."
   },
   {
     "id": "options-logs",
-    "priority": "medium",
+    "priority": "done",
     "title": "Options \u2014 Log rotation & shipping",
-    "notes": "Child of options-panel. Rotation: .tuning_log.json max entries (today TUNING_MAX=48 hardcoded) + max MB; pulse.db sample retention already in retention_days \u2014 surface both clearly. Optional rotate/truncate actions with confirm. Shipping: export sink config \u2014 local directory (default ~/pulse-logs or pulse_root/logs), optional rsync/scp target, optional webhook URL for JSONL bundles (metrics summary + guidance state + session end). Schedule: off / hourly / daily / on session end. Payload: samples slice, game_sessions row, active tuning hints snapshot, diagnostics scan. Never ship raw Steam paths/passwords. systemd timer or in-process scheduler in pulse.service."
+    "notes": "DONE v1 Jul 2026 (rotation only). configurable tuning_log_max + trim/clear; sample retention_days in Options. Deferred: log shipping (rsync/webhook), .tuning_log max MB, export sinks."
   },
   {
     "id": "options-layout",
-    "priority": "medium",
+    "priority": "done",
     "title": "Options \u2014 Panel & tab order",
-    "notes": "Child of options-panel. Reorder dashboard drill-stack (sensors, charts, bandwidth, compute, pulse index, game, storage, system-check link) via drag-handle UI; persist panel_order[] in config. Reorder Guidance sections (outstanding, resolutions, marked fixed, by game, system scan). Optional default tab (dashboard vs guidance). Restore factory layout button."
+    "notes": "DONE Aug 2026 layout polish (not drag-reorder). Single-column Options: Appearance (scale + theme together), Data & logs dual subblocks, Guidance prefs, rule packs, danger zone. Deferred: panel_order drag UI, Guidance section reorder \u2014 low value vs clutter; revisit only if users ask."
   },
   {
     "id": "options-data-reset",
-    "priority": "medium",
+    "priority": "done",
     "title": "Options \u2014 Clear history & reset alerts",
-    "notes": "Child of options-panel. Destructive zone with typed confirm. Actions: clear Guidance tuning history (.tuning_log.json); reset suppressed_insights + resolved_insights (reopen all guidance); clear SQLite samples + game_sessions (keep schema); prune diagnostics cache; reset in-memory chart history. Per-game clear optional later. Does not touch Steam/Proton files. Show counts before wipe (N samples, M guidance cards, K ignored)."
+    "notes": "DONE Jul 2026. Options clear zone with typed RESET: samples/sessions, Guidance log, ignored/fixed prefs, diag cache, reset-all. Client chart buffer clear on sample wipe. Steam/Proton untouched."
   },
   {
     "id": "options-guidance",
-    "priority": "medium",
+    "priority": "done",
     "title": "Options \u2014 Guidance preferences",
-    "notes": "Child of options-panel. Manage ignored + marked-fixed lists with restore/remove per insight_id. Toggle: promote diagnostics to guidance (on/off). Optional per-bucket mute (steam / driver / resolutions). Default expand system scan. Toggle auto-resolve cleared hints (guidance_auto.AUTO_RESOLVE_CLEAR_SEC, 0=off). See options-guidance-live for live feedback toggle."
+    "notes": "DONE Aug 2026. Options \u2192 Guidance preferences: lists ignored (suppressed) and marked fixed (resolved) with per-id Restore via unsuppress_insight / unresolve_insight. Bulk clear still under Clear & reset. Deferred: promote-diagnostics toggle, per-bucket mute."
   },
   {
     "id": "options-guidance-live",
     "priority": "medium",
     "title": "Options \u2014 Live Guidance feedback toggle",
-    "notes": "Child of options-panel. Toggle live Guidance on/off (persist guidance_live in .pulse_config.json). OFF: skip build_tuning_hints + update_tuning_history + build_issue_views each sampler tick; omit tuning/tuning_active/issues_by_game from /api/metrics (or send stale snapshot); skip .tuning_log.json write per tick; UI skips renderWarnings/renderFixes. ON-DEMAND: manual Scan on Guidance tab still runs diagnostics (cached 90s). Perf eval post hotpath-perf-pass (Jul 2026 rig): collect_metrics ~76ms/tick idle; guidance slice ~1ms; tuning log debounced (12s) not per-tick. Live OFF still saves ~1ms CPU + smaller poll JSON + less DOM; main UX win = distraction-free second head. Optional sub-toggle: pause live only while game running."
+    "notes": "DEFERRED / not for now. Toggle live Guidance off to skip tuning each tick. Useful later for perf/distraction-free mode; needs sampler gating + UI empty state. Skip until someone hits Guidance CPU or wants a quiet second monitor. Child of options-panel. Toggle live Guidance on/off (persist guidance_live in .pulse_config.json). OFF: skip build_tuning_hints + update_tuning_history + build_issue_views each sampler tick; omit tuni"
   },
   {
     "id": "options-advanced",
     "priority": "low",
     "title": "Options \u2014 Advanced",
-    "notes": "Child of options-panel (collapsed). Bind host/port (requires service restart); diagnostics TTL; HISTORY_LEN cap; log level; pulse_root override; disable cosmo theme probe. Export full .pulse_config.json. Link to pulse.service unit."
+    "notes": "DEFERRED. Host/port/TTL/log level \u2014 power-user only; install.sh + systemd cover defaults. Revisit if packaging needs in-app bind host. Child of options-panel (collapsed). Bind host/port (requires service restart); diagnostics TTL; HISTORY_LEN cap; log lev"
   },
   {
     "id": "game-files-corrupt",
@@ -289,13 +289,13 @@
   },
   {
     "id": "steam-fix-playbook",
-    "priority": "medium",
+    "priority": "done",
     "title": "Steam fix playbook (5 common issues)",
-    "notes": "Umbrella: detect \u2192 Guidance insight \u2192 fix script. (1) corrupt \u2014 DONE. (2) pending update \u2014 DONE. (3) game-libs-missing + i386 multilib \u2014 DONE via steam.yaml + rule_packs._lib_install_context. (4) steam-disk-low \u2014 DONE. (5) game-prefix-reset bad exit \u2014 DONE for active game warn/hot. Vulkan \u2014 DONE vulkan-broken. System scan panel in Guidance (diagnostics scan_findings); Dashboard drill links here. Remaining: boot-journal/systemd promote?, Wayland launch template, Proton version picks \u2014 backlog pop-per-game-recipes."
+    "notes": "DONE core Jul 2026. (1) corrupt (2) pending update (3) libs/multilib (4) steam-disk-low (5) game-prefix-reset via steam.yaml + diagnostics. Remaining stretch: boot-journal promote (dropped as noise), deeper Proton version picks \u2192 pop-per-game-recipes."
   },
   {
     "id": "game-launch-health",
-    "priority": "medium",
+    "priority": "low",
     "title": "Game launch / crash session detector (TABLED)",
     "notes": "DEFERRED \u2014 do not forget; pair with steam-fix-playbook. steam_launch_health(appid): parse ~/.steam/steam/logs/gameprocess_log.txt into sessions. Root launcher = first 'adding PID' line with quoted steam-launch-wrapper/reaper cmd; session ends at 'Remove <appid> from running list' \u2014 use root PID exit code (ignore child exit -1 noise). Signals: FAILED_START root exit 127/126/1 within ~30s; CRASH 139 (SIGSEGV) or 137 (SIGKILL); SUSPECT_SHORT root exit 0/130 but session <90s (flash quit); CLEAN 0 or 130 longer session. Secondary: content_log Files Corrupt (already), console-linux FATAL/dlopen failed, compatdata/*/logs, journalctl --user segfault after launch. Guidance insight game-needs-diag when last session FAILED_START/CRASH or 2+ SUSPECT_SHORT in 24h \u2014 route to steam-fix-playbook script (verify, libs, prefix reset). Diagnostics scan all installed AppIDs; show last exit + duration in Troubleshooting. Done partially today: _check_steam_logs bad exits but no session pairing or root-PID filter."
   },
@@ -337,9 +337,9 @@
   },
   {
     "id": "guidance-ux-refinement",
-    "priority": "medium",
+    "priority": "done",
     "title": "Guidance tab UX refinement",
-    "notes": "DONE decompression pass Jul 2026. Index narrowed (28%) \u2014 title + severity stripe only; live/fixed as dots not pills; group labels only on All filter; filter chips without counts/hot borders (hot dot only); game filter = collapsed picker (All games default, expand menu for explicit titles, vertical list not horizontal chip scroll); detail pane larger type/spacing + inline scan logs. Remaining polish if needed: filter bar layout on narrow screens, scan vs live visual distinction. Resume before rule-pack-ui if user wants more."
+    "notes": "DONE Jul 2026 decompression pass. Index/detail UX, filters, game picker, scan integration. Further polish as needed without reopening this umbrella."
   },
   {
     "id": "guidance-scan-inline-logs",
@@ -349,63 +349,63 @@
   },
   {
     "id": "rule-packs",
-    "priority": "high",
+    "priority": "done",
     "title": "Community rule packs (umbrella)",
-    "notes": "Move detection + Guidance + fix logic out of Python into plain-text pack files users and community can author. Goals: lighter core codebase, coverage for hardware/OS/game combos we cannot test, optional third-party repos. Non-binary, script-friendly format (YAML/JSON + embedded or referenced .sh). Pulse ships a default pack; users add local dirs or git URLs. Children: rule-pack-format, rule-pack-engine, rule-pack-sources, rule-pack-ui, rule-browser, rule-store, rule-pack-migrate, rule-pack-game-overrides, rule-builder. Replaces ad-hoc growth in tuning_actions.py, diagnostics promote rules, hardware_profiles tuning slices, pop-per-game-recipes seed data, games.py GAME_OVERRIDES."
+    "notes": "DONE Jul 2026 finish pass: default pack + engine + game_overrides + Options enable/disable + rule browser API/UI + extra paths in config. Children remaining: rule-store, rule-builder, git install sources polish, full rule-browser evaluate-why."
   },
   {
     "id": "rule-pack-format",
-    "priority": "high",
+    "priority": "done",
     "title": "Rule pack file format & schema",
-    "notes": "PARTIAL v1 (Jul 2026): rules/builtin/pulse-default/ \u2014 pack.yaml manifest + *.yaml rule files. detect: metric/op (eq,ne,gt,gte,lt,lte,in,exists) + all/any/not. emit: insight_id, level, title, text ({metric.path} templates), bucket, games (active|list), fix_script (insight id or file:path), fix_kwargs, game_context, requires_root. actions: label/kind/cmd/note. match_when on pack. Remaining: JSON Schema, game_overrides block, duration/sustained detect, diagnostics findings namespace, example community packs (cities2-pop, rdna3-thermal)."
+    "notes": "DONE v1 Jul 2026: pack.yaml + detect/emit/actions/match_when + game_overrides + legacy_game_ids. Remaining future: JSON Schema file, sustained detect, community example packs."
   },
   {
     "id": "rule-pack-engine",
-    "priority": "high",
+    "priority": "done",
     "title": "Rule pack loader & evaluator",
-    "notes": "PARTIAL v1 (Jul 2026): rule_packs.py \u2014 flatten_metrics(snap,mem_spec,ctx), eval_condition, load from PULSE_RULE_PATH + rules/builtin/ + ~/.config/pulse/rules/, mtime cache, list_packs(), evaluate_rule_packs() \u2192 hints + emitted insight_ids. Hints tagged pack_id/rule_id. Wired in build_tuning_hints() with Python fallbacks gated by pack_emitted. Remaining: schema validation, match tag index, game_overrides merge, SIGHUP reload, get_game_overrides(), fire logging, diagnostics namespace."
+    "notes": "DONE v1 Jul 2026: load/eval/cache, disabled_packs filter, rule_pack_paths + PULSE_RULE_PATH + ~/.local/share/pulse/rule-packs, list_packs/list_rules/set_pack_enabled/reload, get_game_overrides. Wired into build_tuning_hints + /api/rule-packs."
   },
   {
     "id": "rule-pack-sources",
-    "priority": "high",
+    "priority": "done",
     "title": "Rule pack sources (local + community repos)",
-    "notes": "Child of rule-packs. Search paths: ~/.config/pulse/rules/, <pulse_root>/rules/builtin/, optional extra dirs from config. Git source: clone/pull community repo URL into ~/.local/share/pulse/rule-packs/<name>/ on interval or manual refresh; pin branch/tag/commit. Trust model: unsigned packs run detect only; fix scripts still user-reviewed before sudo. Optional pulse-community index JSON (name, url, tags: game/hardware/os) curated later \u2014 not required for v1. Env PULSE_RULE_PATH for dev."
+    "notes": "DONE v1 Jul 2026: search paths builtin + ~/.config/pulse/rules + config rule_pack_paths + PULSE_RULE_PATH + ~/.local/share/pulse/rule-packs. Git clone/UI install deferred to rule-store."
   },
   {
     "id": "rule-pack-ui",
-    "priority": "medium",
+    "priority": "done",
     "title": "Rule pack management UI",
-    "notes": "Child of rule-packs (Options \u2192 Rule packs or Guidance footer). List installed packs: version, match summary, enabled toggle, last refresh. Add local folder picker; add git URL + branch; refresh now; open pack folder. Show which outstanding/live insights came from pack vs built-in (badge pack_id). Link to authoring doc from rule-pack-format."
+    "notes": "DONE Jul 2026: Options \u2192 Rule packs \u2014 list packs, enable toggle, reload, path/version/rule counts."
   },
   {
     "id": "rule-browser",
-    "priority": "medium",
+    "priority": "done",
     "title": "Rule browser (explore installed rules)",
-    "notes": "Child of rule-packs. Read-only catalog of all rules across enabled packs \u2014 distinct from rule-pack-ui (install/enable) and rule-builder (author). Entry: Guidance footer 'Browse rules' or Options \u2192 Rule packs \u2192 Browse. Flat/searchable list: pack name, rule id, insight_id, bucket, level, match_when summary, detect conditions (human-readable), emit title, actions count, fix_script ref. Filters: pack, bucket (steam/resolutions/platform), game AppID, metric used (swap, stutter, gpu.busy_pct), level, currently firing (live eval against latest snap). Rule detail drawer: full YAML snippet (read-only), template preview with live metric values substituted, 'why firing / why not' against current rig (per-condition pass/fail), link to open pack file, link to related Guidance card if active. API: GET /api/rule-packs/rules?pack=&q=; POST /api/rule-packs/evaluate-rule {pack_id,rule_id} or bulk eval all rules \u2192 {firing, conditions[]}. Depends rule-pack-engine list_packs + flatten_metrics; pairs with rule-pack-ui badges on live hints."
+    "notes": "DONE Jul 2026 light: Options catalog with search, detect summary, level/bucket. Full evaluate-why drawer deferred."
   },
   {
     "id": "rule-store",
     "priority": "low",
     "title": "Rules store (discover & install community packs)",
-    "notes": "Child of rule-packs \u00b7 very low priority, ship long after rule-pack-sources + rule-pack-ui. In-app storefront for community rule packs \u2014 browse curated index, search by game/hardware/OS tags, preview pack manifest + rule count + sample rules before install. Install flow: git clone or zip download into ~/.local/share/pulse/rule-packs/<id>/ (reuse rule-pack-sources); pin version; enable toggle. Store index: static JSON hosted by Pulse project or community mirror (name, id, url, version, tags, author, description, requires_pulse, rule_count, verified badge optional). No payments v1 \u2014 free OSS packs only. Trust: show unsigned warning; fix scripts user-reviewed; optional maintainer allowlist. UI: Options \u2192 Rule packs \u2192 Get more rules; pack cards with Install / Update / Remove. Offline: show installed only; manual git URL fallback (rule-pack-ui). Depends rule-pack-sources git pull, rule-browser for post-install preview. Not an app store \u2014 thin catalog over git repos."
+    "notes": "Child of rule-packs \u00b7 very low priority, ship long after rule-pack-sources + rule-pack-ui. In-app storefront for community rule packs \u2014 browse curated index, search by game/hardware/OS tags, preview pack manifest + rule count + sample rules before install. Install flow: git clone or zip download into ~/.local/share/pulse/rule-packs/<id>/ (reuse rule-pack-sources); pin version; enable toggle. Store index: static JSON hosted by Pulse project or community mirror (name, id, url, version, tags, author, description, requires_pulse, rule_count, verified badge optional). No payments v1 \u2014 free OSS packs only. Trust: show unsigned warning; fix scripts user-reviewed; optional maintainer allowlist. UI: Options \u2192 Rule packs \u2192 Get more rules; pack cards with Install / Update / Remove. Offline: show installed only; manual git URL fallback (rule-pack-ui). Depends rule-pack-sources git pull, rule-browser for post-install preview. Not an app store \u2014 thin catalog over git repos. \u00b7 Core scope: Pop/COSMIC-first; community after release."
   },
   {
     "id": "rule-pack-migrate",
-    "priority": "medium",
+    "priority": "done",
     "title": "Migrate built-in rules to default pack",
-    "notes": "DONE v1 (Jul 2026): 26 rules in rules/builtin/pulse-default/ \u2014 platform, memory, gpu, session, steam, tools, resolutions YAML. tuning_actions.py slimmed to pack eval + system-balanced fallback only; steam.yaml + rule_packs diag metrics supersede old steam_guidance.py (deleted Jul 2026). Culled from default pack: cpu-ccd-spread, ram-expo-verify, gpu-shader-bound (defer to community packs). Remaining: schema validation, sustained detect in YAML, boot-journal promote?"
+    "notes": "DONE v1 Jul 2026. Builtin pack rules/builtin/pulse-default/ (~28 rules). tuning_actions slimmed to pack eval + fallbacks. steam_guidance.py removed. Culled rules deferred to community packs."
   },
   {
     "id": "rule-pack-game-overrides",
-    "priority": "high",
+    "priority": "done",
     "title": "Game overrides in rule packs",
-    "notes": "Child of rule-packs. Move games.py GAME_OVERRIDES + LEGACY_GAME_IDS out of hardcoded Python into declarative pack data (game_overrides in rule-pack-format). Per-AppID optional fields: main_exe[] (primary binary for hero CPU/RAM metering), exclude_exe[] (skip helper procs), short/name display overrides, legacy_ids[] (e.g. cities2\u2192949230). Scope: process detection + metering only \u2014 Steam install/update health stays generic (no per-title corrupt/suspended logic). Engine merges overrides from all enabled packs; games.py reads merged table on load/hot-reload; manifest name/installdir remain default fallback. require_main when main_exe set (today CS2 730). Community game packs ship overrides + recipes together. Depends rule-pack-format schema + rule-pack-engine indexer. UI: rule-pack-ui shows override count per pack."
+    "notes": "DONE Jul 2026: pack.yaml game_overrides + legacy_game_ids; games.py LazyDict via get_game_overrides/get_legacy_game_ids; Options shows override counts."
   },
   {
     "id": "rule-builder",
     "priority": "low",
     "title": "Rule builder (data-driven authoring)",
-    "notes": "Child of rule-packs \u00b7 high interest, ship after format+engine. In-app wizard to create pack rules from Pulse data \u2014 no hand-editing YAML required. Pick a window: live tick, game session, or time range from pulse.db samples. UI shows metric timeline (swap, stutter, gpu_busy, pgmaj, load_phase, etc.) + brush/select 'problem region' vs 'good baseline'. Suggest thresholds from percentiles/deltas (e.g. swap>20% when stutter>30). Auto-fill match_when from rig snapshot (game AppID, gpu family, distro, memory spec). Preview rule against history (would-have-fired count, false-positive estimate). Export rule-pack YAML + optional fix script stub; save to ~/.config/pulse/rules/. 'Create rule from this insight' on Guidance cards. 'Compare sessions' mode: diff Jul 1 poor vs Jul 7 good Cities session \u2192 proposed detect block. Depends rule-pack-format metric namespace + /api/trends + game_sessions."
+    "notes": "Child of rule-packs \u00b7 high interest, ship after format+engine. In-app wizard to create pack rules from Pulse data \u2014 no hand-editing YAML required. Pick a window: live tick, game session, or time range from pulse.db samples. UI shows metric timeline (swap, stutter, gpu_busy, pgmaj, load_phase, etc.) + brush/select 'problem region' vs 'good baseline'. Suggest thresholds from percentiles/deltas (e.g. swap>20% when stutter>30). Auto-fill match_when from rig snapshot (game AppID, gpu family, distro, memory spec). Preview rule against history (would-have-fired count, false-positive estimate). Export rule-pack YAML + optional fix script stub; save to ~/.config/pulse/rules/. 'Create rule from this insight' on Guidance cards. 'Compare sessions' mode: diff Jul 1 poor vs Jul 7 good Cities session \u2192 proposed detect block. Depends rule-pack-format metric namespace + /api/trends + game_sessions. \u00b7 Core scope: Pop/COSMIC-first; community after release."
   },
   {
     "id": "rename-insights-terminology",
@@ -415,21 +415,21 @@
   },
   {
     "id": "mangohud-companion",
-    "priority": "medium",
+    "priority": "done",
     "title": "MangoHud companion (umbrella)",
-    "notes": "Optional companion \u2014 Pulse stays useful without MangoHud (system sampler + stutter proxy). MangoHud fills the one big gap Pulse cannot: true in-game FPS/frametime from the present chain. Today diagnostics only flags bin-missing-mangohud as info in System scan (not promoted). Children: mangohud-guidance-card (install + launch template), mangohud-log-ingest (CSV \u2192 session metrics). Do not embed/replace MangoHud overlay; ingest logs or post-session summaries only. Caveats: user must wrap launches (mangohud %command%) or enable logging in ~/.config/MangoHud/MangoHud.conf; Flatpak Steam needs flatpak override; some titles block LD_PRELOAD; gamescope uses mangoapp not mangohud. Control unix socket is command-only (no metric stream API)."
+    "notes": "DONE v1 Jul 2026: (1) mangohud-recommended Guidance when missing; (2) CSV log ingest into game_sessions + UI MangoHud badge/FPS. No Steam auto-write. Defer live socket bridge."
   },
   {
     "id": "mangohud-guidance-card",
-    "priority": "medium",
+    "priority": "done",
     "title": "MangoHud \u2014 recommended install Guidance card",
-    "notes": "Child of mangohud-companion. When shutil.which(mangohud) is false: promote diagnostics bin-missing-mangohud to Guidance (bucket=tools, level=info) \u2014 not hot/warn. Card copy: optional overlay + logging for real frametime; Pulse stutter score stays a kernel proxy until MangoHud logging is on. Actions: sudo apt install mangohud; optional flatpak override for Flatpak Steam; copy launch option mangohud %command% (or gamemoderun mangohud %command%); link GOverlay for config. Once installed: dismiss card or flip to 'enable logging' follow-up (mangohud-log-ingest). Fix script: install + sample MangoHud.conf snippet (output_folder=<pulse_root>/mangohud-logs, log_interval=1000, autostart_log=5). Hide if user suppressed hint_id."
+    "notes": "DONE Jul 2026: tools.yaml mangohud-recommended (info) when tools.mangohud false; live PATH check only; Recommended title; install + launch option actions + fix script sample conf with ~/mangohud-logs. No auto Steam write."
   },
   {
     "id": "mangohud-log-ingest",
-    "priority": "medium",
+    "priority": "done",
     "title": "MangoHud CSV log ingestion",
-    "notes": "Child of mangohud-companion. Parse MangoHud benchmark CSV (columns: fps, frametime, cpu_load, gpu_load, gpu_vram_used, \u2026) and *_summary.csv percentiles (0.1% min, 1% min, 97%, avg FPS, avg frametime). mangohud_logs.py: discover newest log for active game exe in output_folder (default ~/ or pulse_root/mangohud-logs); tail while session running; on session end merge into game_sessions \u2014 fps_avg, fps_1pct, fps_0_1pct, frametime_avg, frametime_1pct; prefer over stutter.py hitch_ms_1pct when fresh (<30s). UI: drill-game badge 'MangoHud' when real frametime present; stutter panel shows proxy vs measured. Optional: Pulse writes per-game wine-<exe>.conf logging stanza when user opts in from Guidance. Defer live socket bridge \u2014 CSV tail is enough v1. Ties game-session-trends + frametime-proxy docs."
+    "notes": "DONE Jul 2026. mangohud_logs.py discovers CSV in ~/mangohud-logs, conf output_folder, data_dir, home; parses fps/frametime; 1%/0.1% lows. game_performance._attach_mangohud on finalize + live peek; store columns fps_avg/fps_1pct/fps_0_1pct/frametime_*/mangohud_path; hitch_ms_1pct prefers measured frametime_1pct (proxy kept as hitch_ms_1pct_proxy). UI: MH badge on KPIs/history, FPS column, measured vs proxy labels. tests/test_mangohud_logs.py. Defer: live socket bridge, per-game wine conf auto-write, *_summary.csv specialty parse (derived percentiles sufficient)."
   },
   {
     "id": "hotpath-perf-pass",
@@ -441,25 +441,25 @@
     "id": "detect-games-slim",
     "priority": "low",
     "title": "Slim detect_games further (~60ms/tick)",
-    "notes": "Still largest single cost in collect_metrics on idle desktop. Ideas: refresh 2\u20133 Hz not 1 Hz when no game running; narrower process_iter attrs; Steam-only cmdline prefilter before classify; optional /proc/pid/environ batch; skip overlay scan when no AppId= in steam processes. Do not regress CS2 main_exe / cwd candidate merge. Measure on gaming + idle before shipping."
+    "notes": "PARTIALLY DONE Jul 2026: auto detect cadence baked in (no Options UI) \u2014 ~3s idle, every tick while gaming. Empty /proc snapshot still TTL 2s. Still open: narrower process_iter, Steam-only cmdline prefilter, skip overlay when no AppId."
   },
   {
     "id": "rule-pack-hygiene",
-    "priority": "medium",
+    "priority": "done",
     "title": "Default pack hygiene pass (post-migrate v1)",
-    "notes": "Child of rule-packs \u00b7 polish rules/builtin/pulse-default/ after Jul 2026 migration. (1) session.yaml cpu-bound: add game.running guard \u2014 today can fire idle. (2) Overlap: cpu-bound vs resolution-cpu-perf both when governor=powersave \u2014 tighten detect or suppress lower-priority card. (3) steam.yaml game-libs-missing: DONE \u2014 dynamic apt line via _lib_install_context + fix_kwargs. (4) gpu.yaml thermal rules: restore per-vendor fan tool actions (CoreCtrl/CoolerControl/amdgpu sysfs) from fix_scripts fan_tool_hint \u2014 migration dropped vendor split. (5) DRY repeated Close Brave/Firefox/Discord actions across memory/gpu/session YAML \u2014 engine shared action snippets or YAML anchors. (6) resolutions.yaml resolution-load-settle: title should reference signals.load_phase_loading not generic copy. Depends rule-pack-engine shared snippets + optional dynamic emit from findings."
+    "notes": "DONE Jul 2026. (1) cpu-bound requires game.running. (2) powersave overlap: cpu-bound excludes powersave (resolution-cpu-perf + cpu-governor-powersave own that case). (3) resolution-load-settle title references load-phase settle. (4) thermal cards note CoreCtrl/CoolerControl fan curves. Shared YAML anchors / full DRY deferred \u2014 good enough for default pack."
   },
   {
     "id": "rule-pack-promote-diagnostics",
     "priority": "medium",
     "title": "Promote system scan findings to default pack",
-    "notes": "Child of rule-packs \u00b7 move high-value diagnostics from scan-only to Guidance via YAML. Candidates: systemd-failed (warn), kernel-gpu-warnings (warn), apt-upgrades-pending (info/warn when upgrades pending). Prerequisite: rule-pack-engine _flatten_diag() exposes stable diag.* metrics (diag.systemd_failed_count, diag.kernel_gpu_warn_lines, diag.apt_upgrades_pending, etc.) \u2014 today scan_findings_for_guidance() promotes ad hoc. New rules likely system.yaml or platform.yaml. Intentionally stay scan-only: boot-journal-errors, steam-log-*, prefix-missing-*, steam-missing (noise or one-off). Pair with rule-pack-format diagnostics namespace."
+    "notes": "Child of rule-packs \u00b7 move high-value diagnostics from scan-only to Guidance via YAML. Candidates: systemd-failed (warn), kernel-gpu-warnings (warn). Do NOT promote package-manager update counts (apt-upgrades removed Jul 2026 \u2014 noise). Prerequisite: rule-pack-engine _flatten_diag() exposes stable diag.* metrics. Intentionally stay scan-only: boot-journal-errors, steam-log-*, prefix-missing-*, steam-missing (noise or one-off)."
   },
   {
     "id": "rule-pack-promote-tools",
-    "priority": "medium",
+    "priority": "done",
     "title": "Promote missing-tool diagnostics to tools.yaml",
-    "notes": "Child of rule-packs \u00b7 Guidance cards for optional tooling gaps. Promote from System scan: bin-missing-vulkaninfo / vulkan-tools (info, apt install vulkan-tools), winetricks missing (info, apt install winetricks). Overlaps mangohud-guidance-card (mangohud) \u2014 keep one card per binary; tools.yaml already has MangoHud + GameMode rules. Actions: copy apt line, link pop-runtimes-steam. Requires diag.bin_missing.* or shutil.which metrics in flatten_metrics."
+    "notes": "DONE Jul 2026. tools.yaml: mangohud-recommended + gamemode-recommended on live PATH (tools.*). Optional install Guidance only \u2014 no apt update nags. vulkaninfo/winetricks not promoted (low signal for Pop gaming)."
   },
   {
     "id": "rule-pack-proton-wayland",
@@ -477,6 +477,6 @@
     "id": "rule-pack-community-gpu-ram",
     "priority": "low",
     "title": "Community pack: GPU shader-bound + RAM EXPO verify",
-    "notes": "Child of rule-packs \u00b7 culled from pulse-default v1 \u2014 ship as optional community pack not builtin. gpu-shader-bound: tight detect (running game, busy\u226592, mem_busy<45, cpu<78%, vram<75%, stutter\u226535) \u2014 niche false-positive risk. ram-expo-verify: warn when live DRAM speed below EXPO profile (ties expo-detect backlog + mem_spec). Seed example pack rules/community/rdna3-pop or hardware-specific repo; document in rule-pack-format examples. Re-enable only when user installs pack."
+    "notes": "Child of rule-packs \u00b7 culled from pulse-default v1 \u2014 ship as optional community pack not builtin. gpu-shader-bound: tight detect (running game, busy\u226592, mem_busy<45, cpu<78%, vram<75%, stutter\u226535) \u2014 niche false-positive risk. ram-expo-verify: warn when live DRAM speed below EXPO profile (ties expo-detect backlog + mem_spec). Seed example pack rules/community/rdna3-pop or hardware-specific repo; document in rule-pack-format examples. Re-enable only when user installs pack. \u00b7 Scope: community post-release (core is Pop/COSMIC-first)."
   }
 ]
