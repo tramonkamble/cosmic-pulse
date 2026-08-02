@@ -439,9 +439,9 @@
   },
   {
     "id": "detect-games-slim",
-    "priority": "low",
+    "priority": "done",
     "title": "Slim detect_games further (~60ms/tick)",
-    "notes": "PARTIALLY DONE Jul 2026: auto detect cadence baked in (no Options UI) \u2014 ~3s idle, every tick while gaming. Empty /proc snapshot still TTL 2s. Still open: narrower process_iter, Steam-only cmdline prefilter, skip overlay when no AppId."
+    "notes": "DONE Aug 2026. Phase-1 light walk: skip empty cmdline; AppID regex only on Steam-hint cmdlines; overlay only for gameoverlayui. Phase-2 enriches only game-like rows (_worth_enriching), not every process. Empty snapshot TTL 2s + idle detect cadence ~3s unchanged. Tests: test_detect_games_slim.py."
   },
   {
     "id": "rule-pack-hygiene",

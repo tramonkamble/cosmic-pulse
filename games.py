@@ -33,7 +33,7 @@ def _prune_stale_cache(
 HOME = Path.home()
 
 APPID_RE = re.compile(r"AppId=(\d+)", re.I)
-COMPAT_RE = re.compile(r"compatdata/(\d+)", re.I)
+COMPAT_RE = re.compile(r"compatdata[/\\](\d+)", re.I)
 GAMEID_RE = re.compile(r"-gameid\s+(\d+)", re.I)
 OVERLAY_PID_RE = re.compile(r"-pid\s+(\d+)", re.I)
 STEAM_ENV_APPID_KEYS = (
@@ -970,14 +970,102 @@ def _norm_cpu(raw: float) -> float:
 _EMPTY_SNAPSHOT_TTL = 2.0
 _empty_snapshot_cache: tuple[float, tuple[set[str], dict[str, set[int]], list]] | None = None
 
+# Cheap substring gates before regex — most desktop /proc rows never match.
+_APPID_CMD_HINTS = (
+    "AppId=",
+    "AppID=",
+    "appid=",
+    "compatdata/",
+    "compatdata\\",
+    "-gameid",
+    "-gameId",
+    "SteamAppId",
+    "SteamGameId",
+    "STEAM_COMPAT_APP_ID",
+)
+
+
+def _cmd_has_appid_hint(cmd: str) -> bool:
+    """True if cmdline is worth running AppID regexes on."""
+    if not cmd:
+        return False
+    # Case variants covered by explicit tokens + one lower pass for -gameid
+    if any(h in cmd for h in _APPID_CMD_HINTS):
+        return True
+    cl = cmd.lower()
+    return "compatdata/" in cl or "compatdata\\" in cl or "gameid" in cl or "appid=" in cl
+
+
+def _extract_appids_from_cmd(cmd: str, active: set[str]) -> bool:
+    """Parse AppIDs from a Steam/Proton cmdline into *active*. Returns True if any found."""
+    if not _cmd_has_appid_hint(cmd):
+        return False
+    found = False
+    for match in APPID_RE.finditer(cmd):
+        active.add(match.group(1))
+        found = True
+    compat = COMPAT_RE.search(cmd)
+    if compat:
+        active.add(compat.group(1))
+        found = True
+    gid = GAMEID_RE.search(cmd)
+    if gid:
+        active.add(gid.group(1))
+        found = True
+    return found
+
+
+def _is_overlay_proc(name: str) -> bool:
+    return "gameoverlayui" in (name or "").lower()
+
+
+def _worth_enriching(name: str, cmd: str) -> bool:
+    """Keep only Steam/Proton/game-like rows for memory_info + cpu_percent.
+
+    Launch helpers (reaper, proton) are used for AppID discovery only and are
+    not metered — they stay out of the phase-2 list.
+    """
+    nl = (name or "").lower()
+    if not nl and not cmd:
+        return False
+    if _is_overlay_proc(nl):
+        return False  # overlay maps PIDs; not a metered game process
+    if nl in SKIP_PROCS or nl in AUXILIARY_EXES:
+        return False
+    if _is_game_binary(nl):
+        return True
+    cl = (cmd or "").lower().replace("\\", "/")
+    if not cl:
+        return False
+    # Install / Proton paths — native Linux titles under steamapps/common
+    if "steamapps/" in cl or "compatdata/" in cl:
+        return True
+    if "proton" in cl or "steam-runtime" in cl or "pressure-vessel" in cl:
+        # Helpers only — real game binaries usually also match .exe / common/
+        if _is_game_binary(_exe_basename_from_cmdline(cmd)):
+            return True
+        # Still keep waitforexitandrun children often look like wine + path
+        if ".exe" in cl or "/common/" in cl:
+            return True
+        return False
+    if "wine" in nl or nl.startswith("wine"):
+        return True
+    # Short Wine names sometimes appear only in cmdline basename
+    if _is_game_binary(_exe_basename_from_cmdline(cmd)):
+        return True
+    return False
+
 
 def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dict]]:
-    """Discover Steam AppIDs and (only if any) enrich proc rows for classification.
+    """Discover Steam AppIDs and (only if any) enrich game-like proc rows.
 
-    Phase 1 walks every process with light attrs (pid/name/cmdline) to find AppIDs.
-    When nothing is running, we skip memory_info + cpu_percent and may reuse a
-    short-lived empty cache. Phase 2 enriches PIDs only when an AppID is active —
-    same detection/classification results as the old single heavy pass.
+    Phase 1: light walk (pid/name/cmdline). Skip empty-cmdline noise (kernel
+    threads). AppID regex only when cmdline has a cheap Steam hint. Overlay
+    mapping only for gameoverlayui. Phase-2 candidate list is Steam/game-like
+    only — not every process on the box.
+
+    When nothing is running: skip memory_info/cpu_percent and reuse a short
+    empty cache (_EMPTY_SNAPSHOT_TTL).
     """
     global _empty_snapshot_cache
     now = time.time()
@@ -988,37 +1076,44 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
 
     active_appids: set[str] = set()
     overlay_map: dict[str, set[int]] = {}
-    # Light rows kept for phase 2; avoid holding psutil.Process (can race).
+    # Light rows for phase 2 only (game-like); avoid holding psutil.Process.
     light: list[tuple[int, str, str]] = []
 
     for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         try:
             pid = proc.info["pid"]
             name = proc.info["name"] or ""
-            cmd = " ".join(proc.info["cmdline"] or [])
+            cmdline = proc.info["cmdline"] or []
+            cmd = " ".join(cmdline) if cmdline else ""
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
 
-        if cmd:
-            for match in APPID_RE.finditer(cmd):
-                active_appids.add(match.group(1))
-            compat = COMPAT_RE.search(cmd)
-            if compat:
-                active_appids.add(compat.group(1))
-            gid = GAMEID_RE.search(cmd)
-            if gid:
-                active_appids.add(gid.group(1))
+        # Kernel threads / empty cmdline: no Steam AppID on cmdline.
+        if not cmd:
+            continue
 
-        if "gameoverlayui" in name.lower() and cmd:
+        _extract_appids_from_cmd(cmd, active_appids)
+
+        # Overlay provides AppID + game PID map (only when present).
+        if _is_overlay_proc(name):
             gid_m = GAMEID_RE.search(cmd)
             pid_m = OVERLAY_PID_RE.search(cmd)
             if gid_m and pid_m:
-                overlay_map.setdefault(gid_m.group(1), set()).add(int(pid_m.group(1)))
+                try:
+                    overlay_map.setdefault(gid_m.group(1), set()).add(int(pid_m.group(1)))
+                except ValueError:
+                    pass
+            continue
 
-        light.append((pid, name, cmd))
+        if _worth_enriching(name, cmd):
+            light.append((pid, name, cmd))
+
+    # Overlay -gameid counts even when no other cmdline AppId= was seen.
+    for appid in overlay_map:
+        active_appids.add(appid)
 
     if not active_appids:
-        empty: tuple[set[str], dict[str, set[int]], list] = (active_appids, overlay_map, [])
+        empty: tuple[set[str], dict[str, set[int]], list] = (set(), {}, [])
         _empty_snapshot_cache = (now, empty)
         return empty
 
@@ -1279,9 +1374,10 @@ _detect_result_cache: tuple[float, dict[str, dict], bool] | None = None
 
 
 def invalidate_detect_games_cache() -> None:
-    """Drop throttled detect cache."""
-    global _detect_result_cache
+    """Drop throttled detect cache and empty /proc snapshot cache."""
+    global _detect_result_cache, _empty_snapshot_cache
     _detect_result_cache = None
+    _empty_snapshot_cache = None
 
 
 def _detect_games_uncached() -> dict[str, dict]:
