@@ -1,5 +1,29 @@
 [
   {
+    "id": "ui-pass1-consistency",
+    "priority": "done",
+    "title": "UI pass 1 \u2014 consistency & quieter main",
+    "notes": "Shared spacing/label/radius tokens; softer nested borders; hide specialist main-screen noise (mem bus, load 1m, network/bandwidth vitals, core/engine strips, guidance item list, swap/game util bars). Adrenaline-like primary set: CPU/GPU/VRAM/RAM + temps + power."
+  },
+  {
+    "id": "ui-pass2-density",
+    "priority": "high",
+    "title": "UI pass 2 \u2014 density & hierarchy",
+    "notes": "Further reduce summary bar height; stronger Live overview focal point; optional compact mode. Keep grace, no rewrite."
+  },
+  {
+    "id": "ui-main-data-cull",
+    "priority": "high",
+    "title": "Cull low-value main-screen data (deeper)",
+    "notes": "Industry filter (Adrenaline/Afterburner/MangoHud): keep GPU%/temp/VRAM, CPU%, RAM, FPS/session, power; demote or drill-only: Pulse Index chrome on main, host badge sprawl, duplicate chart KPIs, sensor strip vs vitals overlap, I/O busy when idle. Toggle for 'Power user metrics' in Options later."
+  },
+  {
+    "id": "ui-pass3-type-cleanup",
+    "priority": "medium",
+    "title": "UI pass 3 \u2014 finish type scale cleanup",
+    "notes": "Replace remaining one-off rem sizes with --fs-* / --label-* tokens; 3-tier label system only."
+  },
+  {
     "id": "multi-game-issues",
     "priority": "done",
     "title": "Per-game issues + cross-game priority",

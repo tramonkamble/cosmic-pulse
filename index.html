@@ -108,6 +108,18 @@
       --chart-cpu: var(--m-cpu);
       --chart-gpu: var(--m-gpu);
       --chart-ram: var(--m-mem);
+      /* Pass 1 — shared chrome tokens (consistency over one-offs) */
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --space-1: 0.35rem;
+      --space-2: 0.55rem;
+      --space-3: 0.85rem;
+      --space-4: 1.15rem;
+      --label-size: var(--fs-xs);
+      --label-weight: 600;
+      --label-tracking: 0.05em;
+      --line-soft: color-mix(in srgb, var(--line) 72%, transparent);
+      --inset-fill: rgba(0, 0, 0, 0.14);
     }
     * { box-sizing: border-box; }
     button { font-family: inherit; color: inherit; }
@@ -356,7 +368,7 @@
     }
     .tab-btn {
       font-family: inherit; font-size: 1rem; font-weight: 500;
-      padding: .6rem 1.1rem; border: 1px solid transparent; border-radius: 10px;
+      padding: .6rem 1.1rem; border: 1px solid transparent; border-radius: var(--radius-md);
       background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s, box-shadow .15s;
     }
     .tab-btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
@@ -375,7 +387,7 @@
     .ctrl-label { font-size: .95rem; color: var(--muted); font-weight: 500; padding: 0 .5rem; }
     .btn {
       font-family: inherit; font-size: 1rem; font-weight: 500;
-      padding: .65rem 1rem; border: 1px solid transparent; border-radius: 10px;
+      padding: .65rem 1rem; border: 1px solid transparent; border-radius: var(--radius-md);
       background: transparent; color: var(--muted); cursor: pointer; transition: background .15s, color .15s, box-shadow .15s;
     }
     .btn:hover { color: var(--text); background: rgba(255,255,255,.05); }
@@ -402,9 +414,9 @@
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--m-mem) 22%, transparent);
     }
     main { padding: 1.5rem 1.75rem; max-width: 1920px; margin: 0 auto; position: relative; z-index: 1; }
-    .page { display: none; flex-direction: column; gap: 1.25rem; }
+    .page { display: none; flex-direction: column; gap: var(--space-4); }
     .page.active { display: flex; }
-    .grid { display: grid; gap: 1.25rem; }
+    .grid { display: grid; gap: var(--space-4); }
     .g-hero { grid-template-columns: repeat(3, 1fr); }
     @media (max-width: 1000px) { .g-hero { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 600px) { .g-hero { grid-template-columns: 1fr; } }
@@ -416,13 +428,13 @@
     .card {
       background: var(--panel-solid);
       border: 1px solid var(--line); border-radius: var(--radius-lg);
-      padding: 1.4rem 1.5rem; position: relative;
+      padding: 1.25rem 1.35rem; position: relative;
       box-shadow: var(--shadow), var(--surface-shine);
     }
     body.cosmic-frosted .card { background: var(--panel); }
     .card h2 {
-      margin: 0 0 1.1rem; font-size: 1.2rem; color: var(--text);
-      font-weight: 500; letter-spacing: 0.04em;
+      margin: 0 0 var(--space-3); font-size: 1.15rem; color: var(--text);
+      font-weight: 500; letter-spacing: 0.03em;
     }
     .stat, .bw-big, .rank-score, .drill-sensor-card .ds-val {
       font-variant-numeric: tabular-nums lining-nums;
@@ -927,8 +939,8 @@
     .core-label { text-align: center; font-size: .85rem; color: var(--muted); margin-top: 6px; font-weight: 500; }
     .chart-box { height: 400px; }
     .summary-bar {
-      padding: 1.15rem 1.3rem;
-      display: flex; flex-direction: column; gap: 1rem;
+      padding: 1.1rem 1.25rem;
+      display: flex; flex-direction: column; gap: var(--space-3);
     }
     .sum-grid-scroll {
       overflow-x: auto;
@@ -1024,8 +1036,8 @@
     }
     .sum-cell {
       font-family: inherit; text-align: left; cursor: pointer; color: var(--text);
-      border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-elevated);
-      padding: .85rem 1rem; display: flex; flex-direction: column; gap: .4rem;
+      border: 1px solid var(--line-soft); border-radius: var(--radius); background: var(--panel-elevated);
+      padding: var(--space-3) 1rem; display: flex; flex-direction: column; gap: var(--space-2);
       justify-content: flex-start; min-height: 0; height: 100%;
       transition: border-color .15s, background .15s, box-shadow .15s;
       box-shadow: var(--surface-shine);
@@ -1401,7 +1413,10 @@
     .sum-cell.warn { border-left: 4px solid var(--sev-warn); }
     .sum-cell.info { border-left: 4px solid var(--sev-info); }
     .sum-cell.ok { border-left: 4px solid var(--sev-ok); }
-    .sum-label { font-size: .78rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secondary); }
+    .sum-label {
+      font-size: var(--label-size); font-weight: var(--label-weight);
+      letter-spacing: var(--label-tracking); text-transform: uppercase; color: var(--text-secondary);
+    }
     .sum-value { font-size: 1.5rem; font-weight: 600; line-height: 1.15; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; color: var(--text); }
     .sum-cell.hot .sum-value { color: var(--sev-hot); }
     .sum-cell.warn .sum-value { color: var(--sev-warn); }
@@ -1523,24 +1538,24 @@
       flex-direction: column;
       gap: .06rem;
       padding: .28rem .4rem;
-      border-radius: 8px;
-      background: rgba(0,0,0,.14);
-      border: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+      border-radius: var(--radius-sm);
+      background: var(--inset-fill);
+      border: none;
       min-width: 0;
     }
     .sum-mini .k {
-      font-size: var(--fs-2xs);
-      font-weight: 700;
-      letter-spacing: .045em;
+      font-size: var(--label-size);
+      font-weight: var(--label-weight);
+      letter-spacing: var(--label-tracking);
       text-transform: uppercase;
       color: var(--muted);
     }
     .sum-mini .v {
-      font-size: .86rem;
-      font-weight: 650;
+      font-size: var(--fs-sm);
+      font-weight: 600;
       font-variant-numeric: tabular-nums;
       color: var(--text);
-      line-height: 1.15;
+      line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1735,13 +1750,13 @@
       min-height: 0;
       display: flex;
       flex-direction: column;
-      gap: .4rem;
-      padding: .55rem .6rem .6rem;
-      border-radius: 12px;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius);
       background:
         linear-gradient(180deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 42%),
         var(--panel-elevated);
-      border: 1px solid var(--line);
+      border: 1px solid var(--line-soft);
       box-shadow: var(--surface-shine);
     }
     .rig-panel-head {
@@ -2337,13 +2352,13 @@
       margin-bottom: .55rem;
     }
     .sensor-strip-title {
-      font-size: .875rem; font-weight: 600; color: var(--text-secondary);
-      letter-spacing: .04em; text-transform: uppercase; flex: 1; min-width: 0;
+      font-size: var(--label-size); font-weight: var(--label-weight); color: var(--text-secondary);
+      letter-spacing: var(--label-tracking); text-transform: uppercase; flex: 1; min-width: 0;
     }
     .sensor-strip-toggle {
-      font-family: inherit; font-size: .8rem; font-weight: 500;
+      font-family: inherit; font-size: var(--fs-sm); font-weight: 500;
       color: var(--text-secondary); background: rgba(0,0,0,.2);
-      border: 1px solid var(--line); cursor: pointer;
+      border: 1px solid var(--line-soft); cursor: pointer;
       padding: .28rem .65rem; border-radius: 999px;
     }
     .sensor-strip-toggle:hover {
@@ -2493,12 +2508,13 @@
     .stutter-chart-col { flex: 1; }
     .stutter-chart-box {
       flex: 1; min-height: 11.5rem; position: relative;
-      border-radius: 10px; border: 1px solid var(--line); background: rgba(0,0,0,.22);
+      border-radius: var(--radius-md); border: 1px solid var(--line-soft); background: rgba(0,0,0,.22);
       padding: .45rem .55rem .25rem;
     }
     .stutter-side-label {
-      font-size: var(--fs-2xs); font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
-      color: var(--muted); margin-bottom: .45rem;
+      font-size: var(--label-size); font-weight: var(--label-weight);
+      letter-spacing: var(--label-tracking); text-transform: uppercase;
+      color: var(--muted); margin-bottom: var(--space-2);
     }
     .metric-list-compact { gap: .5rem; }
     .metric-list-compact .metric-bar-head { margin-bottom: .22rem; }
@@ -3817,6 +3833,69 @@
     .hw-id-primary { font-weight: 500; color: var(--text); line-height: 1.35; }
     .hw-id-sub { font-size: .82rem; color: var(--muted); line-height: 1.35; }
 
+    /* ── Pass 1: consistency + quieter main screen ─────────────────────────
+       Goals: shared label/spacing language; less border-in-border; demote
+       specialist telemetry that tools like AMD Adrenaline keep off the home
+       glance (bus %, network rates, core maps). Data remains in drills. */
+    .dash-secondary { display: none !important; }
+    #sumHealthCell .health-list,
+    #sumHealthCell .health-clear-note { display: none !important; }
+    #sumHealthCell .health-sev {
+      border-color: var(--line-soft);
+      border-radius: var(--radius-sm);
+    }
+    #sumHealthCell .health-item {
+      border: none;
+      background: var(--inset-fill);
+      border-radius: var(--radius-sm);
+    }
+    .sum-detail { font-size: var(--fs-sm); }
+    .sum-meter { border-color: transparent; background: rgba(0,0,0,.28); }
+    .hw-status-card {
+      border-color: var(--line-soft);
+      border-radius: var(--radius);
+    }
+    .hw-status-label {
+      font-size: var(--label-size);
+      font-weight: var(--label-weight);
+      letter-spacing: var(--label-tracking);
+    }
+    /* Load list: keep Adrenaline-like primary util; hide dense subcopy */
+    .rig-util-list .metric-bar-sub,
+    .rig-vitals .metric-bar-sub { display: none; }
+    .metric-list-compact .metric-bar-label { font-size: var(--label-size); }
+    .metric-list-compact .metric-bar-val { font-size: var(--fs-sm); font-weight: 600; }
+    .stutter-kpi {
+      border-color: var(--line-soft);
+      border-radius: var(--radius);
+      background: var(--inset-fill);
+    }
+    .stutter-kpi .k {
+      font-size: var(--label-size);
+      font-weight: var(--label-weight);
+      letter-spacing: var(--label-tracking);
+      text-transform: uppercase;
+    }
+    .rig-layout .stutter-side-label {
+      font-size: var(--label-size);
+      letter-spacing: var(--label-tracking);
+    }
+    .viz-panel-head { margin-bottom: var(--space-3); gap: var(--space-2) var(--space-3); }
+    .sensor-strip-wrap {
+      border-top-color: var(--line-soft);
+      padding-top: var(--space-3);
+    }
+    /* Nested vitals: softer inset cards */
+    .rig-vital-cell {
+      border-color: var(--line-soft);
+      border-radius: var(--radius-sm);
+    }
+    .sum-game-stat {
+      border-color: var(--line-soft);
+      border-radius: var(--radius-sm);
+      background: var(--inset-fill);
+    }
+
   </style>
 </head>
 <body>
@@ -3875,7 +3954,7 @@
             <div class="sum-metric-text">
               <div class="sum-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><span class="sum-label">CPU</span></div>
               <div class="sum-mini"><span class="k">Package</span><span class="v" id="sumCpuTemp">—</span></div>
-              <div class="sum-mini"><span class="k">Load 1m</span><span class="v" id="sumCpuLoad">—</span></div>
+              <div class="sum-mini dash-secondary"><span class="k">Load 1m</span><span class="v" id="sumCpuLoad">—</span></div>
             </div>
             <div class="sum-ring-wrap" aria-hidden="true">
               <div class="sum-ring-box">
@@ -3915,7 +3994,7 @@
             <div class="sum-metric-text">
               <div class="sum-head"><span class="hw-icon-box gpu" data-glyph="gpu"></span><span class="sum-label">GPU</span></div>
               <div class="sum-mini"><span class="k">Hotspot</span><span class="v" id="sumGpuTemp">—</span></div>
-              <div class="sum-mini"><span class="k">Mem bus</span><span class="v" id="sumGpuMemBus">—</span></div>
+              <div class="sum-mini dash-secondary"><span class="k">Mem bus</span><span class="v" id="sumGpuMemBus">—</span></div>
               <div class="sum-mini"><span class="k">Power</span><span class="v" id="sumGpuPower">—</span></div>
             </div>
             <div class="sum-ring-wrap" aria-hidden="true">
@@ -3999,7 +4078,7 @@
                   </div>
                   <div class="metric-list metric-list-compact stutter-driver-bars rig-util-list" id="utilMeters"></div>
                 </div>
-                <div class="rig-panel rig-panel-strips">
+                <div class="rig-panel rig-panel-strips dash-secondary">
                   <div class="rig-strips-row">
                     <div class="rig-strip-block" data-hw="cpu">
                       <div class="stutter-side-label">CPU cores</div>
@@ -4056,7 +4135,7 @@
                       <div class="stutter-side-label">Temps</div>
                       <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
                     </div>
-                    <div class="rig-vital-cell">
+                    <div class="rig-vital-cell dash-secondary">
                       <div class="stutter-side-label">Bandwidth</div>
                       <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
                     </div>
@@ -4064,7 +4143,7 @@
                       <div class="stutter-side-label">Storage</div>
                       <div class="metric-list metric-list-compact stutter-driver-bars" id="ioMeters"></div>
                     </div>
-                    <div class="rig-vital-cell" data-hw-keep>
+                    <div class="rig-vital-cell dash-secondary" data-hw-keep>
                       <div class="stutter-side-label">Network</div>
                       <div class="metric-list metric-list-compact stutter-driver-bars" id="netMeters"></div>
                     </div>
@@ -6951,13 +7030,12 @@
       renderGameSummaryCell(l.game_performance, gt, l.stutter);
     }
 
+    /* Main load meters — Adrenaline-like primary set. Swap/game live elsewhere. */
     const UTIL_SPECS = [
       { id: 'cpu', label: 'CPU', icon: 'cpu', cls: 'cpu', hw: 'cpu' },
       { id: 'ram', label: 'RAM', icon: 'ram', cls: 'mem', hw: 'memory' },
       { id: 'gpu', label: 'GPU', icon: 'gpu', cls: 'gpu', hw: 'gpu' },
       { id: 'vram', label: 'VRAM', icon: 'gpu', cls: 'vram', hw: 'gpu' },
-      { id: 'swap', label: 'Swap', icon: 'ram', cls: 'swap', hw: 'memory' },
-      { id: 'game', label: 'Game', icon: 'game', cls: 'game', hw: 'cpu gpu' },
     ];
     /* Compact right-panel vitals — fewer rows so the column doesn't thrash height every tick.
        Full sensor detail stays in the hardware strip / drill panels. */
@@ -7036,9 +7114,9 @@
     function ensureMetricList(containerId, specs, trackKey = 'cls') {
       const el = document.getElementById(containerId);
       // Bump when compact vitals specs change so lists rebuild once after deploy
-      if (el.dataset.hwVer !== '5') {
+      if (el.dataset.hwVer !== '6') {
         delete el.dataset.init;
-        el.dataset.hwVer = '5';
+        el.dataset.hwVer = '6';
       }
       if (el.dataset.init) return;
       el.innerHTML = specs.map(s => `
