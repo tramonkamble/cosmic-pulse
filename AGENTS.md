@@ -2,6 +2,30 @@
 
 Entry: **server.py** (HTTP) + **index.html** (UI). No app.py.
 
+## UI branches (beta experiments)
+
+**`main` ships the stable UI.** Alternate UIs live on branches only (not parallel `index-*.html` folders) so the API/server stay shared.
+
+| Branch | Role |
+|--------|------|
+| `main` | Stable / shipping dashboard UI |
+| `beta/ui-*` | Experimental frontends (same `index.html`, different design) |
+
+Current beta: **`beta/ui-noc`** — Cosmic NOC wallboard (dials, Lab shell, session poster wall). Diff is **`index.html` only** vs `main`.
+
+```bash
+# daily / release work
+git checkout main
+
+# continue a beta UI
+git checkout beta/ui-noc
+
+# new experiment from stable
+git checkout main && git checkout -b beta/ui-<name>
+```
+
+Do not merge beta UI into `main` until explicitly promoted. Backend/Python work should land on `main` first, then rebase beta branches.
+
 ## Product scope (until stated otherwise)
 
 **Primary target:** **Pop!_OS** (minimum bar). **COSMIC DE** is first-class when present; dual-DE (e.g. KDE for gaming) is in-scope because many Pop gamers do that.
