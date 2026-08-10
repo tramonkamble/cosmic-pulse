@@ -3860,9 +3860,12 @@
       font-weight: var(--label-weight);
       letter-spacing: var(--label-tracking);
     }
-    /* Load list: keep Adrenaline-like primary util; hide dense subcopy */
-    .rig-util-list .metric-bar-sub,
+    /* Load list: keep Adrenaline-like primary util; hide dense subcopy.
+       Bus + storage keep sublines (GB/s, busy %) — those meters are meant to be glanceable. */
+    .rig-util-list .metric-bar-sub { display: none; }
     .rig-vitals .metric-bar-sub { display: none; }
+    .rig-vitals #bwMeters .metric-bar-sub,
+    .rig-vitals #ioMeters .metric-bar-sub { display: block; }
     .metric-list-compact .metric-bar-label { font-size: var(--label-size); }
     .metric-list-compact .metric-bar-val { font-size: var(--fs-sm); font-weight: 600; }
     .stutter-kpi {
