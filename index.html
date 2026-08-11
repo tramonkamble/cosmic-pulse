@@ -969,15 +969,34 @@
       min-height: 0;
       align-items: start;
     }
-    /* Pulse Index sits with scoreboard chips — don't balloon to full row */
+    /* Pulse Index — match scoreboard chip density */
     #sumLeagueCell.sum-cell {
-      padding: 0.4rem 0.65rem;
+      padding: 0.4rem 0.7rem;
       min-height: 0;
       height: auto;
+      border: none;
+      background: rgba(0, 0, 0, .18);
+      box-shadow: none;
     }
-    #sumLeagueCell .sum-value { font-size: 1.2rem; }
-    #sumLeagueCell .sum-meter { height: 4px; }
-    #sumLeagueCell .sum-detail { font-size: var(--fs-xs); }
+    #sumLeagueCell .sum-head { margin: 0 0 0.15rem; }
+    #sumLeagueCell .sum-body {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem 0.65rem;
+      flex: 0 1 auto;
+    }
+    #sumLeagueCell .sum-value { font-size: 1.15rem; margin: 0; }
+    #sumLeagueCell .sum-foot {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.45rem;
+      margin: 0;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    #sumLeagueCell .sum-meter { height: 4px; flex: 1 1 4rem; min-width: 3rem; max-width: 8rem; }
+    #sumLeagueCell .sum-detail { font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #sumHealthCell { grid-area: health; }
     #sumCpuCell { grid-area: cpu; }
     #sumMemCell { grid-area: mem; }
@@ -4037,10 +4056,10 @@
 
     /* Compact top scoreboard chips (CPU / Mem / GPU) — load detail in Live bars */
     .sum-cell.sum-chip {
-      padding: 0.38rem 0.7rem;
-      min-height: 2.5rem !important;
-      max-height: 2.75rem !important;
-      height: 2.6rem !important;
+      padding: 0.4rem 0.7rem;
+      min-height: 0;
+      max-height: none;
+      height: auto;
       justify-content: center;
       align-self: stretch;
       border: none;
@@ -7492,6 +7511,23 @@
       seeded: false,
     };
 
+    function resetSparkRing() {
+      sparkRing.ts = [];
+      sparkRing.labels = [];
+      sparkRing.cpu = [];
+      sparkRing.gpu = [];
+      sparkRing.ram = [];
+      sparkRing.disk = [];
+      sparkRing.cpuTemp = [];
+      sparkRing.gpuTemp = [];
+      sparkRing.lastTs = 0;
+      sparkRing.ema = { cpu: null, gpu: null, ram: null, disk: null, cpuTemp: null, gpuTemp: null };
+      sparkRing.seeded = false;
+      if (typeof sparkChart !== 'undefined' && sparkChart) {
+        sparkChart._pulseStructKey = '';
+      }
+    }
+
     function sparkDiskActivity(disk) {
       const r = Number(disk?.read_mbps) || 0;
       const w = Number(disk?.write_mbps) || 0;
@@ -7557,14 +7593,20 @@
 
     /** One-shot seed from rawHistory so the chart isn't empty after reload. */
     function sparkRingSeedFromHistory() {
-      if (sparkRing.seeded || !rawHistory.length) return;
+      if (!rawHistory.length) return;
+      // If history grew a lot after a thin seed (frozen server / empty bootstrap), re-seed.
+      if (sparkRing.seeded && rawHistory.length >= 8 && sparkRing.ts.length < 4) {
+        resetSparkRing();
+      }
+      if (sparkRing.seeded) return;
       sparkRing.seeded = true;
       const cut = rawHistory.filter(h => h.ts >= (rawHistory.at(-1).ts - SPARK_WINDOW_SEC));
       let last = 0;
       for (const h of cut) {
-        if (h.ts - last < 0.85) continue;
+        // Allow denser seed when history is sparse; skip only true duplicates
+        if (last && h.ts - last < 0.45) continue;
         last = h.ts;
-        sparkRingPushSample(h, { pct: 0.4, temp: 0.35 });
+        sparkRingPushSample(h, { pct: 0.45, temp: 0.4 });
       }
       sparkRingTrim();
       if (sparkRing.ts.length) sparkRing.lastTs = sparkRing.ts.at(-1);
@@ -7575,7 +7617,8 @@
       if (!latest || latest.ts == null) return;
       sparkRingSeedFromHistory();
       const ts = latest.ts;
-      if (sparkRing.lastTs && ts - sparkRing.lastTs < 0.75) return;
+      // Same timestamp as seed tip — don't double-push
+      if (sparkRing.lastTs && Math.abs(ts - sparkRing.lastTs) < 0.45) return;
       sparkRing.lastTs = ts;
       sparkRingPushSample(latest, { pct: 0.32, temp: 0.28 });
       sparkRingTrim();
@@ -11972,6 +12015,8 @@
           rawHistory = data.history || [];
           lastStatic = data.static || lastStatic;
           metricsBootstrapped = true;
+          // Fresh page load: always rebuild spark ring from bootstrap history
+          resetSparkRing();
         } else {
           appendHistoryPoint(data.point);
           if (lastStatic) {
