@@ -1,0 +1,26 @@
+How to brief Gemini (30 seconds)
+================================
+
+1) Attach these images (all under docs/ui-handoff/shots/):
+   - 01-full-dashboard.png
+   - 02-summary-and-sensors.png
+   - 03-live-overview.png
+   - 04-live-overview-vitals.png
+   - 05-live-overview-chart.png
+
+2) Attach or paste these text files:
+   - GEMINI_TASK.md          ← main instructions
+   - UI_ELEMENTS.md
+   - DESIGN_CONTEXT.md
+
+3) Optional: PROMPT_TEMPLATE_FOR_GROK.md (skeleton Gemini should fill)
+
+4) Ask Gemini to follow GEMINI_TASK.md output format:
+   - short critique
+   - fenced "Prompt for Grok" block
+
+5) Paste Gemini's Grok prompt into your Grok / coding session on main.
+
+Folder: ~/perf-dashboard/docs/ui-handoff/
+App:    http://127.0.0.1:8765/
+Branch: main
