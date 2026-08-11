@@ -1640,18 +1640,19 @@
     .sum-meter.league > span { background: linear-gradient(90deg, var(--m-league), var(--m-cpu)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-league) 40%, transparent); }
     .sum-meter.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--m-game) 70%, #000), var(--m-game)); }
     .viz-panel-head {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .75rem;
-      margin-bottom: .5rem;
+      display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .65rem;
+      margin-bottom: .55rem;
     }
-    .viz-panel-head h2 { margin: 0; flex: 1; min-width: 8rem; }
+    .viz-panel-head h2 { margin: 0; flex: 1; min-width: 8rem; font-size: 1.05rem; }
     .viz-tabs {
-      display: flex; flex-wrap: wrap; gap: .35rem;
-      padding: .25rem; border-radius: 12px;
-      background: rgba(0,0,0,.2);
+      display: flex; flex-wrap: wrap; gap: .2rem;
+      padding: .2rem; border-radius: 999px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid var(--line-soft);
     }
     .viz-tab {
-      font-family: inherit; font-size: .875rem; font-weight: 500;
-      padding: .45rem .85rem; border-radius: 9px;
+      font-family: inherit; font-size: .8rem; font-weight: 500;
+      padding: .35rem .75rem; border-radius: 999px;
       border: none; background: transparent; color: var(--muted);
       cursor: pointer; transition: background .15s, color .15s;
     }
@@ -1694,9 +1695,9 @@
       background: var(--panel-elevated); border: 1px solid var(--line); border-radius: var(--radius);
       padding: 1rem 1.1rem; display: flex; flex-direction: column; min-height: 0; height: 100%;
     }
-    /* Rig snapshot: tab already names the view — drop redundant chrome, gain vertical room */
+    /* Rig snapshot: tab already names the view — no extra card chrome */
     .viz-block.rig-block-flush {
-      padding: .55rem .65rem .65rem;
+      padding: 0;
       background: transparent;
       border: none;
       box-shadow: none;
@@ -1748,12 +1749,16 @@
     .metric-bar-track.temp.hot > span { background: linear-gradient(90deg, var(--m-thermal-deep), var(--m-thermal)); box-shadow: 0 0 14px color-mix(in srgb, var(--m-thermal) 45%, transparent); }
     .metric-bar-track.temp.info > span { background: linear-gradient(90deg, var(--m-cpu-deep), var(--m-cpu)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-cpu) 25%, transparent); }
     .metric-bar-sub { display: block; margin-top: .3rem; font-size: .8rem; color: var(--muted); }
-    /* ── Rig snapshot: efficient 3-col dashboard ─────────────────────────── */
+    /* ── Rig snapshot / Live overview ─────────────────────────────────────
+       Hierarchy: chart = primary · load bars = secondary · vitals = tertiary
+       One outer surface per column; no box-in-box; no triple-redundant KPIs. */
     .stutter-layout.rig-layout {
-      grid-template-columns: minmax(11rem, 1fr) minmax(14rem, 1.55fr) minmax(12rem, 1.1fr);
+      display: grid;
+      grid-template-columns: minmax(10.5rem, 0.95fr) minmax(16rem, 1.9fr) minmax(11.5rem, 1.05fr);
       min-height: 0;
       height: auto;
-      gap: 0.5rem;
+      gap: 0.65rem;
+      /* start — don't stretch load meters into empty vertical gaps */
       align-items: start;
     }
     .rig-layout .rig-col {
@@ -1761,21 +1766,19 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
+      gap: 0;
     }
     .rig-panel {
       flex: 0 1 auto;
       min-height: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.35rem;
-      padding: 0.4rem 0.5rem;
+      gap: 0.45rem;
+      padding: 0.65rem 0.75rem;
       border-radius: var(--radius);
-      background:
-        linear-gradient(180deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 42%),
-        var(--panel-elevated);
+      background: color-mix(in srgb, var(--panel-elevated) 92%, #000);
       border: 1px solid var(--line-soft);
-      box-shadow: var(--surface-shine);
+      box-shadow: none;
     }
     .rig-panel-head {
       display: flex;
@@ -1783,9 +1786,12 @@
       justify-content: space-between;
       gap: .45rem;
       flex-shrink: 0;
-      min-height: 1.35rem;
+      min-height: 1.1rem;
       min-width: 0;
+      margin-bottom: 0.1rem;
     }
+    /* CPU/GPU/RAM % already on the meters — status chip is pure echo */
+    .rig-layout .rig-panel-head .rig-status { display: none; }
     .rig-panel-head .stutter-side-label {
       margin: 0;
       flex-shrink: 0;
@@ -1795,18 +1801,20 @@
       font-size: var(--fs-2xs);
       letter-spacing: .08em;
     }
-    /* Left: load bars fill, strips sit as a footer card */
+    /* Left: load bars — quiet panel, accent via metric colors only */
     .rig-col-load > .rig-panel:first-child {
       flex: 1 1 auto;
-      border-top: 2px solid color-mix(in srgb, var(--m-cpu) 55%, transparent);
+      border-top: none;
+      border-left: 3px solid color-mix(in srgb, var(--m-cpu) 45%, transparent);
     }
     .rig-util-list {
       flex: 0 1 auto;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      gap: 0.35rem;
+      gap: 0.7rem;
       min-height: 0;
+      padding: 0.1rem 0 0.15rem;
     }
     .rig-panel-strips {
       flex: 0 0 auto;
@@ -1825,36 +1833,18 @@
       flex-direction: column;
       gap: .12rem;
     }
-    /* Center: chart is the hero */
+    /* Center: chart is the only hero surface */
     .rig-panel-chart {
-      flex: 0 1 auto;
+      flex: 1 1 auto;
       min-height: 0;
-      gap: 0.3rem;
+      gap: 0.4rem;
       position: relative;
       overflow: hidden;
-      border-color: transparent;
-      background:
-        linear-gradient(var(--panel-elevated), var(--panel-elevated)) padding-box,
-        linear-gradient(105deg, #63d0de 0%, #ffad00 48%, #92ce9b 100%) border-box;
-      border: 1px solid transparent;
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, .05),
-        0 0 0 1px rgba(0, 0, 0, .12),
-        0 8px 28px rgba(0, 0, 0, .18);
+      background: color-mix(in srgb, var(--panel-elevated) 88%, #000);
+      border: 1px solid var(--line-soft);
+      box-shadow: var(--surface-shine);
     }
-    .rig-panel-chart::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      pointer-events: none;
-      background:
-        radial-gradient(120% 70% at 12% 0%, rgba(99, 208, 222, .1), transparent 55%),
-        radial-gradient(90% 60% at 88% 8%, rgba(255, 173, 0, .08), transparent 50%),
-        radial-gradient(80% 50% at 70% 100%, rgba(146, 206, 155, .06), transparent 55%),
-        linear-gradient(180deg, color-mix(in srgb, var(--panel-elevated) 88%, #000), var(--panel-elevated));
-      z-index: 0;
-    }
+    .rig-panel-chart::before { display: none; }
     .rig-panel-chart > * {
       position: relative;
       z-index: 1;
@@ -1863,10 +1853,11 @@
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      gap: .38rem;
+      gap: .3rem;
       flex-shrink: 0;
       min-width: 0;
     }
+    .live-ov-kpi-dup[hidden] { display: none !important; }
     .rig-chart-title-row {
       display: flex;
       align-items: center;
@@ -1957,23 +1948,25 @@
       white-space: nowrap;
     }
     .rig-layout .stutter-chart-box {
-      flex: 0 0 auto;
-      min-height: 9.5rem;
-      height: 11rem;
-      max-height: 13rem;
+      flex: 1 1 auto;
+      min-height: 13.5rem;
+      height: 14.5rem;
+      max-height: 18rem;
       min-width: 0;
-      border-radius: var(--radius-md);
-      border: 1px solid rgba(255, 255, 255, .06);
-      background:
-        radial-gradient(80% 55% at 50% 0%, rgba(99, 208, 222, .06), transparent 60%),
-        linear-gradient(180deg, rgba(0, 0, 0, .22), rgba(0, 0, 0, .38));
-      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15);
-      padding: .35rem .45rem .1rem;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: rgba(0, 0, 0, .28);
+      box-shadow: none;
+      padding: .35rem .25rem .15rem;
     }
     .rig-layout .stutter-chart-box canvas {
       max-width: 100%;
+      max-height: 100%;
     }
-    /* Right: one vitals surface, 2×2 grid */
+    .rig-col-chart {
+      min-height: 16rem;
+    }
+    /* Right: one flat surface, stacked sections (no nested cards) */
     .rig-col-vitals {
       overflow: hidden;
     }
@@ -1983,34 +1976,64 @@
       overflow-x: hidden;
       overflow-y: visible;
       overscroll-behavior: contain;
-      gap: 0.4rem;
+      gap: 0;
       display: flex;
       flex-direction: column;
+      padding: 0.5rem 0.65rem 0.55rem;
+    }
+    /* 2-up denser rail: power full · temps|bus · storage full */
+    .rig-vitals-flat {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 0.7rem;
+      row-gap: 0;
+      align-content: start;
+    }
+    .rig-vitals-flat .rig-vitals-power,
+    .rig-vitals-flat .rig-vitals-section[data-hw="storage"] {
+      grid-column: 1 / -1;
+    }
+    .rig-vitals-flat .rig-vitals-section {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      padding: 0.38rem 0;
+      border: none;
+      background: transparent;
+      border-radius: 0;
+    }
+    .rig-vitals-flat .rig-vitals-section + .rig-vitals-section,
+    .rig-vitals-flat .rig-vitals-power + .rig-vitals-section {
+      border-top: 1px solid var(--line-soft);
+    }
+    /* Temps + Bus sit side-by-side — no double top border on bus */
+    .rig-vitals-flat .rig-vitals-section:nth-child(3) {
+      border-top: 1px solid var(--line-soft);
+    }
+    .rig-vitals-flat .rig-vitals-section .stutter-side-label {
+      margin: 0 0 0.05rem;
+      opacity: .85;
+    }
+    .rig-vitals-flat .metric-list-compact {
+      gap: 0.4rem;
+      flex: 0 0 auto;
     }
     .rig-vitals-power {
       flex: 0 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: .28rem;
     }
+    /* legacy 2×2 cells (if any remain outside flat layout) */
     .rig-vitals-grid {
-      flex: 0 1 auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: auto auto;
-      gap: 0.35rem 0.4rem;
-      align-content: start;
-      min-height: 0;
+      display: contents;
     }
     .rig-vital-cell {
       min-width: 0;
       display: flex;
       flex-direction: column;
       gap: .15rem;
-      padding: .3rem .35rem .32rem;
-      border-radius: var(--radius-sm);
-      background: rgba(0, 0, 0, .16);
-      border: 1px solid rgba(255, 255, 255, .04);
+      padding: .3rem 0;
+      border: none;
+      background: transparent;
     }
     .rig-vital-cell .stutter-side-label {
       margin: 0;
@@ -2068,34 +2091,58 @@
       text-overflow: ellipsis;
     }
     .rig-layout .metric-list-compact .metric-bar-track {
-      height: 7px;
+      height: 6px;
+      border: none;
+      background: rgba(0, 0, 0, .32);
     }
     .rig-layout .rig-util-list .metric-bar-track {
-      height: 10px;
+      height: 9px;
     }
     .rig-layout .rig-util-list .metric-bar-label {
-      font-size: .8rem;
+      font-size: var(--fs-sm);
+      font-weight: 500;
     }
     .rig-layout .rig-util-list .metric-bar-val {
-      font-size: .88rem;
+      font-size: 0.95rem;
+      font-weight: 650;
       min-width: 3rem;
       max-width: 6rem;
     }
     .rig-layout .rig-util-list .metric-bar-sub {
       font-size: var(--fs-2xs);
+      opacity: .75;
+    }
+    /* Soften icon noise in compact meters */
+    .rig-layout .hw-metric-glyph { opacity: .55; width: .85em; height: .85em; }
+    .rig-layout .rig-chart-swatches {
+      max-width: 62%;
+      gap: .45rem;
+    }
+    .rig-layout .rig-chart-swatch {
+      font-size: var(--fs-2xs);
+      opacity: .9;
+      max-width: none;
+    }
+    .rig-layout .rig-chart-swatch > i {
+      width: .45rem;
+      height: .45rem;
+      box-shadow: none;
     }
     .rig-layout .glance-grid {
       margin-top: 0;
       flex: 0 0 auto;
-      gap: .35rem;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .3rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .rig-layout .glance-cell {
-      padding: .35rem .4rem;
-      min-height: 2.35rem;
-      border-radius: 8px;
+      padding: .3rem .4rem;
+      min-height: 0;
+      border-radius: var(--radius-sm);
       min-width: 0;
       overflow: hidden;
+      background: rgba(0, 0, 0, .18);
+      border: none;
+      box-shadow: none;
     }
     .rig-layout .glance-cell .hw-icon-box {
       width: 1.55rem;
@@ -2170,21 +2217,23 @@
     }
     .rig-status {
       font-size: var(--fs-2xs);
-      font-weight: 500;
+      font-weight: 600;
       color: var(--text-secondary);
       line-height: 1.15;
-      padding: .16rem .38rem;
-      min-height: 1.25rem;
-      max-width: min(10.5rem, 55%);
+      padding: 0;
+      min-height: 0;
+      max-width: min(9rem, 50%);
       display: inline-flex;
       align-items: center;
-      border-radius: 7px;
-      background: rgba(0, 0, 0, .22);
-      border: 1px solid rgba(255, 255, 255, .04);
+      border-radius: 0;
+      background: transparent;
+      border: none;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       font-variant-numeric: tabular-nums;
+      letter-spacing: .03em;
+      opacity: .8;
       flex: 0 1 auto;
       min-width: 0;
     }
@@ -2193,8 +2242,8 @@
     .rig-status.ok { color: var(--sev-ok); }
     @media (max-width: 1200px) {
       .stutter-layout.rig-layout {
-        grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1.4fr) minmax(12rem, 1.1fr);
-        min-height: 30rem;
+        grid-template-columns: minmax(10rem, 0.9fr) minmax(14rem, 1.7fr) minmax(11rem, 1fr);
+        min-height: 0;
       }
       .rig-layout .glance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .rig-strips-row { grid-template-columns: 1fr; }
@@ -2202,13 +2251,22 @@
     @media (max-width: 1100px) {
       /* Keep area names drivers/chart/summary so shared stutter-layout rules still apply */
       .stutter-layout.rig-layout {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1.4fr;
         grid-template-areas:
           "drivers chart"
           "summary summary";
         min-height: 0;
       }
-      .rig-vitals-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .rig-vitals-flat {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.5rem 0.75rem;
+        padding: 0.55rem 0.7rem;
+      }
+      .rig-vitals-flat .rig-vitals-section {
+        padding: 0;
+        border-top: none !important;
+      }
       .rig-layout .stutter-chart-box { min-height: 11rem; }
     }
     @media (max-width: 700px) {
@@ -3880,9 +3938,9 @@
       font-weight: var(--label-weight);
       letter-spacing: var(--label-tracking);
     }
-    /* Load list: keep Adrenaline-like primary util; hide dense subcopy.
-       Bus + storage keep sublines (GB/s, busy %) — those meters are meant to be glanceable. */
-    .rig-util-list .metric-bar-sub { display: none; }
+    /* Util bars keep one context line (load avg / W·MHz / GB) now that KPI chips are gone.
+       Vitals: only bus + storage show rate sublines (fun + useful). */
+    .rig-util-list .metric-bar-sub { display: block; }
     .rig-vitals .metric-bar-sub { display: none; }
     .rig-vitals #bwMeters .metric-bar-sub,
     .rig-vitals #ioMeters .metric-bar-sub { display: block; }
@@ -4124,8 +4182,8 @@
                       <span class="stutter-side-label" id="sparkChartLabel">Load · 5 min</span>
                       <div class="rig-chart-swatches" id="sparkChartSwatches" aria-hidden="true"></div>
                     </div>
-                    <!-- Three live readouts aligned with the chart series (CPU / GPU / RAM) -->
-                    <div class="stutter-kpis rig-kpis-inline" id="rigChartKpis">
+                    <!-- KPIs kept for JS updates; hidden — left bars + chart already show the same % -->
+                    <div class="stutter-kpis rig-kpis-inline live-ov-kpi-dup" id="rigChartKpis" hidden>
                       <div class="stutter-kpi" data-kpi="cpu">
                         <span class="k">CPU</span>
                         <span class="v" id="rigKpiCpu">—</span>
@@ -4146,30 +4204,28 @@
                   <div class="stutter-chart-box"><canvas id="sparkChart"></canvas></div>
                 </div>
               </div>
-              <!-- RIGHT: dense vitals -->
+              <!-- RIGHT: flat vitals (no nested card grid) -->
               <div class="stutter-col stutter-summary rig-col rig-col-vitals" data-hw-keep>
-                <div class="rig-panel rig-vitals">
-                  <div class="rig-vitals-power">
-                    <div class="stutter-side-label">Power &amp; cooling</div>
+                <div class="rig-panel rig-vitals rig-vitals-flat">
+                  <div class="rig-vitals-section rig-vitals-power">
+                    <div class="stutter-side-label">Power</div>
                     <div class="glance-grid" id="glanceGrid"></div>
                   </div>
-                  <div class="rig-vitals-grid">
-                    <div class="rig-vital-cell">
-                      <div class="stutter-side-label">Temps</div>
-                      <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
-                    </div>
-                    <div class="rig-vital-cell">
-                      <div class="stutter-side-label">Bus</div>
-                      <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
-                    </div>
-                    <div class="rig-vital-cell" data-hw="storage">
-                      <div class="stutter-side-label">Storage</div>
-                      <div class="metric-list metric-list-compact stutter-driver-bars" id="ioMeters"></div>
-                    </div>
-                    <div class="rig-vital-cell dash-secondary" data-hw-keep>
-                      <div class="stutter-side-label">Network</div>
-                      <div class="metric-list metric-list-compact stutter-driver-bars" id="netMeters"></div>
-                    </div>
+                  <div class="rig-vitals-section">
+                    <div class="stutter-side-label">Temps</div>
+                    <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
+                  </div>
+                  <div class="rig-vitals-section">
+                    <div class="stutter-side-label">Bus</div>
+                    <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
+                  </div>
+                  <div class="rig-vitals-section" data-hw="storage">
+                    <div class="stutter-side-label">Storage</div>
+                    <div class="metric-list metric-list-compact stutter-driver-bars" id="ioMeters"></div>
+                  </div>
+                  <div class="rig-vitals-section dash-secondary" data-hw-keep>
+                    <div class="stutter-side-label">Network</div>
+                    <div class="metric-list metric-list-compact stutter-driver-bars" id="netMeters"></div>
                   </div>
                 </div>
               </div>
@@ -5374,15 +5430,8 @@
         interaction: { mode: 'index', intersect: false },
         layout: { padding: { top: 4, right: 6, bottom: 2, left: 2 } },
         plugins: {
-          legend: {
-            display: true, position: 'bottom',
-            labels: {
-              color: tickColor,
-              font: { family: 'Inter', size: 10, weight: '500' },
-              boxWidth: 10, boxHeight: 3, padding: 12,
-              usePointStyle: true, pointStyle: 'line',
-            },
-          },
+          /* Top swatches (#sparkChartSwatches) are the legend — no bottom duplicate */
+          legend: { display: false },
           tooltip: {
             backgroundColor: 'rgba(32, 34, 40, .94)',
             titleFont: { family: 'Inter', weight: '600', size: 11 },
