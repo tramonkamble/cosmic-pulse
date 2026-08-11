@@ -950,8 +950,7 @@
     }
     .sum-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-      /* Single-height tiles — no tall empty Guidance/Index columns */
+      grid-template-columns: 1fr 1fr 1fr 1.05fr;
       grid-template-rows: auto auto;
       grid-template-areas:
         "cpu mem gpu league"
@@ -959,7 +958,7 @@
       gap: 0.4rem;
       min-height: 0;
       min-width: min(100%, 48rem);
-      align-items: stretch;
+      align-items: start;
     }
     .sum-grid.game-prominent {
       grid-template-rows: auto auto auto;
@@ -968,8 +967,17 @@
         "health health health health"
         "game game game game";
       min-height: 0;
-      align-items: stretch;
+      align-items: start;
     }
+    /* Pulse Index sits with scoreboard chips — don't balloon to full row */
+    #sumLeagueCell.sum-cell {
+      padding: 0.4rem 0.65rem;
+      min-height: 0;
+      height: auto;
+    }
+    #sumLeagueCell .sum-value { font-size: 1.2rem; }
+    #sumLeagueCell .sum-meter { height: 4px; }
+    #sumLeagueCell .sum-detail { font-size: var(--fs-xs); }
     #sumHealthCell { grid-area: health; }
     #sumCpuCell { grid-area: cpu; }
     #sumMemCell { grid-area: mem; }
@@ -1776,8 +1784,8 @@
       gap: 0.45rem;
       padding: 0.65rem 0.75rem;
       border-radius: var(--radius);
-      background: color-mix(in srgb, var(--panel-elevated) 92%, #000);
-      border: 1px solid var(--line-soft);
+      background: color-mix(in srgb, var(--panel-elevated) 88%, #000 12%);
+      border: none;
       box-shadow: none;
     }
     .rig-panel-head {
@@ -1796,14 +1804,9 @@
       margin: 0;
       flex-shrink: 0;
     }
-    .rig-layout .stutter-side-label {
-      margin: 0 0 .2rem;
-      font-size: var(--fs-2xs);
-      letter-spacing: .08em;
-    }
     /* Left: load bars — quiet panel, accent via metric colors only */
     .rig-col-load > .rig-panel:first-child {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       border-top: none;
       border-left: 3px solid color-mix(in srgb, var(--m-cpu) 45%, transparent);
     }
@@ -1862,12 +1865,15 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: .5rem;
+      gap: .55rem;
       min-width: 0;
+      padding: 0 0.1rem 0.15rem;
+      border-bottom: 1px solid var(--line-soft);
+      margin-bottom: 0.15rem;
     }
     .rig-chart-title-row .stutter-side-label {
       margin: 0;
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1876,10 +1882,12 @@
     .rig-chart-swatches {
       display: flex;
       flex-wrap: nowrap;
-      gap: .35rem;
-      flex-shrink: 0;
-      max-width: 55%;
+      gap: .4rem;
+      flex-shrink: 1;
+      justify-content: flex-end;
+      max-width: 70%;
       overflow: hidden;
+      margin-left: auto;
     }
     .rig-chart-swatch {
       display: inline-flex;
@@ -1955,9 +1963,9 @@
       min-width: 0;
       border-radius: var(--radius-sm);
       border: none;
-      background: rgba(0, 0, 0, .32);
-      box-shadow: none;
-      padding: .4rem .35rem .2rem;
+      background: rgba(0, 0, 0, .28);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03);
+      padding: .45rem .4rem .25rem;
     }
     .rig-layout .stutter-chart-box canvas {
       max-width: 100%;
@@ -1985,34 +1993,24 @@
       flex-direction: column;
       padding: 0.5rem 0.65rem 0.55rem;
     }
-    /* 2-up denser rail: power full · temps|bus · storage full */
+    /* Full-width stacked sections so matched dials have room for labels */
     .rig-vitals-flat {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      column-gap: 0.7rem;
-      row-gap: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
       align-content: start;
-    }
-    .rig-vitals-flat .rig-vitals-power,
-    .rig-vitals-flat .rig-vitals-section[data-hw="storage"] {
-      grid-column: 1 / -1;
     }
     .rig-vitals-flat .rig-vitals-section {
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
-      padding: 0.38rem 0;
+      gap: 0.3rem;
+      padding: 0.4rem 0;
       border: none;
       background: transparent;
       border-radius: 0;
     }
-    .rig-vitals-flat .rig-vitals-section + .rig-vitals-section,
-    .rig-vitals-flat .rig-vitals-power + .rig-vitals-section {
-      border-top: 1px solid var(--line-soft);
-    }
-    /* Temps + Bus sit side-by-side — no double top border on bus */
-    .rig-vitals-flat .rig-vitals-section:nth-child(3) {
+    .rig-vitals-flat .rig-vitals-section + .rig-vitals-section {
       border-top: 1px solid var(--line-soft);
     }
     .rig-vitals-flat .rig-vitals-section .stutter-side-label {
@@ -2055,9 +2053,25 @@
     .rig-layout .metric-list-compact .metric-bar-head {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(2.8rem, auto);
-      align-items: baseline;
+      align-items: center;
       gap: .28rem;
-      margin-bottom: .12rem;
+      margin-bottom: .14rem;
+    }
+    /* Load column: clean label · % · bar stack */
+    .rig-util-list .metric-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .rig-util-list .metric-bar-head {
+      margin-bottom: 0;
+    }
+    .rig-util-list .metric-bar-track {
+      order: 3;
+    }
+    .rig-util-list .metric-bar-sub {
+      order: 2;
+      margin-top: 0;
     }
     .rig-layout .metric-list-compact .metric-bar-label {
       min-width: 0;
@@ -2260,16 +2274,6 @@
           "drivers chart"
           "summary summary";
         min-height: 0;
-      }
-      .rig-vitals-flat {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.5rem 0.75rem;
-        padding: 0.55rem 0.7rem;
-      }
-      .rig-vitals-flat .rig-vitals-section {
-        padding: 0;
-        border-top: none !important;
       }
       .rig-layout .stutter-chart-box { min-height: 11rem; }
     }
@@ -2593,9 +2597,16 @@
       padding: .35rem .45rem .2rem;
     }
     .stutter-side-label {
-      font-size: var(--label-size); font-weight: var(--label-weight);
-      letter-spacing: var(--label-tracking); text-transform: uppercase;
-      color: var(--muted); margin-bottom: var(--space-2);
+      font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-secondary); margin-bottom: 0.35rem;
+    }
+    .rig-layout .stutter-side-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      color: var(--text-secondary);
+      opacity: 1;
     }
     .metric-list-compact { gap: .32rem; }
     .metric-list-compact .metric-bar-head { margin-bottom: .12rem; }
@@ -3934,8 +3945,10 @@
     .sum-detail { font-size: var(--fs-sm); }
     .sum-meter { border-color: transparent; background: rgba(0,0,0,.28); }
     .hw-status-card {
-      border-color: var(--line-soft);
+      border: none;
       border-radius: var(--radius);
+      background: rgba(0, 0, 0, .2);
+      box-shadow: none;
     }
     .hw-status-label {
       font-size: var(--label-size);
@@ -3946,59 +3959,68 @@
        Vitals: only bus + storage show rate sublines (fun + useful). */
     .rig-util-list .metric-bar-sub { display: block; }
     .rig-vitals .metric-bar-sub { display: none; }
-    .rig-vitals #bwMeters .metric-bar-sub { display: block; }
-    /* Storage: one-line R/W/Busy dials */
-    .io-compact {
+    /* ── Unified dial system (temps / bus / storage / power) ───────────────
+       Same radius, stroke language, track, and label stack everywhere. */
+    .pulse-dials {
       display: flex;
-      align-items: center;
-      gap: 0.45rem;
+      align-items: stretch;
+      gap: 0.4rem;
       min-width: 0;
     }
-    .io-dial {
-      --io-p: 0;
-      --io-color: var(--m-disk);
+    .pulse-dial {
+      --dial-p: 0;
+      --dial-color: var(--m-cpu);
       flex: 1 1 0;
       min-width: 0;
-      position: relative;
-      height: 2.5rem;
+      height: 2.55rem;
       border-radius: 999px;
-      background: rgba(0, 0, 0, .22);
+      background: rgba(0, 0, 0, .2);
+      border: none;
+      box-shadow: none;
       display: flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.2rem 0.5rem 0.2rem 0.3rem;
+      gap: 0.38rem;
+      padding: 0.22rem 0.48rem 0.22rem 0.28rem;
       overflow: hidden;
     }
-    .io-dial[data-io="write"] { --io-color: var(--m-disk-write); }
-    .io-dial[data-io="busy"] { --io-color: color-mix(in srgb, var(--m-disk) 70%, var(--m-thermal)); }
-    .io-dial-ring {
+    .pulse-dial[data-dial="gpu-junc"],
+    .pulse-dial[data-dial="gpu-mem"],
+    .pulse-dial[data-dial="vram-bw"],
+    .pulse-dial[data-dial="power"],
+    .pulse-dial[data-dial="fan"] { --dial-color: var(--m-gpu); }
+    .pulse-dial[data-dial="dram-bw"],
+    .pulse-dial[data-dial="dram-psi"] { --dial-color: var(--m-mem); }
+    .pulse-dial[data-dial="read"] { --dial-color: var(--m-disk); }
+    .pulse-dial[data-dial="write"] { --dial-color: var(--m-disk-write); }
+    .pulse-dial[data-dial="busy"] { --dial-color: color-mix(in srgb, var(--m-disk) 65%, var(--m-thermal)); }
+    .pulse-dial[data-dial="cpu-pkg"] { --dial-color: var(--m-cpu); }
+    .pulse-dial-ring {
       width: 1.85rem;
       height: 1.85rem;
       border-radius: 50%;
       flex-shrink: 0;
       background:
-        conic-gradient(var(--io-color) calc(var(--io-p) * 1%), rgba(255, 255, 255, .08) 0);
-      -webkit-mask: radial-gradient(circle, transparent 55%, #000 56%);
-      mask: radial-gradient(circle, transparent 55%, #000 56%);
-      box-shadow: none;
+        conic-gradient(var(--dial-color) calc(var(--dial-p) * 1%), rgba(255, 255, 255, .075) 0);
+      -webkit-mask: radial-gradient(circle, transparent 54%, #000 55%);
+      mask: radial-gradient(circle, transparent 54%, #000 55%);
     }
-    .io-dial-core {
+    .pulse-dial-core {
       min-width: 0;
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 0.05rem;
+      gap: 0.04rem;
       line-height: 1.1;
     }
-    .io-dial-k {
+    .pulse-dial-k {
       font-size: 0.65rem;
       font-weight: 700;
-      letter-spacing: .06em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--muted);
     }
-    .io-dial-v {
+    .pulse-dial-v {
       font-size: 0.8rem;
       font-weight: 650;
       font-variant-numeric: tabular-nums;
@@ -4007,8 +4029,69 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .io-dial.is-hot .io-dial-v { color: var(--sev-hot); }
-    .io-dial.is-active .io-dial-k { color: color-mix(in srgb, var(--io-color) 55%, var(--muted)); }
+    .pulse-dial.is-hot .pulse-dial-v { color: var(--sev-hot); }
+    .pulse-dial.is-warn .pulse-dial-v { color: var(--sev-warn); }
+    .pulse-dial.is-active .pulse-dial-k {
+      color: color-mix(in srgb, var(--dial-color) 50%, var(--muted));
+    }
+
+    /* Compact top scoreboard chips (CPU / Mem / GPU) — load detail in Live bars */
+    .sum-cell.sum-chip {
+      padding: 0.38rem 0.7rem;
+      min-height: 2.5rem !important;
+      max-height: 2.75rem !important;
+      height: 2.6rem !important;
+      justify-content: center;
+      align-self: stretch;
+      border: none;
+      background: rgba(0, 0, 0, .18);
+      box-shadow: none;
+      overflow: hidden;
+    }
+    .sum-cell.sum-chip .sum-chip-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.45rem 0.55rem;
+      width: 100%;
+      min-width: 0;
+    }
+    .sum-cell.sum-chip .sum-label {
+      flex: 0 0 auto;
+      margin: 0;
+      font-size: var(--fs-xs);
+    }
+    .sum-cell.sum-chip .sum-chip-val {
+      flex: 0 0 auto;
+      font-size: 1.15rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .sum-cell.sum-chip.cpu .sum-chip-val { color: var(--m-cpu); }
+    .sum-cell.sum-chip.mem .sum-chip-val { color: var(--m-mem); }
+    .sum-cell.sum-chip.gpu .sum-chip-val { color: var(--m-gpu); }
+    .sum-cell.sum-chip .sum-chip-sub {
+      flex: 1 1 auto;
+      min-width: 0;
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: right;
+    }
+    .sum-ring-sr {
+      position: absolute;
+      width: 1px; height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .sum-cell.sum-chip {
+      position: relative;
+    }
     .metric-list-compact .metric-bar-label { font-size: var(--label-size); }
     .metric-list-compact .metric-bar-val { font-size: var(--fs-sm); font-weight: 600; }
     .stutter-kpi {
@@ -4021,10 +4104,6 @@
       font-weight: var(--label-weight);
       letter-spacing: var(--label-tracking);
       text-transform: uppercase;
-    }
-    .rig-layout .stutter-side-label {
-      font-size: var(--label-size);
-      letter-spacing: var(--label-tracking);
     }
     .viz-panel-head { margin-bottom: var(--space-3); gap: var(--space-2) var(--space-3); }
     .sensor-strip-wrap {
@@ -4094,66 +4173,43 @@
             <div class="health-clear-note" id="sumHealthClear" hidden>Live rules look clean — click for the full Guidance tab anytime.</div>
           </div>
         </button>
-        <button type="button" class="sum-cell cpu sum-ring-cell" id="sumCpuCell" data-drill="drill-compute" data-hw="cpu"
+        <!-- Compact scoreboard chips — full load detail lives in Live overview bars -->
+        <button type="button" class="sum-cell cpu sum-ring-cell sum-chip" id="sumCpuCell" data-drill="drill-compute" data-hw="cpu"
           title="CPU utilization — open Compute">
-          <div class="sum-metric-layout">
-            <div class="sum-metric-text">
-              <div class="sum-head"><span class="hw-icon-box cpu" data-glyph="cpu"></span><span class="sum-label">CPU</span></div>
-              <div class="sum-mini"><span class="k">Package</span><span class="v" id="sumCpuTemp">—</span></div>
-              <div class="sum-mini dash-secondary"><span class="k">Load 1m</span><span class="v" id="sumCpuLoad">—</span></div>
-            </div>
-            <div class="sum-ring-wrap" aria-hidden="true">
-              <div class="sum-ring-box">
-                <svg class="sum-ring" viewBox="0 0 36 36">
-                  <circle class="sum-ring-track" cx="18" cy="18" r="15.5" />
-                  <circle class="sum-ring-fill" id="sumCpuRing" cx="18" cy="18" r="15.5"
-                    pathLength="100" stroke-dasharray="0 100" />
-                </svg>
-                <span class="sum-ring-val" id="sumCpuVal">—</span>
-              </div>
-            </div>
+          <div class="sum-chip-row">
+            <span class="sum-label">CPU</span>
+            <span class="sum-chip-val" id="sumCpuVal">—</span>
+            <span class="sum-chip-sub" id="sumCpuTemp">—</span>
           </div>
+          <svg class="sum-ring sum-ring-sr" viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="sum-ring-fill" id="sumCpuRing" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="0 100" />
+          </svg>
+          <span class="dash-secondary" id="sumCpuLoad" hidden>—</span>
         </button>
-        <button type="button" class="sum-cell mem sum-ring-cell" id="sumMemCell" data-drill="drill-bandwidth" data-hw="memory"
+        <button type="button" class="sum-cell mem sum-ring-cell sum-chip" id="sumMemCell" data-drill="drill-bandwidth" data-hw="memory"
           title="Memory utilization — open Bandwidth">
-          <div class="sum-metric-layout">
-            <div class="sum-metric-text">
-              <div class="sum-head"><span class="hw-icon-box mem" data-glyph="ram"></span><span class="sum-label">Memory</span></div>
-              <div class="sum-mini"><span class="k">Used</span><span class="v" id="sumMemUsed">—</span></div>
-              <div class="sum-mini"><span class="k">Swap</span><span class="v" id="sumMemSwap">—</span></div>
-            </div>
-            <div class="sum-ring-wrap" aria-hidden="true">
-              <div class="sum-ring-box">
-                <svg class="sum-ring" viewBox="0 0 36 36">
-                  <circle class="sum-ring-track" cx="18" cy="18" r="15.5" />
-                  <circle class="sum-ring-fill" id="sumMemRing" cx="18" cy="18" r="15.5"
-                    pathLength="100" stroke-dasharray="0 100" />
-                </svg>
-                <span class="sum-ring-val" id="sumMemVal">—</span>
-              </div>
-            </div>
+          <div class="sum-chip-row">
+            <span class="sum-label">Mem</span>
+            <span class="sum-chip-val" id="sumMemVal">—</span>
+            <span class="sum-chip-sub" id="sumMemUsed">—</span>
           </div>
+          <svg class="sum-ring sum-ring-sr" viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="sum-ring-fill" id="sumMemRing" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="0 100" />
+          </svg>
+          <span class="dash-secondary" id="sumMemSwap" hidden>—</span>
         </button>
-        <button type="button" class="sum-cell gpu sum-ring-cell" id="sumGpuCell" data-drill="drill-compute" data-hw="gpu"
+        <button type="button" class="sum-cell gpu sum-ring-cell sum-chip" id="sumGpuCell" data-drill="drill-compute" data-hw="gpu"
           title="GPU shader load — open Compute">
-          <div class="sum-metric-layout">
-            <div class="sum-metric-text">
-              <div class="sum-head"><span class="hw-icon-box gpu" data-glyph="gpu"></span><span class="sum-label">GPU</span></div>
-              <div class="sum-mini"><span class="k">Hotspot</span><span class="v" id="sumGpuTemp">—</span></div>
-              <div class="sum-mini dash-secondary"><span class="k">Mem bus</span><span class="v" id="sumGpuMemBus">—</span></div>
-              <div class="sum-mini"><span class="k">Power</span><span class="v" id="sumGpuPower">—</span></div>
-            </div>
-            <div class="sum-ring-wrap" aria-hidden="true">
-              <div class="sum-ring-box">
-                <svg class="sum-ring" viewBox="0 0 36 36">
-                  <circle class="sum-ring-track" cx="18" cy="18" r="15.5" />
-                  <circle class="sum-ring-fill" id="sumGpuRing" cx="18" cy="18" r="15.5"
-                    pathLength="100" stroke-dasharray="0 100" />
-                </svg>
-                <span class="sum-ring-val" id="sumGpuVal">—</span>
-              </div>
-            </div>
+          <div class="sum-chip-row">
+            <span class="sum-label">GPU</span>
+            <span class="sum-chip-val" id="sumGpuVal">—</span>
+            <span class="sum-chip-sub" id="sumGpuTemp">—</span>
           </div>
+          <svg class="sum-ring sum-ring-sr" viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="sum-ring-fill" id="sumGpuRing" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="0 100" />
+          </svg>
+          <span class="dash-secondary" id="sumGpuPower" hidden>—</span>
+          <span class="dash-secondary" id="sumGpuMemBus" hidden>—</span>
         </button>
         <button type="button" class="sum-cell game" id="sumGameCell" data-drill="drill-game" data-hw="cpu gpu">
           <div class="sum-game-art" id="sumGameArt" hidden>
@@ -4274,39 +4330,98 @@
                 <div class="rig-panel rig-vitals rig-vitals-flat">
                   <div class="rig-vitals-section rig-vitals-power">
                     <div class="stutter-side-label">Power</div>
-                    <div class="glance-grid" id="glanceGrid"></div>
+                    <!-- Power + Fan as matched dials (Hot/Pkg live under Temps) -->
+                    <div class="pulse-dials" id="glanceGrid" role="group" aria-label="Power">
+                      <div class="pulse-dial" data-dial="power" data-hw="gpu" title="GPU power">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">Power</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="pulse-dial" data-dial="fan" data-hw="gpu" title="GPU fan">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">Fan</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div class="rig-vitals-section">
                     <div class="stutter-side-label">Temps</div>
-                    <div class="metric-list metric-list-compact stutter-driver-bars" id="tempMeters"></div>
+                    <div class="pulse-dials" id="tempMeters" role="group" aria-label="Temperatures">
+                      <div class="pulse-dial" data-dial="cpu-pkg" data-hw="cpu" title="CPU package">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">CPU</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="pulse-dial" data-dial="gpu-junc" data-hw="gpu" title="GPU hotspot">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">GPU</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="pulse-dial" data-dial="gpu-mem" data-hw="gpu" title="VRAM temp">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">VRAM</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div class="rig-vitals-section">
                     <div class="stutter-side-label">Bus</div>
-                    <div class="metric-list metric-list-compact stutter-driver-bars" id="bwMeters"></div>
+                    <div class="pulse-dials" id="bwMeters" role="group" aria-label="Bus activity">
+                      <div class="pulse-dial" data-dial="vram-bw" data-hw="gpu" title="GPU memory bus">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">GPU</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="pulse-dial" data-dial="dram-bw" data-hw="memory" title="System RAM bandwidth">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">RAM</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="pulse-dial" data-dial="dram-psi" data-hw="memory" title="Memory stall / wait">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">Wait</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div class="rig-vitals-section" data-hw="storage">
                     <div class="stutter-side-label">Storage</div>
-                    <!-- One-line R/W/Busy dials — full bars live in Sensors drill -->
-                    <div class="io-compact" id="ioMeters" role="group" aria-label="Storage activity">
-                      <div class="io-dial" data-io="read" title="Disk read">
-                        <div class="io-dial-ring" data-ring aria-hidden="true"></div>
-                        <div class="io-dial-core">
-                          <span class="io-dial-k">R</span>
-                          <span class="io-dial-v" data-val>—</span>
+                    <div class="pulse-dials" id="ioMeters" role="group" aria-label="Storage activity">
+                      <div class="pulse-dial" data-dial="read" data-hw="storage" title="Disk read">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">R</span>
+                          <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="io-dial" data-io="write" title="Disk write">
-                        <div class="io-dial-ring" data-ring aria-hidden="true"></div>
-                        <div class="io-dial-core">
-                          <span class="io-dial-k">W</span>
-                          <span class="io-dial-v" data-val>—</span>
+                      <div class="pulse-dial" data-dial="write" data-hw="storage" title="Disk write">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">W</span>
+                          <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="io-dial" data-io="busy" title="Disk busy">
-                        <div class="io-dial-ring" data-ring aria-hidden="true"></div>
-                        <div class="io-dial-core">
-                          <span class="io-dial-k">Busy</span>
-                          <span class="io-dial-v" data-val>—</span>
+                      <div class="pulse-dial" data-dial="busy" data-hw="storage" title="Disk busy">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">Busy</span>
+                          <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
                     </div>
@@ -5554,8 +5669,9 @@
               padding: 6,
             },
             grid: {
-              color: 'rgba(255,255,255,.055)',
+              color: 'rgba(255,255,255,.09)',
               drawTicks: false,
+              lineWidth: 1,
             },
             border: { display: false },
           },
@@ -7215,26 +7331,28 @@
       { id: 'disk-busy', label: 'Busy', icon: 'storage', cls: 'disk-busy', hw: 'storage' },
     ];
 
-    /** Live overview storage: one-line R / W / Busy dials (replaces stacked bars). */
+    /** Unified pulse dial updater — same API for temps / bus / storage / power. */
+    function setPulseDial(rootId, dialId, pct, text, { hot = false, warn = false } = {}) {
+      const root = document.getElementById(rootId);
+      if (!root || !root.classList.contains('pulse-dials')) return;
+      const el = root.querySelector(`[data-dial="${dialId}"]`);
+      if (!el) return;
+      const p = Math.max(0, Math.min(100, Number(pct) || 0));
+      el.style.setProperty('--dial-p', p.toFixed(1));
+      const val = el.querySelector('[data-val]');
+      if (val) val.textContent = text;
+      el.classList.toggle('is-hot', !!hot);
+      el.classList.toggle('is-warn', !!warn && !hot);
+      el.classList.toggle('is-active', p >= 4);
+    }
+
     function updateIoCompact(diskRead, diskWrite, diskBusy) {
-      const root = document.getElementById('ioMeters');
-      if (!root || !root.classList.contains('io-compact')) return;
-      const setDial = (key, pct, text, hot) => {
-        const el = root.querySelector(`[data-io="${key}"]`);
-        if (!el) return;
-        const p = Math.max(0, Math.min(100, pct || 0));
-        el.style.setProperty('--io-p', p.toFixed(1));
-        const val = el.querySelector('[data-val]');
-        if (val) val.textContent = text;
-        el.classList.toggle('is-hot', !!hot);
-        el.classList.toggle('is-active', p >= 4);
-      };
       const rPct = Math.min(100, (diskRead / DISK_RATE_CEIL) * 100);
       const wPct = Math.min(100, (diskWrite / DISK_RATE_CEIL) * 100);
       const bPct = Number(diskBusy) || 0;
-      setDial('read', rPct, fmtDiskRate(diskRead), rPct >= 85);
-      setDial('write', wPct, fmtDiskRate(diskWrite), wPct >= 85);
-      setDial('busy', bPct, `${Math.round(bPct)}%`, bPct >= 85);
+      setPulseDial('ioMeters', 'read', rPct, fmtDiskRate(diskRead), { hot: rPct >= 85 });
+      setPulseDial('ioMeters', 'write', wPct, fmtDiskRate(diskWrite), { hot: wPct >= 85 });
+      setPulseDial('ioMeters', 'busy', bPct, `${Math.round(bPct)}%`, { hot: bPct >= 85 });
     }
     const NET_SPECS = [
       { id: 'net-down', label: 'Down', icon: 'net', cls: 'net-down', hw: '' },
@@ -8469,53 +8587,18 @@
     }
 
     function renderQuickGlance(l) {
-      const g = l.gpu?.discrete || {}, c = l.cpu || {};
-      const pkg = c.temps?.package;
-      const junc = g.junction_c;
+      const g = l.gpu?.discrete || {};
       const power = g.power_w != null ? Math.round(g.power_w) : null;
       const fan = g.fan_rpm != null ? Math.round(g.fan_rpm) : null;
       const mhz = g.gfx_mhz != null ? Math.round(g.gfx_mhz) : null;
-      // Short fixed-ish labels — avoid "GPU · 2650 MHz" vs "GPU · — MHz" reflow noise
-      const items = [
-        { icon: 'gpu', label: 'Power', hw: 'gpu', val: power != null ? `${power}W` : '—', sub: mhz != null ? `${mhz}MHz` : 'GPU', pct: Math.min(100, ((power || 0) / 355) * 100), cls: 'gpu' },
-        { icon: 'fan', label: 'Fan', hw: 'gpu', val: fan != null ? `${fan}` : '—', sub: 'rpm', pct: Math.min(100, ((fan || 0) / 2800) * 100), cls: 'gpu' },
-        { icon: 'temp', label: 'Hot', hw: 'gpu', val: junc != null ? `${Math.round(junc)}°` : '—', sub: 'GPU', pct: gpuTempPct(junc), cls: `temp${gpuJuncUiClass(junc)}` },
-        { icon: 'cpu', label: 'Pkg', hw: 'cpu', val: pkg != null ? `${Math.round(pkg)}°` : '—', sub: 'CPU', pct: tempPct(pkg), cls: 'cpu' },
-      ];
-      const boxCls = { gpu: 'gpu', fan: 'gpu', temp: 'temp', cpu: 'cpu' };
-      const glanceEl = document.getElementById('glanceGrid');
-      if (!glanceEl) return;
-      if (glanceEl.dataset.hwVer !== '4') {
-        delete glanceEl.dataset.init;
-        glanceEl.dataset.hwVer = '4';
-      }
-      if (!glanceEl.dataset.init) {
-        glanceEl.innerHTML = items.map((it, i) => `
-          <div class="glance-cell ${it.cls}" data-gi="${i}" data-hw="${it.hw}">
-            <span class="hw-icon-box ${boxCls[it.icon] || 'cpu'}" data-gi-icon></span>
-            <div class="glance-body">
-              <span class="glance-val" data-gi-val>—</span>
-              <span class="glance-sub" data-gi-sub>—</span>
-            </div>
-            <div class="glance-bar"><span data-gi-bar style="height:0%"></span></div>
-          </div>`).join('');
-        items.forEach((it, i) => {
-          glanceEl.querySelector(`[data-gi="${i}"] [data-gi-icon]`).innerHTML = hwIcon(it.icon);
-        });
-        glanceEl.dataset.init = '1';
-      }
-      items.forEach((it, i) => {
-        const cell = glanceEl.querySelector(`[data-gi="${i}"]`);
-        if (!cell) return;
-        cell.classList.remove('gpu', 'cpu', 'temp', 'hot', 'warn');
-        it.cls.split(/\s+/).filter(Boolean).forEach(c => cell.classList.add(c));
-        cell.querySelector('[data-gi-val]').textContent = it.val;
-        // Compact sub: "Power 2650MHz" style without extra middots when space is tight
-        cell.querySelector('[data-gi-sub]').textContent = it.sub && it.sub !== it.label
-          ? `${it.label} · ${it.sub}`
-          : it.label;
-        setMeterHeight(cell.querySelector('[data-gi-bar]'), it.pct, 3);
-      });
+      // Matched dials — Hot/Pkg live under Temps dials (no second metaphor)
+      const powerPct = Math.min(100, ((power || 0) / 355) * 100);
+      const fanPct = Math.min(100, ((fan || 0) / 2800) * 100);
+      const powerText = power != null
+        ? (mhz != null ? `${power}W · ${mhz}` : `${power}W`)
+        : '—';
+      setPulseDial('glanceGrid', 'power', powerPct, powerText, { hot: powerPct >= 92 });
+      setPulseDial('glanceGrid', 'fan', fanPct, fan != null ? `${fan}` : '—', { hot: fanPct >= 90 });
     }
 
     function shortDriveLabel(sensor) {
@@ -8781,12 +8864,7 @@
     function renderVisualDashboard(l, comparison) {
       ensureMetricList('utilMeters', UTIL_SPECS);
       syncMetricHwTags('utilMeters', UTIL_SPECS);
-      const tempSpecs = TEMP_SPECS.map(s => ({ ...s, cls: 'temp' }));
-      ensureMetricList('tempMeters', tempSpecs, 'cls');
-      syncMetricHwTags('tempMeters', tempSpecs);
-      ensureMetricList('bwMeters', BW_SPECS);
-      syncMetricHwTags('bwMeters', BW_SPECS);
-      // Storage uses compact dials (#ioMeters), not the metric-bar list
+      // Temps / bus / storage / power use unified .pulse-dials (not metric bars)
       ensureMetricList('netMeters', NET_SPECS);
       syncMetricHwTags('netMeters', NET_SPECS);
 
@@ -8804,40 +8882,35 @@
         gt?.running ? `${gt.primary_name || gt.game_name}` : 'No game', 'game');
 
       const temps = c.temps || {};
-      const tempVals = {
-        'cpu-pkg': temps.package,
-        'gpu-junc': g.junction_c,
-        'gpu-mem': g.mem_temp_c,
-      };
-      TEMP_SPECS.forEach(s => {
-        const v = tempVals[s.id];
-        const gpuJunc = s.id === 'gpu-junc';
-        const sub = s.id === 'cpu-pkg'
-          ? (temps.ccd?.[0] != null ? `die ${temps.ccd[0]}°` : 'package')
-          : (s.id === 'gpu-junc' ? 'hotspot' : 'memory');
-        setMetricBar(
-          'tempMeters', s.id,
-          gpuJunc ? gpuTempPct(v) : tempPct(v),
-          v != null ? `${Math.round(v)}°` : '—',
-          sub,
-          gpuJunc ? gpuJuncValCls(v) : tempValCls(v),
-          gpuJunc ? gpuJuncTrackCls(v) : tempTrackCls(v),
-        );
+      const cpuT = temps.package;
+      const gpuT = g.junction_c;
+      const vramT = g.mem_temp_c;
+      setPulseDial('tempMeters', 'cpu-pkg', tempPct(cpuT), cpuT != null ? `${Math.round(cpuT)}°` : '—', {
+        hot: cpuT != null && cpuT >= 90, warn: cpuT != null && cpuT >= 75 && cpuT < 90,
+      });
+      setPulseDial('tempMeters', 'gpu-junc', gpuTempPct(gpuT), gpuT != null ? `${Math.round(gpuT)}°` : '—', {
+        hot: gpuT != null && gpuT >= 95, warn: gpuT != null && gpuT >= 80 && gpuT < 95,
+      });
+      setPulseDial('tempMeters', 'gpu-mem', tempPct(vramT), vramT != null ? `${Math.round(vramT)}°` : '—', {
+        hot: vramT != null && vramT >= 95, warn: vramT != null && vramT >= 85 && vramT < 95,
       });
 
       const vramPeak = bw.gpu?.vram_peak_gbps || 1;
       const dramPeak = bw.memory?.dram_peak_gbps || 1;
       const vramGbps = bw.gpu?.vram_est_gbps;
       const dramGbps = bw.memory?.dram_est_gbps;
-      setMetricBar('bwMeters', 'vram-bw', bw.gpu?.vram_busy_pct ?? ((vramGbps ?? 0) / vramPeak) * 100,
+      const vramBusy = bw.gpu?.vram_busy_pct ?? ((vramGbps ?? 0) / vramPeak) * 100;
+      const dramBusy = bw.memory?.dram_util_pct ?? ((dramGbps ?? 0) / dramPeak) * 100;
+      const psiPct = Math.min(100, (bw.memory?.psi_avg10 ?? 0) * 5);
+      setPulseDial('bwMeters', 'vram-bw', vramBusy,
         vramGbps != null ? `${Number(vramGbps).toFixed(0)} GB/s` : '—',
-        `${bw.gpu?.vram_busy_pct ?? '—'}% busy`, '', 'bw-gpu');
-      setMetricBar('bwMeters', 'dram-bw', bw.memory?.dram_util_pct ?? ((dramGbps ?? 0) / dramPeak) * 100,
+        { hot: vramBusy >= 90 });
+      setPulseDial('bwMeters', 'dram-bw', dramBusy,
         dramGbps != null ? `${Number(dramGbps).toFixed(0)} GB/s` : '—',
-        `${bw.memory?.dram_util_pct ?? 0}% demand`, '', 'bw-mem');
-      setMetricBar('bwMeters', 'dram-psi', Math.min(100, (bw.memory?.psi_avg10 ?? 0) * 5),
+        { hot: dramBusy >= 90 });
+      setPulseDial('bwMeters', 'dram-psi', psiPct,
         `${bw.memory?.psi_avg10 ?? 0}%`,
-        'stall', 'mem');
+        { hot: psiPct >= 40, warn: psiPct >= 20 && psiPct < 40 });
 
       const diskRead = disk.read_mbps ?? 0;
       const diskWrite = disk.write_mbps ?? 0;
