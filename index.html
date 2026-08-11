@@ -156,8 +156,8 @@
       backdrop-filter: none;
     }
     header {
-      display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;
-      padding: 1rem 1.5rem; border-bottom: 1px solid var(--line);
+      display: flex; flex-wrap: wrap; gap: 0.65rem 1rem; align-items: center; justify-content: space-between;
+      padding: 0.65rem 1.1rem; border-bottom: 1px solid var(--line);
       background:
         linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%),
         var(--glass);
@@ -413,10 +413,10 @@
       width: 8px; height: 8px; border-radius: 50%; background: var(--m-mem);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--m-mem) 22%, transparent);
     }
-    main { padding: 1.5rem 1.75rem; max-width: 1920px; margin: 0 auto; position: relative; z-index: 1; }
-    .page { display: none; flex-direction: column; gap: var(--space-4); }
+    main { padding: 0.85rem 1.15rem 1.25rem; max-width: 1920px; margin: 0 auto; position: relative; z-index: 1; }
+    .page { display: none; flex-direction: column; gap: 0.85rem; }
     .page.active { display: flex; }
-    .grid { display: grid; gap: var(--space-4); }
+    .grid { display: grid; gap: 0.85rem; }
     .g-hero { grid-template-columns: repeat(3, 1fr); }
     @media (max-width: 1000px) { .g-hero { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 600px) { .g-hero { grid-template-columns: 1fr; } }
@@ -428,12 +428,12 @@
     .card {
       background: var(--panel-solid);
       border: 1px solid var(--line); border-radius: var(--radius-lg);
-      padding: 1.25rem 1.35rem; position: relative;
+      padding: 0.9rem 1.05rem; position: relative;
       box-shadow: var(--shadow), var(--surface-shine);
     }
     body.cosmic-frosted .card { background: var(--panel); }
     .card h2 {
-      margin: 0 0 var(--space-3); font-size: 1.15rem; color: var(--text);
+      margin: 0 0 0.65rem; font-size: 1.08rem; color: var(--text);
       font-weight: 500; letter-spacing: 0.03em;
     }
     .stat, .bw-big, .rank-score, .drill-sensor-card .ds-val {
@@ -939,8 +939,8 @@
     .core-label { text-align: center; font-size: .85rem; color: var(--muted); margin-top: 6px; font-weight: 500; }
     .chart-box { height: 400px; }
     .summary-bar {
-      padding: 1.1rem 1.25rem;
-      display: flex; flex-direction: column; gap: var(--space-3);
+      padding: 0.75rem 0.9rem;
+      display: flex; flex-direction: column; gap: 0.55rem;
     }
     .sum-grid-scroll {
       overflow-x: auto;
@@ -950,20 +950,22 @@
     }
     .sum-grid {
       display: grid;
-      grid-template-columns: 1.12fr 1fr 1fr 1.08fr;
-      grid-template-rows: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      /* Single-height tiles — no tall empty Guidance/Index columns */
+      grid-template-rows: auto auto;
       grid-template-areas:
-        "health cpu mem league"
-        "health gpu game league";
-      gap: .6rem;
-      min-height: 8.25rem;
-      min-width: min(100%, 52rem);
+        "cpu mem gpu league"
+        "health health game game";
+      gap: 0.4rem;
+      min-height: 0;
+      min-width: min(100%, 48rem);
+      align-items: stretch;
     }
     .sum-grid.game-prominent {
       grid-template-rows: auto auto auto;
       grid-template-areas:
-        "health cpu mem league"
-        "health gpu gpu league"
+        "cpu mem gpu league"
+        "health health health health"
         "game game game game";
       min-height: 0;
       align-items: stretch;
@@ -1037,20 +1039,36 @@
     .sum-cell {
       font-family: inherit; text-align: left; cursor: pointer; color: var(--text);
       border: 1px solid var(--line-soft); border-radius: var(--radius); background: var(--panel-elevated);
-      padding: var(--space-3) 1rem; display: flex; flex-direction: column; gap: var(--space-2);
+      padding: 0.55rem 0.7rem; display: flex; flex-direction: column; gap: 0.35rem;
       justify-content: flex-start; min-height: 0; height: 100%;
       transition: border-color .15s, background .15s, box-shadow .15s;
       box-shadow: var(--surface-shine);
     }
-    .sum-cell.tall { padding: .85rem 1rem; }
-    .sum-cell.tall .sum-value { font-size: 1.45rem; margin-top: 0; }
-    .sum-cell.tall .sum-body { display: flex; flex-direction: column; gap: .35rem; flex: 1; min-height: 0; }
+    .sum-cell.tall { padding: 0.55rem 0.7rem; }
+    .sum-cell.tall .sum-value { font-size: 1.3rem; margin-top: 0; }
+    .sum-cell.tall .sum-body { display: flex; flex-direction: column; gap: 0.3rem; flex: 0 1 auto; min-height: 0; }
     .sum-foot { margin-top: auto; display: flex; flex-direction: column; gap: .35rem; }
-    /* Tall Guidance column — old footprint, denser content (no fake meter) */
+    /* Guidance — compact strip (no tall empty column) */
     #sumHealthCell.sum-cell.tall {
-      padding: .7rem .8rem .72rem;
-      gap: .4rem;
+      padding: 0.45rem 0.65rem;
+      gap: 0.25rem;
       border-left: 3px solid color-mix(in srgb, var(--m-mem) 35%, var(--line));
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    #sumHealthCell .sum-head { margin: 0; }
+    #sumHealthCell .sum-body.health-body {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.45rem 0.75rem;
+      flex: 1 1 auto;
+    }
+    #sumHealthCell .health-sev-row {
+      margin-top: 0;
+      min-width: 10rem;
+      flex: 0 1 12rem;
     }
     #sumHealthCell.sum-cell.tall.ok {
       border-left-color: color-mix(in srgb, var(--lime, #8fd49a) 55%, var(--line));
@@ -1058,22 +1076,18 @@
     #sumHealthCell.sum-cell.tall.hot { border-left-color: #ff8a7a; }
     #sumHealthCell.sum-cell.tall.warn { border-left-color: #f5c882; }
     #sumHealthCell.sum-cell.tall.info { border-left-color: #6aa3ff; }
-    #sumHealthCell .sum-body.health-body {
-      gap: .38rem;
-      justify-content: flex-start;
-      flex: 1;
-      min-height: 0;
-    }
     #sumHealthCell .sum-value {
-      font-size: 1.22rem;
+      font-size: 1.15rem;
       line-height: 1.15;
       letter-spacing: -0.01em;
       margin: 0;
+      white-space: nowrap;
     }
     #sumHealthCell .sum-detail {
       font-size: .75rem;
       line-height: 1.3;
       margin: 0;
+      flex: 1 1 8rem;
     }
     #sumHealthCell .health-sev-row {
       display: grid;
@@ -1086,10 +1100,10 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: .1rem;
-      min-height: 2.55rem;
-      padding: .32rem .2rem;
-      border-radius: 10px;
+      gap: .08rem;
+      min-height: 2.1rem;
+      padding: .22rem .15rem;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--line);
       background: rgba(0,0,0,.16);
       color: var(--muted);
@@ -1214,7 +1228,7 @@
     }
     .sum-cell.game.tall { border-left: 4px solid color-mix(in srgb, var(--m-game) 55%, transparent); }
     .sum-grid.game-prominent #sumGameCell.sum-cell.game.tall {
-      padding-left: 1.65rem;
+      padding-left: 1.1rem;
     }
     .sum-cell.game.tall.tier-excellent { border-left-color: var(--tier-excellent); }
     .sum-cell.game.tall.tier-good { border-left-color: var(--tier-good); }
@@ -1228,14 +1242,14 @@
     .sum-cell.game .sum-value.bad { color: var(--tier-bad); }
     .sum-grid.game-prominent #sumGameCell {
       display: grid;
-      grid-template-columns: 10.5rem minmax(0, 1fr);
+      grid-template-columns: 8.5rem minmax(0, 1fr);
       grid-template-rows: auto auto;
       grid-template-areas:
         "game-art game-hero"
         "game-info game-stats";
-      column-gap: 1.25rem;
-      row-gap: .75rem;
-      padding: 1.2rem 1.5rem 1.35rem 1.55rem;
+      column-gap: 0.75rem;
+      row-gap: 0.4rem;
+      padding: 0.65rem 0.85rem 0.7rem 0.95rem;
       align-items: center;
       align-content: center;
       width: 100%;
@@ -1261,13 +1275,13 @@
     .sum-grid.game-prominent #sumGameCell .sum-game-info .sum-head { display: none; }
     .sum-game-art {
       width: 100%;
-      height: 4.35rem;
+      height: 3.5rem;
       flex-shrink: 0;
-      border-radius: 9px;
+      border-radius: 8px;
       overflow: hidden;
       border: 1px solid rgba(255,255,255,.09);
       background: linear-gradient(145deg, rgba(0,0,0,.35), rgba(255,255,255,.04));
-      box-shadow: 0 4px 14px rgba(0,0,0,.22);
+      box-shadow: 0 3px 10px rgba(0,0,0,.2);
     }
     .sum-game-art[hidden],
     .sum-game-art:not(.is-loaded) { display: none !important; }
@@ -1312,13 +1326,13 @@
       display: grid;
       grid-template-columns: auto auto minmax(0, 1fr);
       align-items: center;
-      gap: .85rem 1.15rem;
+      gap: 0.45rem 0.75rem;
       width: 100%;
       min-width: 0;
       align-self: center;
     }
     .sum-grid.game-prominent #sumGameCell .sum-game-primary .sum-value {
-      font-size: 1.65rem;
+      font-size: 1.4rem;
       white-space: nowrap;
     }
     .sum-grid.game-prominent #sumGameCell .sum-game-badge {
@@ -1339,7 +1353,8 @@
     .sum-grid.game-prominent #sumGameCell .sum-game-stats {
       grid-area: game-stats;
       grid-template-columns: repeat(var(--game-stat-cols, 5), minmax(0, 1fr));
-      padding-bottom: .1rem;
+      gap: 0.35rem;
+      padding-bottom: 0;
     }
     .sum-game-stats:empty,
     .sum-game-stats[hidden] { display: none !important; }
@@ -1347,8 +1362,9 @@
     .sum-game-banner {
       display: none;
       flex-direction: column;
-      gap: .2rem;
-      padding: 0 .05rem .15rem;
+      gap: .1rem;
+      padding: 0 .05rem;
+      margin: 0;
     }
     .sum-game-banner.is-visible { display: flex; }
     .sum-game-section-title {
@@ -1375,9 +1391,9 @@
     .sum-game-stat {
       display: flex;
       flex-direction: column;
-      gap: .15rem;
-      padding: .52rem .65rem .55rem;
-      border-radius: 9px;
+      gap: .1rem;
+      padding: 0.35rem 0.45rem 0.38rem;
+      border-radius: var(--radius-sm);
       background: rgba(0,0,0,.28);
       border: none;
       min-width: 0;
@@ -1439,22 +1455,22 @@
      *  RIGHT — circular meter, sized to full cell height (the visual hero)
      */
     .sum-cell.sum-ring-cell {
-      padding: .5rem .5rem .5rem .65rem;
+      padding: .45rem .5rem .45rem .6rem;
       gap: 0;
-      justify-content: stretch;
+      justify-content: flex-start;
     }
     .sum-cell.sum-ring-cell > .sum-metric-layout {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       min-height: 0;
       width: 100%;
     }
     .sum-metric-layout {
       display: flex;
       flex-direction: row;
-      align-items: stretch;
-      gap: .4rem .55rem;
+      align-items: center;
+      gap: .35rem .45rem;
       width: 100%;
-      height: 100%;
+      height: auto;
       min-height: 0;
     }
     .sum-metric-text {
@@ -1480,22 +1496,23 @@
       margin: 0 0 .02rem;
     }
     .sum-ring-wrap {
-      /* Right side: take remaining width + full height; box inside stays square */
-      flex: 1 1 auto;
+      /* Fixed-size ring — don't balloon with row stretch */
+      flex: 0 0 auto;
       min-width: 0;
       min-height: 0;
       display: flex;
-      align-items: stretch;
+      align-items: center;
       justify-content: flex-end;
+      margin-left: auto;
     }
     .sum-ring-box {
       position: relative;
       container-type: size;
-      height: 100%;
-      width: auto;
+      width: 4.75rem;
+      height: 4.75rem;
       aspect-ratio: 1;
       max-width: 100%;
-      max-height: 100%;
+      flex-shrink: 0;
     }
     .sum-ring-box .sum-ring {
       width: 100%;
@@ -1623,8 +1640,8 @@
     .sum-meter.league > span { background: linear-gradient(90deg, var(--m-league), var(--m-cpu)); box-shadow: 0 0 10px color-mix(in srgb, var(--m-league) 40%, transparent); }
     .sum-meter.game > span { background: linear-gradient(90deg, color-mix(in srgb, var(--m-game) 70%, #000), var(--m-game)); }
     .viz-panel-head {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .65rem 1rem;
-      margin-bottom: .85rem;
+      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .75rem;
+      margin-bottom: .5rem;
     }
     .viz-panel-head h2 { margin: 0; flex: 1; min-width: 8rem; }
     .viz-tabs {
@@ -1669,9 +1686,9 @@
     .viz-grid.viz-focus-rig .viz-area-rig { display: block; }
     .viz-grid.viz-focus-index .viz-area-index { display: block; cursor: pointer; }
     .viz-grid.viz-focus-stutter .viz-area-stutter { display: block; }
-    .viz-area-rig .viz-block { min-height: 26rem; }
-    .viz-area-index .viz-block { min-height: 20rem; }
-    .viz-area-stutter .viz-block { min-height: 20rem; }
+    .viz-area-rig .viz-block { min-height: 0; }
+    .viz-area-index .viz-block { min-height: 0; }
+    .viz-area-stutter .viz-block { min-height: 0; }
     .viz-area-index:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
     .viz-block {
       background: var(--panel-elevated); border: 1px solid var(--line); border-radius: var(--radius);
@@ -1733,25 +1750,26 @@
     .metric-bar-sub { display: block; margin-top: .3rem; font-size: .8rem; color: var(--muted); }
     /* ── Rig snapshot: efficient 3-col dashboard ─────────────────────────── */
     .stutter-layout.rig-layout {
-      grid-template-columns: minmax(12.5rem, 1.05fr) minmax(16rem, 1.7fr) minmax(13.5rem, 1.2fr);
-      min-height: min(68vh, 36rem);
-      gap: .7rem;
-      align-items: stretch;
+      grid-template-columns: minmax(11rem, 1fr) minmax(14rem, 1.55fr) minmax(12rem, 1.1fr);
+      min-height: 0;
+      height: auto;
+      gap: 0.5rem;
+      align-items: start;
     }
     .rig-layout .rig-col {
       min-height: 0;
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: .55rem;
+      gap: 0.4rem;
     }
     .rig-panel {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       min-height: 0;
       display: flex;
       flex-direction: column;
-      gap: var(--space-2);
-      padding: var(--space-2) var(--space-3);
+      gap: 0.35rem;
+      padding: 0.4rem 0.5rem;
       border-radius: var(--radius);
       background:
         linear-gradient(180deg, color-mix(in srgb, #fff 3.5%, transparent), transparent 42%),
@@ -1783,11 +1801,11 @@
       border-top: 2px solid color-mix(in srgb, var(--m-cpu) 55%, transparent);
     }
     .rig-util-list {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       display: flex;
       flex-direction: column;
-      justify-content: space-evenly;
-      gap: .42rem;
+      justify-content: flex-start;
+      gap: 0.35rem;
       min-height: 0;
     }
     .rig-panel-strips {
@@ -1809,9 +1827,9 @@
     }
     /* Center: chart is the hero */
     .rig-panel-chart {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       min-height: 0;
-      gap: .4rem;
+      gap: 0.3rem;
       position: relative;
       overflow: hidden;
       border-color: transparent;
@@ -1939,17 +1957,18 @@
       white-space: nowrap;
     }
     .rig-layout .stutter-chart-box {
-      flex: 1 1 auto;
-      min-height: 12.5rem;
+      flex: 0 0 auto;
+      min-height: 9.5rem;
+      height: 11rem;
+      max-height: 13rem;
       min-width: 0;
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       border: 1px solid rgba(255, 255, 255, .06);
       background:
         radial-gradient(80% 55% at 50% 0%, rgba(99, 208, 222, .06), transparent 60%),
         linear-gradient(180deg, rgba(0, 0, 0, .22), rgba(0, 0, 0, .38));
       box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15);
-      /* room for legend so labels aren't clipped */
-      padding: .5rem .55rem .15rem;
+      padding: .35rem .45rem .1rem;
     }
     .rig-layout .stutter-chart-box canvas {
       max-width: 100%;
@@ -1959,12 +1978,12 @@
       overflow: hidden;
     }
     .rig-vitals {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       min-height: 0;
       overflow-x: hidden;
-      overflow-y: auto;
+      overflow-y: visible;
       overscroll-behavior: contain;
-      gap: .55rem;
+      gap: 0.4rem;
       display: flex;
       flex-direction: column;
     }
@@ -1975,11 +1994,11 @@
       gap: .28rem;
     }
     .rig-vitals-grid {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       display: grid;
       grid-template-columns: 1fr 1fr;
       grid-template-rows: auto auto;
-      gap: .5rem .55rem;
+      gap: 0.35rem 0.4rem;
       align-content: start;
       min-height: 0;
     }
@@ -1987,9 +2006,9 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: .22rem;
-      padding: .4rem .45rem .45rem;
-      border-radius: 9px;
+      gap: .15rem;
+      padding: .3rem .35rem .32rem;
+      border-radius: var(--radius-sm);
       background: rgba(0, 0, 0, .16);
       border: 1px solid rgba(255, 255, 255, .04);
     }
@@ -2345,11 +2364,11 @@
     .index-status .vs-neg { font-weight: 600; }
     .sensor-strip-wrap {
       border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-      padding-top: .85rem;
+      padding-top: 0.5rem;
     }
     .sensor-strip-head {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .75rem;
-      margin-bottom: .55rem;
+      display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .6rem;
+      margin-bottom: .35rem;
     }
     .sensor-strip-title {
       font-size: var(--label-size); font-weight: var(--label-weight); color: var(--text-secondary);
@@ -2507,20 +2526,20 @@
     .stutter-driver-bars .metric-bar-track { height: 12px; }
     .stutter-chart-col { flex: 1; }
     .stutter-chart-box {
-      flex: 1; min-height: 11.5rem; position: relative;
+      flex: 0 1 auto; min-height: 9rem; max-height: 14rem; height: 11rem; position: relative;
       border-radius: var(--radius-md); border: 1px solid var(--line-soft); background: rgba(0,0,0,.22);
-      padding: .45rem .55rem .25rem;
+      padding: .35rem .45rem .2rem;
     }
     .stutter-side-label {
       font-size: var(--label-size); font-weight: var(--label-weight);
       letter-spacing: var(--label-tracking); text-transform: uppercase;
       color: var(--muted); margin-bottom: var(--space-2);
     }
-    .metric-list-compact { gap: .5rem; }
-    .metric-list-compact .metric-bar-head { margin-bottom: .22rem; }
+    .metric-list-compact { gap: .32rem; }
+    .metric-list-compact .metric-bar-head { margin-bottom: .12rem; }
     .metric-list-compact .metric-bar-label { font-size: .78rem; }
     .metric-list-compact .metric-bar-val { font-size: .84rem; }
-    .metric-list-compact .metric-bar-track { height: 8px; }
+    .metric-list-compact .metric-bar-track { height: 7px; }
     .metric-list-compact .metric-bar-sub {
       font-size: var(--fs-2xs); margin-top: .15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
@@ -3569,10 +3588,11 @@
       border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
     }
     .summary-bar.compact-rig .rig-panel { padding-bottom: .45rem; }
-    .summary-bar.compact-rig .rig-tile { min-height: 3.5rem; }
-    .summary-bar.compact-rig .rig-tile-art { width: 3.35rem; }
-    .summary-bar.compact-rig .rig-tile-name { font-size: .875rem; }
-    .summary-bar.compact-rig .rig-tile-art .hw-glyph svg { width: 2.15rem; height: 2.15rem; }
+    .summary-bar.compact-rig .rig-tile { min-height: 2.75rem; padding: 0.28rem 0.4rem; }
+    .summary-bar.compact-rig .rig-tile-art { width: 2.6rem; }
+    .summary-bar.compact-rig .rig-tile-name { font-size: .8rem; }
+    .summary-bar.compact-rig .rig-tile-art .hw-glyph svg { width: 1.7rem; height: 1.7rem; }
+    .summary-bar.compact-rig .rig-panel { padding-bottom: 0.25rem; }
     .rig-strip-scroll {
       overflow-x: auto;
       overscroll-behavior-x: contain;
@@ -3789,7 +3809,7 @@
         padding .26s ease,
         visibility .26s ease;
     }
-    #summaryBar .sum-cell[data-hw] { max-height: 9rem; }
+    #summaryBar .sum-cell[data-hw] { max-height: none; }
     .sum-grid.game-prominent #sumGameCell[data-hw] {
       max-height: none;
       overflow: visible;
