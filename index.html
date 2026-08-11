@@ -1949,22 +1949,26 @@
     }
     .rig-layout .stutter-chart-box {
       flex: 1 1 auto;
-      min-height: 13.5rem;
-      height: 14.5rem;
-      max-height: 18rem;
+      min-height: 12rem;
+      height: 13.25rem;
+      max-height: 15rem;
       min-width: 0;
       border-radius: var(--radius-sm);
       border: none;
-      background: rgba(0, 0, 0, .28);
+      background: rgba(0, 0, 0, .32);
       box-shadow: none;
-      padding: .35rem .25rem .15rem;
+      padding: .4rem .35rem .2rem;
     }
     .rig-layout .stutter-chart-box canvas {
       max-width: 100%;
       max-height: 100%;
     }
     .rig-col-chart {
-      min-height: 16rem;
+      min-height: 0;
+      width: 100%;
+    }
+    .rig-col-chart .rig-panel-chart {
+      width: 100%;
     }
     /* Right: one flat surface, stacked sections (no nested cards) */
     .rig-col-vitals {
@@ -3942,8 +3946,69 @@
        Vitals: only bus + storage show rate sublines (fun + useful). */
     .rig-util-list .metric-bar-sub { display: block; }
     .rig-vitals .metric-bar-sub { display: none; }
-    .rig-vitals #bwMeters .metric-bar-sub,
-    .rig-vitals #ioMeters .metric-bar-sub { display: block; }
+    .rig-vitals #bwMeters .metric-bar-sub { display: block; }
+    /* Storage: one-line R/W/Busy dials */
+    .io-compact {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+    .io-dial {
+      --io-p: 0;
+      --io-color: var(--m-disk);
+      flex: 1 1 0;
+      min-width: 0;
+      position: relative;
+      height: 2.5rem;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, .22);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.2rem 0.5rem 0.2rem 0.3rem;
+      overflow: hidden;
+    }
+    .io-dial[data-io="write"] { --io-color: var(--m-disk-write); }
+    .io-dial[data-io="busy"] { --io-color: color-mix(in srgb, var(--m-disk) 70%, var(--m-thermal)); }
+    .io-dial-ring {
+      width: 1.85rem;
+      height: 1.85rem;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background:
+        conic-gradient(var(--io-color) calc(var(--io-p) * 1%), rgba(255, 255, 255, .08) 0);
+      -webkit-mask: radial-gradient(circle, transparent 55%, #000 56%);
+      mask: radial-gradient(circle, transparent 55%, #000 56%);
+      box-shadow: none;
+    }
+    .io-dial-core {
+      min-width: 0;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.05rem;
+      line-height: 1.1;
+    }
+    .io-dial-k {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .io-dial-v {
+      font-size: 0.8rem;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .io-dial.is-hot .io-dial-v { color: var(--sev-hot); }
+    .io-dial.is-active .io-dial-k { color: color-mix(in srgb, var(--io-color) 55%, var(--muted)); }
     .metric-list-compact .metric-bar-label { font-size: var(--label-size); }
     .metric-list-compact .metric-bar-val { font-size: var(--fs-sm); font-weight: 600; }
     .stutter-kpi {
@@ -4221,7 +4286,30 @@
                   </div>
                   <div class="rig-vitals-section" data-hw="storage">
                     <div class="stutter-side-label">Storage</div>
-                    <div class="metric-list metric-list-compact stutter-driver-bars" id="ioMeters"></div>
+                    <!-- One-line R/W/Busy dials — full bars live in Sensors drill -->
+                    <div class="io-compact" id="ioMeters" role="group" aria-label="Storage activity">
+                      <div class="io-dial" data-io="read" title="Disk read">
+                        <div class="io-dial-ring" data-ring aria-hidden="true"></div>
+                        <div class="io-dial-core">
+                          <span class="io-dial-k">R</span>
+                          <span class="io-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="io-dial" data-io="write" title="Disk write">
+                        <div class="io-dial-ring" data-ring aria-hidden="true"></div>
+                        <div class="io-dial-core">
+                          <span class="io-dial-k">W</span>
+                          <span class="io-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="io-dial" data-io="busy" title="Disk busy">
+                        <div class="io-dial-ring" data-ring aria-hidden="true"></div>
+                        <div class="io-dial-core">
+                          <span class="io-dial-k">Busy</span>
+                          <span class="io-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div class="rig-vitals-section dash-secondary" data-hw-keep>
                     <div class="stutter-side-label">Network</div>
@@ -7126,6 +7214,28 @@
       { id: 'disk-write', label: 'Write', icon: 'storage', cls: 'disk-write', hw: 'storage' },
       { id: 'disk-busy', label: 'Busy', icon: 'storage', cls: 'disk-busy', hw: 'storage' },
     ];
+
+    /** Live overview storage: one-line R / W / Busy dials (replaces stacked bars). */
+    function updateIoCompact(diskRead, diskWrite, diskBusy) {
+      const root = document.getElementById('ioMeters');
+      if (!root || !root.classList.contains('io-compact')) return;
+      const setDial = (key, pct, text, hot) => {
+        const el = root.querySelector(`[data-io="${key}"]`);
+        if (!el) return;
+        const p = Math.max(0, Math.min(100, pct || 0));
+        el.style.setProperty('--io-p', p.toFixed(1));
+        const val = el.querySelector('[data-val]');
+        if (val) val.textContent = text;
+        el.classList.toggle('is-hot', !!hot);
+        el.classList.toggle('is-active', p >= 4);
+      };
+      const rPct = Math.min(100, (diskRead / DISK_RATE_CEIL) * 100);
+      const wPct = Math.min(100, (diskWrite / DISK_RATE_CEIL) * 100);
+      const bPct = Number(diskBusy) || 0;
+      setDial('read', rPct, fmtDiskRate(diskRead), rPct >= 85);
+      setDial('write', wPct, fmtDiskRate(diskWrite), wPct >= 85);
+      setDial('busy', bPct, `${Math.round(bPct)}%`, bPct >= 85);
+    }
     const NET_SPECS = [
       { id: 'net-down', label: 'Down', icon: 'net', cls: 'net-down', hw: '' },
       { id: 'net-up', label: 'Up', icon: 'net', cls: 'net-up', hw: '' },
@@ -7435,16 +7545,14 @@
 
       let active;
       if (!anyHwFocus()) {
-        // Overview: CPU/GPU/RAM load + both temps; disk if active
+        // Overview: load only (CPU/GPU/RAM). Temps live on the right rail —
+        // dual-axis made the plot unreadable. Disk joins when actually busy.
         active = loadSeries.filter(s => s.key !== 'disk');
         const diskPeak = sparkRing.disk.length ? Math.max(...sparkRing.disk) : 0;
         if (diskPeak >= 12) active.push(loadSeries.find(s => s.key === 'disk'));
-        const hasCpuT = sparkRing.cpuTemp.some(v => v != null);
-        const hasGpuT = sparkRing.gpuTemp.some(v => v != null);
-        if (hasCpuT) active.push(tempSeries[0]);
-        if (hasGpuT) active.push(tempSeries[1]);
       } else {
-        // Multi-select: union of series matching any active focus
+        // Multi-select: load series for focus. Temps only when CPU/GPU focused
+        // alone so the dual axis has a clear job.
         const seen = new Set();
         active = [];
         const pushUnique = (rows) => {
@@ -7456,11 +7564,9 @@
         };
         if (hwFocusHas('cpu')) {
           pushUnique(loadSeries.filter(d => d.focus.includes('cpu')));
-          pushUnique(tempSeries.filter(d => d.focus.includes('cpu')));
         }
         if (hwFocusHas('gpu')) {
           pushUnique(loadSeries.filter(d => d.focus.includes('gpu')));
-          pushUnique(tempSeries.filter(d => d.focus.includes('gpu')));
         }
         if (hwFocusHas('memory')) {
           pushUnique(loadSeries.filter(d => d.focus.includes('memory')));
@@ -7468,6 +7574,9 @@
         if (hwFocusHas('storage')) {
           pushUnique(loadSeries.filter(s => s.key === 'disk'));
         }
+        // Optional thermal overlay when filtering a thermal domain
+        if (hwFocusSet.size === 1 && hwFocusHas('cpu')) pushUnique([tempSeries[0]]);
+        if (hwFocusSet.size === 1 && hwFocusHas('gpu')) pushUnique([tempSeries[1]]);
       }
 
       const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}`;
@@ -7476,7 +7585,6 @@
         const isDisk = !!d.isDisk;
         const isTemp = !!d.isTemp;
         const primary = idx === 0;
-        const pointRadius = n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? (primary ? 3 : 2.2) : 0)) : [];
         return {
           label: d.label,
           data: d.data.slice(),
@@ -7485,57 +7593,55 @@
             ? 'transparent'
             : sparkAreaFill(d.color, d.fillTop ?? 0.18, d.fillBot ?? 0.02),
           fill: !isTemp && !isDisk,
-          tension: 0,
-          borderWidth: isTemp ? 1.65 : (primary ? 2.6 : (isDisk ? 1.5 : 2.1)),
+          tension: isTemp ? 0.15 : 0.22,
+          borderWidth: isTemp ? 1.5 : (primary ? 2.4 : (isDisk ? 1.4 : 2)),
           borderJoinStyle: 'round',
           borderCapStyle: 'round',
           borderDash: isTemp ? [5, 4] : (isDisk ? [4, 3] : undefined),
-          pointRadius,
-          pointHoverRadius: n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? 5 : 3)) : [],
+          // Only tip dots — a stack of idle points was unreadable
+          pointRadius: n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? (primary ? 2.5 : 2) : 0)) : [],
+          pointHoverRadius: 4,
           pointBackgroundColor: d.color,
-          pointBorderColor: rgbaFromHex(d.color, 0.35),
-          pointBorderWidth: 2,
-          pointHitRadius: 6,
+          pointBorderColor: rgbaFromHex(d.color, 0.4),
+          pointBorderWidth: 1.5,
+          pointHitRadius: 8,
           yAxisID: d.axis || 'y',
           order: isTemp ? 5 : (isDisk ? 4 : idx),
           spanGaps: true,
         };
       });
 
+      const showTempAxis = active.some(s => s.isTemp);
       sparkChart.options.scales.y.min = 0;
       sparkChart.options.scales.y.max = 100;
       sparkChart.options.scales.y.ticks.callback = v => `${v}%`;
       sparkChart.options.scales.y.title = {
-        display: true,
+        display: false, // less chrome — swatches already name series
         text: 'Load %',
-        color: 'rgba(154, 163, 178, .75)',
-        font: { size: 9, weight: '500', family: 'Inter' },
       };
-      // Right axis for °C — fixed range so thermal lines don't rescale every tick
-      if (!sparkChart.options.scales.y1) {
-        sparkChart.options.scales.y1 = {
-          position: 'right',
-          min: SPARK_TEMP_MIN,
-          max: SPARK_TEMP_MAX,
-          grid: { drawOnChartArea: false },
-          border: { display: false },
-          ticks: {
-            color: 'rgba(251, 113, 133, .85)',
-            font: { size: 9, weight: '500' },
-            callback: v => `${v}°`,
-            stepSize: 25,
-            padding: 4,
-          },
-          title: {
-            display: true,
-            text: 'Temp °C',
-            color: 'rgba(251, 113, 133, .75)',
-            font: { size: 9, weight: '500', family: 'Inter' },
-          },
-        };
-      } else {
-        sparkChart.options.scales.y1.min = SPARK_TEMP_MIN;
-        sparkChart.options.scales.y1.max = SPARK_TEMP_MAX;
+      if (showTempAxis) {
+        if (!sparkChart.options.scales.y1) {
+          sparkChart.options.scales.y1 = {
+            position: 'right',
+            min: SPARK_TEMP_MIN,
+            max: SPARK_TEMP_MAX,
+            grid: { drawOnChartArea: false },
+            border: { display: false },
+            ticks: {
+              color: 'rgba(251, 113, 133, .85)',
+              font: { size: 9, weight: '500' },
+              callback: v => `${v}°`,
+              stepSize: 25,
+              padding: 4,
+            },
+          };
+        } else {
+          sparkChart.options.scales.y1.display = true;
+          sparkChart.options.scales.y1.min = SPARK_TEMP_MIN;
+          sparkChart.options.scales.y1.max = SPARK_TEMP_MAX;
+        }
+      } else if (sparkChart.options.scales.y1) {
+        sparkChart.options.scales.y1.display = false;
       }
       if (sparkChart.options.scales.x?.ticks) {
         sparkChart.options.scales.x.ticks.maxTicksLimit = 5;
@@ -8680,8 +8786,7 @@
       syncMetricHwTags('tempMeters', tempSpecs);
       ensureMetricList('bwMeters', BW_SPECS);
       syncMetricHwTags('bwMeters', BW_SPECS);
-      ensureMetricList('ioMeters', IO_SPECS);
-      syncMetricHwTags('ioMeters', IO_SPECS);
+      // Storage uses compact dials (#ioMeters), not the metric-bar list
       ensureMetricList('netMeters', NET_SPECS);
       syncMetricHwTags('netMeters', NET_SPECS);
 
@@ -8737,12 +8842,7 @@
       const diskRead = disk.read_mbps ?? 0;
       const diskWrite = disk.write_mbps ?? 0;
       const diskBusy = disk.busy_pct ?? 0;
-      setMetricBar('ioMeters', 'disk-read', Math.min(100, (diskRead / DISK_RATE_CEIL) * 100),
-        fmtDiskRate(diskRead), 'read', '', 'disk-read');
-      setMetricBar('ioMeters', 'disk-write', Math.min(100, (diskWrite / DISK_RATE_CEIL) * 100),
-        fmtDiskRate(diskWrite), 'write', '', 'disk-write');
-      setMetricBar('ioMeters', 'disk-busy', diskBusy,
-        `${Math.round(diskBusy)}%`, 'queue', '', 'disk-busy');
+      updateIoCompact(diskRead, diskWrite, diskBusy);
 
       const netDown = net.down_mbps ?? 0;
       const netUp = net.up_mbps ?? 0;
