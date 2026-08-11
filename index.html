@@ -64,16 +64,16 @@
           Stutter/game   …… fuchsia / pink
       */
       --m-cpu: #38bdf8;
-      --m-cpu-deep: #0284c7;
-      --m-gpu: #a78bfa;
-      --m-gpu-deep: #7c3aed;
-      --m-gpu-vram: #c4b5fd;
+      --m-cpu-deep: #0ea5e9;
+      --m-gpu: #c084fc;
+      --m-gpu-deep: #a855f7;
+      --m-gpu-vram: #e9d5ff;
       --m-gpu-gtt: #ddd6fe;
       --m-mem: #34d399;
-      --m-mem-deep: #059669;
+      --m-mem-deep: #10b981;
       --m-swap: #a3e635;
-      --m-disk: #f59e0b;
-      --m-disk-deep: #d97706;
+      --m-disk: #fbbf24;
+      --m-disk-deep: #f59e0b;
       --m-disk-write: #fb923c;
       --m-net: #22d3ee;
       --m-net-deep: #0e7490;
@@ -1750,6 +1750,7 @@
     .metric-bar-val.cpu { color: var(--m-cpu); }
     .metric-bar-val.mem { color: var(--m-mem); }
     .metric-bar-val.gpu { color: var(--m-gpu); }
+    .metric-bar-val.vram { color: var(--m-gpu-vram); }
     .metric-bar-val.temp { color: var(--m-thermal); }
     .metric-bar-val.temp.warn { color: var(--m-thermal-warn); }
     .metric-bar-val.temp.hot { color: var(--m-thermal); }
@@ -2076,7 +2077,7 @@
       gap: .28rem;
       margin-bottom: .14rem;
     }
-    /* Load column: clean label · % · bar stack */
+    /* Load column: clean label · % · bar stack + family colors */
     .rig-util-list .metric-bar {
       display: flex;
       flex-direction: column;
@@ -2092,6 +2093,14 @@
       order: 2;
       margin-top: 0;
     }
+    .rig-util-list .metric-bar-val.cpu { color: var(--m-cpu); }
+    .rig-util-list .metric-bar-val.gpu { color: var(--m-gpu); }
+    .rig-util-list .metric-bar-val.mem { color: var(--m-mem); }
+    #utilMeters [data-mid="vram"] .metric-bar-val { color: var(--m-gpu-vram); }
+    #utilMeters [data-mid="cpu"] .metric-bar-label { color: color-mix(in srgb, var(--m-cpu) 70%, var(--text)); }
+    #utilMeters [data-mid="gpu"] .metric-bar-label { color: color-mix(in srgb, var(--m-gpu) 70%, var(--text)); }
+    #utilMeters [data-mid="ram"] .metric-bar-label { color: color-mix(in srgb, var(--m-mem) 70%, var(--text)); }
+    #utilMeters [data-mid="vram"] .metric-bar-label { color: color-mix(in srgb, var(--m-gpu-vram) 70%, var(--text)); }
     .rig-layout .metric-list-compact .metric-bar-label {
       min-width: 0;
       overflow: hidden;
@@ -4002,17 +4011,18 @@
       padding: 0.22rem 0.48rem 0.22rem 0.28rem;
       overflow: hidden;
     }
+    /* Family colors — same token as load bars + chart (CPU always = --m-cpu, etc.) */
+    .pulse-dial[data-dial="cpu-pkg"] { --dial-color: var(--m-cpu); }
     .pulse-dial[data-dial="gpu-junc"],
-    .pulse-dial[data-dial="gpu-mem"],
-    .pulse-dial[data-dial="vram-bw"],
     .pulse-dial[data-dial="power"],
-    .pulse-dial[data-dial="fan"] { --dial-color: var(--m-gpu); }
+    .pulse-dial[data-dial="fan"],
+    .pulse-dial[data-dial="vram-bw"] { --dial-color: var(--m-gpu); }
+    .pulse-dial[data-dial="gpu-mem"] { --dial-color: var(--m-gpu-vram); }
     .pulse-dial[data-dial="dram-bw"],
     .pulse-dial[data-dial="dram-psi"] { --dial-color: var(--m-mem); }
-    .pulse-dial[data-dial="read"] { --dial-color: var(--m-disk); }
+    .pulse-dial[data-dial="read"],
+    .pulse-dial[data-dial="busy"] { --dial-color: var(--m-disk); }
     .pulse-dial[data-dial="write"] { --dial-color: var(--m-disk-write); }
-    .pulse-dial[data-dial="busy"] { --dial-color: color-mix(in srgb, var(--m-disk) 65%, var(--m-thermal)); }
-    .pulse-dial[data-dial="cpu-pkg"] { --dial-color: var(--m-cpu); }
     .pulse-dial-ring {
       width: 1.85rem;
       height: 1.85rem;
@@ -4037,21 +4047,22 @@
       font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: color-mix(in srgb, var(--dial-color) 55%, var(--muted));
     }
     .pulse-dial-v {
       font-size: 0.8rem;
-      font-weight: 650;
+      font-weight: 700;
       font-variant-numeric: tabular-nums;
-      color: var(--text);
+      color: var(--dial-color);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    /* Hot/warn only push beyond the family color when severe */
     .pulse-dial.is-hot .pulse-dial-v { color: var(--sev-hot); }
     .pulse-dial.is-warn .pulse-dial-v { color: var(--sev-warn); }
     .pulse-dial.is-active .pulse-dial-k {
-      color: color-mix(in srgb, var(--dial-color) 50%, var(--muted));
+      color: var(--dial-color);
     }
 
     /* Compact top scoreboard chips (CPU / Mem / GPU) — load detail in Live bars */
@@ -5080,23 +5091,24 @@
      * Same metric key → same color on every chart, bar, and KPI.
      * Families stay grouped by function (CPU blues, GPU violets, …).
      */
+    /* Single source of truth — live overview bars, dials, and chart all use these. */
     const METRIC = {
-      cpu: '#38bdf8',
-      cpuDeep: '#0284c7',
-      gpu: '#a78bfa',
-      gpuDeep: '#7c3aed',
-      gpuVram: '#c4b5fd',
+      cpu: '#38bdf8',       /* sky — CPU load + CPU °C */
+      cpuDeep: '#0ea5e9',
+      gpu: '#c084fc',       /* bright violet — GPU load + GPU °C + power/fan */
+      gpuDeep: '#a855f7',
+      gpuVram: '#e9d5ff',   /* pale violet — VRAM util / VRAM temp dial */
       gpuGtt: '#ddd6fe',
-      mem: '#34d399',
-      memDeep: '#059669',
+      mem: '#34d399',       /* emerald — RAM load + bus */
+      memDeep: '#10b981',
       swap: '#a3e635',
-      disk: '#f59e0b',
-      diskDeep: '#d97706',
-      diskWrite: '#fb923c',
+      disk: '#fbbf24',      /* gold — disk activity / read */
+      diskDeep: '#f59e0b',
+      diskWrite: '#fb923c', /* orange — write */
       net: '#22d3ee',
       netDeep: '#0e7490',
       netUp: '#67e8f9',
-      power: '#fb923c',
+      power: '#c084fc',     /* same family as GPU (GPU power) */
       thermal: '#fb7185',
       thermalWarn: '#fbbf24',
       stutter: '#e879f9',
@@ -7673,33 +7685,33 @@
       const labels = sparkRing.labels;
       const n = labels.length;
 
-      // Load series (left axis %) — solid lines, distinct hues for glanceability
+      // Load series (left axis %) — solid. Colors from METRIC so bars/dials/chart match.
       const loadSeries = [
         {
-          key: 'cpu', label: 'CPU', color: '#38bdf8', focus: ['cpu'],
-          data: sparkRing.cpu, fillTop: 0.2, fillBot: 0.02, primary: true, axis: 'y',
+          key: 'cpu', label: 'CPU', color: METRIC.cpu, focus: ['cpu'],
+          data: sparkRing.cpu, fillTop: 0.22, fillBot: 0.02, primary: true, axis: 'y',
         },
         {
-          key: 'gpu', label: 'GPU', color: '#a78bfa', focus: ['gpu'],
-          data: sparkRing.gpu, fillTop: 0.16, fillBot: 0.015, axis: 'y',
+          key: 'gpu', label: 'GPU', color: METRIC.gpu, focus: ['gpu'],
+          data: sparkRing.gpu, fillTop: 0.18, fillBot: 0.015, axis: 'y',
         },
         {
-          key: 'ram', label: 'RAM', color: '#34d399', focus: ['memory'],
-          data: sparkRing.ram, fillTop: 0.12, fillBot: 0.01, axis: 'y',
+          key: 'ram', label: 'RAM', color: METRIC.mem, focus: ['memory'],
+          data: sparkRing.ram, fillTop: 0.14, fillBot: 0.01, axis: 'y',
         },
         {
-          key: 'disk', label: 'Disk', color: '#f59e0b', focus: ['storage'],
-          data: sparkRing.disk, fillTop: 0.08, fillBot: 0.01, isDisk: true, axis: 'y',
+          key: 'disk', label: 'Disk', color: METRIC.disk, focus: ['storage'],
+          data: sparkRing.disk, fillTop: 0.1, fillBot: 0.01, isDisk: true, axis: 'y',
         },
       ];
-      // Temps: dotted lines on right axis (°C) — warm palette, no fill
+      // Temps: same hue as their load series (dotted = temp, solid = usage)
       const tempSeries = [
         {
-          key: 'cpuTemp', label: 'CPU °C', color: '#fb7185', focus: ['cpu'],
+          key: 'cpuTemp', label: 'CPU °C', color: METRIC.cpu, focus: ['cpu'],
           data: sparkRing.cpuTemp, axis: 'y1', isTemp: true,
         },
         {
-          key: 'gpuTemp', label: 'GPU °C', color: '#fdba74', focus: ['gpu'],
+          key: 'gpuTemp', label: 'GPU °C', color: METRIC.gpu, focus: ['gpu'],
           data: sparkRing.gpuTemp, axis: 'y1', isTemp: true,
         },
       ];
@@ -7793,7 +7805,7 @@
             grid: { drawOnChartArea: false },
             border: { display: false },
             ticks: {
-              color: 'rgba(251, 191, 36, .9)',
+              color: 'rgba(206, 219, 238, .7)',
               font: { size: 9, weight: '500' },
               callback: v => `${v}°`,
               stepSize: 25,
@@ -7802,7 +7814,7 @@
             title: {
               display: true,
               text: '°C',
-              color: 'rgba(251, 191, 36, .85)',
+              color: 'rgba(206, 219, 238, .65)',
               font: { size: 9, weight: '600', family: 'Inter' },
             },
           };
@@ -8934,7 +8946,7 @@
       setMetricBar('utilMeters', 'cpu', c.overall_pct, `${c.overall_pct}%`, `Load ${c.load?.join(' / ') ?? '—'}`, 'cpu');
       setMetricBar('utilMeters', 'ram', m.pct, `${m.pct}%`, `${m.used_gb} / ${m.total_gb} GB used`, 'mem');
       setMetricBar('utilMeters', 'gpu', g.busy_pct ?? 0, `${g.busy_pct ?? '—'}%`, `${g.power_w ?? '—'} W · ${g.gfx_mhz ?? '—'} MHz`, 'gpu');
-      setMetricBar('utilMeters', 'vram', g.vram_pct ?? 0, `${g.vram_pct ?? '—'}%`, `${g.vram_used_mb ?? '—'} / ${g.vram_total_mb ?? '—'} MB`, 'gpu');
+      setMetricBar('utilMeters', 'vram', g.vram_pct ?? 0, `${g.vram_pct ?? '—'}%`, `${g.vram_used_mb ?? '—'} / ${g.vram_total_mb ?? '—'} MB`, 'vram');
       setMetricBar('utilMeters', 'swap', m.swap_pct, `${m.swap_pct}%`, `${m.swap_used_gb ?? '—'} GB swap used`, '');
       setMetricBar('utilMeters', 'game', gt?.running ? gt.cpu_pct : 0, gt?.running ? `${gt.cpu_pct}%` : 'Idle',
         gt?.running ? `${gt.primary_name || gt.game_name}` : 'No game', 'game');
