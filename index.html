@@ -7673,34 +7673,33 @@
       const labels = sparkRing.labels;
       const n = labels.length;
 
-      // Load series (left axis %) + thermal series (right axis °C)
+      // Load series (left axis %) — solid lines, distinct hues for glanceability
       const loadSeries = [
         {
-          key: 'cpu', label: 'CPU', color: CHART.cpu, focus: ['cpu'],
-          data: sparkRing.cpu, fillTop: 0.22, fillBot: 0.02, primary: true, axis: 'y',
+          key: 'cpu', label: 'CPU', color: '#38bdf8', focus: ['cpu'],
+          data: sparkRing.cpu, fillTop: 0.2, fillBot: 0.02, primary: true, axis: 'y',
         },
         {
-          key: 'gpu', label: 'GPU', color: CHART.gpu, focus: ['gpu'],
+          key: 'gpu', label: 'GPU', color: '#a78bfa', focus: ['gpu'],
           data: sparkRing.gpu, fillTop: 0.16, fillBot: 0.015, axis: 'y',
         },
         {
-          key: 'ram', label: 'RAM', color: CHART.ram, focus: ['memory'],
-          data: sparkRing.ram, fillTop: 0.1, fillBot: 0.01, axis: 'y',
+          key: 'ram', label: 'RAM', color: '#34d399', focus: ['memory'],
+          data: sparkRing.ram, fillTop: 0.12, fillBot: 0.01, axis: 'y',
         },
         {
-          key: 'disk', label: 'Disk', color: CHART.diskAct || CHART.diskR, focus: ['storage'],
-          data: sparkRing.disk, fillTop: 0.05, fillBot: 0.01, isDisk: true, axis: 'y',
+          key: 'disk', label: 'Disk', color: '#f59e0b', focus: ['storage'],
+          data: sparkRing.disk, fillTop: 0.08, fillBot: 0.01, isDisk: true, axis: 'y',
         },
       ];
-      // Temps: dashed lines on right axis (°C) — distinct warm hues so they
-      // don't fight solid load fills (CPU blue / GPU violet) on the left axis.
+      // Temps: dotted lines on right axis (°C) — warm palette, no fill
       const tempSeries = [
         {
           key: 'cpuTemp', label: 'CPU °C', color: '#fb7185', focus: ['cpu'],
           data: sparkRing.cpuTemp, axis: 'y1', isTemp: true,
         },
         {
-          key: 'gpuTemp', label: 'GPU °C', color: '#fbbf24', focus: ['gpu'],
+          key: 'gpuTemp', label: 'GPU °C', color: '#fdba74', focus: ['gpu'],
           data: sparkRing.gpuTemp, axis: 'y1', isTemp: true,
         },
       ];
@@ -7756,13 +7755,14 @@
             ? 'transparent'
             : sparkAreaFill(d.color, (d.fillTop ?? 0.18) * 1.15, d.fillBot ?? 0.02),
           fill: !isTemp && !isDisk,
-          tension: isTemp ? 0.15 : 0.28,
-          borderWidth: isTemp ? 1.5 : (primary ? 2.5 : (isDisk ? 1.5 : 2.15)),
+          tension: isTemp ? 0.12 : 0.28,
+          borderWidth: isTemp ? 1.75 : (primary ? 2.5 : (isDisk ? 2 : 2.15)),
           borderJoinStyle: 'round',
-          borderCapStyle: 'round',
-          borderDash: isTemp ? [6, 4] : (isDisk ? [4, 3] : undefined),
-          // Tip dots only — full-series dots made idle multi-axis plots unreadable
-          pointRadius: n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? (isTemp ? 2.2 : (primary ? 2.5 : 2)) : 0)) : [],
+          // round caps on solid load; butt + short dash = dotted temps
+          borderCapStyle: isTemp ? 'round' : 'round',
+          borderDash: isTemp ? [1.5, 3.5] : undefined,
+          // Tip markers only — full-series dots made idle multi-axis plots unreadable
+          pointRadius: n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? (isTemp ? 2.4 : (primary ? 2.5 : 2)) : 0)) : [],
           pointHoverRadius: 4,
           pointBackgroundColor: d.color,
           pointBorderColor: rgbaFromHex(d.color, 0.4),
