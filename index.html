@@ -7549,7 +7549,7 @@
         // dual-axis made the plot unreadable. Disk joins when actually busy.
         active = loadSeries.filter(s => s.key !== 'disk');
         const diskPeak = sparkRing.disk.length ? Math.max(...sparkRing.disk) : 0;
-        if (diskPeak >= 12) active.push(loadSeries.find(s => s.key === 'disk'));
+        if (diskPeak >= 28) active.push(loadSeries.find(s => s.key === 'disk'));
       } else {
         // Multi-select: load series for focus. Temps only when CPU/GPU focused
         // alone so the dual axis has a clear job.
@@ -7591,10 +7591,10 @@
           borderColor: d.color,
           backgroundColor: isTemp || isDisk
             ? 'transparent'
-            : sparkAreaFill(d.color, d.fillTop ?? 0.18, d.fillBot ?? 0.02),
+            : sparkAreaFill(d.color, (d.fillTop ?? 0.18) * 1.15, d.fillBot ?? 0.02),
           fill: !isTemp && !isDisk,
-          tension: isTemp ? 0.15 : 0.22,
-          borderWidth: isTemp ? 1.5 : (primary ? 2.4 : (isDisk ? 1.4 : 2)),
+          tension: isTemp ? 0.15 : 0.28,
+          borderWidth: isTemp ? 1.5 : (primary ? 2.5 : (isDisk ? 1.5 : 2.15)),
           borderJoinStyle: 'round',
           borderCapStyle: 'round',
           borderDash: isTemp ? [5, 4] : (isDisk ? [4, 3] : undefined),
