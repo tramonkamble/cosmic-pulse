@@ -7692,28 +7692,31 @@
           data: sparkRing.disk, fillTop: 0.05, fillBot: 0.01, isDisk: true, axis: 'y',
         },
       ];
-      // Temps: same families as load (CPU blue, GPU violet) but dashed + right axis
+      // Temps: dashed lines on right axis (°C) — distinct warm hues so they
+      // don't fight solid load fills (CPU blue / GPU violet) on the left axis.
       const tempSeries = [
         {
-          key: 'cpuTemp', label: 'CPU °C', color: METRIC.cpuDeep || CHART.cpu, focus: ['cpu'],
+          key: 'cpuTemp', label: 'CPU °C', color: '#fb7185', focus: ['cpu'],
           data: sparkRing.cpuTemp, axis: 'y1', isTemp: true,
         },
         {
-          key: 'gpuTemp', label: 'GPU °C', color: METRIC.gpuDeep || CHART.gpu, focus: ['gpu'],
+          key: 'gpuTemp', label: 'GPU °C', color: '#fbbf24', focus: ['gpu'],
           data: sparkRing.gpuTemp, axis: 'y1', isTemp: true,
         },
       ];
 
       let active;
       if (!anyHwFocus()) {
-        // Overview: load only (CPU/GPU/RAM). Temps live on the right rail —
-        // dual-axis made the plot unreadable. Disk joins when actually busy.
+        // Overview: load (CPU/GPU/RAM) + CPU/GPU package temps. Disk only when busy.
         active = loadSeries.filter(s => s.key !== 'disk');
+        const hasCpuT = sparkRing.cpuTemp.some(v => v != null);
+        const hasGpuT = sparkRing.gpuTemp.some(v => v != null);
+        if (hasCpuT) active.push(tempSeries[0]);
+        if (hasGpuT) active.push(tempSeries[1]);
         const diskPeak = sparkRing.disk.length ? Math.max(...sparkRing.disk) : 0;
         if (diskPeak >= 28) active.push(loadSeries.find(s => s.key === 'disk'));
       } else {
-        // Multi-select: load series for focus. Temps only when CPU/GPU focused
-        // alone so the dual axis has a clear job.
+        // Multi-select: load for focus domains + matching temps for CPU/GPU.
         const seen = new Set();
         active = [];
         const pushUnique = (rows) => {
@@ -7725,9 +7728,11 @@
         };
         if (hwFocusHas('cpu')) {
           pushUnique(loadSeries.filter(d => d.focus.includes('cpu')));
+          pushUnique([tempSeries[0]]);
         }
         if (hwFocusHas('gpu')) {
           pushUnique(loadSeries.filter(d => d.focus.includes('gpu')));
+          pushUnique([tempSeries[1]]);
         }
         if (hwFocusHas('memory')) {
           pushUnique(loadSeries.filter(d => d.focus.includes('memory')));
@@ -7735,9 +7740,6 @@
         if (hwFocusHas('storage')) {
           pushUnique(loadSeries.filter(s => s.key === 'disk'));
         }
-        // Optional thermal overlay when filtering a thermal domain
-        if (hwFocusSet.size === 1 && hwFocusHas('cpu')) pushUnique([tempSeries[0]]);
-        if (hwFocusSet.size === 1 && hwFocusHas('gpu')) pushUnique([tempSeries[1]]);
       }
 
       const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}`;
@@ -7758,9 +7760,9 @@
           borderWidth: isTemp ? 1.5 : (primary ? 2.5 : (isDisk ? 1.5 : 2.15)),
           borderJoinStyle: 'round',
           borderCapStyle: 'round',
-          borderDash: isTemp ? [5, 4] : (isDisk ? [4, 3] : undefined),
-          // Only tip dots — a stack of idle points was unreadable
-          pointRadius: n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? (primary ? 2.5 : 2) : 0)) : [],
+          borderDash: isTemp ? [6, 4] : (isDisk ? [4, 3] : undefined),
+          // Tip dots only — full-series dots made idle multi-axis plots unreadable
+          pointRadius: n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? (isTemp ? 2.2 : (primary ? 2.5 : 2)) : 0)) : [],
           pointHoverRadius: 4,
           pointBackgroundColor: d.color,
           pointBorderColor: rgbaFromHex(d.color, 0.4),
@@ -7777,8 +7779,10 @@
       sparkChart.options.scales.y.max = 100;
       sparkChart.options.scales.y.ticks.callback = v => `${v}%`;
       sparkChart.options.scales.y.title = {
-        display: false, // less chrome — swatches already name series
-        text: 'Load %',
+        display: true,
+        text: '%',
+        color: 'rgba(154, 163, 178, .7)',
+        font: { size: 9, weight: '600', family: 'Inter' },
       };
       if (showTempAxis) {
         if (!sparkChart.options.scales.y1) {
@@ -7789,17 +7793,27 @@
             grid: { drawOnChartArea: false },
             border: { display: false },
             ticks: {
-              color: 'rgba(251, 113, 133, .85)',
+              color: 'rgba(251, 191, 36, .9)',
               font: { size: 9, weight: '500' },
               callback: v => `${v}°`,
               stepSize: 25,
               padding: 4,
+            },
+            title: {
+              display: true,
+              text: '°C',
+              color: 'rgba(251, 191, 36, .85)',
+              font: { size: 9, weight: '600', family: 'Inter' },
             },
           };
         } else {
           sparkChart.options.scales.y1.display = true;
           sparkChart.options.scales.y1.min = SPARK_TEMP_MIN;
           sparkChart.options.scales.y1.max = SPARK_TEMP_MAX;
+          if (sparkChart.options.scales.y1.title) {
+            sparkChart.options.scales.y1.title.display = true;
+            sparkChart.options.scales.y1.title.text = '°C';
+          }
         }
       } else if (sparkChart.options.scales.y1) {
         sparkChart.options.scales.y1.display = false;
@@ -7823,6 +7837,7 @@
           cur.pointHoverRadius = ds.pointHoverRadius;
           cur.pointBackgroundColor = ds.pointBackgroundColor;
           cur.pointBorderColor = ds.pointBorderColor;
+          cur.yAxisID = ds.yAxisID;
         });
       } else {
         sparkChart._pulseStructKey = structKey;
@@ -7833,7 +7848,7 @@
       const chartLabel = document.getElementById('sparkChartLabel');
       if (chartLabel) {
         if (!anyHwFocus()) {
-          chartLabel.textContent = 'Load · 5 min';
+          chartLabel.textContent = showTempAxis ? 'Load & temps · 5 min' : 'Load · 5 min';
         } else if (hwFocusSet.size === 1 && hwFocusHas('storage')) {
           chartLabel.textContent = `Disk · 5 min · ${SPARK_DISK_REF_MBPS} MB/s = 100%`;
         } else {
