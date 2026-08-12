@@ -48,9 +48,9 @@
       --bar-h: calc(133px * var(--ui-scale));
       --meter-h: calc(12px * var(--ui-scale));
       --rank-bar-h: calc(9.5px * var(--ui-scale));
-      --fs-2xs: 0.72rem;   /* was often 0.55–0.62 — too small on a TV/second head */
-      --fs-xs: 0.78rem;
-      --fs-sm: 0.85rem;
+      --fs-2xs: 0.74rem;   /* floor for dense chrome — stays readable at 1.5× scale */
+      --fs-xs: 0.8rem;
+      --fs-sm: 0.88rem;
       --meter-ease: 1.85s cubic-bezier(0.28, 0.82, 0.32, 1);
       /*
         Metric families — same meaning → same color everywhere (charts, bars, KPIs).
@@ -130,13 +130,14 @@
     body {
       margin: 0; color: var(--text); min-height: 100vh;
       font-size: 1rem; /* body tracks root; scale slider multiplies everything rem-based */
-      line-height: 1.55;
-      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
       font-weight: 400;
-      letter-spacing: 0.012em;
+      letter-spacing: 0.01em;
       font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
       font-kerning: normal;
       text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       background:
@@ -510,13 +511,19 @@
       font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em;
       text-transform: uppercase; color: var(--muted);
     }
-    .guidance-page { display: flex; flex-direction: column; gap: 1.1rem; }
+    .guidance-page { display: flex; flex-direction: column; gap: 0.95rem; }
     .guidance-head-compact {
       display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
-      gap: .65rem 1.25rem; margin-bottom: .15rem;
+      gap: .55rem 1.1rem; margin-bottom: 0;
+      padding: 0 0.1rem;
     }
-    .guidance-head-compact h2 { margin: 0; }
-    .guidance-head-stat { font-size: 1.05rem; color: var(--muted); line-height: 1.5; }
+    .guidance-head-compact h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .guidance-head-stat { font-size: 0.95rem; color: var(--muted); line-height: 1.5; }
     .guidance-head-stat strong { color: var(--text); font-weight: 600; }
     .guidance-head-stat .guidance-rail-live {
       display: inline-flex; align-items: center; gap: .35rem; margin-left: .15rem;
@@ -528,7 +535,8 @@
     }
     .guidance-split {
       display: grid; grid-template-columns: minmax(240px, 28%) minmax(0, 1fr);
-      gap: 1rem; min-height: min(68vh, 640px);
+      gap: 0.75rem; min-height: min(68vh, 640px);
+      align-items: stretch;
     }
     @media (max-width: 920px) {
       .guidance-split { grid-template-columns: 1fr; min-height: 0; }
@@ -537,13 +545,16 @@
     }
     .guidance-index {
       display: flex; flex-direction: column; min-height: 0; min-width: 0;
-      border: 1px solid var(--line); border-radius: var(--radius);
-      background: rgba(0,0,0,.08); overflow: hidden;
+      border: 1px solid var(--line-soft); border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel-elevated) 88%, #000 12%);
+      overflow: hidden;
+      box-shadow: none;
     }
     .guidance-toolbar {
       display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-      gap: .65rem .75rem; padding: .7rem .8rem;
-      border-bottom: 1px solid var(--line); background: rgba(0,0,0,.06);
+      gap: .55rem .7rem; padding: .65rem .75rem;
+      border-bottom: 1px solid var(--line-soft);
+      background: color-mix(in srgb, var(--panel-elevated) 70%, #000 12%);
     }
     .guidance-toolbar-filters {
       display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .65rem; min-width: 0; flex: 1 1 auto;
@@ -570,13 +581,13 @@
     }
     .guidance-idx-group-label:first-child { padding-top: .25rem; }
     .guidance-idx-row {
-      display: grid; grid-template-columns: 4px 1fr auto; gap: .65rem .75rem;
+      display: grid; grid-template-columns: 4px 1fr auto; gap: .55rem .65rem;
       align-items: center; width: 100%; text-align: left;
-      padding: .72rem .65rem; margin-bottom: 5px;
-      border: 1px solid transparent; border-radius: var(--radius);
+      padding: .62rem .6rem; margin-bottom: 4px;
+      border: 1px solid transparent; border-radius: var(--radius-md);
       background: transparent; color: inherit; font-family: inherit; cursor: pointer;
     }
-    .guidance-idx-row:hover { background: rgba(255,255,255,.04); border-color: var(--line); }
+    .guidance-idx-row:hover { background: rgba(255,255,255,.04); border-color: var(--line-soft); }
     .guidance-idx-row.selected {
       background: color-mix(in srgb, var(--accent) 11%, transparent);
       border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
@@ -590,11 +601,11 @@
     .guidance-idx-row.rec-ok .guidance-idx-sev { background: var(--sev-ok); }
     .guidance-idx-main { min-width: 0; display: flex; flex-direction: column; gap: .28rem; }
     .guidance-idx-title {
-      display: block; font-size: 1.05rem; font-weight: 500; line-height: 1.35;
+      display: block; font-size: 0.98rem; font-weight: 500; line-height: 1.35;
       color: var(--text);
     }
     .guidance-idx-preview {
-      display: block; font-size: .86rem; line-height: 1.4; color: var(--muted); font-weight: 400;
+      display: block; font-size: var(--fs-sm); line-height: 1.4; color: var(--muted); font-weight: 400;
       font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .guidance-idx-meta {
@@ -609,14 +620,16 @@
     }
     .guidance-idx-dot.fixed { background: var(--muted); opacity: .7; }
     .guidance-detail {
-      min-height: 0; border: 1px solid var(--line); border-radius: var(--radius-lg);
-      background: var(--panel-solid); overflow: auto;
-      max-height: min(68vh, 640px); padding: 1.35rem 1.5rem;
+      min-height: 0; border: 1px solid var(--line-soft); border-radius: var(--radius);
+      background: color-mix(in srgb, var(--panel-elevated) 88%, #000 12%);
+      overflow: auto;
+      max-height: min(68vh, 640px); padding: 1.15rem 1.25rem;
+      box-shadow: none;
     }
     body.cosmic-frosted .guidance-detail { background: var(--panel); }
     .guidance-detail-placeholder {
-      margin: 0; padding: 3rem 1.25rem; text-align: center;
-      font-size: 1.05rem; color: var(--muted); line-height: 1.6;
+      margin: 0; padding: 2.5rem 1.15rem; text-align: center;
+      font-size: 0.98rem; color: var(--muted); line-height: 1.6;
     }
     .guidance-detail .rec-card {
       border: 0; background: transparent; padding: 0; gap: 1.35rem; border-left: 0;
@@ -1700,6 +1713,10 @@
       color: var(--m-stutter);
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-stutter) 28%, transparent);
     }
+    .viz-tab[data-viz-tab="game"].active {
+      color: var(--m-game);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-game) 28%, transparent);
+    }
     .viz-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -1708,16 +1725,23 @@
     }
     .viz-area-rig,
     .viz-area-index,
-    .viz-area-stutter { min-width: 0; }
+    .viz-area-stutter,
+    .viz-area-game { min-width: 0; }
     .viz-grid .viz-area-index,
-    .viz-grid .viz-area-stutter { display: none; }
+    .viz-grid .viz-area-stutter,
+    .viz-grid .viz-area-game { display: none; }
     .viz-grid.viz-focus-rig .viz-area-rig { display: block; }
-    .viz-grid.viz-focus-index .viz-area-index { display: block; cursor: pointer; }
+    .viz-grid.viz-focus-index .viz-area-index { display: block; }
     .viz-grid.viz-focus-stutter .viz-area-stutter { display: block; }
-    .viz-area-rig .viz-block { min-height: 0; }
-    .viz-area-index .viz-block { min-height: 0; }
-    .viz-area-stutter .viz-block { min-height: 0; }
-    .viz-area-index:hover { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+    .viz-grid.viz-focus-game .viz-area-game { display: block; }
+    .viz-area-rig .viz-block,
+    .viz-area-index .viz-block,
+    .viz-area-stutter .viz-block,
+    .viz-area-game .viz-block { min-height: 0; }
+    /* flush blocks have no outer border — skip hover chrome */
+    .viz-area-index:not(.rig-block-flush):hover {
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+    }
     .viz-block {
       background: var(--panel-elevated); border: 1px solid var(--line); border-radius: var(--radius);
       padding: 1rem 1.1rem; display: flex; flex-direction: column; min-height: 0; height: 100%;
@@ -1786,12 +1810,13 @@
       min-height: 0;
       height: auto;
       gap: 0.65rem;
-      /* start — don't stretch load meters into empty vertical gaps */
-      align-items: start;
+      /* Stretch so the center chart matches Load (left) + Power/vitals (right) height */
+      align-items: stretch;
     }
     .rig-layout .rig-col {
       min-height: 0;
       min-width: 0;
+      height: 100%;
       display: flex;
       flex-direction: column;
       gap: 0;
@@ -1856,10 +1881,11 @@
       flex-direction: column;
       gap: .12rem;
     }
-    /* Center: chart is the only hero surface */
+    /* Center: chart is the only hero surface — fill full column height */
     .rig-panel-chart {
       flex: 1 1 auto;
       min-height: 0;
+      height: 100%;
       gap: 0.4rem;
       position: relative;
       overflow: hidden;
@@ -1978,9 +2004,10 @@
     .rig-layout .stutter-chart-box {
       flex: 1 1 auto;
       min-height: 12rem;
-      height: 13.25rem;
-      max-height: 15rem;
+      height: auto;
+      max-height: none;
       min-width: 0;
+      position: relative;
       border-radius: var(--radius-sm);
       border: none;
       background: rgba(0, 0, 0, .28);
@@ -1988,15 +2015,19 @@
       padding: .45rem .4rem .25rem;
     }
     .rig-layout .stutter-chart-box canvas {
+      width: 100% !important;
+      height: 100% !important;
       max-width: 100%;
       max-height: 100%;
     }
     .rig-col-chart {
       min-height: 0;
       width: 100%;
+      height: 100%;
     }
     .rig-col-chart .rig-panel-chart {
       width: 100%;
+      flex: 1 1 auto;
     }
     /* Right: one flat surface, stacked sections (no nested cards) */
     .rig-col-vitals {
@@ -2303,12 +2334,18 @@
           "summary summary";
         min-height: 0;
       }
-      .rig-layout .stutter-chart-box { min-height: 11rem; }
+      .rig-layout .stutter-chart-box { min-height: 11rem; max-height: none; }
     }
     @media (max-width: 700px) {
       .stutter-layout.rig-layout {
         grid-template-columns: 1fr;
         grid-template-areas: "drivers" "chart" "summary";
+        align-items: stretch;
+      }
+      /* Stacked: give the chart a solid height so it still uses space */
+      .rig-layout .stutter-chart-box {
+        min-height: 14rem;
+        height: min(42vh, 22rem);
       }
       .rig-vitals-grid { grid-template-columns: 1fr 1fr; }
       .rig-layout .glance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2390,21 +2427,28 @@
     .index-tick.sev-warn { background: rgba(98,160,234,.55); }
     .index-tick.sev-ok { background: rgba(106,201,141,.45); }
     .stutter-layout.index-layout {
-      grid-template-columns: minmax(14rem, 1.2fr) minmax(13rem, 1.45fr) minmax(10.5rem, 1fr);
+      grid-template-columns: minmax(12rem, 1.05fr) minmax(15rem, 1.85fr) minmax(11rem, 1.05fr);
     }
     .index-layout .stutter-drivers {
-      gap: .4rem;
+      gap: 0;
+      overflow: hidden;
+      padding-right: 0;
+    }
+    .index-layout .stutter-drivers .rig-panel {
       overflow-y: auto;
-      padding-right: .2rem;
+      overscroll-behavior: contain;
+      gap: 0.45rem;
     }
     .index-layout .stutter-side-label {
-      margin: .1rem 0 .12rem;
+      margin: .05rem 0 .15rem;
       flex-shrink: 0;
     }
     .index-build-strip {
       display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
-      padding: .45rem .55rem; margin-bottom: .15rem; flex-shrink: 0;
-      background: rgba(180,142,173,.08); border: 1px solid rgba(180,142,173,.22); border-radius: 10px;
+      padding: .4rem .5rem; margin-bottom: 0; flex-shrink: 0;
+      background: color-mix(in srgb, var(--m-league) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--m-league) 28%, transparent);
+      border-radius: var(--radius-md);
     }
     .index-build-strip .meta {
       font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.35; flex: 1; min-width: 0;
@@ -2418,8 +2462,10 @@
     }
     .index-rank-card {
       display: flex; flex-direction: column; gap: .28rem;
-      padding: .48rem .52rem; border-radius: 10px;
-      background: rgba(0,0,0,.22); border: 1px solid var(--line); min-width: 0;
+      padding: .48rem .55rem; border-radius: var(--radius-md);
+      background: rgba(0,0,0,.22); border: none;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+      min-width: 0;
     }
     .index-rank-head {
       display: flex; align-items: center; justify-content: space-between; gap: .45rem; min-width: 0;
@@ -2596,7 +2642,94 @@
     .stutter-layout {
       display: grid;
       grid-template-columns: minmax(10.5rem, 1fr) minmax(13rem, 1.4fr) minmax(11rem, 1fr);
-      gap: 1rem 1.1rem; flex: 1; min-height: 28rem; align-items: stretch;
+      gap: 0.65rem; flex: 1; min-height: 0; align-items: stretch;
+    }
+    /* Index + Stutter: pack to content — no 52vh empty wells */
+    .stutter-layout.viz-tri {
+      grid-template-columns: minmax(10rem, 0.9fr) minmax(14rem, 1.85fr) minmax(11rem, 1.05fr);
+      min-height: 0;
+      height: auto;
+      align-items: start;
+      gap: 0.55rem;
+    }
+    .stutter-layout.viz-tri .stutter-col {
+      height: auto;
+      gap: 0.35rem;
+    }
+    .stutter-layout.viz-tri .rig-panel {
+      flex: 0 1 auto;
+      min-height: 0;
+      height: auto;
+    }
+    .stutter-layout.viz-tri .rig-panel-chart {
+      height: auto;
+    }
+    .stutter-layout.viz-tri .stutter-chart-box {
+      flex: 0 0 auto;
+      min-height: 11.5rem;
+      height: 12.5rem;
+      max-height: 14rem;
+      border: none;
+      background: rgba(0, 0, 0, .28);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03);
+      padding: .45rem .4rem .25rem;
+    }
+    .stutter-layout.viz-tri .stutter-chart-box canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+    .stutter-layout.viz-tri .viz-summary-panel {
+      gap: 0.45rem;
+      overflow: visible;
+    }
+    .stutter-layout.viz-tri .stutter-side-label {
+      margin-bottom: 0.2rem;
+    }
+    .stutter-layout.viz-tri .stutter-insight-top {
+      gap: 0.45rem 0.55rem;
+    }
+    .stutter-layout.viz-tri .index-gauge,
+    .stutter-layout.viz-tri .stutter-gauge {
+      width: 7.25rem;
+      height: 7.25rem;
+    }
+    /* Game tab — priority viz: KPIs + dual charts, no empty stretch */
+    .game-viz-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      min-height: 0;
+    }
+    .game-viz-layout .game-perf-kpis {
+      margin: 0;
+      gap: 0.4rem;
+    }
+    .game-viz-charts {
+      display: grid;
+      grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+      gap: 0.55rem;
+      align-items: start;
+    }
+    .game-viz-charts .rig-panel {
+      margin: 0;
+    }
+    .game-viz-charts .stutter-chart-box {
+      min-height: 11.5rem;
+      height: 12.5rem;
+      max-height: 14rem;
+      border: none;
+      background: rgba(0, 0, 0, .28);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03);
+    }
+    .game-viz-charts .stutter-chart-box.game-viz-chart-sm {
+      min-height: 9rem;
+      height: 10rem;
+    }
+    .game-viz-lead {
+      margin: 0 0 0.25rem;
+      font-size: var(--fs-xs);
+      color: var(--muted);
+      line-height: 1.35;
     }
     @media (max-width: 1100px) {
       .stutter-layout { min-height: 0; }
@@ -2607,12 +2740,21 @@
           "drivers chart"
           "summary summary";
       }
+      .stutter-layout.viz-tri {
+        grid-template-columns: 1fr 1.4fr;
+        min-height: 0;
+      }
       .stutter-drivers { grid-area: drivers; }
       .stutter-chart-col { grid-area: chart; }
       .stutter-summary { grid-area: summary; }
+      .game-viz-charts { grid-template-columns: 1fr; }
     }
     @media (max-width: 700px) {
       .stutter-layout { grid-template-columns: 1fr; grid-template-areas: "drivers" "chart" "summary"; }
+      .stutter-layout.viz-tri .stutter-chart-box {
+        min-height: 11rem;
+        height: 12rem;
+      }
     }
     .stutter-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: .55rem; }
     .stutter-drivers { justify-content: flex-start; }
@@ -2655,7 +2797,8 @@
       gap: .55rem .65rem;
       align-items: start;
     }
-    .index-layout .index-gauge { width: 8.25rem; height: 8.25rem; }
+    .index-layout .index-gauge { width: 7.5rem; height: 7.5rem; }
+    .viz-tri .stutter-gauge { width: 7.5rem; height: 7.5rem; }
     .stutter-gauge {
       --stutter-score: 0; --stutter-color: var(--sev-ok);
       width: 9rem; height: 9rem; border-radius: 50%; position: relative; flex-shrink: 0;
@@ -2686,16 +2829,16 @@
       display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; min-width: 0;
     }
     .stutter-kpi {
-      background: rgba(0,0,0,.24); border: none; border-radius: 8px;
-      padding: .5rem .55rem; text-align: center; min-width: 0;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+      background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.04); border-radius: 8px;
+      padding: .4rem .45rem .42rem; text-align: center; min-width: 0;
+      box-shadow: none;
     }
     .stutter-kpi .k {
-      display: block; font-size: .75rem; font-weight: 600; letter-spacing: .04em;
-      text-transform: uppercase; color: var(--text-secondary); margin-bottom: .12rem;
+      display: block; font-size: var(--fs-2xs); font-weight: 600; letter-spacing: .05em;
+      text-transform: uppercase; color: var(--text-secondary); margin-bottom: .06rem;
     }
     .stutter-kpi .v {
-      font-size: .95rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);
+      font-size: .92rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .stutter-kpi .v.severe { color: #ff8a7a; }
@@ -2703,7 +2846,7 @@
     .stutter-kpi .v.mild { color: #8ec0ff; }
     .stutter-kpi .v.ok { color: var(--sev-ok); }
     .stutter-kpi .s {
-      display: block; margin-top: .12rem; font-size: .75rem; font-weight: 500;
+      display: block; margin-top: .06rem; font-size: var(--fs-2xs); font-weight: 500;
       color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .game-perf-live { margin-bottom: 1.1rem; }
@@ -3258,25 +3401,25 @@
     }
     .options-section {
       display: grid;
-      gap: .85rem;
-      padding: 1rem 1.1rem 1.1rem;
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--line);
-      background: var(--panel-solid);
-      box-shadow: var(--surface-shine);
+      gap: 0.75rem;
+      padding: 1rem 1.1rem 1.05rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--line-soft);
+      background: color-mix(in srgb, var(--panel-elevated) 88%, #000 12%);
+      box-shadow: none;
       min-width: 0;
     }
     .options-section h2 {
       margin: 0;
-      font-size: 1.05rem;
+      font-size: 1.02rem;
       font-weight: 600;
       letter-spacing: 0.01em;
     }
     .options-section .section-lead {
       margin: 0;
-      font-size: .9rem;
+      font-size: 0.9rem;
       color: var(--muted);
-      line-height: 1.45;
+      line-height: 1.5;
     }
     .options-subgrid {
       display: grid;
@@ -3289,19 +3432,19 @@
     }
     .options-subblock {
       display: grid;
-      gap: .65rem;
+      gap: 0.6rem;
       min-width: 0;
-      padding: .75rem .8rem;
-      border-radius: 12px;
-      border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
-      background: color-mix(in srgb, var(--panel-elevated) 70%, transparent);
+      padding: 0.7rem 0.75rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line-soft);
+      background: rgba(0, 0, 0, 0.18);
     }
     .options-subblock h3 {
       margin: 0;
-      font-size: .88rem;
+      font-size: var(--fs-xs);
       font-weight: 600;
       color: var(--text-secondary);
-      letter-spacing: .04em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
     }
     .options-themes-inline {
@@ -4241,7 +4384,7 @@
           <span class="dash-secondary" id="sumGpuPower" hidden>—</span>
           <span class="dash-secondary" id="sumGpuMemBus" hidden>—</span>
         </button>
-        <button type="button" class="sum-cell game" id="sumGameCell" data-drill="drill-game" data-hw="cpu gpu">
+        <button type="button" class="sum-cell game" id="sumGameCell" data-drill="viz-game" data-hw="cpu gpu">
           <div class="sum-game-art" id="sumGameArt" hidden>
             <img id="sumGameArtImg" alt="">
           </div>
@@ -4257,7 +4400,7 @@
           <div class="sum-game-stats" id="sumGameStats" hidden></div>
           <span class="sum-detail" id="sumGameSub">—</span>
         </button>
-        <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="pulseIndexBlock" data-hw-keep>
+        <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="viz-index" data-hw-keep>
           <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">Pulse Index</span></div>
           <div class="sum-body">
             <span class="sum-value" id="sumLeagueVal">—</span>
@@ -4289,11 +4432,12 @@
 
     <section class="card viz-panel section-target" id="vizPanel">
       <div class="viz-panel-head">
-        <h2>Live overview</h2>
-        <div class="viz-tabs" role="tablist" aria-label="Live overview sections">
-          <button type="button" class="viz-tab active" role="tab" data-viz-tab="rig" aria-selected="true">Rig snapshot</button>
+        <h2>Live lab</h2>
+        <div class="viz-tabs" role="tablist" aria-label="Live analysis views">
+          <button type="button" class="viz-tab active" role="tab" data-viz-tab="rig" aria-selected="true">Snapshot</button>
           <button type="button" class="viz-tab" role="tab" data-viz-tab="index" aria-selected="false">Pulse Index</button>
           <button type="button" class="viz-tab" role="tab" data-viz-tab="stutter" aria-selected="false">Stutter</button>
+          <button type="button" class="viz-tab" role="tab" data-viz-tab="game" aria-selected="false">Game</button>
         </div>
       </div>
       <div class="viz-grid viz-focus-rig" id="vizGrid">
@@ -4466,61 +4610,71 @@
             <div class="viz-empty-note" hidden></div>
           </div>
         </div>
-        <div class="viz-block viz-area-index" id="pulseIndexBlock" data-hw-keep title="Click for full build comparison">
-          <div class="viz-block-head"><span class="hw-icon-box league" data-glyph="league"></span><h3>Pulse Index</h3></div>
+        <div class="viz-block viz-area-index rig-block-flush" id="pulseIndexBlock" data-hw-keep title="Click for full build comparison">
+          <div class="viz-block-head viz-block-head-sr"><span class="hw-icon-box league" data-glyph="league"></span><h3>Pulse Index</h3></div>
           <div class="viz-block-body">
-            <div class="stutter-layout index-layout">
+            <div class="stutter-layout index-layout viz-tri">
               <div class="stutter-col stutter-drivers">
-                <div class="index-build-strip" id="indexBuildStrip" data-hw-keep>
-                  <span id="indexBuildBadge"></span>
-                  <span class="meta" id="indexBuildMeta">—</span>
+                <div class="rig-panel">
+                  <div class="index-build-strip" id="indexBuildStrip" data-hw-keep>
+                    <span id="indexBuildBadge"></span>
+                    <span class="meta" id="indexBuildMeta">—</span>
+                  </div>
+                  <div class="stutter-side-label">Component rankings</div>
+                  <div class="index-rank-list" id="indexRankList"></div>
                 </div>
-                <div class="stutter-side-label">Component rankings</div>
-                <div class="index-rank-list" id="indexRankList"></div>
               </div>
               <div class="stutter-col stutter-chart-col" data-hw-keep>
-                <div class="stutter-side-label" id="indexChartLabel">Index · last 5 min</div>
-                <div class="stutter-chart-box"><canvas id="indexChart"></canvas></div>
+                <div class="rig-panel rig-panel-chart">
+                  <div class="rig-chart-head">
+                    <div class="rig-chart-title-row">
+                      <span class="stutter-side-label" id="indexChartLabel">Index · last 5 min</span>
+                    </div>
+                  </div>
+                  <div class="stutter-chart-box"><canvas id="indexChart"></canvas></div>
+                </div>
               </div>
               <div class="stutter-col stutter-summary" data-hw-keep>
-                <div class="stutter-insight-top">
-                  <div class="index-gauge" id="indexGauge">
-                    <div class="index-gauge-center">
-                      <span class="score ok" id="indexScoreVal">—</span>
-                      <span class="sub" id="indexScoreSub">index</span>
+                <div class="rig-panel viz-summary-panel">
+                  <div class="stutter-insight-top">
+                    <div class="index-gauge" id="indexGauge">
+                      <div class="index-gauge-center">
+                        <span class="score ok" id="indexScoreVal">—</span>
+                        <span class="sub" id="indexScoreSub">index</span>
+                      </div>
+                    </div>
+                    <div class="stutter-kpis">
+                      <div class="stutter-kpi">
+                        <span class="k">Headroom</span>
+                        <span class="v ok" id="indexHeadroom">—</span>
+                        <span class="s" id="indexHeadroomSub">spare capacity</span>
+                      </div>
+                      <div class="stutter-kpi">
+                        <span class="k">Session</span>
+                        <span class="v" id="indexSessionKpi">—</span>
+                        <span class="s" id="indexSessionSub">pulse index</span>
+                      </div>
+                      <div class="stutter-kpi">
+                        <span class="k">vs typical</span>
+                        <span class="v" id="indexVsAvg">—</span>
+                        <span class="s" id="indexVsAvgSub">average gaming PC</span>
+                      </div>
                     </div>
                   </div>
-                  <div class="stutter-kpis">
-                    <div class="stutter-kpi">
-                      <span class="k">Headroom</span>
-                      <span class="v ok" id="indexHeadroom">—</span>
-                      <span class="s" id="indexHeadroomSub">spare capacity</span>
-                    </div>
-                    <div class="stutter-kpi">
-                      <span class="k">Session</span>
-                      <span class="v" id="indexSessionKpi">—</span>
-                      <span class="s" id="indexSessionSub">pulse index</span>
-                    </div>
-                    <div class="stutter-kpi">
-                      <span class="k">vs typical</span>
-                      <span class="v" id="indexVsAvg">—</span>
-                      <span class="s" id="indexVsAvgSub">average gaming PC</span>
-                    </div>
+                  <div class="index-status ok" id="indexStatus">—</div>
+                  <div class="stutter-mix" id="indexMix">
+                    <div class="stutter-mix-head"><span>Load mix</span><span id="indexMixHint">—</span></div>
+                    <div class="stutter-mix-bar" id="indexMixBar"></div>
+                    <div class="stutter-mix-legend" id="indexMixLegend"></div>
                   </div>
-                </div>
-                <div class="index-status ok" id="indexStatus">—</div>
-                <div class="stutter-mix" id="indexMix">
-                  <div class="stutter-mix-head"><span>Load mix</span><span id="indexMixHint">—</span></div>
-                  <div class="stutter-mix-bar" id="indexMixBar"></div>
-                  <div class="stutter-mix-legend" id="indexMixLegend"></div>
-                </div>
-                <div class="stutter-timeline">
-                  <div class="stutter-timeline-head"><span>Last 5 min</span><span id="indexTimelineMeta">—</span></div>
-                  <div class="stutter-timeline-track" id="indexTimeline"></div>
-                  <div class="stutter-timeline-foot">
-                    <span>−5m</span>
-                    <span class="detail" id="indexSessionDetail">—</span>
-                    <span>now</span>
+                  <div class="stutter-timeline">
+                    <div class="stutter-timeline-head"><span>Last 5 min</span><span id="indexTimelineMeta">—</span></div>
+                    <div class="stutter-timeline-track" id="indexTimeline"></div>
+                    <div class="stutter-timeline-foot">
+                      <span>−5m</span>
+                      <span class="detail" id="indexSessionDetail">—</span>
+                      <span>now</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4528,60 +4682,95 @@
             <div class="viz-empty-note" id="indexEmpty" hidden>Pulse Index unavailable</div>
           </div>
         </div>
-        <div class="viz-block viz-area-stutter" id="stutterBlock">
-          <div class="viz-block-head"><span class="hw-icon-box stutter" data-glyph="stutter"></span><h3>Stutter estimate</h3></div>
+        <div class="viz-block viz-area-stutter rig-block-flush" id="stutterBlock">
+          <div class="viz-block-head viz-block-head-sr"><span class="hw-icon-box stutter" data-glyph="stutter"></span><h3>Stutter estimate</h3></div>
           <div class="viz-block-body">
-            <div class="stutter-layout">
+            <div class="stutter-layout viz-tri">
               <div class="stutter-col stutter-drivers">
-                <div class="stutter-side-label">What causes hitches</div>
-                <div class="metric-list metric-list-compact stutter-driver-bars" id="stutterComponents"></div>
+                <div class="rig-panel">
+                  <div class="stutter-side-label">What causes hitches</div>
+                  <div class="metric-list metric-list-compact stutter-driver-bars" id="stutterComponents"></div>
+                </div>
               </div>
               <div class="stutter-col stutter-chart-col" data-hw-keep>
-                <div class="stutter-side-label">Score · last 5 min</div>
-                <div class="stutter-chart-box"><canvas id="stutterChart"></canvas></div>
+                <div class="rig-panel rig-panel-chart">
+                  <div class="rig-chart-head">
+                    <div class="rig-chart-title-row">
+                      <span class="stutter-side-label">Score · last 5 min</span>
+                    </div>
+                  </div>
+                  <div class="stutter-chart-box"><canvas id="stutterChart"></canvas></div>
+                </div>
               </div>
               <div class="stutter-col stutter-summary" data-hw-keep>
-                <div class="stutter-insight-top">
-                  <div class="stutter-gauge" id="stutterGauge">
-                    <div class="stutter-gauge-center">
-                      <span class="score ok" id="stutterScoreVal">—</span>
-                      <span class="smooth" id="stutterSmoothVal">—% smooth</span>
+                <div class="rig-panel viz-summary-panel">
+                  <div class="stutter-insight-top">
+                    <div class="stutter-gauge" id="stutterGauge">
+                      <div class="stutter-gauge-center">
+                        <span class="score ok" id="stutterScoreVal">—</span>
+                        <span class="smooth" id="stutterSmoothVal">—% smooth</span>
+                      </div>
+                    </div>
+                    <div class="stutter-kpis">
+                      <div class="stutter-kpi">
+                        <span class="k">Now</span>
+                        <span class="v" id="stutterEstMs">—</span>
+                        <span class="s" id="stutterEstSub">estimate</span>
+                      </div>
+                      <div class="stutter-kpi">
+                        <span class="k">1% low</span>
+                        <span class="v" id="stutter1Pct">—</span>
+                        <span class="s" id="stutter1PctSub">worst frame estimate</span>
+                      </div>
+                      <div class="stutter-kpi">
+                        <span class="k">5m</span>
+                        <span class="v" id="stutterEvents">—</span>
+                        <span class="s" id="stutterEventsSub">hitches</span>
+                      </div>
                     </div>
                   </div>
-                  <div class="stutter-kpis">
-                    <div class="stutter-kpi">
-                      <span class="k">Now</span>
-                      <span class="v" id="stutterEstMs">—</span>
-                      <span class="s" id="stutterEstSub">estimate</span>
-                    </div>
-                    <div class="stutter-kpi">
-                      <span class="k">1% low</span>
-                      <span class="v" id="stutter1Pct">—</span>
-                      <span class="s" id="stutter1PctSub">worst frame estimate</span>
-                    </div>
-                    <div class="stutter-kpi">
-                      <span class="k">5m</span>
-                      <span class="v" id="stutterEvents">—</span>
-                      <span class="s" id="stutterEventsSub">hitches</span>
+                  <div class="stutter-status ok" id="stutterStatus">—</div>
+                  <div class="stutter-mix" id="stutterMix">
+                    <div class="stutter-mix-head"><span>Hitch breakdown</span><span id="stutterMixHint">—</span></div>
+                    <div class="stutter-mix-bar" id="stutterMixBar"></div>
+                    <div class="stutter-mix-legend" id="stutterMixLegend"></div>
+                  </div>
+                  <div class="stutter-timeline">
+                    <div class="stutter-timeline-head"><span>Last 5 min</span><span id="stutterTimelineMeta">—</span></div>
+                    <div class="stutter-timeline-track" id="stutterTimeline"></div>
+                    <div class="stutter-timeline-foot">
+                      <span>−5m</span>
+                      <span class="detail" id="stutterSessionDetail">—</span>
+                      <span>now</span>
                     </div>
                   </div>
+                  <div class="stutter-causes" id="stutterCauses"></div>
                 </div>
-                <div class="stutter-status ok" id="stutterStatus">—</div>
-                <div class="stutter-mix" id="stutterMix">
-                  <div class="stutter-mix-head"><span>Hitch breakdown</span><span id="stutterMixHint">—</span></div>
-                  <div class="stutter-mix-bar" id="stutterMixBar"></div>
-                  <div class="stutter-mix-legend" id="stutterMixLegend"></div>
-                </div>
-                <div class="stutter-timeline">
-                  <div class="stutter-timeline-head"><span>Last 5 min</span><span id="stutterTimelineMeta">—</span></div>
-                  <div class="stutter-timeline-track" id="stutterTimeline"></div>
-                  <div class="stutter-timeline-foot">
-                    <span>−5m</span>
-                    <span class="detail" id="stutterSessionDetail">—</span>
-                    <span>now</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Game performance — priority tab (charts + KPIs); history table stays in drill below -->
+        <div class="viz-block viz-area-game rig-block-flush" id="gameVizBlock" data-hw="cpu gpu all">
+          <div class="viz-block-head viz-block-head-sr"><span class="hw-icon-box game" data-glyph="game"></span><h3>Game performance</h3></div>
+          <div class="viz-block-body">
+            <div class="game-viz-layout">
+              <p class="game-viz-lead" id="gamePerfLead">Live session stats while a Steam game is running.</p>
+              <div class="game-perf-kpis" id="gamePerfKpis"></div>
+              <div class="game-viz-charts">
+                <div class="rig-panel rig-panel-chart">
+                  <div class="rig-chart-title-row">
+                    <span class="stutter-side-label" id="gamePerfTrendLead">This session</span>
                   </div>
+                  <div class="stutter-chart-box"><canvas id="gamePerfChart"></canvas></div>
                 </div>
-                <div class="stutter-causes" id="stutterCauses"></div>
+                <div class="rig-panel">
+                  <div class="rig-chart-title-row">
+                    <span class="stutter-side-label">Past session ratings</span>
+                  </div>
+                  <div class="stutter-chart-box game-viz-chart-sm"><canvas id="gamePerfSessionsChart"></canvas></div>
+                  <div class="game-perf-markers" id="gamePerfMarkers"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -4589,6 +4778,7 @@
       </div>
     </section>
 
+    <!-- Expandable data cards — reference / details, not the main analysis stage -->
     <div class="drill-stack">
       <details class="drill drill-primary section-target" id="warningsSection" data-open-key="warnings" data-hw-keep>
         <summary class="drill-summary">
@@ -4612,31 +4802,25 @@
         </div>
       </details>
 
-      <details class="drill drill-primary" id="drill-game" data-open-key="drill-game" data-hw="cpu gpu all">
+      <details class="drill drill-secondary" id="drill-game" data-open-key="drill-game" data-hw="cpu gpu all">
         <summary class="drill-summary">
           <span class="drill-icon game" data-glyph="game"></span>
           <span class="drill-summary-text">
-            <span class="drill-title">Game performance</span>
+            <span class="drill-title">Session history &amp; processes</span>
             <span class="drill-rollup" id="drillGameSum">—</span>
           </span>
           <span class="drill-chevron" aria-hidden="true"></span>
         </summary>
         <div class="drill-body">
-          <div class="game-perf-live" id="gamePerfLive">
-            <p class="section-lead" id="gamePerfLead">Live session stats while a Steam game is running.</p>
-            <div class="game-perf-kpis" id="gamePerfKpis"></div>
-            <p class="section-lead" id="gamePerfTrendLead" style="margin:.35rem 0 .15rem">This session</p>
-            <div class="game-perf-chart-box"><canvas id="gamePerfChart"></canvas></div>
-            <p class="section-lead" style="margin:.5rem 0 .15rem">Past session ratings</p>
-            <div class="game-perf-chart-box game-perf-chart-box-sm"><canvas id="gamePerfSessionsChart"></canvas></div>
-            <div class="game-perf-markers" id="gamePerfMarkers"></div>
-            <div class="game-perf-history">
-              <h3 class="guidance-section-title" style="margin:.2rem 0 .45rem">Past sessions</h3>
-              <table>
-                <thead><tr><th>When</th><th>Rating</th><th>Smooth</th><th>FPS</th><th>1% low</th><th>Hitches</th><th>Duration</th></tr></thead>
-                <tbody id="gamePerfHistory"></tbody>
-              </table>
-            </div>
+          <p class="section-lead" style="margin:0 0 .55rem">
+            Live KPIs and charts are in the <strong>Game</strong> tab of Live lab above.
+          </p>
+          <div class="game-perf-history">
+            <h3 class="guidance-section-title" style="margin:.2rem 0 .45rem">Past sessions</h3>
+            <table>
+              <thead><tr><th>When</th><th>Rating</th><th>Smooth</th><th>FPS</th><th>1% low</th><th>Hitches</th><th>Duration</th></tr></thead>
+              <tbody id="gamePerfHistory"></tbody>
+            </table>
           </div>
           <h3 class="guidance-section-title" style="margin:1rem 0 .45rem">Processes</h3>
           <p class="section-lead" id="gameProcLead">Main game executable and related children.</p>
@@ -6640,7 +6824,7 @@
     document.querySelectorAll('.sum-cell[data-drill]').forEach(btn => {
       btn.onclick = () => jumpTo(btn.dataset.drill);
     });
-    document.getElementById('pulseIndexBlock')?.addEventListener('click', () => jumpTo('drill-league'));
+    // Pulse Index tab is the analysis view; full comparison table stays in drill-league
     setTab(activeTab);
 
     function renderBacklog(_items) {
@@ -6735,6 +6919,35 @@
         return;
       }
       if (activeTab !== 'dashboard') setTab('dashboard');
+      // Priority analysis views — open Live lab tab, not buried drills
+      if (id === 'viz-game' || id === 'gameVizBlock') {
+        requestAnimationFrame(() => {
+          setVizFocus('game');
+          scrollToElement(document.getElementById('vizPanel'));
+        });
+        return;
+      }
+      if (id === 'viz-index' || id === 'pulseIndexBlock') {
+        requestAnimationFrame(() => {
+          setVizFocus('index');
+          scrollToElement(document.getElementById('vizPanel'));
+        });
+        return;
+      }
+      if (id === 'viz-stutter' || id === 'stutterBlock') {
+        requestAnimationFrame(() => {
+          setVizFocus('stutter');
+          scrollToElement(document.getElementById('vizPanel'));
+        });
+        return;
+      }
+      if (id === 'viz-rig' || id === 'rigSnapshotBlock') {
+        requestAnimationFrame(() => {
+          setVizFocus('rig');
+          scrollToElement(document.getElementById('vizPanel'));
+        });
+        return;
+      }
       requestAnimationFrame(() => {
         if (DRILL_IDS.has(id)) openDrill(id);
         scrollToElement(document.getElementById(id));
@@ -7471,8 +7684,8 @@
       setMeterWidth(row.querySelector('[data-fill]'), pct);
       if (trackCls) row.querySelector('[data-track]').className = `metric-bar-track ${trackCls}`;
       const subEl = row.querySelector('[data-sub]');
-      if (subText && /<\/?[a-z]/i.test(subText)) subEl.innerHTML = subText;
-      else subEl.textContent = subText;
+      // Always text — never promote untrusted game/sensor strings to HTML
+      subEl.textContent = subText == null ? '' : String(subText);
     }
 
     function tempPct(v) { return v == null ? 0 : Math.min(100, (v / 105) * 100); }
@@ -9026,7 +9239,12 @@
     const SEV_LABEL = { hot: 'Critical', warn: 'Important', info: 'Moderate', ok: 'Healthy' };
 
     function esc(s) {
-      return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     const ICON_PATHS = {
@@ -11099,7 +11317,7 @@
           const tier = last.rating_tier || 'fair';
           const mh = sessionHasMangoHud(last);
           if (lead) {
-            lead.innerHTML = `Last session — ${last.game_name || gameLabel(last.game_id)} · ended ${fmtStoreSpan(last.ended_ts)}`
+            lead.innerHTML = `Last session — ${esc(last.game_name || gameLabel(last.game_id))} · ended ${esc(fmtStoreSpan(last.ended_ts))}`
               + (mh ? ' · <span class="mh-badge">MangoHud</span>' : '');
           }
           const items = [
@@ -11148,7 +11366,7 @@
       const sess = st?.session || {};
       const mh = sessionHasMangoHud(gp);
       if (lead) {
-        lead.innerHTML = `${gp.game_name || gt?.game_name || 'Game'} · session ${fmtDuration(gp.duration_sec)} · rating updates live`
+        lead.innerHTML = `${esc(gp.game_name || gt?.game_name || 'Game')} · session ${esc(fmtDuration(gp.duration_sec))} · rating updates live`
           + (mh ? ' · <span class="mh-badge">MangoHud</span>' : '');
       }
       const items = [
@@ -11310,7 +11528,8 @@
     function syncGameDrillOpen(gp, gt) {
       const running = !!(gt?.running || gp?.active);
       if (running && !gameWasRunning) {
-        openDrill('drill-game');
+        setVizFocus('game');
+        scrollToElement(document.getElementById('vizPanel'));
       }
       gameWasRunning = running;
     }
@@ -12127,15 +12346,29 @@
     let sensorStripExpanded = sessionStorage.getItem('pulse-sensors-expanded') === '1';
 
     function setVizFocus(tab) {
+      const allowed = new Set(['rig', 'index', 'stutter', 'game']);
+      if (!allowed.has(tab)) tab = 'rig';
       vizFocus = tab;
       sessionStorage.setItem('pulse-viz-focus', tab);
       const grid = document.getElementById('vizGrid');
-      grid?.classList.remove('viz-focus-rig', 'viz-focus-index', 'viz-focus-stutter');
+      grid?.classList.remove('viz-focus-rig', 'viz-focus-index', 'viz-focus-stutter', 'viz-focus-game');
       grid?.classList.add(`viz-focus-${tab}`);
       document.querySelectorAll('.viz-tab').forEach(btn => {
         const on = btn.dataset.vizTab === tab;
         btn.classList.toggle('active', on);
         btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      // Chart.js needs a resize after display:none → visible
+      requestAnimationFrame(() => {
+        try {
+          if (tab === 'rig') sparkChart?.resize();
+          if (tab === 'index') indexChart?.resize();
+          if (tab === 'stutter') stutterChart?.resize();
+          if (tab === 'game') {
+            gamePerfChart?.resize();
+            gamePerfSessionsChart?.resize();
+          }
+        } catch (_) { /* charts may not exist yet */ }
       });
     }
 
@@ -12162,10 +12395,7 @@
     });
     document.getElementById('sensorStripDrillLink')?.addEventListener('click', () => jumpTo('drill-sensors'));
 
-    if (!localStorage.getItem('pulse-drill-init')) {
-      openPanels.add('drill-game');
-      localStorage.setItem('pulse-drill-init', '1');
-    }
+    // Game analysis lives in Live lab tabs; don't auto-expand session history drill
     restoreOpenPanels();
     setVizFocus(vizFocus);
     syncSensorStripExpanded();
