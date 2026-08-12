@@ -617,8 +617,15 @@ def _resolve_fix_script(
         return ""
     spec = str(spec)
     if spec.startswith("file:"):
-        path = pack_dir / spec[5:].lstrip("/")
+        rel = spec[5:].lstrip("/")
         try:
+            pack_root = pack_dir.resolve()
+            path = (pack_dir / rel).resolve()
+            # Containment: never read outside the pack directory
+            if path != pack_root and not str(path).startswith(str(pack_root) + os.sep):
+                return ""
+            if not path.is_file():
+                return ""
             return path.read_text().strip()
         except OSError:
             return ""

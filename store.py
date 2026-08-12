@@ -345,11 +345,15 @@ def correlate(
 ) -> dict:
     if metric_a not in METRICS or metric_b not in METRICS:
         return {"error": "unknown metric", "pairs": 0}
+    # Cap window + row count so correlation cannot hold the lock over multi-day dumps
+    hours = max(0.1, min(float(hours), 48.0))
     since = _since_ts(hours)
     game_clause = "AND game_id = ?" if game_id else ""
     params: list = [since]
     if game_id:
         params.append(game_id)
+    # LIMIT keeps memory bounded (~2h at 1Hz, or sparse multi-hour)
+    row_cap = 8000
     sql = f"""
         SELECT {metric_a} AS a, {metric_b} AS b
         FROM samples
@@ -357,10 +361,13 @@ def correlate(
           AND {metric_a} IS NOT NULL
           AND {metric_b} IS NOT NULL
           {game_clause}
-        ORDER BY ts
+        ORDER BY ts DESC
+        LIMIT {row_cap}
     """
     with _lock:
         rows = _get_conn().execute(sql, params).fetchall()
+    # chronological for pearson (we selected DESC)
+    rows = list(reversed(rows))
     xs = [r["a"] for r in rows]
     ys = [r["b"] for r in rows]
     r = _pearson(xs, ys)

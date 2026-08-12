@@ -99,6 +99,10 @@ def test_bootstrap_latest_shape():
     assert "tuning" in latest
     assert isinstance(latest.get("tuning"), list)
     assert isinstance(data.get("history"), list)
+    samp = data.get("sampler") or {}
+    assert "ok" in samp
+    assert "age_sec" in samp
+    assert "generation" in samp
 
 
 def test_fix_script_requires_insight_id():
@@ -157,6 +161,10 @@ def test_poll_metrics_slim():
     assert "latest" in data
     assert "point" in data
     assert "static" not in data
+    samp = data.get("sampler") or {}
+    assert samp.get("ok") is True
+    assert samp.get("age_sec") is not None
+    assert samp["age_sec"] < 15
 
 
 def run_all() -> None:

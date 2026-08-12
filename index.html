@@ -5691,6 +5691,13 @@
       Other: () => true,
     };
     let spanSec = 300, globalRollup = 1, rawHistory = [], metricsBootstrapped = false;
+    /** Frozen sample after suspend/resume: same ts for N polls or server sampler.ok=false. */
+    let lastSampleTs = null;
+    let sameTsStreak = 0;
+    const STALE_AGE_SEC = 5;
+    const REBOOTSTRAP_STALE_SEC = 12;
+    const SAME_TS_STALE = 3;
+    const SAME_TS_REBOOTSTRAP = 8;
     const chartRollup = { util: null, bw: null, io: null };
     const DEFAULT_ENABLED = {
       util: { cpu: true, gpu: true, ram: true, swap: false, gameCpu: true },
@@ -12272,6 +12279,25 @@
           }
         }
         const l = data.latest, s = lastStatic;
+        if (!l || l.ts == null) throw new Error('metrics missing latest');
+
+        // Stale detection: frozen ts after suspend/resume (HTTP still 200 with old sample).
+        const sampleTs = l.ts;
+        const nowSec = Date.now() / 1000;
+        const ageSec = Math.max(0, nowSec - sampleTs);
+        if (sampleTs === lastSampleTs) sameTsStreak += 1;
+        else { sameTsStreak = 0; lastSampleTs = sampleTs; }
+        const samp = data.sampler || null;
+        const serverStale = samp && samp.ok === false;
+        const clientStale = ageSec > STALE_AGE_SEC || sameTsStreak >= SAME_TS_STALE || serverStale;
+        const needRebootstrap =
+          ageSec > REBOOTSTRAP_STALE_SEC ||
+          sameTsStreak >= SAME_TS_REBOOTSTRAP ||
+          (samp && samp.age_sec != null && samp.age_sec > REBOOTSTRAP_STALE_SEC);
+        if (needRebootstrap) {
+          metricsBootstrapped = false;
+        }
+
         if (wasBootstrap || l.issues_by_game) {
           cachedIssuesByGame = l.issues_by_game || cachedIssuesByGame;
           lastIssuesFetchKey = hintsStructKey(l.tuning);
@@ -12333,8 +12359,13 @@
         renderProcs(l.game_procs, l.game_totals);
         if (++storeTick % 30 === 0) fetchStore();
         if (storeTick % 90 === 0) fetchDiagnostics();
-        document.getElementById('liveDot').style.background = 'var(--lime)';
-        document.getElementById('liveLabel').textContent = 'Online';
+        if (clientStale) {
+          document.getElementById('liveDot').style.background = 'var(--amber, #e6a817)';
+          document.getElementById('liveLabel').textContent = 'Stale — recovering…';
+        } else {
+          document.getElementById('liveDot').style.background = 'var(--lime)';
+          document.getElementById('liveLabel').textContent = 'Online';
+        }
       } catch {
         metricsBootstrapped = false;
         document.getElementById('liveDot').style.background = 'var(--hot)';

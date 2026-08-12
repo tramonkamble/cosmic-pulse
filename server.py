@@ -292,6 +292,18 @@ _tuning_ctx_cache: tuple[float, dict] = (0.0, {})
 _PROC_STATS_TTL = 3.0
 _TUNING_CTX_TTL = 5.0
 
+# Sampler liveness — freeze-on-resume used to leave the UI on the last sample forever.
+# generation bumps abandon a stuck tick thread; watchdog starts a fresh loop.
+_sampler_gen = 0
+_sampler_last_ok_mono = 0.0
+_sampler_last_ok_wall = 0.0
+_sampler_stalls = 0
+_sampler_last_reason = ""
+_sampler_ready = threading.Event()
+SAMPLER_STALL_SEC = 8.0
+# Wall advanced much more than monotonic → suspend/resume (or a large NTP step).
+WALL_JUMP_SEC = 2.5
+
 VRAM_PEAK_GBPS = 800.0
 # PCIe 4.0 x16 one-way theoretical payload ≈ 31.5 GB/s
 PCIE_PEAK_GBPS = 31.5
@@ -1784,8 +1796,137 @@ def cpu_temps() -> dict:
     return out
 
 
+def reprime_rate_baselines() -> None:
+    """Drop delta baselines so post-resume rates are not averaged over hours of sleep."""
+    global _prev_net, _prev_disk, _prev_swap, _prev_ctx, _prev_gtt
+    global _prev_vmstat, _prev_disk_busy, _prev_cpu_stat, _sensors_cache
+    _prev_net = {}
+    _prev_disk = None
+    _prev_swap = None
+    _prev_ctx = None
+    _prev_gtt = None
+    _prev_vmstat = None
+    _prev_disk_busy = None
+    _prev_cpu_stat = None
+    _sensors_cache = (0.0, {})
+
+
+def _prime_rate_counters() -> None:
+    """Establish fresh counter baselines (zeros on next-tick deltas)."""
+    try:
+        net_rates()
+        disk_rates()
+        swap_rates()
+        ctx_rates()
+        gtt_rates(gpu_device_path())
+        vmstat_rates()
+        psutil.cpu_percent(interval=None, percpu=True)
+        prime_game_cpu()
+    except Exception as exc:
+        print(f"Cosmic Pulse sampler: reprime failed: {exc}", flush=True)
+
+
+def _mark_sample_ok() -> None:
+    global _sampler_last_ok_mono, _sampler_last_ok_wall
+    _sampler_last_ok_mono = time.monotonic()
+    _sampler_last_ok_wall = time.time()
+
+
+def sampler_status() -> dict:
+    """Liveness for /api/metrics — client uses this to show Stale vs Online."""
+    if not _sampler_last_ok_mono:
+        return {
+            "ok": False,
+            "age_sec": None,
+            "generation": _sampler_gen,
+            "stalls": _sampler_stalls,
+            "reason": _sampler_last_reason or "starting",
+        }
+    age = time.monotonic() - _sampler_last_ok_mono
+    return {
+        "ok": age < SAMPLER_STALL_SEC,
+        "age_sec": round(age, 2),
+        "generation": _sampler_gen,
+        "stalls": _sampler_stalls,
+        "reason": _sampler_last_reason or None,
+    }
+
+
+def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
+    """1 Hz sample loop for one generation. Abandoned gens exit without publishing."""
+    global _history, _latest_full, _sampler_last_reason
+
+    last_wall = time.time()
+    last_mono = time.monotonic()
+
+    while my_gen == _sampler_gen:
+        # Must never exit on a single tick failure — that used to freeze the UI.
+        try:
+            now_wall = time.time()
+            now_mono = time.monotonic()
+            wall_dt = now_wall - last_wall
+            mono_dt = max(0.0, now_mono - last_mono)
+            # Suspend/resume: wall jumps hours while mono only advanced ~sleep remainder.
+            if (wall_dt - mono_dt) > WALL_JUMP_SEC or (wall_dt > 5.0 and mono_dt < 2.0):
+                print(
+                    "Cosmic Pulse sampler: resume/time-jump detected "
+                    f"(wall_dt={wall_dt:.1f}s mono_dt={mono_dt:.1f}s) — reprime rates",
+                    flush=True,
+                )
+                _sampler_last_reason = "resume"
+                reprime_rate_baselines()
+                _prime_rate_counters()
+            last_wall = now_wall
+            last_mono = now_mono
+
+            if my_gen != _sampler_gen:
+                return
+
+            _static["cosmic_theme"] = get_cosmic_theme()
+            # Refresh tool feed status (cheap; smartctl itself is cached)
+            _static["tools"] = tools_status()
+            # Re-detect running DE rarely — session hops are uncommon
+            now_plat = time.time()
+            if now_plat - platform_last_refresh > 900:  # 15 min
+                try:
+                    _static["platform"] = platform_identity()
+                    platform_last_refresh = now_plat
+                except Exception:
+                    pass
+
+            snap = collect_metrics()
+            if my_gen != _sampler_gen:
+                return
+            with _lock:
+                if my_gen != _sampler_gen:
+                    return
+                _latest_full = snap
+                _history.append(slim_history_point(snap))
+                if len(_history) > HISTORY_LEN:
+                    _history.pop(0)
+            _mark_sample_ok()
+            if _sampler_last_reason in ("resume", "stall", "starting"):
+                _sampler_last_reason = ""
+            try:
+                record_sample_maybe_prune(snap)
+            except Exception as exc:
+                print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
+        except Exception as exc:
+            print(f"Cosmic Pulse sampler: tick failed (will retry): {exc}", flush=True)
+            import traceback
+
+            traceback.print_exc()
+
+        # Slice sleep so abandoned generations exit quickly and resume is noticed soon.
+        for _ in range(10):
+            if my_gen != _sampler_gen:
+                return
+            time.sleep(0.1)
+
+
 def sampler():
     global _history, _latest_full, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS, _gpu_peak_by_game
+    global _sampler_last_reason
     import hardware_probe as hp
 
     hp._drm_cache = None
@@ -1808,7 +1949,7 @@ def sampler():
     host_platform = platform_identity()
     # Prefer chassis OEM (sys_vendor) so System76 Thelio is recognized reliably
     s76_vendor = sys_vendor or board_vendor or (host_platform.get("vendor") or {}).get("name") or ""
-    _platform_last_refresh = time.time()
+    platform_last_refresh = time.time()
     _static = {
         "hostname": os.uname().nodename,
         "machine": machine,
@@ -1845,44 +1986,48 @@ def sampler():
         "games_catalog": build_games_catalog(),
         "legacy_game_ids": dict(LEGACY_GAME_IDS),
     }
-    net_rates()
-    disk_rates()
-    swap_rates()
-    ctx_rates()
-    gtt_rates(gpu_device_path())
-    vmstat_rates()
-    psutil.cpu_percent(interval=0.1, percpu=True)
-    prime_game_cpu()
+    _prime_rate_counters()
+    # One blocking prime so first live % is meaningful (only at process start).
+    try:
+        psutil.cpu_percent(interval=0.1, percpu=True)
+    except Exception:
+        pass
+    _sampler_last_reason = "starting"
+    _sampler_ready.set()
+    _run_sampler_loop(_sampler_gen, platform_last_refresh)
+
+
+def sampler_watchdog() -> None:
+    """Restart the sample loop if a tick blocks past SAMPLER_STALL_SEC (e.g. hung I/O after resume)."""
+    global _sampler_gen, _sampler_stalls, _sampler_last_reason
+
+    if not _sampler_ready.wait(timeout=45):
+        print("Cosmic Pulse sampler: watchdog — sampler never became ready", flush=True)
+
     while True:
-        # Must never exit this loop — an uncaught error used to kill the
-        # daemon sampler thread and freeze the UI on the last good sample.
-        try:
-            _static["cosmic_theme"] = get_cosmic_theme()
-            # Refresh tool feed status (cheap; smartctl itself is cached)
-            _static["tools"] = tools_status()
-            # Re-detect running DE rarely — session hops are uncommon
-            now_plat = time.time()
-            if now_plat - _platform_last_refresh > 900:  # 15 min
-                try:
-                    _static["platform"] = platform_identity()
-                    _platform_last_refresh = now_plat
-                except Exception:
-                    pass
-            snap = collect_metrics()
-            with _lock:
-                _latest_full = snap
-                _history.append(slim_history_point(snap))
-                if len(_history) > HISTORY_LEN:
-                    _history.pop(0)
-            try:
-                record_sample_maybe_prune(snap)
-            except Exception as exc:
-                print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
-        except Exception as exc:
-            print(f"Cosmic Pulse sampler: tick failed (will retry): {exc}", flush=True)
-            import traceback
-            traceback.print_exc()
-        time.sleep(1)
+        time.sleep(2.0)
+        if not _sampler_last_ok_mono:
+            continue
+        age = time.monotonic() - _sampler_last_ok_mono
+        if age < SAMPLER_STALL_SEC:
+            continue
+        _sampler_stalls += 1
+        _sampler_gen += 1
+        _sampler_last_reason = "stall"
+        print(
+            f"Cosmic Pulse sampler: stalled {age:.1f}s — "
+            f"restarting generation {_sampler_gen} (stalls={_sampler_stalls})",
+            flush=True,
+        )
+        reprime_rate_baselines()
+        _prime_rate_counters()
+        t = threading.Thread(
+            target=_run_sampler_loop,
+            args=(_sampler_gen, time.time()),
+            daemon=True,
+            name=f"pulse-sampler-{_sampler_gen}",
+        )
+        t.start()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1965,6 +2110,8 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(data)
         elif path == "/api/metrics":
             bootstrap = (qs.get("bootstrap") or ["0"])[0] in ("1", "true", "yes")
+            # Copy under lock only — never hold the lock across json.dumps (or config I/O).
+            # Holding the lock for the full encode used to delay the sampler after resume.
             with _lock:
                 # Bootstrap keeps last_session.trend once for instant game chart;
                 # steady 1 Hz polls omit the ~64 KB series (client uses history /
@@ -1974,21 +2121,32 @@ class Handler(BaseHTTPRequestHandler):
                     include_game_issues=bootstrap,
                     include_session_trend=bootstrap,
                 )
-                if bootstrap:
-                    body = {
-                        "static": _static,
-                        "latest": latest,
-                        "history": _history,
-                    }
-                else:
-                    body = {
-                        "latest": latest,
-                        "point": _history[-1] if _history else slim_history_point(_latest_full),
-                        "cosmic_theme": _static.get("cosmic_theme"),
-                        "resolved_insights": get_resolved_insights(),
-                        "suppressed_insights": get_suppressed_insights(),
-                    }
-                payload = json.dumps(body, separators=(",", ":")).encode()
+                history_copy = list(_history) if bootstrap else None
+                point = (
+                    _history[-1]
+                    if _history
+                    else slim_history_point(_latest_full)
+                )
+                static_snap = _static
+                cosmic_theme = _static.get("cosmic_theme")
+            samp = sampler_status()
+            if bootstrap:
+                body = {
+                    "static": static_snap,
+                    "latest": latest,
+                    "history": history_copy,
+                    "sampler": samp,
+                }
+            else:
+                body = {
+                    "latest": latest,
+                    "point": point,
+                    "cosmic_theme": cosmic_theme,
+                    "resolved_insights": get_resolved_insights(),
+                    "suppressed_insights": get_suppressed_insights(),
+                    "sampler": samp,
+                }
+            payload = json.dumps(body, separators=(",", ":")).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -2300,8 +2458,10 @@ def main():
     pruned = prune_old()
     if pruned:
         print(f"Cosmic Pulse DB: pruned {pruned} old samples")
-    t = threading.Thread(target=sampler, daemon=True)
+    t = threading.Thread(target=sampler, daemon=True, name="pulse-sampler-0")
     t.start()
+    wd = threading.Thread(target=sampler_watchdog, daemon=True, name="pulse-sampler-watchdog")
+    wd.start()
     time.sleep(1.2)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"Cosmic Pulse: http://localhost:{PORT}")
