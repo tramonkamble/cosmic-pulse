@@ -1854,27 +1854,34 @@ def sampler():
     psutil.cpu_percent(interval=0.1, percpu=True)
     prime_game_cpu()
     while True:
-        _static["cosmic_theme"] = get_cosmic_theme()
-        # Refresh tool feed status (cheap; smartctl itself is cached)
-        _static["tools"] = tools_status()
-        # Re-detect running DE rarely — session hops are uncommon
-        now_plat = time.time()
-        if now_plat - _platform_last_refresh > 900:  # 15 min
-            try:
-                _static["platform"] = platform_identity()
-                _platform_last_refresh = now_plat
-            except Exception:
-                pass
-        snap = collect_metrics()
-        with _lock:
-            _latest_full = snap
-            _history.append(slim_history_point(snap))
-            if len(_history) > HISTORY_LEN:
-                _history.pop(0)
+        # Must never exit this loop — an uncaught error used to kill the
+        # daemon sampler thread and freeze the UI on the last good sample.
         try:
-            record_sample_maybe_prune(snap)
+            _static["cosmic_theme"] = get_cosmic_theme()
+            # Refresh tool feed status (cheap; smartctl itself is cached)
+            _static["tools"] = tools_status()
+            # Re-detect running DE rarely — session hops are uncommon
+            now_plat = time.time()
+            if now_plat - _platform_last_refresh > 900:  # 15 min
+                try:
+                    _static["platform"] = platform_identity()
+                    _platform_last_refresh = now_plat
+                except Exception:
+                    pass
+            snap = collect_metrics()
+            with _lock:
+                _latest_full = snap
+                _history.append(slim_history_point(snap))
+                if len(_history) > HISTORY_LEN:
+                    _history.pop(0)
+            try:
+                record_sample_maybe_prune(snap)
+            except Exception as exc:
+                print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
         except Exception as exc:
-            print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
+            print(f"Cosmic Pulse sampler: tick failed (will retry): {exc}", flush=True)
+            import traceback
+            traceback.print_exc()
         time.sleep(1)
 
 
@@ -2059,8 +2066,16 @@ class Handler(BaseHTTPRequestHandler):
                 )
         elif path == "/api/trends":
             metric = (qs.get("metric") or ["gpu_junction_c"])[0]
-            hours = float((qs.get("hours") or ["24"])[0])
-            bucket = int((qs.get("bucket") or ["60"])[0])
+            try:
+                hours = float((qs.get("hours") or ["24"])[0])
+            except (TypeError, ValueError):
+                hours = 24.0
+            hours = max(0.1, min(hours, 24.0 * 90.0))  # cap at 90 days
+            try:
+                bucket = int((qs.get("bucket") or ["60"])[0])
+            except (TypeError, ValueError):
+                bucket = 60
+            bucket = max(1, min(bucket, 3600))
             game_id = (qs.get("game") or [None])[0]
             self._json(
                 {
@@ -2074,12 +2089,20 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/correlation":
             a = (qs.get("a") or ["swap_pct"])[0]
             b = (qs.get("b") or ["pgfault_per_s"])[0]
-            hours = float((qs.get("hours") or ["4"])[0])
+            try:
+                hours = float((qs.get("hours") or ["4"])[0])
+            except (TypeError, ValueError):
+                hours = 4.0
+            hours = max(0.1, min(hours, 48.0))  # correlate is heavy — keep short
             game_id = (qs.get("game") or [None])[0]
             self._json(correlate(a, b, hours, game_id))
         elif path == "/api/game-sessions":
             game_id = (qs.get("game") or [None])[0]
-            days = float((qs.get("days") or ["30"])[0])
+            try:
+                days = float((qs.get("days") or ["30"])[0])
+            except (TypeError, ValueError):
+                days = 30.0
+            days = max(0.1, min(days, 90.0))
             self._json(
                 {
                     "game_id": game_id,
@@ -2096,11 +2119,22 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         try:
-            length = int(self.headers.get("Content-Length", 0))
+            length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            length = 0
+        # Cap body to limit DoS / accidental huge payloads (JSON control plane)
+        _max_post = 256 * 1024
+        if length < 0 or length > _max_post:
+            self._json({"ok": False, "error": "payload too large"}, status=413)
+            return
+        try:
             raw = self.rfile.read(length).decode("utf-8") if length else "{}"
             body = json.loads(raw or "{}")
         except json.JSONDecodeError:
             self._json({"ok": False, "error": "invalid JSON"}, status=400)
+            return
+        except UnicodeDecodeError:
+            self._json({"ok": False, "error": "invalid encoding"}, status=400)
             return
         if path == "/api/rule-packs":
             from rule_packs import reload_packs, set_pack_enabled
