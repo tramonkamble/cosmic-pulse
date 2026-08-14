@@ -1,5 +1,23 @@
 [
   {
+    "id": "rules-minimal-for-0.1",
+    "priority": "ship-blocker",
+    "title": "0.1 ship gate: ~5\u201310 scaffold rules + community owns the rest",
+    "notes": "HARD BLOCKER before first public build. Clear most of rules/builtin/pulse-default (today ~30+ insights). Ship the engine + a small obvious scaffold only \u2014 not a full coach. Target ~5\u201310 builtin insights total. Keep/shape simple system ones (cpu-governor-powersave, vm-swappiness-high, maybe memory-swap-thrash / thermal ceiling if still dead-simple). Keep/shape one GPU-bound frame-limit style rule (gpu-fps-cap or successor: high GPU busy, uncapped/high refresh waste). Include one free Valve large-player demo title (CS2 AppID 730 preferred, or TF2 440) as a worked example of game-scoped guidance \u2014 template for community packs, not a CS2 encyclopedia. Everything else (audio wall, tools shopping, deep Steam health, HDR essays, per-title pro tips) out of builtin for 0.1 or community packs. Product: smarter people build game rulesets. Document install path for community packs. Heroic/Lutris/etc. launchers = later integration (see launcher-heroic-etc), not blocking scaffold cut."
+  },
+  {
+    "id": "launcher-heroic-etc",
+    "priority": "post-0.1",
+    "title": "Launcher integrations: Heroic, Lutris, etc.",
+    "notes": "Eventual: detect/enrich games from Heroic Games Launcher, Lutris, and similar non-Steam stores so Guidance + process attribution work beyond Steam AppIDs. 0.1 stays Steam-first. Design for rule packs that can key off launcher + game id, not hardcode Heroic into every insight. Do not block 0.1."
+  },
+  {
+    "id": "ui-daddy-signoff-for-0.1",
+    "priority": "ship-blocker",
+    "title": "0.1 ship gate: daddy happy with the UI",
+    "notes": "HARD BLOCKER before first public build. No 0.1 tag/ship until owner (daddy) explicitly signs off on the dashboard UI \u2014 hierarchy, Live lab, density, second-monitor glance. We are much closer after hierarchy/Live lab/color passes, but closer \u2260 done. Agents must not declare UI 'shipped' or cut a release without that human yes. Prefer focused graceful passes over rewrites; Gemini/Grok proposals are inputs only. Related open UI work: ui-pass2-density, ui-main-data-cull, ui-pass3-type-cleanup (support, not substitutes for sign-off)."
+  },
+  {
     "id": "ui-pass1-consistency",
     "priority": "done",
     "title": "UI pass 1 \u2014 consistency & quieter main",

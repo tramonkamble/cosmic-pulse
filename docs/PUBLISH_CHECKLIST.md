@@ -2,6 +2,13 @@
 
 Goal: **review-ready repo this week**, public GitHub/GitLab after brother's feedback.
 
+## Ship blockers (0.1)
+
+Both required. **No 0.1 tag until every box is checked.**
+
+- [ ] **Builtin rules cleanup** — cut `rules/builtin/pulse-default` to **~5–10** obvious scaffold insights (governor, swappiness, GPU-bound/FPS cap, optional thermal/swap, **one free Valve demo** e.g. CS2/TF2). Engine + pack loader stay; **community** owns richer game packs. Heroic/etc. is post-0.1, not this checkbox. Backlog: `rules-minimal-for-0.1`. See `AGENTS.md` § 0.1 ship gates.
+- [ ] **Daddy UI sign-off** — owner (daddy) is happy with the dashboard UI for a first public build. Closer after hierarchy/Live lab/colors, but not done until he says so. Agents do not self-declare “UI shipped.” Backlog: `ui-daddy-signoff-for-0.1`.
+
 ## This week — review prep
 
 - [x] `README.md` with screenshot and quick start

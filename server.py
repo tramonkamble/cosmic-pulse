@@ -31,7 +31,7 @@ from games import (
 )
 from gpu_metrics import read_gpu_engines
 from gpu_thermal import gpu_thermal_state, profile_for_model
-from guidance_auto import seed_clear_timers, tick_auto_resolve
+from guidance_auto import apply_live_hysteresis, seed_clear_timers, tick_auto_resolve
 from hardware_probe import (
     discover_drm_cards,
     enrich_memory_spec,
@@ -76,6 +76,7 @@ from store import (
     record_session_marker,
     save_game_session,
     series,
+    start_writer_worker,
     update_settings,
 )
 from store import (
@@ -282,8 +283,12 @@ _prev_ctx: tuple[int, int, float] | None = None
 _prev_gtt: tuple[int, float] | None = None
 _gtt_high_streak: int = 0
 _prev_vmstat: tuple[dict[str, int], float] | None = None
-_prev_disk_busy: tuple[int, float] | None = None
+# Per-device busy_time samples (name -> (busy_ms, wall_ts)); never sum optical+NVMe.
+_prev_disk_busy: dict[str, tuple[int, float]] | None = None
 _prev_cpu_stat: tuple[int, int, float] | None = None
+# RAPL package energy (µJ, wall time) → watts between samples
+_prev_cpu_rapl: tuple[int, float] | None = None
+_cpu_power_cache: tuple[float, float | None] = (0.0, None)
 _sensors_cache: tuple[float, dict] = (0.0, {})
 _rate_smooth: dict[str, float] = {}
 _proc_stats_cache: tuple[float, int, int] = (0.0, 0, 0)
@@ -469,6 +474,102 @@ def read_gpu_power_w(base: Path, sens: dict, sensor_prefix: str) -> float | None
         return round(max(sysfs_w, sensor_w), 1)
     pick = sysfs_w if sysfs_w is not None else sensor_w
     return round(pick, 1) if pick is not None else None
+
+
+def read_cpu_power_w() -> float | None:
+    """CPU package power in watts.
+
+    Prefer RAPL/powercap energy deltas (``intel-rapl`` ABI — also used on many AMD
+    kernels). ``energy_uj`` is often root-only; when unreadable we try hwmon chips
+    that are not amdgpu (zenpower / fam15h_power / package).
+
+    Result is cached ~0.4s so multiple callers per tick share one RAPL sample.
+    """
+    global _prev_cpu_rapl, _cpu_power_cache
+    now = time.time()
+    if now - _cpu_power_cache[0] < 0.4:
+        return _cpu_power_cache[1]
+
+    result: float | None = None
+    powercap = Path("/sys/class/powercap")
+    package_paths: list[Path] = []
+    if powercap.is_dir():
+        for domain in sorted(powercap.glob("intel-rapl:*")):
+            # Skip core subdomains (intel-rapl:0:0)
+            rest = domain.name[len("intel-rapl:") :]
+            if ":" in rest:
+                continue
+            name_f = domain / "name"
+            energy_f = domain / "energy_uj"
+            if not energy_f.is_file():
+                continue
+            try:
+                dname = name_f.read_text().strip() if name_f.is_file() else ""
+            except OSError:
+                dname = ""
+            # Prefer package-* domains
+            if dname and not dname.startswith("package") and "package" not in dname.lower():
+                continue
+            package_paths.append(domain)
+        if not package_paths:
+            for domain in sorted(powercap.glob("intel-rapl:*")):
+                rest = domain.name[len("intel-rapl:") :]
+                if ":" in rest:
+                    continue
+                if (domain / "energy_uj").is_file():
+                    package_paths.append(domain)
+                    break
+    for domain in package_paths:
+        energy_f = domain / "energy_uj"
+        try:
+            uj = int(energy_f.read_text().strip())
+        except (OSError, ValueError):
+            continue
+        prev = _prev_cpu_rapl
+        _prev_cpu_rapl = (uj, now)
+        if prev:
+            duj = uj - prev[0]
+            dt = now - prev[1]
+            if duj >= 0 and dt >= 0.25:
+                watts = (duj / 1_000_000.0) / dt
+                if 0.5 <= watts < 500:
+                    result = round(watts, 1)
+        break
+
+    if result is None:
+        try:
+            for hw in sorted(Path("/sys/class/hwmon").glob("hwmon*")):
+                try:
+                    name = (hw / "name").read_text().strip().lower()
+                except OSError:
+                    continue
+                if name.startswith(("amdgpu", "nvme", "iwlwifi", "enp")) or name in (
+                    "amdgpu",
+                    "system76_io",
+                ):
+                    continue
+                if not any(
+                    x in name for x in ("zen", "fam15", "power", "cpu", "core", "k10", "energy")
+                ):
+                    continue
+                for fname in ("power1_average", "power1_input", "power2_average", "power2_input"):
+                    p = hw / fname
+                    if not p.is_file():
+                        continue
+                    raw = read_float(p)
+                    if raw is None or raw <= 0:
+                        continue
+                    w = raw / 1_000_000 if raw > 500 else raw
+                    if 0.5 <= w < 500:
+                        result = round(w, 1)
+                        break
+                if result is not None:
+                    break
+        except OSError:
+            pass
+
+    _cpu_power_cache = (now, result)
+    return result
 
 
 def parse_sensors() -> dict:
@@ -956,14 +1057,21 @@ def sensor_wall(dgpu: dict | None = None, igpu: dict | None = None) -> list[dict
         },
         {
             "id": "gpu_pwr",
-            "label": "GPU PPT",
+            "label": "GPU Power",
             "value": dgpu.get("power_w"),
             "unit": "W",
             "kind": "rate",
         },
         {
+            "id": "cpu_pwr",
+            "label": "CPU Power",
+            "value": read_cpu_power_w(),
+            "unit": "W",
+            "kind": "rate",
+        },
+        {
             "id": "igpu_pwr",
-            "label": "iGPU PPT",
+            "label": "iGPU Power",
             "value": igpu.get("power_w"),
             "unit": "W",
             "kind": "rate",
@@ -1181,33 +1289,91 @@ def cpu_iowait_pct() -> float:
         return 0.0
 
 
+def _is_storage_disk(name: str) -> bool:
+    """Whole-disk block devices that should drive the Live lab storage dial.
+
+    Excludes optical (sr0), loop/zram, and partitions so busy% is not inflated by
+    summing unrelated devices (classic cause of pegging at 100%).
+    """
+    n = (name or "").lower()
+    if not n:
+        return False
+    if n.startswith(("loop", "ram", "zram", "fd", "sr", "cdrom", "dvd", "sr")):
+        return False
+    # Device-mapper often double-counts the underlying NVMe/SATA drive.
+    if n.startswith("dm-") or n.startswith("md"):
+        return False
+    # Partitions: nvme0n1p1, sda1, vda2, mmcblk0p1
+    if n.startswith("nvme") and "p" in n.split("n", 1)[-1]:
+        return False
+    if re.match(r"^(sd|vd|hd)[a-z]+\d+$", n):
+        return False
+    if n.startswith("mmcblk") and "p" in n:
+        return False
+    return True
+
+
 def disk_rates() -> dict:
+    """Disk throughput + busy%.
+
+    Busy uses **max** of per-disk util among real storage (NVMe/SATA), not the
+    system-wide sum of ``busy_time``. Aggregating all devices includes optical
+    (``sr0``) and multi-disk sums that clamp at 100% even when SSDs are idle.
+    """
     global _prev_disk, _prev_disk_busy
     now = time.time()
-    d = psutil.disk_io_counters()
-    if not d:
-        return {"read_mbps": 0, "write_mbps": 0, "busy_pct": 0}
+    per = psutil.disk_io_counters(perdisk=True) or {}
+    storage = {n: c for n, c in per.items() if _is_storage_disk(n)}
+    # Throughput: storage whole disks only (not optical rips double-counting as "system busy")
+    read_b = sum(getattr(c, "read_bytes", 0) or 0 for c in storage.values())
+    write_b = sum(getattr(c, "write_bytes", 0) or 0 for c in storage.values())
     prev = _prev_disk
-    busy_ms = getattr(d, "busy_time", None)
-    _prev_disk = (d.read_bytes, d.write_bytes, now)
+    _prev_disk = (read_b, write_b, now)
+
     busy_pct = 0.0
-    if busy_ms is not None:
-        bprev = _prev_disk_busy
-        _prev_disk_busy = (busy_ms, now)
-        if bprev and now > bprev[1]:
-            dtb = now - bprev[1]
-            if dtb >= 0.5:
-                busy_pct = round(min(100.0, (busy_ms - bprev[0]) / dtb / 10.0), 1)
+    busiest = None
+    prev_busy = _prev_disk_busy or {}
+    next_busy: dict[str, tuple[int, float]] = {}
+    for name, c in storage.items():
+        busy_ms = getattr(c, "busy_time", None)
+        if busy_ms is None:
+            continue
+        next_busy[name] = (int(busy_ms), now)
+        old = prev_busy.get(name)
+        if not old:
+            continue
+        dtb = now - old[1]
+        if dtb < 0.5:
+            continue
+        # busy_time is ms spent doing I/O; % = Δms / (Δs * 1000) * 100 = Δms / Δs / 10
+        pct = min(100.0, (int(busy_ms) - old[0]) / dtb / 10.0)
+        if pct >= busy_pct:
+            busy_pct = pct
+            busiest = name
+    _prev_disk_busy = next_busy
+    busy_pct = round(busy_pct, 1)
+
     if not prev:
-        return {"read_mbps": 0, "write_mbps": 0, "busy_pct": busy_pct}
+        return {
+            "read_mbps": 0,
+            "write_mbps": 0,
+            "busy_pct": busy_pct,
+            "busy_device": busiest,
+        }
     dt = now - prev[2]
     if dt <= 0:
-        return {"read_mbps": 0, "write_mbps": 0, "busy_pct": busy_pct}
+        return {
+            "read_mbps": 0,
+            "write_mbps": 0,
+            "busy_pct": busy_pct,
+            "busy_device": busiest,
+        }
     # Bytes → megabytes/s (UI labels "MB/s"). Do NOT *8 — that is megabits (network).
     return {
-        "read_mbps": round((d.read_bytes - prev[0]) / dt / 1e6, 2),
-        "write_mbps": round((d.write_bytes - prev[1]) / dt / 1e6, 2),
+        "read_mbps": round((read_b - prev[0]) / dt / 1e6, 2),
+        "write_mbps": round((write_b - prev[1]) / dt / 1e6, 2),
         "busy_pct": busy_pct,
+        "busy_device": busiest,
     }
 
 
@@ -1541,14 +1707,13 @@ def update_tuning_history(
             _tuning_history.insert(0, entry)
             if iid:
                 _tuning_by_id[iid] = entry
+    # 15s live-hold so badges/lists do not flap every 1 Hz tick.
+    live_ids = apply_live_hysteresis(_tuning_history, active_ids, now)
     for item in _tuning_history:
-        iid = item.get("insight_id")
-        if iid:
-            item["condition_live"] = iid in active_ids
         item["active"] = True
     if seed_clear_timers(
         _tuning_history,
-        active_ids,
+        live_ids,  # treat held-live as still active for clear-timer seeding
         resolved_ids,
         suppressed_ids,
         now,
@@ -1562,7 +1727,7 @@ def update_tuning_history(
 
     if tick_auto_resolve(
         _tuning_history,
-        active_ids,
+        live_ids,  # hysteresis-aware active set
         resolved_ids,
         suppressed_ids,
         now,
@@ -1699,6 +1864,7 @@ def collect_metrics() -> dict:
             "threads": psutil.cpu_count(logical=True),
             "load": [round(load1, 2), round(load5, 2), round(load15, 2)],
             "temps": cpu_temps(),
+            "power_w": read_cpu_power_w(),
         },
         "memory": {
             "used_gb": round(vm.used / 1024**3, 2),
@@ -1799,7 +1965,7 @@ def cpu_temps() -> dict:
 def reprime_rate_baselines() -> None:
     """Drop delta baselines so post-resume rates are not averaged over hours of sleep."""
     global _prev_net, _prev_disk, _prev_swap, _prev_ctx, _prev_gtt
-    global _prev_vmstat, _prev_disk_busy, _prev_cpu_stat, _sensors_cache
+    global _prev_vmstat, _prev_disk_busy, _prev_cpu_stat, _prev_cpu_rapl, _sensors_cache
     _prev_net = {}
     _prev_disk = None
     _prev_swap = None
@@ -1808,6 +1974,7 @@ def reprime_rate_baselines() -> None:
     _prev_vmstat = None
     _prev_disk_busy = None
     _prev_cpu_stat = None
+    _prev_cpu_rapl = None
     _sensors_cache = (0.0, {})
 
 
@@ -2128,7 +2295,10 @@ class Handler(BaseHTTPRequestHandler):
                     else slim_history_point(_latest_full)
                 )
                 static_snap = _static
-                cosmic_theme = _static.get("cosmic_theme")
+            # Fresh COSMIC tokens every poll (mtime-cached — free when unchanged).
+            cosmic_theme = get_cosmic_theme()
+            if static_snap is not None:
+                static_snap["cosmic_theme"] = cosmic_theme
             samp = sampler_status()
             if bootstrap:
                 body = {
@@ -2136,11 +2306,14 @@ class Handler(BaseHTTPRequestHandler):
                     "latest": latest,
                     "history": history_copy,
                     "sampler": samp,
+                    "theme": cosmic_theme,
+                    "cosmic_theme": cosmic_theme,
                 }
             else:
                 body = {
                     "latest": latest,
                     "point": point,
+                    "theme": cosmic_theme,
                     "cosmic_theme": cosmic_theme,
                     "resolved_insights": get_resolved_insights(),
                     "suppressed_insights": get_suppressed_insights(),
@@ -2328,42 +2501,41 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         if path == "/api/apply-fix":
+            # Read-only policy: never execute. Return script text for copy/paste.
             insight_id = body.get("insight_id")
             if not insight_id or not isinstance(insight_id, str):
                 self._json({"ok": False, "error": "insight_id required"}, status=400)
                 return
+            iid = insight_id.strip()
+            result = apply_fix(iid)
             with _lock:
                 latest = _latest_full
                 history = list(_tuning_history)
             gt = latest.get("game_totals") or {}
             game_id = gt.get("game_id") if gt.get("running") else None
-            game_name = gt.get("game_name")
             if not game_id:
                 for item in history:
-                    if item.get("insight_id") != insight_id.strip():
+                    if item.get("insight_id") != iid:
                         continue
                     seen = item.get("games_seen") or {}
                     if seen:
                         game_id = max(seen, key=lambda k: seen[k])
-                        from games import game_meta
-
-                        game_name = game_meta(game_id).get("name") or game_name
                     break
-            result = apply_fix(
-                insight_id.strip(),
-                game_id=game_id,
-                game_name=game_name,
-            )
-            if result.get("ok"):
-                gid = gt.get("game_id")
-                if gid:
-                    record_session_marker(
-                        gid,
-                        "fix",
-                        label=insight_id.strip(),
-                        insight_id=insight_id.strip(),
-                        meta=(result.get("message") or "")[:240],
-                    )
+            try:
+                script = fix_script_for_insight(
+                    iid,
+                    latest or {},
+                    _mem_spec,
+                    history=history,
+                )
+            except Exception:
+                script = ""
+            result = {
+                **result,
+                "insight_id": iid,
+                "script": script or "",
+                "has_fix_script": bool(script),
+            }
             self._json(result)
             return
         if path == "/api/store":
@@ -2454,6 +2626,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     init_db()
+    # Background SQLite writer (WAL) — sample inserts never block the 1 Hz sampler.
+    start_writer_worker()
     seed_last_session(latest_game_session())
     pruned = prune_old()
     if pruned:

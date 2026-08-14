@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from apply_fix import fix_available, requires_root
+from apply_fix import requires_root
 from fix_scripts import (
     get_fix_script,
     script_balanced,
@@ -46,7 +46,8 @@ def _hint(
         "has_fix_script": bool(script),
         "games": games or ["all"],
         "requires_root": root,
-        "fixable": fix_available(insight_id) and not root,
+        # v0.1: never one-click execute — scripts are copy/paste only
+        "fixable": False,
     }
     if bucket:
         out["bucket"] = bucket

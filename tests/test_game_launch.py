@@ -244,13 +244,14 @@ def test_proton_wayland_fix_script_writes_steam_config():
     assert "3041230" in script
 
 
-def test_apply_proton_wayland_launch_fix(monkeypatch, tmp_path):
+def test_apply_fix_is_read_only(tmp_path):
+    """v0.1: apply_fix never writes config or launches processes."""
     import apply_fix
-    import games
 
     cfg = tmp_path / "userdata" / "12345" / "config"
     cfg.mkdir(parents=True)
-    (cfg / "localconfig.vdf").write_text(
+    vdf = cfg / "localconfig.vdf"
+    vdf.write_text(
         """
 "Apps"
 {
@@ -261,20 +262,17 @@ def test_apply_proton_wayland_launch_fix(monkeypatch, tmp_path):
 }
 """
     )
-    monkeypatch.setattr(games, "steam_root", lambda: tmp_path)
-    games._LOCALCONFIG_CACHE = (0.0, "")
-    monkeypatch.setattr(
-        apply_fix,
-        "game_data_paths",
-        lambda _gid: {"appid": "3041230", "name": "Windrose"},
-    )
+    before = vdf.read_text()
     result = apply_fix.apply_fix(
         "proton-wayland-launch-fix",
         game_id="3041230",
         game_name="Windrose",
     )
-    assert result["ok"] is True
-    assert "PROTON_ENABLE_WAYLAND=0" in (cfg / "localconfig.vdf").read_text()
+    assert result["ok"] is False
+    assert result.get("read_only") is True
+    assert result.get("suggest_only") is True
+    assert apply_fix.fix_available("proton-wayland-launch-fix") is False
+    assert vdf.read_text() == before
 
 
 def test_eval_condition_session_game_metrics():

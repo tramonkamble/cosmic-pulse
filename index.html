@@ -140,12 +140,21 @@
       -webkit-font-smoothing: antialiased;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      /* Always reserve vertical scrollbar gutter — stops horizontal jump when content grows */
+      overflow-y: scroll;
       background:
         radial-gradient(ellipse 90% 55% at 8% -8%, var(--glow-accent), transparent 58%),
         radial-gradient(ellipse 70% 45% at 96% 2%, var(--glow-blue), transparent 55%),
         radial-gradient(ellipse 55% 40% at 50% 108%, var(--glow-mem), transparent 60%),
         radial-gradient(ellipse 40% 30% at 78% 42%, var(--glow-gpu), transparent 70%),
         var(--bg);
+    }
+    /* Anti-jitter: fixed-width digits on every live metric */
+    .sum-value, .sum-chip-val, .sum-chip-sub, .sum-mini .v, .sum-game-stat .v,
+    .game-perf-kpi .v, .stutter-kpi .v, .metric-val, .meter-val, .bw-kv .v,
+    .clock, #clock, .core-bar-val, .dial-val, .rig-core-meta,
+    .stutter-status, .game-perf-hero-status {
+      font-variant-numeric: tabular-nums;
     }
     body.cosmic-frosted .card,
     body.cosmic-frosted header,
@@ -870,18 +879,38 @@
     .script-btn:hover { filter: brightness(1.08); }
     .script-btn.sec { background: transparent; color: var(--text); border: 1px solid var(--line); }
     .script-btn.sec:hover { background: rgba(255,255,255,.05); }
-    .fix-btn {
-      font-family: inherit; font-size: .95rem; font-weight: 600;
-      padding: .6rem 1.1rem; border-radius: 10px; border: none; cursor: pointer;
-      background: var(--green); color: #0d1117; transition: filter .15s;
-    }
-    .fix-btn:hover:not(:disabled) { filter: brightness(1.08); }
-    .fix-btn:disabled { opacity: .55; cursor: wait; }
+    /* One-click Fix removed (v0.1 read-only) — scripts are copy/paste only */
+    .fix-btn { display: none !important; }
     .fix-root-note {
       font-size: .88rem; font-weight: 500; color: var(--amber);
       padding: .45rem .75rem; border-radius: 8px;
       border: 1px solid rgba(233,184,114,.35);
       background: rgba(233,184,114,.08);
+    }
+    .fix-risk-warn {
+      margin: 0.35rem 0 0.55rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid color-mix(in srgb, var(--sev-warn, var(--amber)) 45%, var(--line));
+      background: color-mix(in srgb, var(--sev-warn, var(--amber)) 12%, transparent);
+      color: var(--text);
+      font-size: var(--fs-xs, 0.82rem);
+      font-weight: 550;
+      line-height: 1.4;
+    }
+    .rec-script-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .rec-script-readonly .script-pre {
+      display: block;
+      max-height: 14rem;
+      overflow: auto;
+      margin: 0.45rem 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
     .fix-result {
       flex: 1 1 100%; margin: 0; font-size: .88rem; line-height: 1.45; color: var(--muted);
@@ -1713,10 +1742,6 @@
       color: var(--m-stutter);
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-stutter) 28%, transparent);
     }
-    .viz-tab[data-viz-tab="game"].active {
-      color: var(--m-game);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-game) 28%, transparent);
-    }
     .viz-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -1725,19 +1750,15 @@
     }
     .viz-area-rig,
     .viz-area-index,
-    .viz-area-stutter,
-    .viz-area-game { min-width: 0; }
+    .viz-area-stutter { min-width: 0; }
     .viz-grid .viz-area-index,
-    .viz-grid .viz-area-stutter,
-    .viz-grid .viz-area-game { display: none; }
+    .viz-grid .viz-area-stutter { display: none; }
     .viz-grid.viz-focus-rig .viz-area-rig { display: block; }
     .viz-grid.viz-focus-index .viz-area-index { display: block; }
     .viz-grid.viz-focus-stutter .viz-area-stutter { display: block; }
-    .viz-grid.viz-focus-game .viz-area-game { display: block; }
     .viz-area-rig .viz-block,
     .viz-area-index .viz-block,
-    .viz-area-stutter .viz-block,
-    .viz-area-game .viz-block { min-height: 0; }
+    .viz-area-stutter .viz-block { min-height: 0; }
     /* flush blocks have no outer border — skip hover chrome */
     .viz-area-index:not(.rig-block-flush):hover {
       border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
@@ -2693,43 +2714,260 @@
       width: 7.25rem;
       height: 7.25rem;
     }
-    /* Game tab — priority viz: KPIs + dual charts, no empty stretch */
-    .game-viz-layout {
+    /* —— Game performance strip (between summary hero and Live lab) —— */
+    .game-perf-hero {
+      margin: 0 0 var(--space-3);
+      padding: 0.85rem 1.05rem 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-game) 12%, transparent);
+      transition: padding 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+    body.cosmic-frosted .game-perf-hero {
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      backdrop-filter: blur(12px);
+    }
+    .game-perf-hero.is-live {
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--m-game) 35%, transparent),
+        0 8px 28px color-mix(in srgb, var(--m-game) 10%, transparent);
+    }
+    .game-perf-hero.is-stutter {
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--sev-warn) 45%, transparent),
+        0 8px 28px color-mix(in srgb, var(--sev-warn) 12%, transparent);
+    }
+    /* Idle / no game: compact one-line strip */
+    .game-perf-hero.is-minimized {
+      padding: 0.45rem 0.85rem;
+      box-shadow: none;
+      border-color: var(--line-soft, var(--line));
+      background: color-mix(in srgb, var(--panel) 92%, transparent);
+    }
+    .game-perf-hero.is-minimized .game-perf-hero-head {
+      margin-bottom: 0;
+      align-items: center;
+    }
+    .game-perf-hero.is-minimized .game-perf-hero-title {
+      font-size: var(--fs-sm, 0.95rem);
+      font-weight: 600;
+    }
+    .game-perf-hero.is-minimized .game-perf-hero-status {
+      margin: 0.05rem 0 0;
+    }
+    .game-perf-hero.is-minimized .game-perf-hero-body {
+      display: none;
+    }
+    .game-perf-hero.is-minimized .hw-icon-box {
+      width: 1.85rem;
+      height: 1.85rem;
+      opacity: 0.65;
+    }
+    .game-perf-idle-badge {
+      display: none;
+      flex-shrink: 0;
+      padding: 0.2rem 0.55rem;
+      border-radius: 99px;
+      font-size: var(--fs-2xs, 0.7rem);
+      font-weight: 650;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel-elevated, var(--panel)) 80%, transparent);
+    }
+    .game-perf-hero.is-minimized .game-perf-idle-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .game-perf-idle-badge::before {
+      content: '';
+      width: 0.4rem;
+      height: 0.4rem;
+      border-radius: 50%;
+      background: var(--muted);
+      opacity: 0.7;
+    }
+    .game-perf-hero-body {
+      /* KPIs + charts — hidden when minimized */
+    }
+    .game-perf-hero-head {
       display: flex;
-      flex-direction: column;
-      gap: 0.55rem;
-      min-height: 0;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.55rem 1rem;
+      margin-bottom: 0.75rem;
     }
-    .game-viz-layout .game-perf-kpis {
+    .game-perf-hero-title-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      min-width: 0;
+    }
+    .game-perf-hero-title {
       margin: 0;
-      gap: 0.4rem;
+      font-size: var(--fs-md, 1.05rem);
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      color: var(--text);
     }
-    .game-viz-charts {
+    .game-perf-hero-status {
+      margin: 0.2rem 0 0;
+      font-size: var(--fs-xs);
+      font-weight: 500;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .game-perf-hero-status.is-live { color: var(--m-game); }
+    .game-perf-hero-status.is-warn { color: var(--sev-warn); }
+    .game-perf-hero-status.is-hot { color: var(--sev-hot); }
+    .game-perf-hero-status.is-listening {
+      color: var(--muted);
+      font-style: normal;
+    }
+    .game-perf-hero-name {
+      font-size: var(--fs-sm, 0.95rem);
+      font-weight: 600;
+      color: var(--m-game);
+      max-width: min(28rem, 100%);
+      text-align: right;
+      line-height: 1.3;
+    }
+    .game-perf-hero-name:empty { display: none; }
+    /* Bold always-on metric cards — FPS / 1% / frametime first row via grid */
+    .game-perf-hero-cards,
+    .game-perf-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(7.25rem, 1fr));
+      gap: 0.55rem;
+      margin: 0 0 0.75rem;
+    }
+    .game-perf-kpi {
+      padding: 0.65rem 0.75rem;
+      border-radius: var(--radius-sm, 12px);
+      background: var(--inset-fill, color-mix(in srgb, var(--panel-elevated) 80%, #000));
+      border: 1px solid var(--line-soft, var(--line));
+      box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent);
+      min-height: 4.25rem;
+      min-width: 7.25rem;
+      width: 100%;
+    }
+    .game-perf-kpi.hero-primary {
+      border-color: color-mix(in srgb, var(--m-game) 28%, var(--line));
+      background: color-mix(in srgb, var(--m-game) 8%, var(--inset-fill, var(--panel-elevated)));
+    }
+    .game-perf-kpi.hero-warn {
+      border-color: color-mix(in srgb, var(--sev-warn) 40%, var(--line));
+      background: color-mix(in srgb, var(--sev-warn) 10%, var(--inset-fill, var(--panel-elevated)));
+    }
+    .game-perf-kpi.hero-hot {
+      border-color: color-mix(in srgb, var(--sev-hot) 40%, var(--line));
+      background: color-mix(in srgb, var(--sev-hot) 10%, var(--inset-fill, var(--panel-elevated)));
+    }
+    .game-perf-kpi .k {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 650;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary, var(--muted));
+    }
+    .game-perf-kpi .v {
+      display: block;
+      margin-top: 0.28rem;
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      min-width: 4.5ch;
+    }
+    .game-perf-listening {
+      min-height: 3.5rem;
+    }
+    /* Rule cards: fade in/out instead of hard snap after 15s hysteresis */
+    .rec-card, .warn-row, .guidance-idx-row {
+      transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    }
+    .rec-card.rec-enter, .warn-row.rec-enter {
+      opacity: 0;
+    }
+    .rec-card.rec-enter-active, .warn-row.rec-enter-active {
+      opacity: 1;
+    }
+    .game-perf-kpi .v.excellent { color: var(--tier-excellent); }
+    .game-perf-kpi .v.good { color: var(--tier-good, #6ee7b7); }
+    .game-perf-kpi .v.fair { color: var(--tier-fair, var(--sev-warn)); }
+    .game-perf-kpi .v.poor { color: var(--tier-poor, #fb923c); }
+    .game-perf-kpi .v.bad { color: var(--tier-bad, var(--sev-hot)); }
+    .game-perf-kpi .v.ok { color: var(--sev-ok); }
+    .game-perf-kpi .v.muted { color: var(--muted); font-weight: 600; font-size: 1.05rem; }
+    .game-perf-kpi .s {
+      display: block;
+      margin-top: 0.18rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.25;
+    }
+    .game-perf-kpi.mh-live {
+      box-shadow:
+        inset 0 1px 0 color-mix(in srgb, #fff 4%, transparent),
+        0 0 0 1px color-mix(in srgb, var(--m-cpu, #4a9eff) 28%, transparent);
+    }
+    .game-perf-listening {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-sm, 12px);
+      border: 1px dashed color-mix(in srgb, var(--line) 90%, var(--m-game));
+      background: color-mix(in srgb, var(--panel-elevated) 70%, transparent);
+      color: var(--muted);
+      font-size: var(--fs-sm, 0.92rem);
+      line-height: 1.4;
+    }
+    .game-perf-listening .game-perf-listen-dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--m-game);
+      opacity: 0.55;
+      animation: game-idle-pulse 2.4s ease-in-out infinite;
+    }
+    .game-perf-hero-charts {
       display: grid;
       grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
       gap: 0.55rem;
       align-items: start;
     }
-    .game-viz-charts .rig-panel {
+    .game-perf-hero-charts .rig-panel {
       margin: 0;
+      background: var(--panel-elevated);
+      border: 1px solid var(--line-soft, var(--line));
+      border-radius: var(--radius-sm, 12px);
+      padding: 0.55rem 0.65rem 0.65rem;
     }
-    .game-viz-charts .stutter-chart-box {
-      min-height: 11.5rem;
-      height: 12.5rem;
-      max-height: 14rem;
+    .game-perf-hero-charts .stutter-chart-box {
+      min-height: 10.5rem;
+      height: 11.5rem;
+      max-height: 13rem;
       border: none;
-      background: rgba(0, 0, 0, .28);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03);
+      background: color-mix(in srgb, #000 28%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 3%, transparent);
     }
-    .game-viz-charts .stutter-chart-box.game-viz-chart-sm {
-      min-height: 9rem;
-      height: 10rem;
+    .game-perf-hero-charts .stutter-chart-box.game-viz-chart-sm {
+      min-height: 8.5rem;
+      height: 9.5rem;
     }
-    .game-viz-lead {
-      margin: 0 0 0.25rem;
-      font-size: var(--fs-xs);
-      color: var(--muted);
-      line-height: 1.35;
+    @media (max-width: 900px) {
+      .game-perf-hero-charts { grid-template-columns: 1fr; }
+      .game-perf-hero-name { text-align: left; }
     }
     @media (max-width: 1100px) {
       .stutter-layout { min-height: 0; }
@@ -2849,44 +3087,6 @@
       display: block; margin-top: .06rem; font-size: var(--fs-2xs); font-weight: 500;
       color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .game-perf-live { margin-bottom: 1.1rem; }
-    .game-perf-kpis {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
-      gap: .55rem; margin: .65rem 0 .85rem;
-    }
-    .game-perf-kpi {
-      padding: .55rem .65rem; border-radius: 12px;
-      background: rgba(0,0,0,.22); border: none;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-    }
-    .game-perf-kpi .k {
-      display: block; font-size: .75rem; font-weight: 600; letter-spacing: .04em;
-      text-transform: uppercase; color: var(--text-secondary);
-    }
-    .game-perf-kpi .v {
-      display: block; margin-top: .18rem; font-size: 1.15rem; font-weight: 600; line-height: 1.1;
-    }
-    .game-perf-kpi .v.excellent { color: var(--tier-excellent); }
-    .game-perf-kpi .v.good { color: #8fd49a; }
-    .game-perf-kpi .v.fair { color: #f5c882; }
-    .game-perf-kpi .v.poor { color: #ff9f7a; }
-    .game-perf-kpi .v.bad { color: #ff8a7a; }
-    .game-perf-kpi .s {
-      display: block; margin-top: .12rem; font-size: .75rem; color: var(--muted);
-    }
-    .game-perf-zero {
-      display: flex; flex-direction: column; align-items: center; text-align: center;
-      gap: .55rem; padding: 1.75rem 1.25rem; margin: .5rem 0 .85rem;
-      border-radius: 12px; background: rgba(0,0,0,.18);
-    }
-    .game-perf-zero .hw-icon-box { width: 2.5rem; height: 2.5rem; border-radius: 11px; }
-    .game-perf-zero-title {
-      margin: 0; font-size: 1rem; font-weight: 600; color: var(--text);
-    }
-    .game-perf-zero-sub {
-      margin: 0; font-size: .875rem; color: var(--muted); line-height: 1.45; max-width: 22rem;
-    }
-    .game-perf-zero-pulse { animation: game-idle-pulse 2.4s ease-in-out infinite; }
     .game-perf-chart-box {
       height: 200px; margin: .5rem 0 .75rem; padding: .45rem;
       border-radius: 12px; background: rgba(0,0,0,.18); border: 1px solid var(--line);
@@ -2911,9 +3111,6 @@
     .mh-badge::before {
       content: ''; width: 6px; height: 6px; border-radius: 50%;
       background: #6cb6ff; box-shadow: 0 0 0 2px color-mix(in srgb, #6cb6ff 28%, transparent);
-    }
-    .game-perf-kpi.mh-live {
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 0 0 1px color-mix(in srgb, #4a9eff 28%, transparent);
     }
     .game-perf-marker {
       padding: .2rem .45rem; border-radius: 99px;
@@ -3246,6 +3443,14 @@
     .warn-meta { margin: 0 0 .55rem; font-size: .82rem; color: var(--muted); line-height: 1.35; }
     .warn-counts { min-height: 0; margin-bottom: .55rem; }
     .warn-counts:empty { display: none; margin: 0; }
+    /* Reserve space so empty / sparse warnings do not collapse the layout */
+    .warn-list,
+    #warningList {
+      min-height: 8rem;
+    }
+    .game-perf-hero-cards {
+      min-height: 5.5rem;
+    }
     .warn-list {
       display: flex; flex-direction: column; gap: .45rem;
       min-height: 0; max-height: min(28rem, 48vh);
@@ -4155,8 +4360,10 @@
       overflow: hidden;
     }
     /* Family colors — same token as load bars + chart (CPU always = --m-cpu, etc.) */
-    .pulse-dial[data-dial="cpu-pkg"] { --dial-color: var(--m-cpu); }
+    .pulse-dial[data-dial="cpu-pkg"],
+    .pulse-dial[data-dial="cpu-power"] { --dial-color: var(--m-cpu); }
     .pulse-dial[data-dial="gpu-junc"],
+    .pulse-dial[data-dial="gpu-power"],
     .pulse-dial[data-dial="power"],
     .pulse-dial[data-dial="fan"],
     .pulse-dial[data-dial="vram-bw"] { --dial-color: var(--m-gpu); }
@@ -4234,12 +4441,15 @@
       font-size: var(--fs-xs);
     }
     .sum-cell.sum-chip .sum-chip-val {
-      flex: 0 0 auto;
+      flex: 0 0 4.75rem;
+      min-width: 4.75rem;
+      width: 4.75rem;
       font-size: 1.15rem;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.02em;
       line-height: 1;
+      text-align: right;
     }
     .sum-cell.sum-chip.cpu .sum-chip-val { color: var(--m-cpu); }
     .sum-cell.sum-chip.mem .sum-chip-val { color: var(--m-mem); }
@@ -4430,6 +4640,42 @@
       </div>
     </section>
 
+    <!-- Game strip: between summary hero and Live lab; minimized when idle -->
+    <section class="card game-perf-hero is-minimized section-target" id="gamePerformanceHero"
+      data-hw="cpu gpu all" aria-label="Game performance" aria-expanded="false">
+      <div class="game-perf-hero-head">
+        <div class="game-perf-hero-title-row">
+          <span class="hw-icon-box game" data-glyph="game"></span>
+          <div>
+            <h2 class="game-perf-hero-title">Game performance</h2>
+            <p class="game-perf-hero-status is-listening" id="gamePerfStatus">
+              No game running
+            </p>
+          </div>
+        </div>
+        <span class="game-perf-idle-badge" id="gamePerfIdleBadge">No game running</span>
+        <span class="game-perf-hero-name" id="gamePerfGameName"></span>
+      </div>
+      <div class="game-perf-hero-body" id="gamePerfBody">
+        <div class="game-perf-hero-cards game-perf-kpis" id="gamePerfKpis" aria-live="polite"></div>
+        <div class="game-perf-hero-charts" id="gamePerfCharts">
+          <div class="rig-panel rig-panel-chart">
+            <div class="rig-chart-title-row">
+              <span class="stutter-side-label" id="gamePerfTrendLead">This session</span>
+            </div>
+            <div class="stutter-chart-box"><canvas id="gamePerfChart" aria-label="Session trend chart"></canvas></div>
+          </div>
+          <div class="rig-panel">
+            <div class="rig-chart-title-row">
+              <span class="stutter-side-label">Past session ratings</span>
+            </div>
+            <div class="stutter-chart-box game-viz-chart-sm"><canvas id="gamePerfSessionsChart" aria-label="Past session ratings"></canvas></div>
+            <div class="game-perf-markers" id="gamePerfMarkers"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="card viz-panel section-target" id="vizPanel">
       <div class="viz-panel-head">
         <h2>Live lab</h2>
@@ -4437,7 +4683,6 @@
           <button type="button" class="viz-tab active" role="tab" data-viz-tab="rig" aria-selected="true">Snapshot</button>
           <button type="button" class="viz-tab" role="tab" data-viz-tab="index" aria-selected="false">Pulse Index</button>
           <button type="button" class="viz-tab" role="tab" data-viz-tab="stutter" aria-selected="false">Stutter</button>
-          <button type="button" class="viz-tab" role="tab" data-viz-tab="game" aria-selected="false">Game</button>
         </div>
       </div>
       <div class="viz-grid viz-focus-rig" id="vizGrid">
@@ -4504,12 +4749,19 @@
                 <div class="rig-panel rig-vitals rig-vitals-flat">
                   <div class="rig-vitals-section rig-vitals-power">
                     <div class="stutter-side-label">Power</div>
-                    <!-- Power + Fan as matched dials (Hot/Pkg live under Temps) -->
-                    <div class="pulse-dials" id="glanceGrid" role="group" aria-label="Power">
-                      <div class="pulse-dial" data-dial="power" data-hw="gpu" title="GPU power">
+                    <!-- CPU + GPU watts + GPU fan (GPU keeps family violet) -->
+                    <div class="pulse-dials" id="glanceGrid" role="group" aria-label="CPU and GPU power">
+                      <div class="pulse-dial" data-dial="cpu-power" data-hw="cpu" title="CPU package power (RAPL / sensors)">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
-                          <span class="pulse-dial-k">Power</span>
+                          <span class="pulse-dial-k">CPU</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="pulse-dial" data-dial="gpu-power" data-hw="gpu" title="GPU board power (PPT)">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">GPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
@@ -4750,31 +5002,6 @@
             </div>
           </div>
         </div>
-        <!-- Game performance — priority tab (charts + KPIs); history table stays in drill below -->
-        <div class="viz-block viz-area-game rig-block-flush" id="gameVizBlock" data-hw="cpu gpu all">
-          <div class="viz-block-head viz-block-head-sr"><span class="hw-icon-box game" data-glyph="game"></span><h3>Game performance</h3></div>
-          <div class="viz-block-body">
-            <div class="game-viz-layout">
-              <p class="game-viz-lead" id="gamePerfLead">Live session stats while a Steam game is running.</p>
-              <div class="game-perf-kpis" id="gamePerfKpis"></div>
-              <div class="game-viz-charts">
-                <div class="rig-panel rig-panel-chart">
-                  <div class="rig-chart-title-row">
-                    <span class="stutter-side-label" id="gamePerfTrendLead">This session</span>
-                  </div>
-                  <div class="stutter-chart-box"><canvas id="gamePerfChart"></canvas></div>
-                </div>
-                <div class="rig-panel">
-                  <div class="rig-chart-title-row">
-                    <span class="stutter-side-label">Past session ratings</span>
-                  </div>
-                  <div class="stutter-chart-box game-viz-chart-sm"><canvas id="gamePerfSessionsChart"></canvas></div>
-                  <div class="game-perf-markers" id="gamePerfMarkers"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -4813,7 +5040,7 @@
         </summary>
         <div class="drill-body">
           <p class="section-lead" style="margin:0 0 .55rem">
-            Live KPIs and charts are in the <strong>Game</strong> tab of Live lab above.
+            Live KPIs and charts stay in the <strong>Game performance</strong> strip at the top of the dashboard (always visible).
           </p>
           <div class="game-perf-history">
             <h3 class="guidance-section-title" style="margin:.2rem 0 .45rem">Past sessions</h3>
@@ -5473,23 +5700,23 @@
       return CHROME_DARK;
     }
 
-    function applyChromeTheme(t, { force = false } = {}) {
-      if (!t) return false;
-      const key = JSON.stringify([
-        t.palette, t.accent, t.bg, t.is_frosted, t.panel, t.panel_elevated, t.panel_hover,
-        t.text, t.is_dark,
-      ]);
-      if (!force && key === lastChromeKey) return false;
-      lastChromeKey = key;
-
+    /**
+     * Map COSMIC / chrome token object onto CSS variables.
+     * Sets both Pulse chrome vars (--bg, --text, …) and --cosmic-* mirrors
+     * without removing unrelated custom properties on :root.
+     */
+    function applyThemeCssVars(t) {
+      if (!t || typeof t !== 'object') return;
       const root = document.documentElement.style;
-      const set = (k, v) => { if (v != null) root.setProperty(k, v); };
-      set('--bg', t.bg);
-      set('--panel', t.is_frosted ? (t.glass || t.panel) : t.panel);
+      const set = (k, v) => { if (v != null && v !== '') root.setProperty(k, v); };
+
+      // Primary chrome tokens (existing dashboard stylesheet)
+      set('--bg', t.bg || t['bg-color']);
+      set('--panel', t.is_frosted ? (t.glass || t.panel) : (t.panel || t.bg));
       set('--panel-solid', t.panel_solid || t.panel);
       set('--panel-elevated', t.panel_elevated);
       set('--panel-hover', t.panel_hover);
-      set('--text', t.text);
+      set('--text', t.text || t['text-color']);
       set('--text-secondary', t.text_secondary);
       set('--muted', t.muted);
       set('--accent', t.accent);
@@ -5505,8 +5732,8 @@
       set('--ok', t.ok);
       set('--line', t.line);
       set('--glass', t.glass);
-      if (t.radius != null) set('--radius', `${t.radius}px`);
-      if (t.radius_lg != null) set('--radius-lg', `${t.radius_lg}px`);
+      if (t.radius != null) set('--radius', typeof t.radius === 'number' ? `${t.radius}px` : t.radius);
+      if (t.radius_lg != null) set('--radius-lg', typeof t.radius_lg === 'number' ? `${t.radius_lg}px` : t.radius_lg);
       set('--glow-accent', t.accent_soft);
       const gb = softHex(t.blue, '1a');
       const gm = softHex(t.green, '12');
@@ -5515,11 +5742,37 @@
       if (gm) set('--glow-mem', gm);
       if (gg) set('--glow-gpu', gg);
 
+      // --cosmic-* mirrors for theme-sync consumers / future CSS
+      const cosmicSkip = new Set(['available', 'chart', 'is_dark', 'is_frosted', 'mtime', 'palette', 'space_m']);
+      Object.keys(t).forEach((key) => {
+        if (cosmicSkip.has(key)) return;
+        const val = t[key];
+        if (val == null || typeof val === 'object') return;
+        const cssName = '--cosmic-' + String(key).replace(/_/g, '-');
+        set(cssName, typeof val === 'number' && /radius/.test(key) ? `${val}px` : val);
+      });
+      // Common aliases
+      if (t.bg || t['bg-color']) set('--cosmic-bg-color', t.bg || t['bg-color']);
+      if (t.text || t['text-color']) set('--cosmic-text-color', t.text || t['text-color']);
+      if (t.accent) set('--cosmic-accent', t.accent);
+    }
+
+    function applyChromeTheme(t, { force = false } = {}) {
+      if (!t) return false;
+      const key = JSON.stringify([
+        t.mtime, t.palette, t.accent, t.bg, t.is_frosted, t.panel, t.panel_elevated, t.panel_hover,
+        t.text, t.is_dark,
+      ]);
+      if (!force && key === lastChromeKey) return false;
+      lastChromeKey = key;
+
+      applyThemeCssVars(t);
+
       document.body.classList.toggle('cosmic-frosted', !!t.is_frosted);
       document.body.classList.toggle('theme-light', t.is_dark === false);
       document.body.classList.toggle('theme-dark', t.is_dark !== false);
       const themeMeta = document.querySelector('meta[name="theme-color"]');
-      if (themeMeta && t.bg) themeMeta.content = t.bg;
+      if (themeMeta && (t.bg || t['bg-color'])) themeMeta.content = t.bg || t['bg-color'];
       // Metrics intentionally unchanged — chrome only.
       return true;
     }
@@ -6926,11 +7179,11 @@
         return;
       }
       if (activeTab !== 'dashboard') setTab('dashboard');
-      // Priority analysis views — open Live lab tab, not buried drills
-      if (id === 'viz-game' || id === 'gameVizBlock') {
+      // Game hero is always on-screen under the nav — scroll, never open a tab/accordion
+      if (id === 'viz-game' || id === 'gameVizBlock' || id === 'gamePerformanceHero') {
         requestAnimationFrame(() => {
-          setVizFocus('game');
-          scrollToElement(document.getElementById('vizPanel'));
+          scrollToElement(document.getElementById('gamePerformanceHero'));
+          try { gamePerfChart?.resize(); gamePerfSessionsChart?.resize(); } catch (_) { /* */ }
         });
         return;
       }
@@ -8878,16 +9131,32 @@
 
     function renderQuickGlance(l) {
       const g = l.gpu?.discrete || {};
-      const power = g.power_w != null ? Math.round(g.power_w) : null;
+      const cpu = l.cpu || {};
+      const gpuPower = g.power_w != null ? Math.round(g.power_w) : null;
+      const cpuPower = cpu.power_w != null ? Math.round(cpu.power_w) : null;
       const fan = g.fan_rpm != null ? Math.round(g.fan_rpm) : null;
       const mhz = g.gfx_mhz != null ? Math.round(g.gfx_mhz) : null;
-      // Matched dials — Hot/Pkg live under Temps dials (no second metaphor)
-      const powerPct = Math.min(100, ((power || 0) / 355) * 100);
+      // GPU PPT scale ~ TGP; CPU package scale ~ desktop Ryzen envelope
+      const gpuCap = 355;
+      const cpuCap = 170;
+      const gpuPct = Math.min(100, ((gpuPower || 0) / gpuCap) * 100);
+      const cpuPct = Math.min(100, ((cpuPower || 0) / cpuCap) * 100);
       const fanPct = Math.min(100, ((fan || 0) / 2800) * 100);
-      const powerText = power != null
-        ? (mhz != null ? `${power}W · ${mhz}` : `${power}W`)
+      const gpuText = gpuPower != null
+        ? (mhz != null ? `${gpuPower}W` : `${gpuPower}W`)
         : '—';
-      setPulseDial('glanceGrid', 'power', powerPct, powerText, { hot: powerPct >= 92 });
+      const cpuText = cpuPower != null ? `${cpuPower}W` : '—';
+      setPulseDial('glanceGrid', 'cpu-power', cpuPower != null ? cpuPct : 0, cpuText, {
+        hot: cpuPct >= 92,
+        warn: cpuPct >= 80 && cpuPct < 92,
+      });
+      setPulseDial('glanceGrid', 'gpu-power', gpuPower != null ? gpuPct : 0, gpuText, {
+        hot: gpuPct >= 92,
+      });
+      // Back-compat if any leftover data-dial="power"
+      setPulseDial('glanceGrid', 'power', gpuPower != null ? gpuPct : 0, gpuText, {
+        hot: gpuPct >= 92,
+      });
       setPulseDial('glanceGrid', 'fan', fanPct, fan != null ? `${fan}` : '—', { hot: fanPct >= 90 });
     }
 
@@ -10564,20 +10833,26 @@
 
     async function loadScriptIntoPre(pre, insightId) {
       if (!pre || !insightId) return;
-      if (pre.dataset.loaded === '1' && pre.textContent && pre.textContent !== 'Loading script…') return;
+      const code = pre.querySelector('code');
+      const target = code || pre;
+      const body = (target.textContent || '').trim();
+      if (pre.dataset.loaded === '1' && body && body !== 'Loading script…') return;
       const cached = fixScriptCache.get(insightId);
       if (cached) {
-        pre.textContent = cached;
+        target.textContent = cached;
         pre.dataset.loaded = '1';
         return;
       }
-      pre.textContent = 'Loading script…';
+      target.textContent = 'Loading script…';
       const script = await fetchFixScript(insightId);
-      pre.textContent = script || 'No script available for this insight.';
+      target.textContent = script || 'No script available for this insight.';
       pre.dataset.loaded = '1';
     }
 
     function hydrateScriptPanels(root = document) {
+      root.querySelectorAll('[data-script-pre][data-script-iid]').forEach(pre => {
+        loadScriptIntoPre(pre, pre.dataset.scriptIid);
+      });
       root.querySelectorAll('details.rec-more[data-script-iid]').forEach(det => {
         if (!det.open) return;
         const pre = det.querySelector('[data-script-pre]');
@@ -10619,27 +10894,21 @@
           ${a.cmd ? `<button class="copy-btn" type="button" data-iid="${esc(sid)}" data-a="${ai}">Copy</button>` : ''}
         </div>`).join('');
       const hasScript = !!h.has_fix_script;
-      const fixPrimary = h.fixable
-        ? `<button class="fix-btn" type="button" data-apply-iid="${esc(sid)}">Fix</button>`
-        : (h.requires_root && hasScript)
-          ? `<span class="fix-root-note">Requires root</span>`
-          : '';
-      const scriptTools = hasScript ? `
-          <button class="script-btn sec" type="button" data-copy-script-iid="${esc(sid)}">Copy script</button>
-          <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>` : '';
       const cachedScript = fixScriptCache.get(sid);
-      const scriptBlock = (fixPrimary || hasScript) ? `
-        <div class="rec-action-bar">
-          <span class="rec-action-label">Actions</span>
-          <div class="rec-actions" data-fix-row="${esc(sid)}">
-            ${fixPrimary}
-            ${scriptTools}
-            <p class="fix-result" data-fix-result hidden></p>
+      // Read-only: never one-click Fix — always-visible <pre><code> + Copy
+      const scriptBlock = hasScript ? `
+        <div class="rec-action-bar rec-script-readonly">
+          <span class="rec-action-label">Recommended command</span>
+          <p class="fix-risk-warn">Warning: Review commands before running them in your terminal. Execute at your own risk.</p>
+          <div class="rec-script-toolbar rec-actions" data-fix-row="${esc(sid)}">
+            <button class="script-btn" type="button" data-copy-script-iid="${esc(sid)}">Copy to Clipboard</button>
+            <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>
+            ${h.requires_root ? '<span class="fix-root-note">Requires root</span>' : ''}
           </div>
-          ${hasScript ? `<details class="rec-more" data-open-key="hint-${domId}-script" data-script-iid="${esc(sid)}">
-            <summary>View script</summary>
-            <pre class="script-pre" data-script-pre${cachedScript ? ' data-loaded="1"' : ''}>${cachedScript ? esc(cachedScript) : 'Loading script…'}</pre>
-          </details>` : ''}
+          <pre class="script-pre" data-script-pre data-script-iid="${esc(sid)}"${cachedScript ? ' data-loaded="1"' : ''}><code>${cachedScript ? esc(cachedScript) : 'Loading script…'}</code></pre>
+        </div>` : (h.actions || []).some(a => a.cmd) ? `
+        <div class="rec-action-bar">
+          <p class="fix-risk-warn">Warning: Review commands before running them in your terminal. Execute at your own risk.</p>
         </div>` : '';
       const stepCount = (h.actions || []).length;
       const stepsBlock = steps ? (isDetail ? `
@@ -10686,38 +10955,13 @@
       el.hidden = !message;
     }
 
-    async function runApplyFix(insightId, btn) {
-      const row = btn.closest('[data-fix-row]');
-      const prev = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Applying…';
-      showFixResult(row, '', true);
-      try {
-        const res = await fetch('/api/apply-fix', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ insight_id: insightId }),
-        });
-        const data = await res.json();
-        const msg = [data.message, data.detail].filter(Boolean).join(' ');
-        showFixResult(row, msg || (data.ok ? 'Done.' : 'Could not apply fix.'), !!data.ok);
-      } catch {
-        showFixResult(row, 'Could not reach the dashboard server.', false);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = prev;
-      }
-    }
-
     function bindHintActions(el, list) {
       el.querySelectorAll('.copy-btn[data-iid]').forEach(btn => {
         const h = hintById(list, btn.dataset.iid);
         const a = h?.actions?.[+btn.dataset.a];
         if (a?.cmd) btn.onclick = () => copyText(a.cmd, btn);
       });
-      el.querySelectorAll('[data-apply-iid]').forEach(btn => {
-        btn.onclick = () => runApplyFix(btn.dataset.applyIid, btn);
-      });
+      // One-click Fix removed — no data-apply-iid handlers
       el.querySelectorAll('button[data-copy-script-iid]').forEach(btn => {
         btn.onclick = async () => {
           const prev = btn.textContent;
@@ -10741,6 +10985,10 @@
           if (script) downloadScript(btn.dataset.dlIid || 'fix', script);
         };
       });
+      // Eager-load always-visible script blocks (no accordion)
+      el.querySelectorAll('[data-script-pre][data-script-iid]').forEach(pre => {
+        loadScriptIntoPre(pre, pre.dataset.scriptIid);
+      });
       el.querySelectorAll('details.rec-more[data-script-iid]').forEach(det => {
         det.addEventListener('toggle', () => {
           if (!det.open) return;
@@ -10748,7 +10996,7 @@
           if (pre) loadScriptIntoPre(pre, det.dataset.scriptIid);
         });
       });
-      el.querySelectorAll('.script-btn, .copy-btn, .fix-btn').forEach(btn => {
+      el.querySelectorAll('.script-btn, .copy-btn').forEach(btn => {
         btn.addEventListener('click', e => e.stopPropagation());
       });
       el.querySelectorAll('.warn-hide[data-hide-iid]').forEach(btn => {
@@ -11314,91 +11562,221 @@
       if (lead) lead.textContent = title;
     }
 
+    /** Frametime display: MangoHud FPS → ms, else hitch proxy. */
+    function gameFrametimeCard(src, mh) {
+      if (mh && src?.fps_avg != null && src.fps_avg > 0) {
+        return {
+          k: 'Frametime',
+          v: `${(1000 / src.fps_avg).toFixed(1)}ms`,
+          s: 'avg (from FPS)',
+          cls: 'ok',
+          primary: true,
+          mh: true,
+        };
+      }
+      const hitch = src?.hitch_ms_1pct;
+      if (hitch != null) {
+        const hot = hitch >= 50;
+        return {
+          k: 'Frametime',
+          v: `${hitch}ms`,
+          s: mh ? '1% worst (MH)' : '1% hitch est.',
+          cls: hot ? 'poor' : 'ok',
+          primary: true,
+          card: hot ? 'hero-warn' : 'hero-primary',
+        };
+      }
+      return { k: 'Frametime', v: '—', s: 'waiting…', cls: 'muted', primary: true };
+    }
+
+    function gameFpsCard(src, mh) {
+      if (mh && src?.fps_avg != null) {
+        return {
+          k: 'FPS',
+          v: src.fps_avg,
+          s: src.fps_1pct != null ? `1% low ${src.fps_1pct}` : 'MangoHud',
+          cls: 'ok',
+          primary: true,
+          mh: true,
+        };
+      }
+      return {
+        k: 'FPS',
+        v: '—',
+        s: mh ? 'no samples yet' : 'enable MangoHud log',
+        cls: 'muted',
+        primary: true,
+      };
+    }
+
+    function gameOnePctCard(src, mh) {
+      if (mh && src?.fps_1pct != null) {
+        return {
+          k: '1% lows',
+          v: src.fps_1pct,
+          s: 'FPS (MangoHud)',
+          cls: 'ok',
+          primary: true,
+          mh: true,
+        };
+      }
+      const hitch = src?.hitch_ms_1pct;
+      if (hitch != null) {
+        const hot = hitch >= 50;
+        return {
+          k: '1% lows',
+          v: `${hitch}ms`,
+          s: mh ? 'frametime MH' : 'hitch proxy',
+          cls: hot ? 'poor' : 'ok',
+          primary: true,
+          card: hot ? 'hero-warn' : 'hero-primary',
+        };
+      }
+      return { k: '1% lows', v: '—', s: 'waiting…', cls: 'muted', primary: true };
+    }
+
+    /**
+     * Patch KPI cards in place (textContent) to avoid 1 Hz layout thrash from full
+     * innerHTML rebuilds. Only rebuilds structure when card keys change.
+     */
+    function patchGamePerfKpis(el, items) {
+      if (!el) return;
+      const keys = items.map((it, i) => it.id || `k${i}`);
+      const keySig = keys.join('|');
+      if (el.dataset.kpiSig !== keySig) {
+        el.dataset.kpiSig = keySig;
+        el.innerHTML = items.map((it, i) => {
+          const id = it.id || `k${i}`;
+          const cardCls = [
+            'game-perf-kpi',
+            it.primary ? 'hero-primary' : '',
+            it.card || '',
+            it.mh ? 'mh-live' : '',
+          ].filter(Boolean).join(' ');
+          return `<div class="${cardCls}" data-kpi="${esc(id)}"><span class="k"></span><span class="v"></span><span class="s"></span></div>`;
+        }).join('');
+      }
+      items.forEach((it, i) => {
+        const id = it.id || `k${i}`;
+        const card = el.querySelector(`[data-kpi="${CSS.escape(id)}"]`);
+        if (!card) return;
+        card.className = [
+          'game-perf-kpi',
+          it.primary ? 'hero-primary' : '',
+          it.card || '',
+          it.mh ? 'mh-live' : '',
+        ].filter(Boolean).join(' ');
+        const kEl = card.querySelector('.k');
+        const vEl = card.querySelector('.v');
+        const sEl = card.querySelector('.s');
+        if (kEl && kEl.textContent !== String(it.k || '')) kEl.textContent = it.k || '';
+        const vStr = it.v == null ? '—' : String(it.v);
+        if (vEl) {
+          if (vEl.textContent !== vStr) vEl.textContent = vStr;
+          const vCls = `v ${it.cls || ''}`.trim();
+          if (vEl.className !== vCls) vEl.className = vCls;
+        }
+        const sStr = it.s == null ? '' : String(it.s);
+        if (sEl && sEl.textContent !== sStr) sEl.textContent = sStr;
+      });
+    }
+
+    /**
+     * Game strip between summary hero and Live lab.
+     * No active game → minimized one-line strip (“No game running”).
+     * Active / loading → expanded KPIs + charts.
+     */
     function renderGamePerfKpis(gp, gt, st) {
       const el = document.getElementById('gamePerfKpis');
-      const lead = document.getElementById('gamePerfLead');
-      if (!gp?.active) {
-        const gid = gp?.last_session?.game_id || lastActiveGameId;
-        const last = resolveLastSession(gp, gid);
-        if (last?.rating != null) {
-          const tier = last.rating_tier || 'fair';
-          const mh = sessionHasMangoHud(last);
-          if (lead) {
-            lead.innerHTML = `Last session — ${esc(last.game_name || gameLabel(last.game_id))} · ended ${esc(fmtStoreSpan(last.ended_ts))}`
-              + (mh ? ' · <span class="mh-badge">MangoHud</span>' : '');
-          }
-          const items = [
-            { k: 'Rating', v: last.rating, s: RATING_TIER_LABEL[tier] || tier, cls: tier },
-            { k: 'Smooth', v: `${last.smoothness_avg ?? '—'}%`, s: fmtDuration(last.duration_sec), cls: '' },
-            { k: '1% low', v: `${last.hitch_ms_1pct ?? '—'}ms`, s: hitchStatSub(last), cls: '' },
-            { k: 'Game process', v: `${last.game_cpu_avg ?? '—'}%`, s: 'session avg', cls: '' },
-            { k: 'GPU', v: `${last.gpu_busy_avg ?? '—'}%`, s: 'session avg', cls: '' },
-          ];
-          if (mh && last.fps_avg != null) {
-            items.splice(2, 0, {
-              k: 'FPS avg', v: last.fps_avg,
-              s: last.fps_1pct != null ? `1% low ${last.fps_1pct}` : 'MangoHud',
-              cls: 'ok', mh: true,
-            });
-          }
-          el.innerHTML = items.map(it =>
-            `<div class="game-perf-kpi${it.mh ? ' mh-live' : ''}"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.v}</span><span class="s">${it.s}</span></div>`
-          ).join('');
-          return;
+      const statusEl = document.getElementById('gamePerfStatus');
+      const nameEl = document.getElementById('gamePerfGameName');
+      const idleBadge = document.getElementById('gamePerfIdleBadge');
+      const hero = document.getElementById('gamePerformanceHero');
+      if (!el || !hero) return;
+
+      const activeGame = !!(gp?.active || gt?.running);
+      const hitchScore = st?.score ?? st?.session?.score;
+      const stuttery = activeGame && hitchScore != null && hitchScore >= 42;
+
+      hero.classList.toggle('is-minimized', !activeGame);
+      hero.classList.toggle('is-live', activeGame && !!gp?.recording);
+      hero.classList.toggle('is-stutter', !!stuttery);
+      hero.setAttribute('aria-expanded', activeGame ? 'true' : 'false');
+
+      if (!activeGame) {
+        if (nameEl && nameEl.textContent) nameEl.textContent = '';
+        if (statusEl) {
+          statusEl.className = 'game-perf-hero-status is-listening';
+          const msg = 'No game running';
+          if (statusEl.textContent !== msg) statusEl.textContent = msg;
         }
-        if (lead) lead.textContent = 'Session ratings and live charts appear when you play.';
-        el.innerHTML = `<div class="game-perf-zero game-perf-zero-pulse">
-          <span class="hw-icon-box game" data-glyph="game"></span>
-          <p class="game-perf-zero-title">Waiting for first session</p>
-          <p class="game-perf-zero-sub">Launch a Steam game — Pulse tracks smoothness, hitches, and session rating automatically.</p>
-        </div>`;
-        initStaticGlyphs();
+        if (idleBadge) {
+          const b = 'No game running';
+          if (idleBadge.textContent !== b) idleBadge.textContent = b;
+        }
+        // Keep charts mounted but hidden via CSS; clear KPI grid noise
+        if (el.dataset.kpiSig !== 'idle') {
+          el.dataset.kpiSig = 'idle';
+          el.innerHTML = '';
+        }
         return;
       }
+
+      const gname = gp.game_name || gt?.game_name || 'Game';
+      if (nameEl && nameEl.textContent !== gname) nameEl.textContent = gname;
+
       if (!gp.recording) {
         const remain = Math.ceil(gp.load_remaining_sec ?? 0);
-        if (lead) {
-          lead.textContent = `${gp.game_name || gt?.game_name || 'Game'} detected — waiting for load (${remain}s). Stats start after the grace period.`;
+        if (statusEl) {
+          statusEl.className = 'game-perf-hero-status is-live';
+          const msg = `${gname} detected — load grace ${remain}s`;
+          if (statusEl.textContent !== msg) statusEl.textContent = msg;
         }
-        el.innerHTML = [
-          { k: 'Status', v: 'Loading', s: `${remain}s until recording`, cls: '' },
-          { k: 'Game process', v: `${gt?.cpu_pct ?? '—'}%`, s: 'live (not scored yet)', cls: '' },
-          { k: 'Grace', v: `${gp.load_grace_sec ?? 45}s`, s: 'skip menus / boot', cls: '' },
-        ].map(it =>
-          `<div class="game-perf-kpi"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.v}</span><span class="s">${it.s}</span></div>`
-        ).join('');
+        patchGamePerfKpis(el, [
+          { id: 'fps', k: 'FPS', v: '—', s: 'not scoring yet', cls: 'muted', primary: true },
+          { id: 'onepct', k: '1% lows', v: '—', s: 'not scoring yet', cls: 'muted', primary: true },
+          { id: 'ft', k: 'Frametime', v: '—', s: 'not scoring yet', cls: 'muted', primary: true },
+          { id: 'status', k: 'Status', v: 'Loading', s: `${remain}s until recording`, cls: 'fair' },
+          { id: 'gproc', k: 'Game process', v: `${gt?.cpu_pct ?? '—'}%`, s: 'live (not scored)', cls: '' },
+          { id: 'grace', k: 'Grace', v: `${gp.load_grace_sec ?? 45}s`, s: 'skip menus / boot', cls: '' },
+        ]);
+        requestAnimationFrame(() => {
+          try { gamePerfChart?.resize(); gamePerfSessionsChart?.resize(); } catch (_) { /* */ }
+        });
         return;
       }
+
       const tier = gp.rating_tier || 'fair';
       const sess = st?.session || {};
       const mh = sessionHasMangoHud(gp);
-      if (lead) {
-        lead.innerHTML = `${esc(gp.game_name || gt?.game_name || 'Game')} · session ${esc(fmtDuration(gp.duration_sec))} · rating updates live`
-          + (mh ? ' · <span class="mh-badge">MangoHud</span>' : '');
+      if (statusEl) {
+        statusEl.className = 'game-perf-hero-status' + (stuttery ? ' is-warn' : ' is-live');
+        const msg = `Live · session ${fmtDuration(gp.duration_sec)}`
+          + (mh ? ' · MangoHud' : '');
+        if (statusEl.textContent !== msg) statusEl.textContent = msg;
       }
-      const items = [
-        { k: 'Rating', v: gp.rating ?? '—', s: RATING_TIER_LABEL[tier] || tier, cls: tier },
-        { k: 'Smooth', v: `${gp.smoothness_avg ?? '—'}%`, s: 'session avg', cls: '' },
+      const hitchHot = (gp.hitch_ms_1pct || 0) >= 50;
+      const hitchMany = (gp.hitch_events || 0) >= 5;
+      patchGamePerfKpis(el, [
+        { id: 'fps', ...gameFpsCard(gp, mh) },
+        { id: 'onepct', ...gameOnePctCard(gp, mh) },
+        { id: 'ft', ...gameFrametimeCard(gp, mh) },
+        { id: 'rating', k: 'Rating', v: gp.rating ?? '—', s: RATING_TIER_LABEL[tier] || tier, cls: tier },
+        { id: 'smooth', k: 'Smooth', v: `${gp.smoothness_avg ?? '—'}%`, s: 'session avg', cls: '' },
         {
-          k: '1% low',
-          v: `${gp.hitch_ms_1pct ?? '—'}ms`,
-          s: mh ? 'MangoHud measured' : 'worst hitch est.',
-          cls: (gp.hitch_ms_1pct || 0) >= 50 ? 'poor' : 'ok',
+          id: 'hitches',
+          k: 'Hitches',
+          v: gp.hitch_events ?? 0,
+          s: `${sess.hitch_rate_per_min ?? 0}/min (5m)`,
+          cls: hitchMany ? 'fair' : 'ok',
+          card: hitchMany ? 'hero-warn' : '',
         },
-        { k: 'Hitches', v: gp.hitch_events ?? 0, s: `${sess.hitch_rate_per_min ?? 0}/min (5m)`, cls: (gp.hitch_events || 0) >= 5 ? 'fair' : 'ok' },
-        { k: 'Game process', v: `${gp.game_cpu_avg ?? '—'}%`, s: `now ${gt?.cpu_pct ?? '—'}%`, cls: '' },
-        { k: 'GPU', v: `${gp.gpu_busy_avg ?? '—'}%`, s: 'session avg', cls: '' },
-      ];
-      if (mh && gp.fps_avg != null) {
-        items.splice(2, 0, {
-          k: 'FPS avg', v: gp.fps_avg,
-          s: gp.fps_1pct != null ? `1% low ${gp.fps_1pct}` : 'MangoHud',
-          cls: 'ok', mh: true,
-        });
-      }
-      el.innerHTML = items.map(it =>
-        `<div class="game-perf-kpi${it.mh ? ' mh-live' : ''}"><span class="k">${it.k}</span><span class="v ${it.cls}">${it.v}</span><span class="s">${it.s}</span></div>`
-      ).join('');
+        { id: 'gproc', k: 'Game process', v: `${gp.game_cpu_avg ?? '—'}%`, s: `now ${gt?.cpu_pct ?? '—'}%`, cls: '' },
+        { id: 'gpu', k: 'GPU', v: `${gp.gpu_busy_avg ?? '—'}%`, s: 'session avg', cls: hitchHot ? 'fair' : '' },
+      ]);
+      requestAnimationFrame(() => {
+        try { gamePerfChart?.resize(); gamePerfSessionsChart?.resize(); } catch (_) { /* */ }
+      });
     }
 
     function renderGamePerfLiveTrend(history, gp, gt) {
@@ -11532,11 +11910,18 @@
       }
     }
 
-    function syncGameDrillOpen(gp, gt) {
+    function syncGameHeroFocus(gp, gt) {
+      /** Soft focus when a game appears — never open/close accordion tabs. */
       const running = !!(gt?.running || gp?.active);
       if (running && !gameWasRunning) {
-        setVizFocus('game');
-        scrollToElement(document.getElementById('vizPanel'));
+        const hero = document.getElementById('gamePerformanceHero');
+        if (hero) {
+          // Brief highlight only; second-monitor users should not need to click.
+          hero.classList.add('is-live');
+          requestAnimationFrame(() => {
+            try { gamePerfChart?.resize(); gamePerfSessionsChart?.resize(); } catch (_) { /* */ }
+          });
+        }
       }
       gameWasRunning = running;
     }
@@ -11544,7 +11929,8 @@
     function renderGamePerformance(l, s) {
       const gp = l.game_performance || {};
       const gt = l.game_totals || {};
-      syncGameDrillOpen(gp, gt);
+      // active_game null ⇒ listening empty state inside renderGamePerfKpis
+      syncGameHeroFocus(gp, gt);
       if (gp.last_session?.ended_ts && gp.last_session.ended_ts !== lastSeenSessionEnd) {
         lastSeenSessionEnd = gp.last_session.ended_ts;
         gameSessionsKey = '';
@@ -12273,10 +12659,16 @@
         } else {
           appendHistoryPoint(data.point);
           if (lastStatic) {
-            if (data.cosmic_theme) lastStatic.cosmic_theme = data.cosmic_theme;
             if (data.resolved_insights) lastStatic.resolved_insights = data.resolved_insights;
             if (data.suppressed_insights) lastStatic.suppressed_insights = data.suppressed_insights;
           }
+        }
+        // Live COSMIC theme tokens (mtime-synced on server) — prefer data.theme, then cosmic_theme
+        const liveTheme = data.theme || data.cosmic_theme || data.static?.cosmic_theme || null;
+        if (liveTheme && lastStatic) {
+          lastStatic.cosmic_theme = liveTheme;
+        } else if (wasBootstrap && data.static?.cosmic_theme && lastStatic) {
+          lastStatic.cosmic_theme = data.static.cosmic_theme;
         }
         const l = data.latest, s = lastStatic;
         if (!l || l.ts == null) throw new Error('metrics missing latest');
@@ -12307,13 +12699,19 @@
         const issuesByGame = patchIssuesRunning(cachedIssuesByGame, l.games);
         lastLatest = l;
         lastComparison = l.comparison;
-        // Chrome theme: Cosmic mode tracks desktop; other modes ignore live cosmic tokens.
+        // Chrome theme: Cosmic mode tracks desktop light/dark live via mtime; other modes ignore.
         let themeChanged = false;
-        if (themeMode === 'cosmic' && s?.cosmic_theme?.available) {
-          themeChanged = applyChromeTheme(s.cosmic_theme);
-          if (!themePreviewMode) {
-            paintThemePreview(s.cosmic_theme, 'cosmic');
-            updateThemeStatus(s.cosmic_theme);
+        const themeTokens = liveTheme || s?.cosmic_theme;
+        if (themeMode === 'cosmic' && themeTokens) {
+          if (themeTokens.available) {
+            themeChanged = applyChromeTheme(themeTokens);
+            if (!themePreviewMode) {
+              paintThemePreview(themeTokens, 'cosmic');
+              updateThemeStatus(themeTokens);
+            }
+          } else {
+            // Still push --cosmic-* fallbacks if present
+            applyThemeCssVars(themeTokens);
           }
         } else if (wasBootstrap) {
           themeChanged = !!applyThemeFromSettings({ force: true });
@@ -12377,7 +12775,12 @@
     let sensorStripExpanded = sessionStorage.getItem('pulse-sensors-expanded') === '1';
 
     function setVizFocus(tab) {
-      const allowed = new Set(['rig', 'index', 'stutter', 'game']);
+      // Game performance is a permanent hero — not a Live lab tab.
+      const allowed = new Set(['rig', 'index', 'stutter']);
+      if (tab === 'game') {
+        scrollToElement(document.getElementById('gamePerformanceHero'));
+        tab = 'rig';
+      }
       if (!allowed.has(tab)) tab = 'rig';
       vizFocus = tab;
       sessionStorage.setItem('pulse-viz-focus', tab);
@@ -12395,10 +12798,9 @@
           if (tab === 'rig') sparkChart?.resize();
           if (tab === 'index') indexChart?.resize();
           if (tab === 'stutter') stutterChart?.resize();
-          if (tab === 'game') {
-            gamePerfChart?.resize();
-            gamePerfSessionsChart?.resize();
-          }
+          // Hero charts stay mounted — resize in case layout shifted
+          gamePerfChart?.resize();
+          gamePerfSessionsChart?.resize();
         } catch (_) { /* charts may not exist yet */ }
       });
     }
@@ -12426,8 +12828,9 @@
     });
     document.getElementById('sensorStripDrillLink')?.addEventListener('click', () => jumpTo('drill-sensors'));
 
-    // Game analysis lives in Live lab tabs; don't auto-expand session history drill
+    // Game performance is the top hero; Live lab is Snapshot / Index / Stutter only
     restoreOpenPanels();
+    if (vizFocus === 'game') vizFocus = 'rig';
     setVizFocus(vizFocus);
     syncSensorStripExpanded();
 

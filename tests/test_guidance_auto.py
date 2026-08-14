@@ -12,10 +12,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from guidance_auto import (
     AUTO_RESOLVE_CLEAR_SEC,
     CLEAR_SINCE_KEY,
+    COOLDOWN_UNTIL_KEY,
     DIAG_BACKED_INSIGHTS,
+    LIVE_HOLD_SEC,
+    apply_live_hysteresis,
     seed_clear_timers,
     tick_auto_resolve,
 )
+
+
+def test_live_hysteresis_holds_fifteen_seconds():
+    history = [{"insight_id": "swap-thrash", "condition_live": False}]
+    now = 1000.0
+    live = apply_live_hysteresis(history, {"swap-thrash"}, now)
+    assert "swap-thrash" in live
+    assert history[0]["condition_live"] is True
+    assert history[0][COOLDOWN_UNTIL_KEY] == now + LIVE_HOLD_SEC
+
+    # Condition drops — still live during hold
+    live = apply_live_hysteresis(history, set(), now + 5.0)
+    assert "swap-thrash" in live
+    assert history[0]["condition_live"] is True
+
+    # After hold — not live
+    live = apply_live_hysteresis(history, set(), now + LIVE_HOLD_SEC + 0.1)
+    assert "swap-thrash" not in live
+    assert history[0]["condition_live"] is False
 
 
 def test_auto_resolve_after_sustained_clear():

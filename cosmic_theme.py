@@ -4,12 +4,50 @@
 
 from __future__ import annotations
 
+import os
 import re
-import time
 from pathlib import Path
 
 COSMIC_ROOT = Path.home() / ".config/cosmic"
-_CACHE: tuple[float, dict] = (0.0, {})
+
+# mtime-based cache: re-parse only when COSMIC theme files change (light/dark flip, accent, …)
+_LAST_MTIME: float = 0.0
+_THEME_CACHE: dict = {}
+
+# Hardcoded fallback when not on Pop/COSMIC (or config missing).
+_FALLBACK_THEME: dict = {
+    "available": False,
+    "is_dark": True,
+    "is_frosted": False,
+    "palette": "pulse-fallback",
+    "accent": "#e95420",
+    "accent_hover": "#f06a3a",
+    "accent_soft": "rgba(233, 84, 32, 0.14)",
+    "accent_on": "#000000",
+    "bg": "#1b1b1b",
+    "panel": "#2a2d34",
+    "panel_solid": "#2a2d34",
+    "panel_elevated": "#343840",
+    "panel_hover": "#3a3e48",
+    "text": "#d8e0ef",
+    "text_secondary": "#b0b8c8",
+    "muted": "#ababab",
+    "line": "rgba(255,255,255,0.12)",
+    "divider": "rgba(255,255,255,0.12)",
+    "blue": "#63d0df",
+    "purple": "#c084fc",
+    "green": "#92cf9c",
+    "orange": "#ffad00",
+    "hot": "#fd9fa0",
+    "amber": "#f7e062",
+    "ok": "#92cf9c",
+    "glass": "rgba(27, 27, 27, 0.94)",
+    "radius": 8,
+    "radius_lg": 16,
+    "space_m": 24,
+    "chart": {"accent": "#e95420", "hot": "#fd9fa0", "warn": "#f7e062"},
+    "mtime": 0.0,
+}
 
 
 def _read_text(path: Path) -> str:
@@ -17,6 +55,40 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8")
     except OSError:
         return ""
+
+
+def _safe_mtime(path: Path) -> float:
+    try:
+        return float(os.path.getmtime(path))
+    except OSError:
+        return 0.0
+
+
+def _theme_config_mtime() -> float:
+    """Max mtime across Mode + Dark/Light theme token files (cheap, no parse)."""
+    mt = 0.0
+    mode = COSMIC_ROOT / "com.system76.CosmicTheme.Mode" / "v1"
+    for name in ("is_dark", "is_high_contrast"):
+        mt = max(mt, _safe_mtime(mode / name))
+    for theme in ("Dark", "Light"):
+        base = COSMIC_ROOT / f"com.system76.CosmicTheme.{theme}" / "v1"
+        if not base.is_dir():
+            continue
+        mt = max(mt, _safe_mtime(base))
+        for fname in (
+            "accent",
+            "background",
+            "primary",
+            "palette",
+            "spacing",
+            "corner_radii",
+            "is_frosted",
+            "destructive",
+            "success",
+            "warning",
+        ):
+            mt = max(mt, _safe_mtime(base / fname))
+    return mt
 
 
 def _parse_bool(raw: str) -> bool:
@@ -89,7 +161,12 @@ def _palette_color(text: str, key: str) -> str | None:
 
 
 def load_cosmic_theme() -> dict:
-    """Return CSS-ready COSMIC theme tokens, or available=False."""
+    """Return CSS-ready COSMIC theme tokens, or fallback when not available."""
+    if not COSMIC_ROOT.is_dir():
+        out = dict(_FALLBACK_THEME)
+        out["mtime"] = 0.0
+        return out
+
     mode_dir = COSMIC_ROOT / "com.system76.CosmicTheme.Mode" / "v1"
     is_dark = (
         _parse_bool(_read_text(mode_dir / "is_dark")) if (mode_dir / "is_dark").exists() else True
@@ -97,7 +174,9 @@ def load_cosmic_theme() -> dict:
     theme_name = "Dark" if is_dark else "Light"
     base = COSMIC_ROOT / f"com.system76.CosmicTheme.{theme_name}" / "v1"
     if not base.is_dir():
-        return {"available": False}
+        out = dict(_FALLBACK_THEME)
+        out["mtime"] = _theme_config_mtime()
+        return out
 
     accent_txt = _read_text(base / "accent")
     bg_txt = _read_text(base / "background")
@@ -156,6 +235,7 @@ def load_cosmic_theme() -> dict:
     else:
         glass = _to_hex(*(bg_tup or (0.105, 0.105, 0.105, 1.0))[:3], 0.94)
 
+    mtime = _theme_config_mtime()
     return {
         "available": True,
         "is_dark": is_dark,
@@ -192,14 +272,39 @@ def load_cosmic_theme() -> dict:
             "hot": destructive,
             "warn": warning,
         },
+        # For clients: detect Light↔Dark without deep token diffs
+        "mtime": mtime,
+        # Aliases requested by theme-sync API consumers
+        "bg-color": bg,
+        "text-color": text,
     }
 
 
 def get_cosmic_theme(ttl_sec: float = 8.0) -> dict:
-    global _CACHE
-    now = time.time()
-    if now - _CACHE[0] < ttl_sec and _CACHE[1]:
-        return _CACHE[1]
-    theme = load_cosmic_theme()
-    _CACHE = (now, theme)
+    """Return COSMIC tokens, reloading only when config files' mtime advances.
+
+    ``ttl_sec`` is retained for call-site compatibility but **mtime wins**: if the
+    desktop theme files change, we re-parse immediately (no multi-second desync).
+    """
+    global _LAST_MTIME, _THEME_CACHE
+    _ = ttl_sec  # legacy arg
+    try:
+        mtime = _theme_config_mtime()
+    except OSError:
+        mtime = 0.0
+
+    if _THEME_CACHE and mtime == _LAST_MTIME and mtime > 0:
+        return _THEME_CACHE
+
+    try:
+        theme = load_cosmic_theme()
+    except OSError:
+        theme = dict(_FALLBACK_THEME)
+        theme["mtime"] = mtime
+
+    # Ensure mtime stamp on every payload (including fallback)
+    if "mtime" not in theme or theme.get("mtime") is None:
+        theme["mtime"] = mtime
+    _LAST_MTIME = float(theme.get("mtime") or mtime or 0.0)
+    _THEME_CACHE = theme
     return theme

@@ -96,12 +96,18 @@ def build_issue_views(
     ``condition_live`` is enriched per tick but does not remove outstanding rows.
     """
     active_ids = {h["insight_id"] for h in active if h.get("insight_id")}
+    # Prefer hysteresis-held live flags from history (15s hold), not raw tick matches
+    live_ids = {
+        item.get("insight_id")
+        for item in history
+        if item.get("insight_id") and item.get("condition_live")
+    } or active_ids
     resolved_ids, suppressed_ids = get_insight_pref_sets()
 
     def enrich(item):
         return enrich_hint(
             item,
-            live_ids=active_ids,
+            live_ids=live_ids,
             resolved_ids=resolved_ids,
             suppressed_ids=suppressed_ids,
         )

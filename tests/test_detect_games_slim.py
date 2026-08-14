@@ -10,9 +10,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from games import (
+    CACHE_TTL_SEC,
     _cmd_has_appid_hint,
     _extract_appids_from_cmd,
     _is_overlay_proc,
+    _name_warrants_cmdline,
     _worth_enriching,
     invalidate_detect_games_cache,
 )
@@ -65,3 +67,22 @@ def test_is_overlay_proc():
 def test_invalidate_clears_empty_snapshot_cache():
     # Smoke: should not raise
     invalidate_detect_games_cache()
+
+
+def test_name_warrants_cmdline_fast_path():
+    """Name gate: gaming runtimes yes; desktop noise no; no bulk cmdline."""
+    assert _name_warrants_cmdline("reaper")
+    assert _name_warrants_cmdline("cs2.exe")
+    assert _name_warrants_cmdline("hl2_linux.x86_64")
+    assert _name_warrants_cmdline("gameoverlayui")
+    assert _name_warrants_cmdline("pressure-vessel-adverb") or _name_warrants_cmdline(
+        "pressure-vessel"
+    )
+    # Pack main_exe (cs2) without suffix
+    assert _name_warrants_cmdline("cs2", main_exes={"cs2", "cities2.exe"})
+    # Do not open cmdline for every desktop / Steam helper process
+    assert not _name_warrants_cmdline("steamwebhelper")
+    assert not _name_warrants_cmdline("firefox")
+    assert not _name_warrants_cmdline("systemd")
+    assert not _name_warrants_cmdline("")
+    assert CACHE_TTL_SEC >= 3.0

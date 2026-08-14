@@ -12,7 +12,7 @@ from typing import Any
 
 import yaml
 
-from apply_fix import fix_available, requires_root
+from apply_fix import requires_root
 from audio_probe import audio_metrics
 from diagnostics import _PROMOTE_SEVERITIES, scan_findings
 from fix_scripts import get_fix_script
@@ -693,7 +693,8 @@ def _pack_hint(
         "has_fix_script": bool(script),
         "games": _resolve_games(emit, metrics),
         "requires_root": root,
-        "fixable": fix_available(insight_id) and not root,
+        # v0.1: never one-click execute — scripts are copy/paste only
+        "fixable": False,
         "pack_id": pack_id,
         "rule_id": rule_id,
     }

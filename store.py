@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import math
+import queue
 import sqlite3
 import threading
 import time
@@ -91,14 +92,30 @@ _SESSION_EXTRA_COLS = (
 _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
 
+# Background sample writer — sampler puts rows in O(1); never blocks on fsync.
+# Queue holds flattened row dicts (or prune sentinels). Drop-oldest if full.
+_SAMPLE_QUEUE_MAX = 2048
+_sample_queue: queue.Queue = queue.Queue(maxsize=_SAMPLE_QUEUE_MAX)
+_writer_thread: threading.Thread | None = None
+_writer_started = False
+_PRUNE_SENTINEL = object()
+_STOP_SENTINEL = object()
+
+
+def _apply_connection_pragmas(conn: sqlite3.Connection) -> None:
+    """WAL + balanced durability — required for concurrent reader/writer without freeze."""
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=3000")
+    conn.execute("PRAGMA temp_store=MEMORY")
+
 
 def _get_conn() -> sqlite3.Connection:
     global _conn
     if _conn is None:
         _conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         _conn.row_factory = sqlite3.Row
-        _conn.execute("PRAGMA journal_mode=WAL")
-        _conn.execute("PRAGMA synchronous=NORMAL")
+        _apply_connection_pragmas(_conn)
     return _conn
 
 
@@ -112,6 +129,8 @@ def _ensure_columns(c: sqlite3.Connection, table: str, cols: tuple[tuple[str, st
 def init_db() -> None:
     with _lock:
         c = _get_conn()
+        # Re-apply pragmas in case an older connection path skipped them.
+        _apply_connection_pragmas(c)
         c.executescript(
             """
             CREATE TABLE IF NOT EXISTS samples (
@@ -179,6 +198,7 @@ def init_db() -> None:
         _ensure_columns(c, "game_sessions", _SESSION_EXTRA_COLS)
         _migrate_legacy_game_ids(c)
         c.commit()
+    start_writer_worker()
 
 
 def _migrate_legacy_game_ids(c: sqlite3.Connection) -> None:
@@ -263,8 +283,8 @@ def flatten_sample(snap: dict) -> dict:
     }
 
 
-def record_sample(snap: dict) -> None:
-    row = flatten_sample(snap)
+def _insert_sample_row(row: dict) -> None:
+    """Synchronous INSERT — only called from the writer thread."""
     cols = [k for k in row if k != "ts"]
     placeholders = ", ".join("?" * (len(cols) + 1))
     names = "ts, " + ", ".join(cols)
@@ -277,16 +297,97 @@ def record_sample(snap: dict) -> None:
         _get_conn().commit()
 
 
+def _writer_loop() -> None:
+    """Drain sample queue; never runs on the 1 Hz sampler or HTTP threads."""
+    while True:
+        try:
+            item = _sample_queue.get(timeout=1.0)
+        except queue.Empty:
+            continue
+        try:
+            if item is _STOP_SENTINEL:
+                return
+            if item is _PRUNE_SENTINEL:
+                try:
+                    prune_old()
+                except Exception as exc:
+                    print(f"Cosmic Pulse DB: background prune failed: {exc}", flush=True)
+                continue
+            if isinstance(item, dict):
+                try:
+                    _insert_sample_row(item)
+                except Exception as exc:
+                    print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
+        finally:
+            try:
+                _sample_queue.task_done()
+            except ValueError:
+                pass
+
+
+def start_writer_worker() -> None:
+    """Start the daemon sample-writer once (safe to call from init_db / main)."""
+    global _writer_thread, _writer_started
+    if _writer_started:
+        return
+    with _lock:
+        if _writer_started:
+            return
+        _get_conn()  # open + WAL pragmas before any writers
+        _writer_thread = threading.Thread(
+            target=_writer_loop,
+            daemon=True,
+            name="pulse-db-writer",
+        )
+        _writer_thread.start()
+        _writer_started = True
+
+
+def sample_queue_depth() -> int:
+    """Approx pending sample inserts (diagnostics / tests)."""
+    return _sample_queue.qsize()
+
+
+def record_sample(snap: dict) -> None:
+    """Enqueue a flattened sample — O(1) put; disk I/O happens on the writer thread.
+
+    Formerly blocked the 1 Hz sampler on INSERT+commit each tick.
+    """
+    if not _writer_started:
+        start_writer_worker()
+    row = flatten_sample(snap)
+    try:
+        _sample_queue.put_nowait(row)
+        return
+    except queue.Full:
+        pass
+    # Drop oldest pending sample so we keep freshest telemetry under backpressure.
+    try:
+        _sample_queue.get_nowait()
+        _sample_queue.task_done()
+    except (queue.Empty, ValueError):
+        pass
+    try:
+        _sample_queue.put_nowait(row)
+    except queue.Full:
+        print("Cosmic Pulse DB: sample queue full — dropping sample", flush=True)
+
+
 _last_prune = 0.0
 
 
 def record_sample_maybe_prune(snap: dict) -> None:
+    """Enqueue sample; schedule hourly prune on the writer thread (non-blocking)."""
     global _last_prune
     record_sample(snap)
     now = time.time()
     if now - _last_prune > 3600:
-        prune_old()
         _last_prune = now
+        try:
+            _sample_queue.put_nowait(_PRUNE_SENTINEL)
+        except queue.Full:
+            # Prune is best-effort; next hour will retry.
+            pass
 
 
 def _since_ts(hours: float) -> float:

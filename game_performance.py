@@ -256,15 +256,22 @@ class GameSessionTracker:
         live["active"] = True
         live["recording"] = True
         live["phase"] = "playing"
-        # Opportunistic live peek at a growing MangoHud log (cheap mtime scan)
-        try:
-            mh = summarize_for_session(
-                started_ts=float(live["started_ts"]),
-                ended_ts=float(live.get("ended_ts") or time.time()),
-                game_name=live.get("game_name"),
-            )
-        except Exception:
-            mh = None
+        # Live MangoHud peek — throttled so CSV parse never runs at 1 Hz.
+        # mtime cache inside mangohud_logs makes subsequent peeks cheap.
+        last_peek = float(self._active.get("_mh_peek_ts") or 0)
+        if ts - last_peek >= 5.0:
+            self._active["_mh_peek_ts"] = ts
+            try:
+                mh = summarize_for_session(
+                    started_ts=float(live["started_ts"]),
+                    ended_ts=float(live.get("ended_ts") or time.time()),
+                    game_name=live.get("game_name"),
+                )
+            except Exception:
+                mh = None
+            self._active["_mh_live"] = mh
+        else:
+            mh = self._active.get("_mh_live")
         if mh:
             live["mangohud"] = True
             live["fps_avg"] = mh.get("fps_avg")

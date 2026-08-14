@@ -103,6 +103,44 @@ def test_summarize_for_session():
         assert "matched_ts" in summary
 
 
+def test_incremental_byte_offset_reads():
+    """Subsequent parses only ingest appended rows (offset tracking)."""
+    import mangohud_logs as mh
+
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "live.csv"
+        _write_csv(p, n=40, fps_base=100.0)
+        mh._stream_state.clear()
+        s1 = parse_mangohud_csv(p)
+        assert s1 is not None
+        assert s1["sample_count"] == 40
+        key = str(p)
+        assert key in mh._stream_state
+        off1 = mh._stream_state[key]["last_byte_offset"]
+        assert off1 > 0
+
+        # Unchanged file → same summary, offset stable
+        s1b = parse_mangohud_csv(p)
+        assert s1b is not None
+        assert s1b["sample_count"] == 40
+        assert mh._stream_state[key]["last_byte_offset"] == off1
+
+        # Append more frames
+        with p.open("a", encoding="utf-8") as fh:
+            for _ in range(20):
+                fh.write("90.00,11.111,20,55\n")
+        s2 = parse_mangohud_csv(p)
+        assert s2 is not None
+        assert s2["sample_count"] == 60
+        assert mh._stream_state[key]["last_byte_offset"] > off1
+
+        # Truncation resets stream
+        _write_csv(p, n=50, fps_base=80.0)
+        s3 = parse_mangohud_csv(p)
+        assert s3 is not None
+        assert s3["sample_count"] == 50
+
+
 def test_attach_mangohud_on_finalize():
     """Session finalize prefers MangoHud frametime for hitch display."""
     from game_performance import GameSessionTracker

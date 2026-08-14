@@ -964,11 +964,22 @@ def _norm_cpu(raw: float) -> float:
     return round(min(100.0, raw / threads), 1)
 
 
-# When no Steam AppID is visible, reuse an empty snapshot briefly so the 1 Hz
-# sampler is not paying a full /proc walk every tick. Max delay to notice a newly
-# launched game ≈ this TTL (dashboard is 1 Hz either way).
-_EMPTY_SNAPSHOT_TTL = 2.0
+# Process-tree walks are decoupled from the 1 Hz metrics loop (auditor: CACHE_TTL_SEC).
+# Max delay to notice a newly launched game ≈ this TTL.
+CACHE_TTL_SEC = 3.0
+_EMPTY_SNAPSHOT_TTL = CACHE_TTL_SEC
 _empty_snapshot_cache: tuple[float, tuple[set[str], dict[str, set[int]], list]] | None = None
+
+# Name-first filter: never open cmdline/environ for every PID on the box.
+# Launch helpers carry AppId=; game binaries use .exe / .x86_64 / pack main_exe.
+# Avoid bare "steam" so steamwebhelper (dozens of procs) is not scanned.
+GAME_RUNTIME_NAME_RE = re.compile(
+    r"(^reaper$|wine|proton|gamemode|mangohud|pressure-vessel|"
+    r"gameoverlayui|pv-adverb|srt-bwrap|steam-runtime|steam-launch|"
+    r"steamlaunch|compatdata"
+    r"|\.x86_64$|\.x86$|\.exe$|\.bin$)",
+    re.IGNORECASE,
+)
 
 # Cheap substring gates before regex — most desktop /proc rows never match.
 _APPID_CMD_HINTS = (
@@ -1056,16 +1067,66 @@ def _worth_enriching(name: str, cmd: str) -> bool:
     return False
 
 
+def _main_exe_name_set() -> set[str]:
+    """Lowercase main_exe basenames from pack overrides (e.g. cs2, cities2.exe)."""
+    names: set[str] = set()
+    try:
+        for ov in GAME_OVERRIDES.values():
+            if not isinstance(ov, dict):
+                continue
+            main = ov.get("main_exe") or []
+            if isinstance(main, str):
+                main = [main]
+            for m in main:
+                if m:
+                    names.add(str(m).lower())
+    except Exception:
+        return names
+    return names
+
+
+def _name_warrants_cmdline(name: str, *, main_exes: set[str] | None = None) -> bool:
+    """True if we should open cmdline (and maybe environ) for this process name.
+
+    Fast path: process_iter only requests pid+name. Full attributes are gated here
+    so desktop noise never pays a /proc cmdline read.
+    """
+    if not name:
+        return False
+    nl = name.lower()
+    if GAME_RUNTIME_NAME_RE.search(name):
+        return True
+    if _is_game_binary(nl):
+        return True
+    if main_exes is not None and nl in main_exes:
+        return True
+    return False
+
+
+def _read_cmdline(pid: int) -> str:
+    """Fetch cmdline for one PID only after the name fast-path allows it."""
+    try:
+        p = psutil.Process(pid)
+        cmdline = p.cmdline() or []
+        return " ".join(cmdline) if cmdline else ""
+    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+        return ""
+
+
 def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dict]]:
     """Discover Steam AppIDs and (only if any) enrich game-like proc rows.
 
-    Phase 1: light walk (pid/name/cmdline). Skip empty-cmdline noise (kernel
-    threads). AppID regex only when cmdline has a cheap Steam hint. Overlay
-    mapping only for gameoverlayui. Phase-2 candidate list is Steam/game-like
-    only — not every process on the box.
+    Performance (auditor-aligned):
+    1. ``process_iter(['pid', 'name'])`` only — no bulk cmdline.
+    2. Open cmdline only when the **name** looks like a gaming runtime / binary /
+       pack ``main_exe`` (see ``_name_warrants_cmdline``).
+    3. If AppIDs appear, a second name pass opens cmdline for remaining candidates
+       that may be native titles under steamapps (e.g. factorio) without a
+       runtime-shaped name.
+    4. memory_info / cpu_percent only for ``_worth_enriching`` rows.
+    5. Empty snapshots reuse ``CACHE_TTL_SEC`` cache.
 
-    When nothing is running: skip memory_info/cpu_percent and reuse a short
-    empty cache (_EMPTY_SNAPSHOT_TTL).
+    AppID extractors (``_extract_appids_from_cmd``, overlay -gameid, etc.) unchanged.
     """
     global _empty_snapshot_cache
     now = time.time()
@@ -1076,25 +1137,29 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
 
     active_appids: set[str] = set()
     overlay_map: dict[str, set[int]] = {}
-    # Light rows for phase 2 only (game-like); avoid holding psutil.Process.
     light: list[tuple[int, str, str]] = []
+    # pid -> (name, cmd) for rows we already opened cmdline on
+    opened: dict[int, tuple[str, str]] = {}
+    main_exes = _main_exe_name_set()
 
-    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+    # --- Pass 1: name-only walk; cmdline only for gaming-shaped names ----------
+    for proc in psutil.process_iter(["pid", "name"]):
         try:
             pid = proc.info["pid"]
             name = proc.info["name"] or ""
-            cmdline = proc.info["cmdline"] or []
-            cmd = " ".join(cmdline) if cmdline else ""
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
 
-        # Kernel threads / empty cmdline: no Steam AppID on cmdline.
+        if not _name_warrants_cmdline(name, main_exes=main_exes):
+            continue
+
+        cmd = _read_cmdline(pid)
         if not cmd:
             continue
+        opened[pid] = (name, cmd)
 
         _extract_appids_from_cmd(cmd, active_appids)
 
-        # Overlay provides AppID + game PID map (only when present).
         if _is_overlay_proc(name):
             gid_m = GAMEID_RE.search(cmd)
             pid_m = OVERLAY_PID_RE.search(cmd)
@@ -1108,9 +1173,39 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
         if _worth_enriching(name, cmd):
             light.append((pid, name, cmd))
 
-    # Overlay -gameid counts even when no other cmdline AppId= was seen.
     for appid in overlay_map:
         active_appids.add(appid)
+
+    # --- Pass 2: native Steam titles with plain names (factorio, …) ------------
+    # Only when an AppID is already live. Still avoids bulk cmdline: skip dotted
+    # system/helper names unless they look like game binaries.
+    if active_appids:
+        for proc in psutil.process_iter(["pid", "name"]):
+            try:
+                pid = proc.info["pid"]
+                name = proc.info["name"] or ""
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+            if pid in opened:
+                continue
+            nl = (name or "").lower()
+            if not nl or nl in SKIP_PROCS or nl in AUXILIARY_EXES:
+                continue
+            if _is_overlay_proc(nl):
+                continue
+            if "." in nl and not _is_game_binary(nl):
+                continue
+            cmd = _read_cmdline(pid)
+            if not cmd:
+                continue
+            # Only keep if Steam/Proton paths prove it is game-related.
+            cl = cmd.lower().replace("\\", "/")
+            if "steamapps/" not in cl and "compatdata/" not in cl:
+                continue
+            opened[pid] = (name, cmd)
+            _extract_appids_from_cmd(cmd, active_appids)
+            if _worth_enriching(name, cmd):
+                light.append((pid, name, cmd))
 
     if not active_appids:
         empty: tuple[set[str], dict[str, set[int]], list] = (set(), {}, [])
@@ -1125,7 +1220,7 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
             with p.oneshot():
                 mi = p.memory_info()
                 raw_cpu = p.cpu_percent(interval=None)
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
         rows.append(
             {
@@ -1368,9 +1463,8 @@ def _pick_primary(rows: list[dict], *, require_main: bool = False) -> dict | Non
     return max(rows, key=lambda r: (r["cpu_pct"], r["rss_mb"]))
 
 
-# Auto detect cadence: full walk every tick while a game is running, ~3s when idle.
-_DETECT_IDLE_SEC = 3.0
-_detect_result_cache: tuple[float, dict[str, dict], bool] | None = None
+# Detect result cache — always CACHE_TTL_SEC (idle and in-game). Metrics stay 1 Hz.
+_detect_result_cache: tuple[float, dict[str, dict]] | None = None
 
 
 def invalidate_detect_games_cache() -> None:
@@ -1381,7 +1475,7 @@ def invalidate_detect_games_cache() -> None:
 
 
 def _detect_games_uncached() -> dict[str, dict]:
-    """Full /proc walk + classification (no rate throttle)."""
+    """Process snapshot + classification (no rate throttle)."""
     active_appids, overlay_map, proc_rows = _collect_process_snapshot()
     if not active_appids:
         return {}
@@ -1466,20 +1560,19 @@ def _detect_games_uncached() -> dict[str, dict]:
 def detect_games(*, force: bool = False) -> dict[str, dict]:
     """Return per-AppID running state for Steam-launched games.
 
-    Auto cadence only: every metrics tick while a game is running, about every
-    3s when idle. Metrics still sample at 1 Hz; only the /proc walk is throttled.
+    Process-tree scans are cached for ``CACHE_TTL_SEC`` (default 3s) so the 1 Hz
+    metrics sampler does not re-walk /proc every tick. Pass ``force=True`` to
+    bypass (e.g. prime_game_cpu).
     """
     global _detect_result_cache
     now = time.time()
     if not force and _detect_result_cache is not None:
-        cached_at, cached_state, had_running = _detect_result_cache
-        # Idle → throttle; gaming → re-walk every call (1 Hz sampler)
-        if not had_running and (now - cached_at) < _DETECT_IDLE_SEC:
+        cached_at, cached_state = _detect_result_cache
+        if (now - cached_at) < CACHE_TTL_SEC:
             return cached_state
 
     state = _detect_games_uncached()
-    had_running = any(bool(g.get("running")) for g in state.values())
-    _detect_result_cache = (now, state, had_running)
+    _detect_result_cache = (now, state)
     return state
 
 
