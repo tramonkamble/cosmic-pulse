@@ -1710,13 +1710,15 @@ def update_tuning_history(
             _tuning_history.insert(0, entry)
             if iid:
                 _tuning_by_id[iid] = entry
-    # 15s live-hold so badges/lists do not flap every 1 Hz tick.
+    # Live badge hold (hysteresis) so 1 Hz flaps do not blink the list.
     live_ids = apply_live_hysteresis(_tuning_history, active_ids, now)
     for item in _tuning_history:
-        item["active"] = True
+        iid = item.get("insight_id")
+        item["active"] = bool(iid and iid in live_ids)
+    # Clear timers: treat held-live as still "active" so we do not start resolving mid-hold.
     if seed_clear_timers(
         _tuning_history,
-        live_ids,  # treat held-live as still active for clear-timer seeding
+        live_ids,
         resolved_ids,
         suppressed_ids,
         now,
@@ -1728,9 +1730,11 @@ def update_tuning_history(
         base = snap if snap is not None else _latest_full or {}
         return {h["insight_id"] for h in tuning_hints(base) if h.get("insight_id")}
 
+    # CRITICAL: pass *raw* rule matches (active_ids), NOT live_ids.
+    # Passing live_ids re-extended cooldown every tick forever (fixed issues never cleared).
     if tick_auto_resolve(
         _tuning_history,
-        live_ids,  # hysteresis-aware active set
+        active_ids,
         resolved_ids,
         suppressed_ids,
         now,

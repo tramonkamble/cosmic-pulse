@@ -9,10 +9,11 @@ from collections.abc import Callable
 from pulse_config import STATE_VERIFIED_INSIGHTS
 
 # Sustained absence from live rule eval before moving to Fixed.
-AUTO_RESOLVE_CLEAR_SEC = 60
+# Keep short: users apply a step and expect the card to go away within a moment.
+AUTO_RESOLVE_CLEAR_SEC = 20
 CLEAR_SINCE_KEY = "_clear_since"
 # Live-condition hold so UI badges do not flap on/off every 1 Hz tick.
-LIVE_HOLD_SEC = 15.0
+LIVE_HOLD_SEC = 12.0
 COOLDOWN_UNTIL_KEY = "cooldown_until"
 
 # Hints backed by diagnostics — re-verify with a fresh scan before auto-resolving.

@@ -92,6 +92,32 @@ def test_seed_clear_timers_uses_last_seen():
     assert resolved == ["cpu-governor-powersave"]
 
 
+def test_auto_resolve_must_not_refresh_cooldown_when_only_held_live():
+    """Regression: never pass hysteresis live_ids as active_ids to tick_auto_resolve.
+
+    Doing so re-extended cooldown every second so fixed issues never cleared
+    (e.g. cpu-governor after switching to performance).
+    """
+    history = [{"insight_id": "cpu-governor-powersave"}]
+    now = 1000.0
+    apply_live_hysteresis(history, {"cpu-governor-powersave"}, now)
+    cd0 = history[0][COOLDOWN_UNTIL_KEY]
+    # Condition clears — still held live by hysteresis
+    apply_live_hysteresis(history, set(), now + 2.0)
+    assert history[0]["condition_live"] is True
+    # Correct call: raw active is empty (rule no longer matches)
+    for t in range(3, 10):
+        tick_auto_resolve(history, set(), set(), set(), now + t, lambda _i: None)
+    # Cooldown must not be pushed out forever
+    assert history[0][COOLDOWN_UNTIL_KEY] == cd0
+    # After hold expires, clear timer starts
+    after = now + LIVE_HOLD_SEC + 1.0
+    apply_live_hysteresis(history, set(), after)
+    assert history[0]["condition_live"] is False
+    tick_auto_resolve(history, set(), set(), set(), after, lambda _i: None)
+    assert CLEAR_SINCE_KEY in history[0]
+
+
 def test_auto_resolve_skips_when_live_again():
     resolved: list[str] = []
     history = [
