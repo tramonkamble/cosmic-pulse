@@ -520,36 +520,194 @@
       font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em;
       text-transform: uppercase; color: var(--muted);
     }
-    .guidance-page { display: flex; flex-direction: column; gap: 0.95rem; }
-    .guidance-head-compact {
-      display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
-      gap: .55rem 1.1rem; margin-bottom: 0;
-      padding: 0 0.1rem;
+    /* ── Guidance page (Insights / Adrenaline / Grafana style) ── */
+    .guidance-page {
+      display: flex; flex-direction: column; gap: 0.85rem;
+      /* fill viewport under sticky header — second-monitor coach */
+      min-height: calc(100vh - var(--header-scroll-offset, 6.5rem) - 1.5rem);
     }
-    .guidance-head-compact h2 {
-      margin: 0;
-      font-size: 1.3rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
+    .guidance-hero {
+      display: grid;
+      grid-template-columns: minmax(11rem, 1.1fr) minmax(0, 2fr) auto;
+      gap: .75rem 1rem;
+      align-items: stretch;
+      padding: .9rem 1rem;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(135deg,
+          color-mix(in srgb, var(--panel-elevated) 92%, #000 8%),
+          color-mix(in srgb, var(--panel) 88%, #000 12%));
     }
-    .guidance-head-stat { font-size: 0.95rem; color: var(--muted); line-height: 1.5; }
-    .guidance-head-stat strong { color: var(--text); font-weight: 600; }
-    .guidance-head-stat .guidance-rail-live {
-      display: inline-flex; align-items: center; gap: .35rem; margin-left: .15rem;
-      font-size: .95rem; color: var(--lime);
+    .guidance-hero[data-health="ok"] {
+      border-color: color-mix(in srgb, var(--sev-ok) 35%, var(--line-soft));
+      box-shadow: inset 3px 0 0 var(--sev-ok);
     }
-    .guidance-head-stat .guidance-rail-live::before {
-      content: ""; width: .45rem; height: .45rem; border-radius: 50%; background: var(--lime);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 28%, transparent);
+    .guidance-hero[data-health="warn"] {
+      border-color: color-mix(in srgb, var(--sev-warn) 40%, var(--line-soft));
+      box-shadow: inset 3px 0 0 var(--sev-warn);
     }
+    .guidance-hero[data-health="hot"] {
+      border-color: color-mix(in srgb, var(--sev-hot) 45%, var(--line-soft));
+      box-shadow: inset 3px 0 0 var(--sev-hot);
+    }
+    .guidance-hero-status {
+      display: flex; flex-direction: column; justify-content: center; gap: .25rem; min-width: 0;
+    }
+    .guidance-hero-kicker {
+      font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .guidance-hero-title {
+      margin: 0; font-size: 1.45rem; font-weight: 650; letter-spacing: -0.02em;
+      line-height: 1.2; color: var(--text);
+    }
+    .guidance-hero[data-health="ok"] .guidance-hero-title { color: var(--sev-ok); }
+    .guidance-hero[data-health="warn"] .guidance-hero-title { color: var(--sev-warn); }
+    .guidance-hero[data-health="hot"] .guidance-hero-title { color: var(--sev-hot); }
+    .guidance-hero-sub {
+      margin: 0; font-size: .95rem; color: var(--muted); line-height: 1.4;
+    }
+    .guidance-hero-sub .live-count {
+      color: var(--lime); font-weight: 600;
+    }
+    .guidance-hero-stats {
+      display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem; min-width: 0;
+    }
+    .guidance-stat {
+      flex: 1 1 4.5rem; min-width: 4.2rem; max-width: 7.5rem;
+      display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+      gap: .1rem; padding: .55rem .7rem;
+      border: 1px solid var(--line-soft); border-radius: var(--radius-md);
+      background: color-mix(in srgb, #000 22%, transparent);
+      color: inherit; font-family: inherit; cursor: pointer; text-align: left;
+      transition: border-color .15s, background .15s;
+    }
+    .guidance-stat:hover {
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+    .guidance-stat.is-active {
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+    }
+    .guidance-stat .n {
+      font-size: 1.55rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+      letter-spacing: -0.03em;
+    }
+    .guidance-stat .lbl {
+      font-size: .72rem; font-weight: 650; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .guidance-stat.hot .n { color: var(--sev-hot); }
+    .guidance-stat.warn .n { color: var(--sev-warn); }
+    .guidance-stat.info .n { color: var(--sev-info); }
+    .guidance-stat.live .n { color: var(--lime); }
+    .guidance-stat.ok .n { color: var(--sev-ok); }
+    .guidance-hero-actions {
+      display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+      gap: .4rem; min-width: 9rem;
+    }
+    .guidance-hero-actions .btn {
+      min-width: 8.5rem; font-weight: 600;
+    }
+    .guidance-hero-actions .btn.primary-scan {
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+      color: var(--text);
+    }
+    .guidance-hero-actions .btn.primary-scan:hover {
+      background: color-mix(in srgb, var(--accent) 32%, transparent);
+    }
+    .guidance-scan-meta {
+      font-size: .85rem; color: var(--muted); white-space: nowrap; text-align: right;
+    }
+    .guidance-scan-meta.is-scanning { color: var(--accent); }
+    @media (max-width: 900px) {
+      .guidance-hero {
+        grid-template-columns: 1fr;
+      }
+      .guidance-hero-actions { align-items: stretch; }
+      .guidance-hero-actions .btn { min-width: 0; width: 100%; }
+      .guidance-scan-meta { text-align: left; }
+    }
+
+    /* Start-here banner — Adrenaline "recommended" / Insights remediation */
+    .guidance-start {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: .65rem 1rem;
+      align-items: center;
+      padding: .85rem 1rem;
+      border-radius: var(--radius);
+      border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line));
+      background:
+        linear-gradient(90deg,
+          color-mix(in srgb, var(--accent) 14%, transparent),
+          color-mix(in srgb, var(--panel-elevated) 90%, #000 10%));
+      cursor: pointer;
+    }
+    .guidance-start:hover {
+      border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+      background:
+        linear-gradient(90deg,
+          color-mix(in srgb, var(--accent) 18%, transparent),
+          color-mix(in srgb, var(--panel-elevated) 88%, #000 12%));
+    }
+    .guidance-start[hidden] { display: none; }
+    .guidance-start[data-sev="hot"] {
+      border-color: color-mix(in srgb, var(--sev-hot) 45%, var(--line));
+      background: linear-gradient(90deg,
+        color-mix(in srgb, var(--sev-hot) 14%, transparent),
+        color-mix(in srgb, var(--panel-elevated) 90%, #000 10%));
+    }
+    .guidance-start[data-sev="warn"] {
+      border-color: color-mix(in srgb, var(--sev-warn) 42%, var(--line));
+      background: linear-gradient(90deg,
+        color-mix(in srgb, var(--sev-warn) 12%, transparent),
+        color-mix(in srgb, var(--panel-elevated) 90%, #000 10%));
+    }
+    .guidance-start-main { min-width: 0; display: flex; flex-direction: column; gap: .35rem; }
+    .guidance-start-kicker {
+      font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--accent);
+    }
+    .guidance-start[data-sev="hot"] .guidance-start-kicker { color: var(--sev-hot); }
+    .guidance-start[data-sev="warn"] .guidance-start-kicker { color: var(--sev-warn); }
+    .guidance-start-title {
+      margin: 0; font-size: 1.12rem; font-weight: 600; line-height: 1.3; color: var(--text);
+    }
+    .guidance-start-why {
+      margin: 0; font-size: .95rem; color: var(--text-secondary); line-height: 1.4;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    }
+    .guidance-start-cmd {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; margin-top: .15rem;
+    }
+    .guidance-start-cmd code {
+      font-size: .84rem; font-family: ui-monospace, monospace;
+      color: var(--blue); word-break: break-all; flex: 1 1 12rem;
+      padding: .25rem .45rem; border-radius: 6px;
+      background: color-mix(in srgb, #000 35%, transparent);
+      border: 1px solid var(--line-soft);
+    }
+    .guidance-start-side {
+      display: flex; flex-direction: column; align-items: stretch; gap: .4rem;
+    }
+    .guidance-start-side .btn { white-space: nowrap; font-weight: 600; }
+    @media (max-width: 720px) {
+      .guidance-start { grid-template-columns: 1fr; }
+      .guidance-start-side { flex-direction: row; flex-wrap: wrap; }
+    }
+
     .guidance-split {
-      display: grid; grid-template-columns: minmax(240px, 28%) minmax(0, 1fr);
-      gap: 0.75rem; min-height: min(68vh, 640px);
+      display: grid; grid-template-columns: minmax(280px, 34%) minmax(0, 1fr);
+      gap: 0.75rem; flex: 1; min-height: min(62vh, 620px);
       align-items: stretch;
     }
     @media (max-width: 920px) {
       .guidance-split { grid-template-columns: 1fr; min-height: 0; }
-      .guidance-index-scroll { max-height: 16rem; }
+      .guidance-index-scroll { max-height: 18rem; }
       .guidance-detail { max-height: none; min-height: 16rem; }
     }
     .guidance-index {
@@ -561,53 +719,27 @@
     }
     .guidance-toolbar {
       display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-      gap: .55rem .7rem; padding: .65rem .75rem;
+      gap: .5rem .65rem; padding: .55rem .7rem;
       border-bottom: 1px solid var(--line-soft);
       background: color-mix(in srgb, var(--panel-elevated) 70%, #000 12%);
     }
     .guidance-toolbar-filters {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .65rem; min-width: 0; flex: 1 1 auto;
+      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .55rem; min-width: 0; flex: 1 1 auto;
     }
-    .guidance-toolbar-filters .ctrl-group { flex-wrap: wrap; gap: .35rem; }
+    .guidance-toolbar-filters .ctrl-label {
+      font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    }
+    .guidance-toolbar-filters .ctrl-group { flex-wrap: wrap; gap: .3rem; }
     .guidance-toolbar-filters .btn {
-      padding: .42rem .72rem; font-size: .95rem;
+      padding: .4rem .65rem; font-size: .88rem; border-radius: 999px;
+    }
+    .guidance-toolbar-filters .btn .n {
+      font-variant-numeric: tabular-nums; opacity: .75; margin-left: .2rem;
+      font-size: .82em;
     }
     .guidance-filter-hot {
       width: .42rem; height: .42rem; border-radius: 50%; background: var(--hot); flex-shrink: 0;
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--hot) 30%, transparent);
-    }
-    .guidance-toolbar-scan {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .65rem; flex-shrink: 0;
-    }
-    .guidance-scan-meta { font-size: .92rem; color: var(--muted); white-space: nowrap; }
-    .guidance-scan-meta.is-scanning { color: var(--accent); }
-    .guidance-primary-strip {
-      margin: .55rem .6rem .15rem;
-      padding: .7rem .8rem;
-      border-radius: var(--radius-md);
-      border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
-      background: color-mix(in srgb, var(--accent) 10%, transparent);
-      display: flex; flex-direction: column; gap: .4rem;
-      cursor: pointer;
-    }
-    .guidance-primary-strip:hover {
-      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
-      background: color-mix(in srgb, var(--accent) 14%, transparent);
-    }
-    .guidance-primary-strip[hidden] { display: none; }
-    .guidance-primary-kicker {
-      font-size: .72rem; font-weight: 650; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--accent);
-    }
-    .guidance-primary-title {
-      font-size: 1rem; font-weight: 550; line-height: 1.35; color: var(--text); margin: 0;
-    }
-    .guidance-primary-cmd {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem;
-    }
-    .guidance-primary-cmd code {
-      font-size: .84rem; font-family: ui-monospace, monospace;
-      color: var(--blue); word-break: break-all; flex: 1 1 12rem;
     }
     .diag-primary {
       padding: .85rem .95rem;
@@ -624,42 +756,73 @@
       margin: 0; font-size: 1.08rem; font-weight: 550; line-height: 1.4; color: var(--text);
     }
     .guidance-index-scroll {
-      flex: 1; overflow: auto; padding: .55rem .6rem;
+      flex: 1; overflow: auto; padding: .45rem .5rem .65rem;
       max-height: min(64vh, 600px);
     }
     .guidance-idx-group-label {
-      padding: 1rem .35rem .45rem; font-size: .78rem; font-weight: 600;
-      letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+      padding: .85rem .45rem .4rem; font-size: .72rem; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
     }
-    .guidance-idx-group-label:first-child { padding-top: .25rem; }
+    .guidance-idx-group-label:first-child { padding-top: .35rem; }
     .guidance-idx-row {
-      display: grid; grid-template-columns: 4px 1fr auto; gap: .55rem .65rem;
-      align-items: center; width: 100%; text-align: left;
-      padding: .62rem .6rem; margin-bottom: 4px;
+      display: grid; grid-template-columns: 4px minmax(0, 1fr); gap: .55rem .7rem;
+      align-items: start; width: 100%; text-align: left;
+      padding: .7rem .7rem; margin-bottom: 5px;
       border: 1px solid transparent; border-radius: var(--radius-md);
-      background: transparent; color: inherit; font-family: inherit; cursor: pointer;
+      background: color-mix(in srgb, #000 12%, transparent);
+      color: inherit; font-family: inherit; cursor: pointer;
     }
-    .guidance-idx-row:hover { background: rgba(255,255,255,.04); border-color: var(--line-soft); }
+    .guidance-idx-row:hover {
+      background: color-mix(in srgb, #fff 4%, transparent);
+      border-color: var(--line-soft);
+    }
     .guidance-idx-row.selected {
-      background: color-mix(in srgb, var(--accent) 11%, transparent);
-      border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
     }
     .guidance-idx-row.resolved { opacity: .55; }
     .guidance-idx-row.guidance-idx-scan { align-items: start; }
-    .guidance-idx-sev { width: 4px; align-self: stretch; min-height: 1.1rem; border-radius: 2px; }
+    .guidance-idx-sev { width: 4px; align-self: stretch; min-height: 2.4rem; border-radius: 2px; }
     .guidance-idx-row.rec-hot .guidance-idx-sev { background: var(--sev-hot); }
     .guidance-idx-row.rec-warn .guidance-idx-sev { background: var(--sev-warn); }
     .guidance-idx-row.rec-info .guidance-idx-sev { background: var(--sev-info); }
     .guidance-idx-row.rec-ok .guidance-idx-sev { background: var(--sev-ok); }
-    .guidance-idx-main { min-width: 0; display: flex; flex-direction: column; gap: .28rem; }
+    .guidance-idx-main { min-width: 0; display: flex; flex-direction: column; gap: .32rem; }
     .guidance-idx-title {
-      display: block; font-size: 0.98rem; font-weight: 500; line-height: 1.35;
+      display: block; font-size: 1rem; font-weight: 600; line-height: 1.3;
       color: var(--text);
+    }
+    .guidance-idx-why {
+      font-size: .9rem; line-height: 1.4; color: var(--text-secondary); font-weight: 400;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
     .guidance-idx-preview {
       display: block; font-size: var(--fs-sm); line-height: 1.4; color: var(--muted); font-weight: 400;
       font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
+    .guidance-idx-tags {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .4rem; margin-top: .1rem;
+    }
+    .guidance-tag {
+      display: inline-flex; align-items: center; gap: .25rem;
+      padding: .12rem .42rem; border-radius: 999px;
+      font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+      border: 1px solid var(--line-soft); color: var(--muted); background: transparent;
+    }
+    .guidance-tag.sev-hot { color: var(--sev-hot); border-color: color-mix(in srgb, var(--sev-hot) 40%, transparent); background: color-mix(in srgb, var(--sev-hot) 10%, transparent); }
+    .guidance-tag.sev-warn { color: var(--sev-warn); border-color: color-mix(in srgb, var(--sev-warn) 40%, transparent); background: color-mix(in srgb, var(--sev-warn) 10%, transparent); }
+    .guidance-tag.sev-info { color: var(--sev-info); border-color: color-mix(in srgb, var(--sev-info) 40%, transparent); background: color-mix(in srgb, var(--sev-info) 10%, transparent); }
+    .guidance-tag.sev-ok { color: var(--sev-ok); border-color: color-mix(in srgb, var(--sev-ok) 40%, transparent); background: color-mix(in srgb, var(--sev-ok) 10%, transparent); }
+    .guidance-tag.live {
+      color: var(--lime);
+      border-color: color-mix(in srgb, var(--lime) 40%, transparent);
+      background: color-mix(in srgb, var(--lime) 10%, transparent);
+    }
+    .guidance-tag.live::before {
+      content: ""; width: .35rem; height: .35rem; border-radius: 50%; background: currentColor;
+    }
+    .guidance-tag.fixed { opacity: .8; }
     .guidance-idx-meta {
       display: flex; align-items: center; flex-shrink: 0;
     }
@@ -680,44 +843,102 @@
     }
     body.cosmic-frosted .guidance-detail { background: var(--panel); }
     .guidance-detail-placeholder {
-      margin: 0; padding: 2.5rem 1.15rem; text-align: center;
-      font-size: 0.98rem; color: var(--muted); line-height: 1.6;
+      margin: 0; padding: 2.2rem 1.15rem; text-align: center;
+      font-size: 1rem; color: var(--muted); line-height: 1.6;
+    }
+    .guidance-detail-placeholder .gd-empty-icon {
+      display: block; width: 2.75rem; height: 2.75rem; margin: 0 auto .85rem;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--sev-ok) 18%, transparent);
+      border: 1px solid color-mix(in srgb, var(--sev-ok) 40%, transparent);
+      position: relative;
+    }
+    .guidance-detail-placeholder .gd-empty-icon::after {
+      content: ""; position: absolute; inset: 28% 22% 32% 28%;
+      border: 2.5px solid var(--sev-ok); border-top: 0; border-right: 0;
+      transform: rotate(-45deg);
+    }
+    .guidance-detail-placeholder strong {
+      display: block; color: var(--text); font-size: 1.15rem; margin-bottom: .35rem;
     }
     .guidance-detail .rec-card {
-      border: 0; background: transparent; padding: 0; gap: 1.35rem; border-left: 0;
+      border: 0; background: transparent; padding: 0; gap: 1.15rem; border-left: 0;
     }
-    .guidance-detail .rec-head { margin-bottom: .35rem; gap: .55rem .65rem; }
-    .guidance-detail .rec-title { font-size: 1.35rem; flex-basis: 100%; line-height: 1.3; }
+    .guidance-detail .rec-head {
+      margin-bottom: .15rem; gap: .5rem .55rem; align-items: center;
+    }
+    .guidance-detail .rec-title {
+      font-size: 1.45rem; flex-basis: 100%; line-height: 1.25; margin: .15rem 0 0;
+      font-weight: 650; letter-spacing: -0.015em;
+    }
     .guidance-detail .rec-body {
-      font-size: 1.08rem; color: var(--text-secondary); line-height: 1.65; margin: 0;
+      font-size: 1.05rem; color: var(--text-secondary); line-height: 1.6; margin: 0;
     }
-    .guidance-detail .rec-meta { margin-top: .15rem; }
-    .guidance-detail .rec-section { margin-top: .65rem; }
+    .guidance-detail .rec-meta { margin-top: .1rem; }
+    .guidance-detail .rec-section { margin-top: .5rem; }
     .guidance-detail .rec-section-title {
-      margin: 0 0 .65rem; font-size: .82rem; font-weight: 600;
-      letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+      margin: 0 0 .55rem; font-size: .75rem; font-weight: 700;
+      letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
     }
+    .guidance-detail .rec-why {
+      padding: .75rem .85rem;
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, #000 18%, transparent);
+      border: 1px solid var(--line-soft);
+    }
+    .guidance-detail .rec-why .rec-body { margin: 0; }
     .guidance-detail .rec-steps-open { max-height: none; overflow: visible; }
-    .guidance-detail .diag-scan { display: flex; flex-direction: column; gap: 1.1rem; }
+    .guidance-detail .rec-action-bar {
+      margin-top: .25rem;
+      padding: .9rem 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+      background: color-mix(in srgb, var(--accent) 7%, transparent);
+    }
+    .guidance-detail .rec-action-label {
+      display: block; font-size: .75rem; font-weight: 700; letter-spacing: .07em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: .45rem;
+    }
+    .guidance-detail .diag-scan { display: flex; flex-direction: column; gap: 1rem; }
     .guidance-detail .diag-item { border: 0; background: transparent; padding: 0; border-left: 0; }
-    .guidance-detail .diag-head { margin-bottom: .25rem; gap: .55rem .7rem; }
-    .guidance-detail .diag-title { font-size: 1.35rem; line-height: 1.3; margin: 0; }
-    .guidance-detail .diag-body { font-size: 1.08rem; line-height: 1.65; margin: 0; }
+    .guidance-detail .diag-head {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .55rem; margin-bottom: .15rem;
+    }
+    .guidance-detail .diag-cat {
+      font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+    }
+    .guidance-detail .diag-title { font-size: 1.4rem; line-height: 1.25; margin: .2rem 0 0; flex-basis: 100%; font-weight: 650; }
+    .guidance-detail .diag-body { font-size: 1.05rem; line-height: 1.6; margin: 0; color: var(--text-secondary); }
     .guidance-detail .diag-pre {
-      font-size: .84rem; line-height: 1.5; max-height: 280px; overflow: auto;
+      font-size: .84rem; line-height: 1.5; max-height: 240px; overflow: auto;
       background: #12141a; border: 1px solid var(--line); border-radius: 8px;
       padding: .75rem .85rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
       font-family: ui-monospace, monospace; margin: 0;
       overscroll-behavior: contain;
     }
     .guidance-detail .diag-source {
-      margin: 0; font-size: .92rem; color: var(--muted); line-height: 1.5;
+      margin: 0; font-size: .9rem; color: var(--muted); line-height: 1.5;
     }
     .guidance-detail .diag-source code {
       font-size: .84rem; color: var(--blue); word-break: break-all;
     }
+    .guidance-detail .diag-fix {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+    }
+    .guidance-detail .diag-fix code {
+      flex: 1 1 12rem; font-size: .9rem; font-family: ui-monospace, monospace;
+      color: var(--blue); word-break: break-all;
+      padding: .4rem .55rem; border-radius: 6px;
+      background: color-mix(in srgb, #000 35%, transparent);
+      border: 1px solid var(--line-soft);
+    }
     .guidance-index-empty {
-      margin: 1rem .5rem 1.25rem; font-size: 1rem; color: var(--muted); line-height: 1.55;
+      margin: 1.25rem .75rem; padding: 1.25rem 1rem; text-align: center;
+      font-size: 1rem; color: var(--muted); line-height: 1.55;
+      border: 1px dashed var(--line-soft); border-radius: var(--radius-md);
+    }
+    .guidance-index-empty strong {
+      display: block; color: var(--text); font-size: 1.05rem; margin-bottom: .35rem;
     }
     .guidance-index-games {
       padding: .65rem .7rem .7rem; border-bottom: 1px solid var(--line);
@@ -5316,28 +5537,44 @@
 
     <div id="pageFixes" class="page">
     <section class="card guidance-page section-target" id="insightsSection">
-      <div class="guidance-head-compact">
-        <h2>Guidance</h2>
-        <div class="guidance-head-stat" id="guidanceHeadStat">—</div>
+      <!-- Insights / Adrenaline-style health overview -->
+      <div class="guidance-hero" id="guidanceHero" data-health="ok">
+        <div class="guidance-hero-status">
+          <span class="guidance-hero-kicker">Guidance</span>
+          <h2 class="guidance-hero-title" id="guidanceHeroTitle">Checking…</h2>
+          <p class="guidance-hero-sub" id="guidanceHeroSub">Loading recommendations…</p>
+        </div>
+        <div class="guidance-hero-stats" id="guidanceHeroStats" role="group" aria-label="Issue severity counts">
+          <!-- filled by JS -->
+        </div>
+        <div class="guidance-hero-actions">
+          <button class="btn primary-scan" type="button" id="diagRefresh">Scan system</button>
+          <span class="guidance-scan-meta" id="diagMeta">—</span>
+        </div>
       </div>
+
+      <!-- Start-here remediation banner (hidden when all clear) -->
+      <div class="guidance-start" id="guidanceStartHere" hidden>
+        <div class="guidance-start-main">
+          <span class="guidance-start-kicker">Start here</span>
+          <p class="guidance-start-title" id="guidanceStartTitle"></p>
+          <p class="guidance-start-why" id="guidanceStartWhy"></p>
+          <div class="guidance-start-cmd" id="guidanceStartCmd" hidden>
+            <code id="guidanceStartFix"></code>
+            <button class="copy-btn" type="button" id="guidanceStartCopy">Copy</button>
+          </div>
+        </div>
+        <div class="guidance-start-side">
+          <button class="btn" type="button" id="guidanceStartOpen">Open details →</button>
+        </div>
+      </div>
+
       <div class="guidance-split">
         <aside class="guidance-index section-target" id="guidanceIndex">
           <div class="guidance-toolbar" id="guidanceIndexFilters">
             <div class="guidance-toolbar-filters">
-              <span class="ctrl-label">Show</span>
+              <span class="ctrl-label">Browse</span>
               <div class="ctrl-group" id="guidanceIndexFilterChips"></div>
-            </div>
-            <div class="guidance-toolbar-scan">
-              <button class="btn" type="button" id="diagRefresh">Scan</button>
-              <span class="guidance-scan-meta" id="diagMeta">—</span>
-            </div>
-          </div>
-          <div class="guidance-primary-strip" id="guidancePrimaryStrip" hidden>
-            <span class="guidance-primary-kicker">Do this first</span>
-            <p class="guidance-primary-title" id="guidancePrimaryTitle"></p>
-            <div class="guidance-primary-cmd" id="guidancePrimaryCmd" hidden>
-              <code id="guidancePrimaryFix"></code>
-              <button class="copy-btn" type="button" id="guidancePrimaryCopy">Copy</button>
             </div>
           </div>
           <div class="guidance-index-games" id="guidanceGamesDock" hidden>
@@ -5357,7 +5594,11 @@
           <div class="guidance-index-scroll stable-scroll" id="guidanceIndexList"></div>
         </aside>
         <div class="guidance-detail section-target" id="guidanceDetail">
-          <p class="guidance-detail-placeholder" id="guidanceDetailEmpty">Pick an item on the left.<br>Details and fix steps show here.</p>
+          <div class="guidance-detail-placeholder" id="guidanceDetailEmpty">
+            <span class="gd-empty-icon" aria-hidden="true"></span>
+            <strong>Select a recommendation</strong>
+            Why it matters and what to do show here.
+          </div>
           <div id="guidanceDetailCard"></div>
         </div>
       </div>
@@ -6905,6 +7146,12 @@
       el.setAttribute('stroke-dasharray', `${p.toFixed(1)} 100`);
     }
     let activeTab = sessionStorage.getItem('pulse-tab') || 'dashboard';
+    // Deep-link: ?tab=guidance|fixes|dashboard|options (A/B + second-monitor bookmarks)
+    try {
+      const tabQ = new URLSearchParams(location.search).get('tab');
+      if (tabQ === 'guidance' || tabQ === 'fixes') activeTab = 'fixes';
+      else if (tabQ === 'dashboard' || tabQ === 'options') activeTab = tabQ;
+    } catch (_) { /* ignore */ }
 
     document.addEventListener('toggle', e => {
       const d = e.target;
@@ -7230,39 +7477,117 @@
       });
     }
 
-    function updateGuidancePrimaryStrip(primary, running) {
-      const strip = document.getElementById('guidancePrimaryStrip');
-      if (!strip) return;
-      // Quiet until sick: hide strip when clean / still first-scanning
-      if (!primary || running) {
-        strip.hidden = true;
+    function openGuidancePick(pickId, filter) {
+      if (filter) guidanceIndexFilter = filter;
+      renderGuidanceFilters();
+      renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, pickId);
+      selectGuidanceHint(pickId, { scroll: true });
+      setTab('fixes', null, false);
+    }
+
+    function firstActionCmd(h) {
+      if (!h) return '';
+      if (h.fix) return String(h.fix).trim();
+      const a = (h.actions || []).find(x => x?.cmd);
+      return a?.cmd ? String(a.cmd).trim() : '';
+    }
+
+    function pickStartHereItem() {
+      // Prefer live hot > hot > live warn > warn > scan primary
+      const outstanding = guidanceOutstanding(lastGuidanceSummaryHints || []);
+      const rank = (h) => {
+        const lv = h.level || 'info';
+        const sev = { hot: 0, warn: 1, info: 2, ok: 9 }[lv] ?? 5;
+        const live = h.condition_live ? 0 : 1;
+        return sev * 10 + live;
+      };
+      const sorted = [...outstanding].sort((a, b) => rank(a) - rank(b));
+      if (sorted[0]) {
+        return {
+          kind: 'hint',
+          id: sorted[0].insight_id,
+          pick: sorted[0].insight_id,
+          sev: sorted[0].level || 'info',
+          title: sorted[0].title,
+          why: sorted[0].text || '',
+          fix: firstActionCmd(sorted[0]),
+          filter: guidanceCategory(sorted[0]) === 'steam' ? 'steam' : 'all',
+        };
+      }
+      const p = lastDiagPrimary;
+      if (p && p.id !== 'all-clear') {
+        return {
+          kind: 'scan',
+          id: p.id,
+          pick: `diag:${p.id}`,
+          sev: p.severity || 'info',
+          title: p.primary_hint || p.title,
+          why: p.text || '',
+          fix: (p.fix || '').trim(),
+          filter: 'scan',
+        };
+      }
+      const s = lastGuidanceScanFindings[0];
+      if (s) {
+        return {
+          kind: 'scan',
+          id: s.id,
+          pick: `diag:${s.id}`,
+          sev: s.severity || 'info',
+          title: s.primary_hint || s.title,
+          why: s.text || '',
+          fix: (s.fix || '').trim(),
+          filter: 'scan',
+        };
+      }
+      return null;
+    }
+
+    function updateGuidanceStartHere() {
+      const banner = document.getElementById('guidanceStartHere');
+      if (!banner) return;
+      const item = pickStartHereItem();
+      if (!item) {
+        banner.hidden = true;
         return;
       }
-      const title = primary.primary_hint || primary.title || 'Take a look';
-      const fix = (primary.fix || '').trim();
-      document.getElementById('guidancePrimaryTitle').textContent = title;
-      const cmd = document.getElementById('guidancePrimaryCmd');
-      const fixEl = document.getElementById('guidancePrimaryFix');
-      if (fix && cmd && fixEl) {
-        fixEl.textContent = fix;
+      banner.hidden = false;
+      banner.dataset.sev = item.sev || 'info';
+      const titleEl = document.getElementById('guidanceStartTitle');
+      const whyEl = document.getElementById('guidanceStartWhy');
+      if (titleEl) titleEl.textContent = item.title || 'Recommendation';
+      if (whyEl) {
+        // One short line — wall of conf dumps belongs in the detail pane
+        let why = (item.why || '').replace(/\s+/g, ' ').trim();
+        if (why.length > 140) why = `${why.slice(0, 137)}…`;
+        whyEl.textContent = why;
+        whyEl.hidden = !why;
+      }
+      const cmd = document.getElementById('guidanceStartCmd');
+      const fixEl = document.getElementById('guidanceStartFix');
+      if (item.fix && cmd && fixEl) {
+        fixEl.textContent = item.fix;
         cmd.hidden = false;
       } else if (cmd) {
         cmd.hidden = true;
       }
-      strip.hidden = false;
-      strip.onclick = (ev) => {
+      const open = () => openGuidancePick(item.pick, item.filter);
+      banner.onclick = (ev) => {
         if (ev.target?.closest?.('button')) return;
-        const pick = `diag:${primary.id}`;
-        guidanceIndexFilter = 'scan';
-        renderGuidanceFilters();
-        renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, pick);
-        selectGuidanceHint(pick, { scroll: true });
+        open();
       };
-      const copyBtn = document.getElementById('guidancePrimaryCopy');
-      if (copyBtn && fix) {
+      document.getElementById('guidanceStartOpen')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        open();
+      }, { once: true });
+      // re-bind open each refresh without stacking listeners — use onclick
+      const openBtn = document.getElementById('guidanceStartOpen');
+      if (openBtn) openBtn.onclick = (ev) => { ev.stopPropagation(); open(); };
+      const copyBtn = document.getElementById('guidanceStartCopy');
+      if (copyBtn && item.fix) {
         copyBtn.onclick = (ev) => {
           ev.stopPropagation();
-          copyText(fix, copyBtn);
+          copyText(item.fix, copyBtn);
         };
       }
     }
@@ -7288,12 +7613,12 @@
         } else if (d.job?.error) {
           metaEl.textContent = 'Scan error';
         } else if (!d.scanned_at) {
-          metaEl.textContent = 'Not scanned yet';
+          metaEl.textContent = 'Optional deep check';
         } else {
-          const when = new Date(d.scanned_at * 1000).toLocaleTimeString();
+          const when = new Date(d.scanned_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
           if (flagged) metaEl.textContent = `${flagged} flagged · ${when}`;
           else if (scan.length) metaEl.textContent = `${scan.length} notes · ${when}`;
-          else metaEl.textContent = `All clear · ${when}`;
+          else metaEl.textContent = `Clean · ${when}`;
         }
       }
       const btn = document.getElementById('diagRefresh');
@@ -7314,7 +7639,8 @@
       } else if (!lastDiagPrimary && scan[0]) {
         lastDiagPrimary = scan[0];
       }
-      updateGuidancePrimaryStrip(lastDiagPrimary, running);
+      updateGuidanceStartHere();
+      renderGuidanceHero(lastGuidanceSummaryHints);
       renderGuidanceFilters();
       if (lastGuidanceIndexGroups.length || lastGuidanceFixedHints.length || lastGuidanceScanFindings.length || diagHasScanned) {
         renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
@@ -10619,34 +10945,49 @@
       return `diag:${f.id}`;
     }
 
+    function guidanceSevTag(lv) {
+      const label = SEV_LABEL[lv] || lv || 'info';
+      return `<span class="guidance-tag sev-${esc(lv || 'info')}">${esc(label)}</span>`;
+    }
+
     function guidanceIndexRowHtml(h, selected) {
       const lv = h.level || 'info';
       const sid = h.insight_id || 'insight';
       const resolved = hintUserStatus(h) === 'resolved';
       const live = h.condition_live && !resolved;
-      const statusDot = resolved
-        ? '<span class="guidance-idx-dot fixed" title="Marked fixed" aria-label="Fixed"></span>'
-        : (live ? '<span class="guidance-idx-dot live" title="Happening now" aria-label="Live"></span>' : '');
+      const why = (h.text || '').trim();
+      const tags = [
+        guidanceSevTag(lv),
+        live ? '<span class="guidance-tag live">Live now</span>' : '',
+        resolved ? '<span class="guidance-tag fixed">Fixed</span>' : '',
+      ].filter(Boolean).join('');
       return `<button type="button" class="guidance-idx-row rec-${lv}${selected ? ' selected' : ''}${resolved ? ' resolved' : ''}" data-guidance-pick="${esc(sid)}" id="guidance-pick-${esc(sid)}" aria-label="${esc(h.title)}">
         <span class="guidance-idx-sev" aria-hidden="true"></span>
         <span class="guidance-idx-main">
           <span class="guidance-idx-title">${esc(h.title)}</span>
+          ${why ? `<span class="guidance-idx-why">${esc(why)}</span>` : ''}
+          <span class="guidance-idx-tags">${tags}</span>
         </span>
-        ${statusDot ? `<span class="guidance-idx-meta">${statusDot}</span>` : '<span class="guidance-idx-meta" aria-hidden="true"></span>'}
       </button>`;
     }
 
     function guidanceScanIndexRowHtml(f, selected) {
       const lv = f.severity || 'info';
       const pickId = guidanceScanPickId(f);
+      const why = (f.text || '').trim();
       const preview = guidanceScanLogPreview(f);
+      const tags = [
+        guidanceSevTag(lv),
+        '<span class="guidance-tag">Scan</span>',
+      ].join('');
       return `<button type="button" class="guidance-idx-row guidance-idx-scan rec-${lv}${selected ? ' selected' : ''}" data-guidance-pick="${esc(pickId)}" id="guidance-pick-${esc(pickId)}" aria-label="${esc(f.title)}">
         <span class="guidance-idx-sev" aria-hidden="true"></span>
         <span class="guidance-idx-main">
           <span class="guidance-idx-title">${esc(f.title)}</span>
+          ${why ? `<span class="guidance-idx-why">${esc(why)}</span>` : ''}
           ${preview ? `<span class="guidance-idx-preview">${esc(preview)}</span>` : ''}
+          <span class="guidance-idx-tags">${tags}</span>
         </span>
-        <span class="guidance-idx-meta" aria-hidden="true"></span>
       </button>`;
     }
 
@@ -10659,24 +11000,29 @@
       const el = document.getElementById('guidanceIndexFilterChips');
       if (!el) return;
       const c = guidanceSectionCounts;
+      const liveN = (lastGuidanceSummaryHints || []).filter(h => h.condition_live && hintUserStatus(h) === 'outstanding').length;
+      const allN = (c.steam || 0) + (c.system || 0) + (c.resolutions || 0);
       const filters = [
-        { key: 'all', label: 'All' },
+        { key: 'all', label: 'All issues', n: allN || null, always: true },
+        { key: 'live', label: 'Live now', n: liveN, always: liveN > 0 },
         { key: 'steam', label: 'Steam', n: c.steam, hot: c.steam_hot },
-        { key: 'system', label: 'Perf', n: c.system, hot: c.system_hot },
-        { key: 'resolutions', label: 'Resolutions', n: c.resolutions, hot: c.resolutions_hot },
-        // Scan stays available after first run even when quiet (All clear)
-        { key: 'scan', label: 'Scan', n: c.scan, hot: c.scan_hot, always: c.scan_always },
+        { key: 'system', label: 'Performance', n: c.system, hot: c.system_hot },
+        { key: 'resolutions', label: 'Tips', n: c.resolutions, hot: c.resolutions_hot },
+        // Scan stays available after first run even when quiet
+        { key: 'scan', label: 'System scan', n: c.scan, hot: c.scan_hot, always: c.scan_always },
         { key: 'fixed', label: 'Fixed', n: c.fixed },
       ].filter(f => f.key === 'all' || f.always || (f.n || 0) > 0);
       el.innerHTML = filters.map(f => {
         const cls = ['btn', guidanceIndexFilter === f.key ? 'active' : ''].filter(Boolean).join(' ');
         const hotDot = f.hot ? '<span class="guidance-filter-hot" aria-hidden="true"></span>' : '';
-        return `<button type="button" class="${cls}" data-guidance-filter="${f.key}">${hotDot}${f.label}</button>`;
+        const count = (f.n != null && f.n > 0) ? `<span class="n">${f.n}</span>` : '';
+        return `<button type="button" class="${cls}" data-guidance-filter="${f.key}">${hotDot}${f.label}${count}</button>`;
       }).join('');
       el.querySelectorAll('[data-guidance-filter]').forEach(btn => {
         btn.onclick = () => {
           guidanceIndexFilter = btn.dataset.guidanceFilter;
           renderGuidanceFilters();
+          renderGuidanceHero(lastGuidanceSummaryHints);
           renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
           selectGuidanceHint(lastSelectedGuidanceId, { scroll: false });
         };
@@ -10700,6 +11046,30 @@
           : [];
       } else if (guidanceIndexFilter === 'scan') {
         visibleGroups = scanGroup ? [scanGroup] : [];
+      } else if (guidanceIndexFilter === 'live') {
+        visibleGroups = visibleGroups
+          .map(g => ({
+            ...g,
+            hints: sortGuidanceHints(g.hints.filter(h => h.condition_live && hintUserStatus(h) === 'outstanding')),
+            isScan: false,
+          }))
+          .filter(g => g.hints.length);
+      } else if (guidanceIndexFilter === 'hot' || guidanceIndexFilter === 'warn' || guidanceIndexFilter === 'info') {
+        const want = guidanceIndexFilter;
+        visibleGroups = visibleGroups
+          .map(g => ({
+            ...g,
+            hints: sortGuidanceHints(g.hints.filter(h => (h.level || 'info') === want)),
+            isScan: false,
+          }))
+          .filter(g => g.hints.length);
+        // Include matching scan findings under severity filters
+        if (scanGroup) {
+          const scanHits = scanGroup.hints.filter(f => (f.severity || 'info') === want);
+          if (scanHits.length) {
+            visibleGroups.push({ key: 'scan', label: 'System scan', hints: scanHits, isScan: true });
+          }
+        }
       } else if (guidanceIndexFilter !== 'all') {
         visibleGroups = visibleGroups
           .filter(g => g.key === guidanceIndexFilter)
@@ -10727,17 +11097,30 @@
       }
 
       if (!visibleGroups.length) {
-        let msg = 'Nothing in this view. Try another filter or run Scan.';
+        let title = 'Nothing here';
+        let body = 'Try another filter, or run <strong>Scan system</strong>.';
         if (guidanceIndexFilter === 'scan') {
           if (diagCache?.job?.running || diagCache?.pending) {
-            msg = 'Scanning logs and system health…';
+            title = 'Scanning…';
+            body = 'Checking journals, Steam logs, libraries, and Vulkan.';
           } else if (diagHasScanned || diagCache?.scanned_at) {
-            msg = 'All clear — no actionable scan findings.';
+            title = 'Scan is clean';
+            body = 'No actionable system findings right now.';
           } else {
-            msg = 'Press <strong>Scan</strong> above when something feels wrong.';
+            title = 'No scan yet';
+            body = 'Press <strong>Scan system</strong> when something feels wrong.';
           }
+        } else if (guidanceIndexFilter === 'live') {
+          title = 'Nothing live';
+          body = 'No issues firing right this second. Outstanding items may still need attention.';
+        } else if (guidanceIndexFilter === 'fixed') {
+          title = 'No fixed items';
+          body = 'Mark something fixed from the detail pane and it shows up here.';
+        } else if (!lastGuidanceSummaryHints?.length && !lastGuidanceScanFindings.length) {
+          title = 'All clear';
+          body = 'No outstanding recommendations. Run a system scan anytime for a deeper check.';
         }
-        listEl.innerHTML = `<p class="guidance-index-empty">${msg}</p>`;
+        listEl.innerHTML = `<div class="guidance-index-empty"><strong>${title}</strong>${body}</div>`;
         lastSelectedGuidanceId = null;
         renderGuidanceDetail(null);
         return;
@@ -10782,28 +11165,35 @@
       if (!empty || !card) return;
       if (!f) {
         empty.hidden = false;
+        empty.innerHTML = `
+          <span class="gd-empty-icon" aria-hidden="true"></span>
+          <strong>Select a recommendation</strong>
+          Why it matters and what to do show here.`;
         card.innerHTML = '';
         return;
       }
       empty.hidden = true;
       const hint = (f.primary_hint || '').trim();
       const fix = (f.fix || '').trim();
-      // One next step first — never bury copy-paste under a log dump
+      // What to do first — never bury copy-paste under a log dump
       const primaryBlock = (hint || fix) ? `
         <div class="diag-primary">
-          <span class="diag-primary-label">Do this first</span>
+          <span class="diag-primary-label">What to do</span>
           ${hint ? `<p class="diag-primary-text">${esc(hint)}</p>` : ''}
-          ${fix ? `<div class="diag-fix"><code>${esc(fix)}</code><button class="copy-btn" type="button" data-copy="${esc(fix)}">Copy</button></div>` : ''}
+          ${fix ? `<div class="diag-fix"><code>${esc(fix)}</code><button class="copy-btn" type="button" data-copy="${esc(fix)}">Copy command</button></div>` : ''}
         </div>` : '';
       card.innerHTML = `
         <article class="diag-scan diag-item ${f.severity}">
           <div class="diag-head">
-            <span class="diag-cat">${DIAG_CAT_LABEL[f.category] || f.category}</span>
+            <span class="diag-cat">${DIAG_CAT_LABEL[f.category] || f.category || 'Scan'}</span>
             ${sevBadge(f.severity, SEV_LABEL[f.severity] || f.severity)}
             <h3 class="diag-title">${esc(f.title)}</h3>
           </div>
           ${primaryBlock}
-          <p class="diag-body">${esc(f.text)}</p>
+          <div class="rec-section rec-why">
+            <h4 class="rec-section-title">Why it matters</h4>
+            <p class="diag-body">${esc(f.text)}</p>
+          </div>
           ${guidanceScanEvidenceHtml(f)}
         </article>`;
       card.querySelectorAll('.diag-fix .copy-btn').forEach(btn => {
@@ -10816,7 +11206,15 @@
       const card = document.getElementById('guidanceDetailCard');
       if (!empty || !card) return;
       if (!h) {
+        const clear = !(lastGuidanceSummaryHints || []).length && !lastGuidanceScanFindings.length;
         empty.hidden = false;
+        empty.innerHTML = clear
+          ? `<span class="gd-empty-icon" aria-hidden="true"></span>
+             <strong>You're in good shape</strong>
+             No outstanding recommendations. Run <em>Scan system</em> if something feels off.`
+          : `<span class="gd-empty-icon" aria-hidden="true"></span>
+             <strong>Select a recommendation</strong>
+             Why it matters and what to do show here.`;
         card.innerHTML = '';
         return;
       }
@@ -10852,21 +11250,76 @@
       }
     }
 
-    function updateGuidanceHeadStat(issues) {
+    function renderGuidanceHero(issues) {
       if (issues) lastGuidanceSummaryHints = issues;
-      issues = lastGuidanceSummaryHints;
-      const el = document.getElementById('guidanceHeadStat');
-      if (!el) return;
-      const liveN = issues.filter(h => h.condition_live).length;
-      const totalActive = issues.length;
-      if (!totalActive) {
-        el.innerHTML = '<strong>All clear</strong> — nothing outstanding';
-        return;
+      issues = lastGuidanceSummaryHints || [];
+      const outstanding = issues.filter(h => hintUserStatus(h) === 'outstanding');
+      const hot = outstanding.filter(h => h.level === 'hot').length;
+      const warn = outstanding.filter(h => h.level === 'warn').length;
+      const info = outstanding.filter(h => h.level === 'info' || !h.level).length;
+      const liveN = outstanding.filter(h => h.condition_live).length;
+      const scanN = lastGuidanceScanFindings.length;
+      const total = outstanding.length + scanN;
+
+      const hero = document.getElementById('guidanceHero');
+      const titleEl = document.getElementById('guidanceHeroTitle');
+      const subEl = document.getElementById('guidanceHeroSub');
+      const statsEl = document.getElementById('guidanceHeroStats');
+      if (!hero || !titleEl || !subEl || !statsEl) return;
+
+      let health = 'ok';
+      let title = 'All clear';
+      let sub = 'No outstanding recommendations. Your rig looks healthy.';
+      if (hot > 0) {
+        health = 'hot';
+        title = 'Needs attention';
+        sub = `${hot} critical · fix these before chasing smaller tweaks.`;
+      } else if (warn > 0) {
+        health = 'warn';
+        title = 'Worth a look';
+        sub = `${warn} important item${warn === 1 ? '' : 's'} outstanding.`;
+      } else if (total > 0) {
+        health = 'warn';
+        title = 'A few notes';
+        sub = `${total} recommendation${total === 1 ? '' : 's'} available.`;
       }
-      el.innerHTML = [
-        `<strong>${totalActive}</strong> outstanding`,
-        liveN ? `<span class="guidance-rail-live">${liveN} live now</span>` : '',
-      ].filter(Boolean).join(' · ');
+      if (liveN > 0) {
+        sub += ` <span class="live-count">${liveN} live now</span>`;
+      }
+      hero.dataset.health = health;
+      titleEl.textContent = title;
+      subEl.innerHTML = sub;
+
+      const stats = [
+        { key: 'hot', n: hot, label: 'Critical', cls: 'hot' },
+        { key: 'warn', n: warn, label: 'Important', cls: 'warn' },
+        { key: 'info', n: info, label: 'Moderate', cls: 'info' },
+        { key: 'live', n: liveN, label: 'Live now', cls: 'live' },
+      ];
+      statsEl.innerHTML = stats.map(s => {
+        const active = guidanceIndexFilter === s.key ? ' is-active' : '';
+        return `<button type="button" class="guidance-stat ${s.cls}${active}" data-guidance-sev="${s.key}" title="Show ${s.label.toLowerCase()}">
+          <span class="n">${s.n}</span>
+          <span class="lbl">${s.label}</span>
+        </button>`;
+      }).join('');
+      statsEl.querySelectorAll('[data-guidance-sev]').forEach(btn => {
+        btn.onclick = () => {
+          const key = btn.dataset.guidanceSev;
+          // Toggle: click active severity → back to all
+          guidanceIndexFilter = guidanceIndexFilter === key ? 'all' : key;
+          renderGuidanceFilters();
+          renderGuidanceHero(lastGuidanceSummaryHints);
+          renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
+          selectGuidanceHint(lastSelectedGuidanceId, { scroll: false });
+        };
+      });
+      updateGuidanceStartHere();
+    }
+
+    function updateGuidanceHeadStat(issues) {
+      // Back-compat name used by renderFixes / patch path
+      renderGuidanceHero(issues);
     }
 
     function guidanceOutstanding(hints) {
@@ -11050,7 +11503,7 @@
       const statusBadge = resolved
         ? '<span class="rec-status resolved">Fixed</span>'
         : h.condition_live
-          ? '<span class="rec-status live">Live</span>'
+          ? '<span class="rec-status live">Live now</span>'
           : '<span class="rec-status outstanding">Outstanding</span>';
       const markFixedBtn = outstanding
         ? `<button class="btn warn-hide" type="button" data-resolve-iid="${esc(sid)}" title="Mark as fixed">Mark fixed</button>`
@@ -11074,28 +11527,48 @@
       // Read-only: never one-click Fix — always-visible <pre><code> + Copy
       const scriptBlock = hasScript ? `
         <div class="rec-action-bar rec-script-readonly">
-          <span class="rec-action-label">Recommended command</span>
-          <p class="fix-risk-warn">Warning: Review commands before running them in your terminal. Execute at your own risk.</p>
+          <span class="rec-action-label">What to do · command</span>
+          <p class="fix-risk-warn">Review before running in a terminal. You execute at your own risk.</p>
           <div class="rec-script-toolbar rec-actions" data-fix-row="${esc(sid)}">
-            <button class="script-btn" type="button" data-copy-script-iid="${esc(sid)}">Copy to Clipboard</button>
+            <button class="script-btn" type="button" data-copy-script-iid="${esc(sid)}">Copy command</button>
             <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>
             ${h.requires_root ? '<span class="fix-root-note">Requires root</span>' : ''}
           </div>
           <pre class="script-pre" data-script-pre data-script-iid="${esc(sid)}"${cachedScript ? ' data-loaded="1"' : ''}><code>${cachedScript ? esc(cachedScript) : 'Loading script…'}</code></pre>
         </div>` : (h.actions || []).some(a => a.cmd) ? `
         <div class="rec-action-bar">
-          <p class="fix-risk-warn">Warning: Review commands before running them in your terminal. Execute at your own risk.</p>
+          <span class="rec-action-label">What to do</span>
+          <p class="fix-risk-warn">Review before running in a terminal. You execute at your own risk.</p>
         </div>` : '';
       const stepCount = (h.actions || []).length;
       const stepsBlock = steps ? (isDetail ? `
         <div class="rec-section">
-          <h4 class="rec-section-title">Steps${stepCount ? ` · ${stepCount}` : ''}</h4>
+          <h4 class="rec-section-title">What to do${stepCount ? ` · ${stepCount} steps` : ''}</h4>
           <div class="rec-steps rec-steps-open">${steps}</div>
         </div>` : `
         <details class="rec-more" data-open-key="hint-${domId}-steps">
           <summary>${stepCount} steps</summary>
           <div class="rec-steps">${steps}</div>
         </details>`) : '';
+      const whyBlock = isDetail
+        ? `<div class="rec-section rec-why">
+            <h4 class="rec-section-title">Why it matters</h4>
+            <p class="rec-body">${esc(h.text)}</p>
+            ${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}
+          </div>`
+        : `<p class="rec-body">${esc(h.text)}</p>${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}`;
+      // Full script is secondary to the step list — label it as optional deep dive
+      const scriptBlockDetail = hasScript ? `
+        <div class="rec-action-bar rec-script-readonly">
+          <span class="rec-action-label">Full fix script</span>
+          <p class="fix-risk-warn">Review before running in a terminal. You execute at your own risk.</p>
+          <div class="rec-script-toolbar rec-actions" data-fix-row="${esc(sid)}">
+            <button class="script-btn" type="button" data-copy-script-iid="${esc(sid)}">Copy script</button>
+            <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>
+            ${h.requires_root ? '<span class="fix-root-note">Requires root</span>' : ''}
+          </div>
+          <pre class="script-pre" data-script-pre data-script-iid="${esc(sid)}"${cachedScript ? ' data-loaded="1"' : ''}><code>${cachedScript ? esc(cachedScript) : 'Loading script…'}</code></pre>
+        </div>` : '';
       const detailHead = isDetail
         ? `<header class="rec-head">
             ${statusBadge}
@@ -11112,12 +11585,10 @@
             <h3 class="rec-title">${esc(h.title)}</h3>
             ${headActions ? `<span class="rec-actions-head">${headActions}</span>` : ''}
           </header>`;
+      // Detail order (Insights / Adrenaline): title → steps you can take → full script → why
       return `<article class="rec-card rec-${lv}${resolved ? ' rec-stale' : ''}" data-level="${lv}" data-iid="${esc(sid)}" id="${domId}">
         ${detailHead}
-        <p class="rec-body">${esc(h.text)}</p>
-        ${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}
-        ${stepsBlock}
-        ${scriptBlock}
+        ${isDetail ? `${stepsBlock}${scriptBlockDetail}${whyBlock}` : `${whyBlock}${stepsBlock}${scriptBlock}`}
       </article>`;
     }
 
