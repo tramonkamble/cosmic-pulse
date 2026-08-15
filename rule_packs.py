@@ -591,10 +591,23 @@ def match_pack(pack: dict, metrics: dict) -> bool:
 
 
 def _resolve_games(emit: dict, metrics: dict) -> list[str]:
+    """Normalize emit.games to a list of scope ids.
+
+    YAML often writes ``games: all`` (string). Iterating a bare string produced
+    the classic ``['a', 'l', 'l']`` bug — treat strings as single tokens.
+    """
     games = emit.get("games")
     if games is None:
         return ["all"]
-    if games == "active":
+    if isinstance(games, str):
+        token = games.strip()
+        if not token or token in ("all", "*"):
+            return ["all"]
+        if token == "active":
+            appid = _get_path(metrics, "game.appid")
+            return [str(appid)] if appid else ["all"]
+        return [token]
+    if games == "active":  # defensive if a non-str slipped through
         appid = _get_path(metrics, "game.appid")
         return [str(appid)] if appid else ["all"]
     out: list[str] = []

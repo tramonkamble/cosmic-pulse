@@ -18,7 +18,7 @@ rules:
         settings or use the Guidance steps to list sinks and set a default.
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: List sinks
         kind: cmd
@@ -44,7 +44,7 @@ rules:
         switch default output to your DAC/headphones (KDE Sound / pavucontrol).
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Show devices
         kind: cmd
@@ -68,7 +68,7 @@ rules:
         if needed.
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Show devices
         kind: cmd
@@ -92,7 +92,7 @@ rules:
         Prefer 48000 unless you know you need something else.
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Show clock settings
         kind: cmd
@@ -115,7 +115,7 @@ rules:
         crackles. Pulse will not rewrite your PipeWire conf automatically.
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Show quantum
         kind: cmd
@@ -141,7 +141,7 @@ rules:
         for game audio. Sample: {audio.xrun_sample}
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Show settings
         kind: cmd
@@ -169,7 +169,7 @@ rules:
         restart PipeWire (see Guidance steps). Session-only: force-quantum 512–1024.
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Show live clock
         kind: cmd
@@ -196,7 +196,7 @@ rules:
         systemctl --user restart pipewire pipewire-pulse wireplumber
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Open user conf dir
         kind: cmd
@@ -224,7 +224,7 @@ rules:
         and restart PipeWire.
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Open conf dir
         kind: cmd
@@ -246,7 +246,7 @@ rules:
         for gaming, or lower HDMI priority.session when you play.
       bucket: audio
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Open WirePlumber conf
         kind: cmd

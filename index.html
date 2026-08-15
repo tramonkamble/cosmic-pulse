@@ -520,337 +520,394 @@
       font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em;
       text-transform: uppercase; color: var(--muted);
     }
-    /* ── Guidance page (Insights / Adrenaline / Grafana style) ── */
+    /* ── Guidance (pro surface) ─────────────────────────────────
+       Hierarchy: status → primary action → browse → detail
+       Color: severity for status only; accent for interaction; quiet chrome
+       ─────────────────────────────────────────────────────────── */
     .guidance-page {
-      display: flex; flex-direction: column; gap: 0.85rem;
-      /* fill viewport under sticky header — second-monitor coach */
-      min-height: calc(100vh - var(--header-scroll-offset, 6.5rem) - 1.5rem);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: calc(100vh - var(--header-scroll-offset, 6.5rem) - 1.25rem);
     }
+
+    /* Status strip — compact, severity-led edge */
     .guidance-hero {
       display: grid;
-      grid-template-columns: minmax(11rem, 1.1fr) minmax(0, 2fr) auto;
-      gap: .75rem 1rem;
-      align-items: stretch;
-      padding: .9rem 1rem;
+      grid-template-columns: minmax(10rem, 1.15fr) minmax(0, 1.6fr) auto;
+      gap: 0.75rem 1.1rem;
+      align-items: center;
+      padding: 0.85rem 1.05rem;
+      border-radius: var(--radius-md);
       border: 1px solid var(--line-soft);
-      border-radius: var(--radius);
       background:
-        linear-gradient(135deg,
-          color-mix(in srgb, var(--panel-elevated) 92%, #000 8%),
-          color-mix(in srgb, var(--panel) 88%, #000 12%));
+        linear-gradient(180deg,
+          color-mix(in srgb, var(--panel-elevated) 94%, #fff 2%),
+          color-mix(in srgb, var(--panel) 92%, #000 8%));
+      box-shadow: var(--surface-shine);
+      position: relative;
+      overflow: hidden;
     }
+    .guidance-hero::before {
+      content: "";
+      position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: var(--sev-ok);
+      border-radius: 3px 0 0 3px;
+    }
+    .guidance-hero[data-health="ok"]::before { background: var(--sev-ok); }
+    .guidance-hero[data-health="warn"]::before { background: var(--sev-warn); }
+    .guidance-hero[data-health="hot"]::before { background: var(--sev-hot); }
     .guidance-hero[data-health="ok"] {
-      border-color: color-mix(in srgb, var(--sev-ok) 35%, var(--line-soft));
-      box-shadow: inset 3px 0 0 var(--sev-ok);
+      border-color: color-mix(in srgb, var(--sev-ok) 28%, var(--line-soft));
     }
     .guidance-hero[data-health="warn"] {
-      border-color: color-mix(in srgb, var(--sev-warn) 40%, var(--line-soft));
-      box-shadow: inset 3px 0 0 var(--sev-warn);
+      border-color: color-mix(in srgb, var(--sev-warn) 32%, var(--line-soft));
     }
     .guidance-hero[data-health="hot"] {
-      border-color: color-mix(in srgb, var(--sev-hot) 45%, var(--line-soft));
-      box-shadow: inset 3px 0 0 var(--sev-hot);
+      border-color: color-mix(in srgb, var(--sev-hot) 36%, var(--line-soft));
     }
     .guidance-hero-status {
-      display: flex; flex-direction: column; justify-content: center; gap: .25rem; min-width: 0;
+      display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; padding-left: 0.35rem;
     }
     .guidance-hero-kicker {
-      font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
       text-transform: uppercase; color: var(--muted);
     }
     .guidance-hero-title {
-      margin: 0; font-size: 1.45rem; font-weight: 650; letter-spacing: -0.02em;
-      line-height: 1.2; color: var(--text);
+      margin: 0; font-size: 1.28rem; font-weight: 650; letter-spacing: -0.02em;
+      line-height: 1.15; color: var(--text);
     }
     .guidance-hero[data-health="ok"] .guidance-hero-title { color: var(--sev-ok); }
     .guidance-hero[data-health="warn"] .guidance-hero-title { color: var(--sev-warn); }
     .guidance-hero[data-health="hot"] .guidance-hero-title { color: var(--sev-hot); }
     .guidance-hero-sub {
-      margin: 0; font-size: .95rem; color: var(--muted); line-height: 1.4;
+      margin: 0; font-size: 0.9rem; color: var(--muted); line-height: 1.35;
     }
     .guidance-hero-sub .live-count {
       color: var(--lime); font-weight: 600;
     }
     .guidance-hero-stats {
-      display: flex; flex-wrap: wrap; align-items: stretch; gap: .5rem; min-width: 0;
+      display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.4rem; min-width: 0;
     }
     .guidance-stat {
-      flex: 1 1 4.5rem; min-width: 4.2rem; max-width: 7.5rem;
+      flex: 1 1 4.2rem; min-width: 3.9rem; max-width: 6.5rem;
       display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
-      gap: .1rem; padding: .55rem .7rem;
-      border: 1px solid var(--line-soft); border-radius: var(--radius-md);
-      background: color-mix(in srgb, #000 22%, transparent);
+      gap: 0.08rem; padding: 0.45rem 0.6rem;
+      border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+      background: color-mix(in srgb, #000 18%, transparent);
       color: inherit; font-family: inherit; cursor: pointer; text-align: left;
-      transition: border-color .15s, background .15s;
+      transition: border-color 0.12s, background 0.12s, transform 0.12s;
     }
     .guidance-stat:hover {
-      border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
-      background: color-mix(in srgb, var(--accent) 8%, transparent);
+      border-color: color-mix(in srgb, var(--text) 22%, var(--line));
+      background: color-mix(in srgb, #fff 4%, transparent);
     }
     .guidance-stat.is-active {
-      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
       background: color-mix(in srgb, var(--accent) 12%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
     }
     .guidance-stat .n {
-      font-size: 1.55rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
-      letter-spacing: -0.03em;
+      font-size: 1.35rem; font-weight: 700; line-height: 1;
+      font-variant-numeric: tabular-nums; letter-spacing: -0.03em;
     }
     .guidance-stat .lbl {
-      font-size: .72rem; font-weight: 650; letter-spacing: .06em;
+      font-size: 0.66rem; font-weight: 650; letter-spacing: 0.06em;
       text-transform: uppercase; color: var(--muted);
     }
     .guidance-stat.hot .n { color: var(--sev-hot); }
     .guidance-stat.warn .n { color: var(--sev-warn); }
     .guidance-stat.info .n { color: var(--sev-info); }
     .guidance-stat.live .n { color: var(--lime); }
-    .guidance-stat.ok .n { color: var(--sev-ok); }
     .guidance-hero-actions {
       display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
-      gap: .4rem; min-width: 9rem;
+      gap: 0.3rem; min-width: 8.5rem;
     }
     .guidance-hero-actions .btn {
-      min-width: 8.5rem; font-weight: 600;
+      min-width: 8.2rem; font-weight: 600; font-size: 0.92rem;
     }
     .guidance-hero-actions .btn.primary-scan {
-      background: color-mix(in srgb, var(--accent) 22%, transparent);
-      border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
       color: var(--text);
     }
     .guidance-hero-actions .btn.primary-scan:hover {
-      background: color-mix(in srgb, var(--accent) 32%, transparent);
+      background: color-mix(in srgb, var(--accent) 28%, transparent);
     }
     .guidance-scan-meta {
-      font-size: .85rem; color: var(--muted); white-space: nowrap; text-align: right;
+      font-size: 0.78rem; color: var(--muted); white-space: nowrap; text-align: right;
     }
     .guidance-scan-meta.is-scanning { color: var(--accent); }
     @media (max-width: 900px) {
-      .guidance-hero {
-        grid-template-columns: 1fr;
-      }
+      .guidance-hero { grid-template-columns: 1fr; }
       .guidance-hero-actions { align-items: stretch; }
       .guidance-hero-actions .btn { min-width: 0; width: 100%; }
       .guidance-scan-meta { text-align: left; }
     }
 
-    /* Start-here banner — Adrenaline "recommended" / Insights remediation */
+    /* Primary remediation — one job, one command */
     .guidance-start {
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: .65rem 1rem;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.75rem 1rem;
       align-items: center;
-      padding: .85rem 1rem;
-      border-radius: var(--radius);
-      border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line));
+      padding: 0.8rem 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid color-mix(in srgb, var(--sev-warn) 28%, var(--line));
       background:
-        linear-gradient(90deg,
-          color-mix(in srgb, var(--accent) 14%, transparent),
-          color-mix(in srgb, var(--panel-elevated) 90%, #000 10%));
+        linear-gradient(105deg,
+          color-mix(in srgb, var(--sev-warn) 10%, transparent) 0%,
+          color-mix(in srgb, var(--panel-elevated) 92%, #000 8%) 42%);
       cursor: pointer;
+      transition: border-color 0.12s, background 0.12s;
     }
     .guidance-start:hover {
-      border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
-      background:
-        linear-gradient(90deg,
-          color-mix(in srgb, var(--accent) 18%, transparent),
-          color-mix(in srgb, var(--panel-elevated) 88%, #000 12%));
+      border-color: color-mix(in srgb, var(--sev-warn) 48%, var(--line));
     }
     .guidance-start[hidden] { display: none; }
     .guidance-start[data-sev="hot"] {
-      border-color: color-mix(in srgb, var(--sev-hot) 45%, var(--line));
-      background: linear-gradient(90deg,
-        color-mix(in srgb, var(--sev-hot) 14%, transparent),
-        color-mix(in srgb, var(--panel-elevated) 90%, #000 10%));
+      border-color: color-mix(in srgb, var(--sev-hot) 34%, var(--line));
+      background: linear-gradient(105deg,
+        color-mix(in srgb, var(--sev-hot) 12%, transparent) 0%,
+        color-mix(in srgb, var(--panel-elevated) 92%, #000 8%) 42%);
     }
-    .guidance-start[data-sev="warn"] {
-      border-color: color-mix(in srgb, var(--sev-warn) 42%, var(--line));
-      background: linear-gradient(90deg,
-        color-mix(in srgb, var(--sev-warn) 12%, transparent),
-        color-mix(in srgb, var(--panel-elevated) 90%, #000 10%));
+    .guidance-start[data-sev="hot"]:hover {
+      border-color: color-mix(in srgb, var(--sev-hot) 52%, var(--line));
     }
-    .guidance-start-main { min-width: 0; display: flex; flex-direction: column; gap: .35rem; }
+    .guidance-start[data-sev="info"] {
+      border-color: color-mix(in srgb, var(--sev-info) 30%, var(--line));
+      background: linear-gradient(105deg,
+        color-mix(in srgb, var(--sev-info) 10%, transparent) 0%,
+        color-mix(in srgb, var(--panel-elevated) 92%, #000 8%) 42%);
+    }
+    .guidance-start-badge {
+      width: 2.1rem; height: 2.1rem; border-radius: 50%;
+      display: grid; place-items: center; flex-shrink: 0;
+      font-size: 0.95rem; font-weight: 700; color: #1a1a1a;
+      background: var(--sev-warn);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--sev-warn) 22%, transparent);
+    }
+    .guidance-start[data-sev="hot"] .guidance-start-badge {
+      background: var(--sev-hot);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--sev-hot) 22%, transparent);
+    }
+    .guidance-start[data-sev="info"] .guidance-start-badge {
+      background: var(--sev-info);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--sev-info) 22%, transparent);
+    }
+    .guidance-start-main { min-width: 0; display: flex; flex-direction: column; gap: 0.28rem; }
     .guidance-start-kicker {
-      font-size: .72rem; font-weight: 700; letter-spacing: .08em;
-      text-transform: uppercase; color: var(--accent);
+      font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
     }
     .guidance-start[data-sev="hot"] .guidance-start-kicker { color: var(--sev-hot); }
     .guidance-start[data-sev="warn"] .guidance-start-kicker { color: var(--sev-warn); }
     .guidance-start-title {
-      margin: 0; font-size: 1.12rem; font-weight: 600; line-height: 1.3; color: var(--text);
+      margin: 0; font-size: 1.05rem; font-weight: 600; line-height: 1.25; color: var(--text);
     }
     .guidance-start-why {
-      margin: 0; font-size: .95rem; color: var(--text-secondary); line-height: 1.4;
+      margin: 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.35;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
     }
     .guidance-start-cmd {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; margin-top: .15rem;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.15rem;
     }
     .guidance-start-cmd code {
-      font-size: .84rem; font-family: ui-monospace, monospace;
-      color: var(--blue); word-break: break-all; flex: 1 1 12rem;
-      padding: .25rem .45rem; border-radius: 6px;
-      background: color-mix(in srgb, #000 35%, transparent);
+      font-size: 0.8rem; font-family: ui-monospace, monospace;
+      color: var(--blue); word-break: break-all; flex: 1 1 10rem;
+      padding: 0.28rem 0.5rem; border-radius: 6px;
+      background: color-mix(in srgb, #000 40%, transparent);
       border: 1px solid var(--line-soft);
     }
     .guidance-start-side {
-      display: flex; flex-direction: column; align-items: stretch; gap: .4rem;
+      display: flex; flex-direction: column; align-items: stretch; gap: 0.35rem;
     }
-    .guidance-start-side .btn { white-space: nowrap; font-weight: 600; }
+    .guidance-start-side .btn {
+      white-space: nowrap; font-weight: 600;
+      background: color-mix(in srgb, var(--text) 8%, transparent);
+    }
     @media (max-width: 720px) {
-      .guidance-start { grid-template-columns: 1fr; }
-      .guidance-start-side { flex-direction: row; flex-wrap: wrap; }
+      .guidance-start { grid-template-columns: auto 1fr; }
+      .guidance-start-side { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
     }
 
+    /* Master–detail workspace */
     .guidance-split {
-      display: grid; grid-template-columns: minmax(280px, 34%) minmax(0, 1fr);
-      gap: 0.75rem; flex: 1; min-height: min(62vh, 620px);
+      display: grid;
+      grid-template-columns: minmax(17rem, 36%) minmax(0, 1fr);
+      gap: 0.7rem;
+      flex: 1;
+      min-height: min(58vh, 560px);
       align-items: stretch;
     }
     @media (max-width: 920px) {
       .guidance-split { grid-template-columns: 1fr; min-height: 0; }
-      .guidance-index-scroll { max-height: 18rem; }
-      .guidance-detail { max-height: none; min-height: 16rem; }
+      .guidance-index-scroll { max-height: 16rem; }
+      .guidance-detail { max-height: none; min-height: 14rem; }
+    }
+    .guidance-index,
+    .guidance-detail {
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--panel-elevated) 90%, #000 10%);
+      box-shadow: var(--surface-shine);
+      min-height: 0; min-width: 0;
     }
     .guidance-index {
-      display: flex; flex-direction: column; min-height: 0; min-width: 0;
-      border: 1px solid var(--line-soft); border-radius: var(--radius);
-      background: color-mix(in srgb, var(--panel-elevated) 88%, #000 12%);
-      overflow: hidden;
-      box-shadow: none;
+      display: flex; flex-direction: column; overflow: hidden;
     }
     .guidance-toolbar {
-      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-      gap: .5rem .65rem; padding: .55rem .7rem;
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 0.45rem 0.55rem; padding: 0.55rem 0.65rem;
       border-bottom: 1px solid var(--line-soft);
-      background: color-mix(in srgb, var(--panel-elevated) 70%, #000 12%);
+      background: color-mix(in srgb, #000 14%, transparent);
     }
     .guidance-toolbar-filters {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .55rem; min-width: 0; flex: 1 1 auto;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.5rem; min-width: 0; flex: 1 1 auto;
     }
     .guidance-toolbar-filters .ctrl-label {
-      font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+      font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted);
     }
-    .guidance-toolbar-filters .ctrl-group { flex-wrap: wrap; gap: .3rem; }
+    .guidance-toolbar-filters .ctrl-group { flex-wrap: wrap; gap: 0.28rem; }
     .guidance-toolbar-filters .btn {
-      padding: .4rem .65rem; font-size: .88rem; border-radius: 999px;
+      padding: 0.32rem 0.58rem; font-size: 0.82rem; border-radius: 999px;
+      border-color: transparent;
+      background: color-mix(in srgb, #fff 4%, transparent);
+    }
+    .guidance-toolbar-filters .btn:hover {
+      background: color-mix(in srgb, #fff 7%, transparent);
+    }
+    .guidance-toolbar-filters .btn.active {
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+      color: var(--text);
     }
     .guidance-toolbar-filters .btn .n {
-      font-variant-numeric: tabular-nums; opacity: .75; margin-left: .2rem;
-      font-size: .82em;
+      font-variant-numeric: tabular-nums; opacity: 0.7; margin-left: 0.2rem;
+      font-size: 0.85em;
     }
     .guidance-filter-hot {
-      width: .42rem; height: .42rem; border-radius: 50%; background: var(--hot); flex-shrink: 0;
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--hot) 30%, transparent);
+      width: 0.38rem; height: 0.38rem; border-radius: 50%; background: var(--hot); flex-shrink: 0;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--hot) 28%, transparent);
     }
     .diag-primary {
-      padding: .85rem .95rem;
+      padding: 0.8rem 0.9rem;
       border-radius: var(--radius-md);
-      border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
-      background: color-mix(in srgb, var(--accent) 9%, transparent);
-      display: flex; flex-direction: column; gap: .55rem;
+      border: 1px solid color-mix(in srgb, var(--blue) 28%, var(--line));
+      background: color-mix(in srgb, var(--blue) 8%, transparent);
+      display: flex; flex-direction: column; gap: 0.45rem;
     }
     .diag-primary-label {
-      font-size: .72rem; font-weight: 650; letter-spacing: .06em;
-      text-transform: uppercase; color: var(--accent);
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--blue);
     }
     .diag-primary-text {
-      margin: 0; font-size: 1.08rem; font-weight: 550; line-height: 1.4; color: var(--text);
+      margin: 0; font-size: 1.02rem; font-weight: 600; line-height: 1.35; color: var(--text);
     }
     .guidance-index-scroll {
-      flex: 1; overflow: auto; padding: .45rem .5rem .65rem;
-      max-height: min(64vh, 600px);
+      flex: 1; overflow: auto; padding: 0.4rem 0.45rem 0.6rem;
+      max-height: min(62vh, 580px);
     }
     .guidance-idx-group-label {
-      padding: .85rem .45rem .4rem; font-size: .72rem; font-weight: 700;
-      letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+      padding: 0.7rem 0.45rem 0.3rem; font-size: 0.66rem; font-weight: 700;
+      letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
     }
-    .guidance-idx-group-label:first-child { padding-top: .35rem; }
+    .guidance-idx-group-label:first-child { padding-top: 0.25rem; }
     .guidance-idx-row {
-      display: grid; grid-template-columns: 4px minmax(0, 1fr); gap: .55rem .7rem;
+      display: grid; grid-template-columns: 3px minmax(0, 1fr); gap: 0 0.65rem;
       align-items: start; width: 100%; text-align: left;
-      padding: .7rem .7rem; margin-bottom: 5px;
-      border: 1px solid transparent; border-radius: var(--radius-md);
-      background: color-mix(in srgb, #000 12%, transparent);
+      padding: 0.58rem 0.6rem; margin-bottom: 3px;
+      border: 1px solid transparent; border-radius: var(--radius-sm);
+      background: transparent;
       color: inherit; font-family: inherit; cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
     }
     .guidance-idx-row:hover {
       background: color-mix(in srgb, #fff 4%, transparent);
       border-color: var(--line-soft);
     }
     .guidance-idx-row.selected {
-      background: color-mix(in srgb, var(--accent) 12%, transparent);
-      border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 36%, var(--line));
     }
-    .guidance-idx-row.resolved { opacity: .55; }
-    .guidance-idx-row.guidance-idx-scan { align-items: start; }
-    .guidance-idx-sev { width: 4px; align-self: stretch; min-height: 2.4rem; border-radius: 2px; }
+    .guidance-idx-row.resolved { opacity: 0.5; }
+    .guidance-idx-row.is-live .guidance-idx-title { }
+    .guidance-idx-sev {
+      width: 3px; align-self: stretch; min-height: 2.2rem; border-radius: 2px;
+      margin: 0.1rem 0;
+    }
     .guidance-idx-row.rec-hot .guidance-idx-sev { background: var(--sev-hot); }
     .guidance-idx-row.rec-warn .guidance-idx-sev { background: var(--sev-warn); }
     .guidance-idx-row.rec-info .guidance-idx-sev { background: var(--sev-info); }
     .guidance-idx-row.rec-ok .guidance-idx-sev { background: var(--sev-ok); }
-    .guidance-idx-main { min-width: 0; display: flex; flex-direction: column; gap: .32rem; }
+    .guidance-idx-main { min-width: 0; display: flex; flex-direction: column; gap: 0.22rem; }
     .guidance-idx-title {
-      display: block; font-size: 1rem; font-weight: 600; line-height: 1.3;
+      display: block; font-size: 0.94rem; font-weight: 600; line-height: 1.28;
       color: var(--text);
     }
     .guidance-idx-why {
-      font-size: .9rem; line-height: 1.4; color: var(--text-secondary); font-weight: 400;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      font-size: 0.82rem; line-height: 1.35; color: var(--muted); font-weight: 400;
+      display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
     }
     .guidance-idx-preview {
-      display: block; font-size: var(--fs-sm); line-height: 1.4; color: var(--muted); font-weight: 400;
-      font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      display: none; /* keep log preview out of list — detail only */
     }
     .guidance-idx-tags {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .4rem; margin-top: .1rem;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.28rem 0.35rem;
     }
     .guidance-tag {
-      display: inline-flex; align-items: center; gap: .25rem;
-      padding: .12rem .42rem; border-radius: 999px;
-      font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-      border: 1px solid var(--line-soft); color: var(--muted); background: transparent;
+      display: inline-flex; align-items: center; gap: 0.22rem;
+      padding: 0.08rem 0.38rem; border-radius: 999px;
+      font-size: 0.64rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+      border: 1px solid transparent; color: var(--muted);
+      background: color-mix(in srgb, #fff 5%, transparent);
     }
-    .guidance-tag.sev-hot { color: var(--sev-hot); border-color: color-mix(in srgb, var(--sev-hot) 40%, transparent); background: color-mix(in srgb, var(--sev-hot) 10%, transparent); }
-    .guidance-tag.sev-warn { color: var(--sev-warn); border-color: color-mix(in srgb, var(--sev-warn) 40%, transparent); background: color-mix(in srgb, var(--sev-warn) 10%, transparent); }
-    .guidance-tag.sev-info { color: var(--sev-info); border-color: color-mix(in srgb, var(--sev-info) 40%, transparent); background: color-mix(in srgb, var(--sev-info) 10%, transparent); }
-    .guidance-tag.sev-ok { color: var(--sev-ok); border-color: color-mix(in srgb, var(--sev-ok) 40%, transparent); background: color-mix(in srgb, var(--sev-ok) 10%, transparent); }
+    .guidance-tag.sev-hot {
+      color: var(--sev-hot);
+      background: color-mix(in srgb, var(--sev-hot) 12%, transparent);
+    }
+    .guidance-tag.sev-warn {
+      color: var(--sev-warn);
+      background: color-mix(in srgb, var(--sev-warn) 12%, transparent);
+    }
+    .guidance-tag.sev-info {
+      color: var(--sev-info);
+      background: color-mix(in srgb, var(--sev-info) 12%, transparent);
+    }
+    .guidance-tag.sev-ok {
+      color: var(--sev-ok);
+      background: color-mix(in srgb, var(--sev-ok) 12%, transparent);
+    }
     .guidance-tag.live {
       color: var(--lime);
-      border-color: color-mix(in srgb, var(--lime) 40%, transparent);
-      background: color-mix(in srgb, var(--lime) 10%, transparent);
+      background: color-mix(in srgb, var(--lime) 12%, transparent);
     }
     .guidance-tag.live::before {
-      content: ""; width: .35rem; height: .35rem; border-radius: 50%; background: currentColor;
+      content: ""; width: 0.32rem; height: 0.32rem; border-radius: 50%; background: currentColor;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 25%, transparent);
     }
-    .guidance-tag.fixed { opacity: .8; }
-    .guidance-idx-meta {
-      display: flex; align-items: center; flex-shrink: 0;
+    .guidance-tag.fixed { opacity: 0.75; }
+    .guidance-tag.steps-n {
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
     }
-    .guidance-idx-dot {
-      width: .45rem; height: .45rem; border-radius: 50%; flex-shrink: 0;
-    }
-    .guidance-idx-dot.live {
-      background: var(--lime);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--lime) 28%, transparent);
-    }
-    .guidance-idx-dot.fixed { background: var(--muted); opacity: .7; }
+    .guidance-idx-meta { display: none; }
     .guidance-detail {
-      min-height: 0; border: 1px solid var(--line-soft); border-radius: var(--radius);
-      background: color-mix(in srgb, var(--panel-elevated) 88%, #000 12%);
       overflow: auto;
-      max-height: min(68vh, 640px); padding: 1.15rem 1.25rem;
-      box-shadow: none;
+      max-height: min(66vh, 620px);
+      padding: 0;
     }
     body.cosmic-frosted .guidance-detail { background: var(--panel); }
     .guidance-detail-placeholder {
-      margin: 0; padding: 2.2rem 1.15rem; text-align: center;
-      font-size: 1rem; color: var(--muted); line-height: 1.6;
+      margin: 0; padding: 2.5rem 1.25rem; text-align: center;
+      font-size: 0.95rem; color: var(--muted); line-height: 1.55;
     }
     .guidance-detail-placeholder .gd-empty-icon {
-      display: block; width: 2.75rem; height: 2.75rem; margin: 0 auto .85rem;
+      display: block; width: 2.5rem; height: 2.5rem; margin: 0 auto 0.75rem;
       border-radius: 50%;
-      background: color-mix(in srgb, var(--sev-ok) 18%, transparent);
-      border: 1px solid color-mix(in srgb, var(--sev-ok) 40%, transparent);
+      background: color-mix(in srgb, var(--sev-ok) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--sev-ok) 35%, transparent);
       position: relative;
     }
     .guidance-detail-placeholder .gd-empty-icon::after {
@@ -859,87 +916,153 @@
       transform: rotate(-45deg);
     }
     .guidance-detail-placeholder strong {
-      display: block; color: var(--text); font-size: 1.15rem; margin-bottom: .35rem;
+      display: block; color: var(--text); font-size: 1.08rem; margin-bottom: 0.3rem;
+    }
+    #guidanceDetailCard {
+      padding: 1.05rem 1.15rem 1.25rem;
     }
     .guidance-detail .rec-card {
-      border: 0; background: transparent; padding: 0; gap: 1.15rem; border-left: 0;
+      border: 0; background: transparent; padding: 0; gap: 1rem; border-left: 0;
+      display: flex; flex-direction: column;
     }
     .guidance-detail .rec-head {
-      margin-bottom: .15rem; gap: .5rem .55rem; align-items: center;
+      margin: 0 0 0.15rem; gap: 0.4rem 0.5rem; align-items: center;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--line-soft);
     }
     .guidance-detail .rec-title {
-      font-size: 1.45rem; flex-basis: 100%; line-height: 1.25; margin: .15rem 0 0;
-      font-weight: 650; letter-spacing: -0.015em;
+      font-size: 1.28rem; flex-basis: 100%; line-height: 1.22; margin: 0.2rem 0 0;
+      font-weight: 650; letter-spacing: -0.015em; color: var(--text);
     }
+    .guidance-detail .rec-card.rec-hot .rec-title { color: var(--text); }
+    .guidance-detail .rec-card.rec-warn .rec-title { color: var(--text); }
     .guidance-detail .rec-body {
-      font-size: 1.05rem; color: var(--text-secondary); line-height: 1.6; margin: 0;
+      font-size: 0.98rem; color: var(--text-secondary); line-height: 1.55; margin: 0;
     }
-    .guidance-detail .rec-meta { margin-top: .1rem; }
-    .guidance-detail .rec-section { margin-top: .5rem; }
+    .guidance-detail .rec-meta { margin-top: 0.25rem; font-size: 0.82rem; color: var(--muted); }
+    .guidance-detail .rec-section { margin-top: 0.15rem; }
     .guidance-detail .rec-section-title {
-      margin: 0 0 .55rem; font-size: .75rem; font-weight: 700;
-      letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+      margin: 0 0 0.5rem; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
     }
     .guidance-detail .rec-why {
-      padding: .75rem .85rem;
-      border-radius: var(--radius-md);
-      background: color-mix(in srgb, #000 18%, transparent);
+      padding: 0.7rem 0.8rem;
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, #000 16%, transparent);
       border: 1px solid var(--line-soft);
+      order: 3;
     }
     .guidance-detail .rec-why .rec-body { margin: 0; }
-    .guidance-detail .rec-steps-open { max-height: none; overflow: visible; }
-    .guidance-detail .rec-action-bar {
-      margin-top: .25rem;
-      padding: .9rem 1rem;
-      border-radius: var(--radius-md);
-      border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-      background: color-mix(in srgb, var(--accent) 7%, transparent);
+    .guidance-detail .rec-steps-open {
+      max-height: none; overflow: visible;
+      gap: 0.45rem;
     }
-    .guidance-detail .rec-action-label {
-      display: block; font-size: .75rem; font-weight: 700; letter-spacing: .07em;
-      text-transform: uppercase; color: var(--accent); margin-bottom: .45rem;
+    .guidance-detail .rec-steps {
+      counter-reset: gstep;
     }
-    .guidance-detail .diag-scan { display: flex; flex-direction: column; gap: 1rem; }
+    .guidance-detail .rec-step {
+      position: relative;
+      padding: 0.7rem 0.75rem 0.7rem 2.55rem;
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, #000 20%, transparent);
+      border: 1px solid var(--line-soft);
+      gap: 0.35rem 0.65rem;
+    }
+    .guidance-detail .rec-step::before {
+      counter-increment: gstep;
+      content: counter(gstep);
+      position: absolute; left: 0.65rem; top: 0.7rem;
+      width: 1.35rem; height: 1.35rem; border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 0.72rem; font-weight: 700;
+      color: var(--text);
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .guidance-detail .rec-step-label {
+      font-size: 0.92rem; font-weight: 600; line-height: 1.35;
+    }
+    .guidance-detail .rec-step code {
+      font-size: 0.8rem; color: var(--blue);
+      padding: 0.28rem 0.45rem; border-radius: 6px;
+      background: color-mix(in srgb, #000 35%, transparent);
+      border: 1px solid var(--line-soft);
+      display: block; width: 100%;
+    }
+    .guidance-detail .rec-step .copy-btn {
+      align-self: center;
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+      font-weight: 600;
+    }
+    .guidance-detail .rec-step .copy-btn:hover {
+      background: color-mix(in srgb, var(--accent) 26%, transparent);
+    }
+    .guidance-detail .fix-risk-warn {
+      font-size: 0.8rem !important; color: var(--muted) !important; margin: 0 0 0.4rem !important;
+      padding: 0 !important; border: 0 !important; background: transparent !important;
+      font-weight: 400 !important;
+    }
+    .guidance-detail .fix-root-note {
+      font-size: 0.78rem !important; color: var(--amber) !important; margin: 0 0 0.45rem !important;
+      padding: 0 !important; border: 0 !important; background: transparent !important;
+    }
+    .guidance-hero-sub {
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .guidance-detail .rec-actions-head {
+      display: flex; flex-wrap: wrap; gap: 0.35rem; margin-left: auto;
+    }
+    .guidance-detail .rec-actions-head .btn {
+      font-size: 0.8rem; padding: 0.32rem 0.55rem;
+    }
+    .guidance-detail .diag-scan { display: flex; flex-direction: column; gap: 0.9rem; }
     .guidance-detail .diag-item { border: 0; background: transparent; padding: 0; border-left: 0; }
     .guidance-detail .diag-head {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .55rem; margin-bottom: .15rem;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.5rem;
+      padding-bottom: 0.7rem; border-bottom: 1px solid var(--line-soft); margin-bottom: 0.15rem;
     }
     .guidance-detail .diag-cat {
-      font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+      font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
     }
-    .guidance-detail .diag-title { font-size: 1.4rem; line-height: 1.25; margin: .2rem 0 0; flex-basis: 100%; font-weight: 650; }
-    .guidance-detail .diag-body { font-size: 1.05rem; line-height: 1.6; margin: 0; color: var(--text-secondary); }
+    .guidance-detail .diag-title {
+      font-size: 1.28rem; line-height: 1.22; margin: 0.15rem 0 0; flex-basis: 100%; font-weight: 650;
+    }
+    .guidance-detail .diag-body { font-size: 0.98rem; line-height: 1.55; margin: 0; color: var(--text-secondary); }
     .guidance-detail .diag-pre {
-      font-size: .84rem; line-height: 1.5; max-height: 240px; overflow: auto;
-      background: #12141a; border: 1px solid var(--line); border-radius: 8px;
-      padding: .75rem .85rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
-      font-family: ui-monospace, monospace; margin: 0;
+      font-size: 0.8rem; line-height: 1.45; max-height: 200px; overflow: auto;
+      background: color-mix(in srgb, #000 45%, transparent); border: 1px solid var(--line-soft);
+      border-radius: 8px; padding: 0.65rem 0.75rem; color: var(--text-secondary);
+      white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, monospace; margin: 0;
       overscroll-behavior: contain;
     }
     .guidance-detail .diag-source {
-      margin: 0; font-size: .9rem; color: var(--muted); line-height: 1.5;
+      margin: 0; font-size: 0.84rem; color: var(--muted); line-height: 1.45;
     }
     .guidance-detail .diag-source code {
-      font-size: .84rem; color: var(--blue); word-break: break-all;
+      font-size: 0.8rem; color: var(--blue); word-break: break-all;
     }
     .guidance-detail .diag-fix {
-      display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem;
     }
     .guidance-detail .diag-fix code {
-      flex: 1 1 12rem; font-size: .9rem; font-family: ui-monospace, monospace;
+      flex: 1 1 12rem; font-size: 0.84rem; font-family: ui-monospace, monospace;
       color: var(--blue); word-break: break-all;
-      padding: .4rem .55rem; border-radius: 6px;
+      padding: 0.35rem 0.5rem; border-radius: 6px;
       background: color-mix(in srgb, #000 35%, transparent);
       border: 1px solid var(--line-soft);
     }
     .guidance-index-empty {
-      margin: 1.25rem .75rem; padding: 1.25rem 1rem; text-align: center;
-      font-size: 1rem; color: var(--muted); line-height: 1.55;
-      border: 1px dashed var(--line-soft); border-radius: var(--radius-md);
+      margin: 1rem 0.55rem; padding: 1.15rem 0.9rem; text-align: center;
+      font-size: 0.92rem; color: var(--muted); line-height: 1.5;
+      border: 1px dashed var(--line-soft); border-radius: var(--radius-sm);
+      background: color-mix(in srgb, #000 10%, transparent);
     }
     .guidance-index-empty strong {
-      display: block; color: var(--text); font-size: 1.05rem; margin-bottom: .35rem;
+      display: block; color: var(--text); font-size: 1rem; margin-bottom: 0.3rem;
     }
+
+
     .guidance-index-games {
       padding: .65rem .7rem .7rem; border-bottom: 1px solid var(--line);
       background: linear-gradient(180deg, rgba(255,255,255,.025), transparent);
@@ -5554,7 +5677,8 @@
       </div>
 
       <!-- Start-here remediation banner (hidden when all clear) -->
-      <div class="guidance-start" id="guidanceStartHere" hidden>
+      <div class="guidance-start" id="guidanceStartHere" hidden data-sev="warn">
+        <span class="guidance-start-badge" aria-hidden="true">1</span>
         <div class="guidance-start-main">
           <span class="guidance-start-kicker">Start here</span>
           <p class="guidance-start-title" id="guidanceStartTitle"></p>
@@ -5565,7 +5689,7 @@
           </div>
         </div>
         <div class="guidance-start-side">
-          <button class="btn" type="button" id="guidanceStartOpen">Open details →</button>
+          <button class="btn" type="button" id="guidanceStartOpen">Details →</button>
         </div>
       </div>
 
@@ -7247,20 +7371,24 @@
         if (!h) return;
         const resolved = hintUserStatus(h) === 'resolved';
         const live = h.condition_live && !resolved;
-        const meta = row.querySelector('.guidance-idx-meta');
-        if (meta) {
-          if (resolved) {
-            meta.innerHTML = '<span class="guidance-idx-dot fixed" title="Marked fixed" aria-label="Fixed"></span>';
-            meta.removeAttribute('aria-hidden');
-          } else if (live) {
-            meta.innerHTML = '<span class="guidance-idx-dot live" title="Happening now" aria-label="Live"></span>';
-            meta.removeAttribute('aria-hidden');
-          } else {
-            meta.innerHTML = '';
-            meta.setAttribute('aria-hidden', 'true');
+        row.classList.toggle('resolved', resolved);
+        row.classList.toggle('is-live', live);
+        // Tags replaced the old meta dots — keep LIVE / FIXED in sync without full rebuild
+        const tags = row.querySelector('.guidance-idx-tags');
+        if (tags) {
+          let liveTag = tags.querySelector('.guidance-tag.live');
+          let fixedTag = tags.querySelector('.guidance-tag.fixed');
+          if (live && !liveTag) {
+            tags.insertAdjacentHTML('beforeend', '<span class="guidance-tag live">Live</span>');
+          } else if (!live && liveTag) {
+            liveTag.remove();
+          }
+          if (resolved && !fixedTag) {
+            tags.insertAdjacentHTML('beforeend', '<span class="guidance-tag fixed">Fixed</span>');
+          } else if (!resolved && fixedTag) {
+            fixedTag.remove();
           }
         }
-        row.classList.toggle('resolved', resolved);
       });
       document.querySelectorAll('#guidanceDetailCard article.rec-card[data-iid]').forEach(card => {
         const h = byId.get(card.dataset.iid);
@@ -7273,7 +7401,7 @@
           badge.textContent = 'Fixed';
         } else if (h.condition_live) {
           badge.className = 'rec-status live';
-          badge.textContent = 'Live';
+          badge.textContent = 'Live now';
         } else {
           badge.className = 'rec-status outstanding';
           badge.textContent = 'Outstanding';
@@ -7421,6 +7549,7 @@
         btn.disabled = true;
         btn.textContent = 'Scanning…';
       }
+      // keep label consistent (was flipping to bare "Scan")
       try {
         const url = force ? '/api/diagnostics?force=1' : '/api/diagnostics';
         const d = await (await fetch(url)).json();
@@ -7437,14 +7566,14 @@
           renderDiagnostics(d);
         } else if (btn) {
           btn.disabled = running;
-          btn.textContent = running ? 'Scanning…' : 'Scan';
+          btn.textContent = running ? 'Scanning…' : 'Scan system';
         }
         if (running) startDiagPoll();
         else {
           stopDiagPoll();
           if (btn) {
             btn.disabled = false;
-            btn.textContent = 'Scan';
+            btn.textContent = 'Scan system';
           }
         }
         return d;
@@ -7457,7 +7586,7 @@
         }
         if (btn) {
           btn.disabled = false;
-          btn.textContent = 'Scan';
+          btn.textContent = 'Scan system';
         }
       }
       return null;
@@ -7571,11 +7700,6 @@
         if (ev.target?.closest?.('button')) return;
         open();
       };
-      document.getElementById('guidanceStartOpen')?.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        open();
-      }, { once: true });
-      // re-bind open each refresh without stacking listeners — use onclick
       const openBtn = document.getElementById('guidanceStartOpen');
       if (openBtn) openBtn.onclick = (ev) => { ev.stopPropagation(); open(); };
       const copyBtn = document.getElementById('guidanceStartCopy');
@@ -7619,7 +7743,7 @@
       const btn = document.getElementById('diagRefresh');
       if (btn) {
         btn.disabled = running;
-        btn.textContent = running ? 'Scanning…' : 'Scan';
+        btn.textContent = running ? 'Scanning…' : 'Scan system';
       }
       // Keep Scan chip visible after first result so quiet machines aren't lost
       guidanceSectionCounts.scan = flagged || scan.length || (diagHasScanned ? 0 : 0);
@@ -10942,12 +11066,14 @@
       const resolved = hintUserStatus(h) === 'resolved';
       const live = h.condition_live && !resolved;
       const why = (h.text || '').trim();
+      const stepN = (h.actions || []).length;
       const tags = [
         guidanceSevTag(lv),
-        live ? '<span class="guidance-tag live">Live now</span>' : '',
+        live ? '<span class="guidance-tag live">Live</span>' : '',
         resolved ? '<span class="guidance-tag fixed">Fixed</span>' : '',
+        stepN ? `<span class="guidance-tag steps-n">${stepN} step${stepN === 1 ? '' : 's'}</span>` : '',
       ].filter(Boolean).join('');
-      return `<button type="button" class="guidance-idx-row rec-${lv}${selected ? ' selected' : ''}${resolved ? ' resolved' : ''}" data-guidance-pick="${esc(sid)}" id="guidance-pick-${esc(sid)}" aria-label="${esc(h.title)}">
+      return `<button type="button" class="guidance-idx-row rec-${lv}${selected ? ' selected' : ''}${resolved ? ' resolved' : ''}${live ? ' is-live' : ''}" data-guidance-pick="${esc(sid)}" id="guidance-pick-${esc(sid)}" aria-label="${esc(h.title)}">
         <span class="guidance-idx-sev" aria-hidden="true"></span>
         <span class="guidance-idx-main">
           <span class="guidance-idx-title">${esc(h.title)}</span>
@@ -10961,7 +11087,6 @@
       const lv = f.severity || 'info';
       const pickId = guidanceScanPickId(f);
       const why = (f.text || '').trim();
-      const preview = guidanceScanLogPreview(f);
       const tags = [
         guidanceSevTag(lv),
         '<span class="guidance-tag">Scan</span>',
@@ -10971,7 +11096,6 @@
         <span class="guidance-idx-main">
           <span class="guidance-idx-title">${esc(f.title)}</span>
           ${why ? `<span class="guidance-idx-why">${esc(why)}</span>` : ''}
-          ${preview ? `<span class="guidance-idx-preview">${esc(preview)}</span>` : ''}
           <span class="guidance-idx-tags">${tags}</span>
         </span>
       </button>`;
@@ -11254,22 +11378,24 @@
 
       let health = 'ok';
       let title = 'All clear';
-      let sub = 'No outstanding recommendations. Your rig looks healthy.';
+      let sub = 'Nothing outstanding. Optional system scan is available anytime.';
       if (hot > 0) {
         health = 'hot';
-        title = 'Needs attention';
-        sub = `${hot} critical · fix these before chasing smaller tweaks.`;
+        title = hot === 1 ? '1 critical issue' : `${hot} critical issues`;
+        sub = 'Handle critical items first — they usually block smooth play.';
       } else if (warn > 0) {
         health = 'warn';
-        title = 'Worth a look';
-        sub = `${warn} important item${warn === 1 ? '' : 's'} outstanding.`;
+        title = warn === 1 ? '1 item needs attention' : `${warn} items need attention`;
+        sub = info
+          ? `${warn} important · ${info} moderate`
+          : 'Review important items when you have a moment.';
       } else if (total > 0) {
-        health = 'warn';
-        title = 'A few notes';
-        sub = `${total} recommendation${total === 1 ? '' : 's'} available.`;
+        health = 'ok';
+        title = total === 1 ? '1 optional tip' : `${total} optional tips`;
+        sub = 'No critical problems — tips only.';
       }
       if (liveN > 0) {
-        sub += ` <span class="live-count">${liveN} live now</span>`;
+        sub += ` · <span class="live-count">${liveN} live now</span>`;
       }
       hero.dataset.health = health;
       titleEl.textContent = title;
@@ -11466,13 +11592,13 @@
         </div>`).join('');
       const stepCount = actions.length;
       const riskNote = hasCmd
-        ? `<p class="fix-risk-warn">Review commands before running them in a terminal.</p>`
+        ? `<p class="fix-risk-warn">Review each command before pasting into a terminal.</p>`
         : '';
       const stepsBlock = steps ? (isDetail ? `
-        <div class="rec-section">
-          <h4 class="rec-section-title">What to do${stepCount ? ` · ${stepCount} steps` : ''}</h4>
+        <div class="rec-section" style="order:1">
+          <h4 class="rec-section-title">What to do${stepCount ? ` · ${stepCount}` : ''}</h4>
           ${riskNote}
-          ${h.requires_root ? '<p class="fix-root-note">Some steps require root (sudo).</p>' : ''}
+          ${h.requires_root ? '<p class="fix-root-note">Some steps need sudo.</p>' : ''}
           <div class="rec-steps rec-steps-open">${steps}</div>
         </div>` : `
         <details class="rec-more" data-open-key="hint-${domId}-steps">
@@ -11480,19 +11606,19 @@
           <div class="rec-steps">${steps}</div>
         </details>`) : '';
       const whyBlock = isDetail
-        ? `<div class="rec-section rec-why">
+        ? `<div class="rec-section rec-why" style="order:2">
             <h4 class="rec-section-title">Why it matters</h4>
             <p class="rec-body">${esc(h.text)}</p>
             ${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}
           </div>`
         : `<p class="rec-body">${esc(h.text)}</p>${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}`;
       const detailHead = isDetail
-        ? `<header class="rec-head">
+        ? `<header class="rec-head" style="order:0">
             ${statusBadge}
             ${sevBadge(lv, SEV_LABEL[lv] || lv)}
             ${gameTag(h)}
-            <h3 class="rec-title">${esc(h.title)}</h3>
             ${headActions ? `<span class="rec-actions-head">${headActions}</span>` : ''}
+            <h3 class="rec-title">${esc(h.title)}</h3>
           </header>`
         : `<header class="rec-head">
             ${rankBadge}
@@ -11502,7 +11628,7 @@
             <h3 class="rec-title">${esc(h.title)}</h3>
             ${headActions ? `<span class="rec-actions-head">${headActions}</span>` : ''}
           </header>`;
-      // Detail: title → steps (with copyable commands) → why. No full fix scripts.
+      // Detail: title → steps (copyable) → why. No fix scripts.
       return `<article class="rec-card rec-${lv}${resolved ? ' rec-stale' : ''}" data-level="${lv}" data-iid="${esc(sid)}" id="${domId}">
         ${detailHead}
         ${isDetail ? `${stepsBlock}${whyBlock}` : `${whyBlock}${stepsBlock}`}

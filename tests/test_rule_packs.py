@@ -170,6 +170,15 @@ def test_resolution_swap_stutter_requires_game_running():
     assert "resolution-swap-stutter" in emitted
 
 
+def test_resolve_games_string_all_not_char_split():
+    """YAML ``games: all`` must not become ['a','l','l']."""
+    from rule_packs import _resolve_games
+
+    assert _resolve_games({"games": "all"}, {}) == ["all"]
+    assert _resolve_games({"games": ["all"]}, {}) == ["all"]
+    assert _resolve_games({"games": "active"}, {"game": {"appid": "570"}}) == ["570"]
+
+
 def test_eval_condition_all_and_any():
     metrics = flatten_metrics(_snap(memory={"swap_pct": 30}), {}, {"governor": "performance"})
     assert eval_condition({"metric": "memory.swap_pct", "gt": 25}, metrics)

@@ -16,7 +16,7 @@ rules:
         Not required — skip if you prefer a clean HUD.
       bucket: tools
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Install MangoHud
         kind: cmd
@@ -44,7 +44,7 @@ rules:
         Wrap Steam launches with gamemoderun for an easy boost — optional, not required.
       bucket: tools
       condition_live: true
-      games: all
+      games: [all]
     actions:
       - label: Install GameMode
         kind: cmd
