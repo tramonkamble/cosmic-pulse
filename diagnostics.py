@@ -1,12 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Pulse contributors
 # SPDX-License-Identifier: GPL-3.0-only
-"""System & gaming troubleshooting — boot, Steam, libraries, logs."""
+"""System & gaming troubleshooting — boot, Steam, libraries, logs.
+
+Design (experiment redo): findings must be *actionable* for a second-monitor
+coach. Prefer silence over “8 error-like lines in bootstrap_log.” Scans run on
+a background thread so journalctl never blocks the 1 Hz metrics loop.
+"""
 
 from __future__ import annotations
 
 import re
 import shutil
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -106,7 +112,13 @@ def _finding(
     detail: str | None = None,
     fix: str | None = None,
     source: str | None = None,
+    primary_hint: str | None = None,
 ) -> dict:
+    """One finding. ``fix`` must be a *single* shell line (or plain UI step)."""
+    cmd = (fix or "").strip()
+    # Refuse multi-command “·” glue — that broke copy-paste in the failed experiment.
+    if " · " in cmd:
+        cmd = cmd.split(" · ")[0].strip()
     return {
         "id": fid,
         "category": category,
@@ -114,8 +126,10 @@ def _finding(
         "title": title,
         "text": text,
         "detail": detail,
-        "fix": fix,
+        "fix": cmd or None,
         "source": source,
+        "primary_hint": primary_hint,  # short “do this first” line for UI
+        "read_only": True,
     }
 
 
@@ -236,6 +250,8 @@ def _check_boot_and_kernel(findings: list[dict]) -> None:
     failed = _run(["systemctl", "--failed", "--no-legend", "--plain"], timeout=5).strip()
     if failed:
         units = [ln.split()[0] for ln in failed.splitlines() if ln.strip()]
+        # One unit to inspect — not a wall of systemctl prose
+        first = units[0] if units else "UNIT"
         findings.append(
             _finding(
                 "systemd-failed",
@@ -244,22 +260,51 @@ def _check_boot_and_kernel(findings: list[dict]) -> None:
                 f"Failed systemd units ({len(units)})",
                 "Services did not start cleanly this boot: " + ", ".join(units[:6]),
                 detail=failed[:1200],
-                fix="systemctl --failed · journalctl -u UNIT -b",
+                fix=f"journalctl -b -u {first} --no-pager | tail -80",
+                primary_hint=f"Inspect failed unit: {first}",
                 source="systemctl",
             )
         )
 
-    # Generic "boot journal errors" dump removed — too noisy (optical, BT, desktop
-    # spam). Keep failed units + GPU kernel warnings which are more actionable.
+    # Priority 3+ this boot: GPU driver only (not optical / BT spam)
+    err_lines = _run(
+        ["journalctl", "-b", "0", "-p", "3", "--no-pager", "-n", "200"],
+        timeout=12,
+    ).splitlines()
+    gpu_err: list[str] = []
+    for line in err_lines:
+        if _NOISE_PATTERNS.search(line):
+            continue
+        if re.search(r"\b(amdgpu|nvidia|nvrm|drm)\b", line, re.I):
+            gpu_err.append(line.strip())
+    if gpu_err:
+        hard = any(re.search(r"reset|hang|segfault|panic|fault|oom", x, re.I) for x in gpu_err)
+        findings.append(
+            _finding(
+                "journal-gpu-errors",
+                "driver",
+                "hot" if hard else "warn",
+                "GPU driver errors this boot",
+                (
+                    "Kernel logged GPU errors (amdgpu/nvidia/drm). "
+                    "If games crash or the display freezes, this is the trail."
+                ),
+                detail="\n".join(list(dict.fromkeys(gpu_err))[:6])[:1500],
+                fix="journalctl -b 0 -p 3 --no-pager | grep -iE 'amdgpu|nvidia|drm' | tail -40",
+                primary_hint="Check GPU journal errors from this boot",
+                source="journalctl -b 0 -p 3",
+            )
+        )
+        return  # don't also dump weaker -k noise for the same story
 
     gpu_warn = []
     for line in _run(
-        ["journalctl", "-b", "-k", "--no-pager", "-n", "200"], timeout=10
+        ["journalctl", "-b", "-k", "--no-pager", "-n", "120"], timeout=8
     ).splitlines():
         if _NOISE_PATTERNS.search(line):
             continue
-        if re.search(r"amdgpu|gpu|drm|vulkan|ring", line, re.I) and re.search(
-            r"error|fail|warn|reset|hang", line, re.I
+        if re.search(r"\b(amdgpu|nvidia|drm)\b", line, re.I) and re.search(
+            r"error|fail|reset|hang|fault", line, re.I
         ):
             gpu_warn.append(line)
     if gpu_warn:
@@ -268,10 +313,11 @@ def _check_boot_and_kernel(findings: list[dict]) -> None:
                 "kernel-gpu-warnings",
                 "driver",
                 "warn",
-                f"Kernel GPU messages ({len(gpu_warn)})",
-                " AMDGPU / DRM warnings this boot — can cause crashes or stutter.",
-                detail="\n".join(list(dict.fromkeys(gpu_warn))[:6])[:1500],
-                fix="journalctl -b -k | grep -iE 'amdgpu|drm|gpu' | tail -50",
+                "Kernel GPU warnings",
+                "GPU-related kernel warnings this boot — watch if you see hitching or black screens.",
+                detail="\n".join(list(dict.fromkeys(gpu_warn))[:5])[:1200],
+                fix="journalctl -b -k --no-pager | grep -iE 'amdgpu|nvidia|drm' | tail -40",
+                primary_hint="Review kernel GPU warnings",
                 source="journalctl -k",
             )
         )
@@ -290,7 +336,8 @@ def _check_disk(findings: list[dict]) -> None:
                     "warn" if free_gb < 8 else "info",
                     f"Low disk space on Steam volume ({free_gb:.1f} GB free)",
                     "Less than 15 GB free — game updates and Proton prefixes can fail.",
-                    fix="Clear old Proton prefixes · Steam → Settings → Storage",
+                    fix="steam steam://settings/storage",
+                    primary_hint="Free space: Steam → Settings → Storage (clear old prefixes)",
                     source=str(steam_root()),
                 )
             )
@@ -308,27 +355,46 @@ def _scan_log_tail(path: Path, max_lines: int = 400) -> list[str]:
         return []
 
 
+def _is_background_steam_title(name: str, appid: str) -> bool:
+    """Redistributables / runtimes — not what a gamer means by 'my game is broken'."""
+    n = (name or "").lower()
+    if re.search(
+        r"redistributable|steamworks|proton\b|runtime|steam linux|directx|vcredist|dotnet",
+        n,
+    ):
+        return True
+    # Known Steamworks redistributable appids (common noise)
+    if appid in {"228980", "1070560", "1391110", "1628350"}:
+        return True
+    return False
+
+
 def _check_steam_install_health(findings: list[dict]) -> None:
     for appid in installed_appids():
         health = steam_install_health(appid)
         name = game_name_for_appid(appid)
         manifest = str(steam_root() / "steamapps" / f"appmanifest_{appid}.acf")
+        background = _is_background_steam_title(name, appid)
 
-        if health.get("files_corrupt"):
+        if health.get("files_corrupt") and not background:
             findings.append(
                 _finding(
                     f"steam-corrupt-{appid}",
                     "game",
                     "hot",
                     f"{name}: verify game files",
-                    "Steam flagged game files as corrupt — common on Linux after patches; "
-                    "causes crashes, missing maps, or VAC errors.",
-                    fix=f"Quit {name} → Steam → Properties → Installed Files → Verify integrity",
+                    "Steam flagged game files as corrupt — common after patches; "
+                    "causes crashes or missing content.",
+                    fix=f"steam steam://validate/{appid}",
+                    primary_hint=f"Verify integrity for {name}",
                     source=manifest,
                 )
             )
 
         if steam_update_needs_attention(health, running=False):
+            # Pending redistributable updates are almost never the user's problem.
+            if background:
+                continue
             from games import steam_update_summary_parts
 
             shader_mb = round(health.get("shader_cache_bytes", 0) / 1024**2, 1)
@@ -342,8 +408,9 @@ def _check_steam_install_health(findings: list[dict]) -> None:
                     "game",
                     "warn",
                     f"{name}: finish pending update",
-                    text + " — half-patched builds cause hitches and shader rebuild stutter.",
-                    fix=f"Quit {name} → Steam → Downloads → resume · optional shadercache/{appid} clear",
+                    text + " — half-patched builds hitch and rebuild shaders.",
+                    fix="steam steam://open/downloads",
+                    primary_hint=f"Finish the Steam update for {name}",
                     source=manifest,
                 )
             )
@@ -378,43 +445,61 @@ def _check_steam_logs(findings: list[dict]) -> None:
 
     for appid, codes in bad_exits.items():
         game_name = game_name_for_appid(appid)
+        if _is_background_steam_title(game_name, appid):
+            continue
         recent = codes[-5:]
+        crashy = 139 in recent or 137 in recent or 134 in recent
         findings.append(
             _finding(
                 f"game-exit-{appid}",
                 "game",
-                "warn" if 139 in recent or 137 in recent else "info",
-                f"{game_name} abnormal exits",
-                f"Recent process exits with codes {recent} — may indicate crash or failed load.",
-                fix=f"Check Steam → {game_name} → Properties → verify files · see Proton log",
+                "warn" if crashy else "info",
+                f"{game_name} closed with errors",
+                f"Recent exit codes {recent} — crash or failed load.",
+                fix=f"steam steam://validate/{appid}",
+                primary_hint=f"Verify {game_name} if it keeps crashing",
                 source="gameprocess_log.txt",
             )
         )
 
-    # Error lines from steam logs
-    for log_name in _STEAM_LOG_FILES:
+    # Steam logs: only surface when lines look *game-breaking*, not perpetual client noise.
+    _CRASHISH = re.compile(
+        r"segfault|sigsegv|fatal|crash|assert|exception|out of memory|oom|"
+        r"failed to initialize|could not load|missing shared libraries",
+        re.I,
+    )
+    # Prefer error.log; only touch chatty logs if crashish
+    for log_name in ("error.log", "stderr.txt", "gameprocess_log.txt"):
         path = _steam_logs() / log_name
+        if not path.is_file():
+            continue
         hits = []
-        for line in _scan_log_tail(path, 300):
-            if not _ERROR_LINE.search(line):
-                continue
+        for line in _scan_log_tail(path, 250):
             if _NOISE_PATTERNS.search(line):
                 continue
+            if not _CRASHISH.search(line) and log_name != "error.log":
+                continue
+            if log_name == "error.log" and not (_ERROR_LINE.search(line) or _CRASHISH.search(line)):
+                continue
             hits.append(line.strip())
-        uniq = list(dict.fromkeys(hits))[-6:]
-        if len(uniq) >= 2:
-            findings.append(
-                _finding(
-                    f"steam-log-{log_name.replace('.', '-')}",
-                    "steam",
-                    "info",
-                    f"Steam log: {log_name}",
-                    f"{len(uniq)} recent error-like lines — skim if launches fail.",
-                    detail="\n".join(uniq)[:1800],
-                    fix=f"less {path}",
-                    source=str(path),
-                )
+        uniq = list(dict.fromkeys(hits))[-5:]
+        if not uniq:
+            continue
+        if log_name != "error.log" and len(uniq) < 2:
+            continue
+        findings.append(
+            _finding(
+                f"steam-log-{log_name.replace('.', '-')}",
+                "steam",
+                "warn" if any(_CRASHISH.search(x) for x in uniq) else "info",
+                "Steam logged a serious error" if log_name == "error.log" else f"Steam {log_name}",
+                "Crash- or load-related lines in Steam logs — useful after a failed launch.",
+                detail="\n".join(uniq)[:1500],
+                fix=f"tail -n 80 '{path}'",
+                primary_hint="Read the latest Steam error lines",
+                source=str(path),
             )
+        )
 
 
 def _check_game_prefixes(findings: list[dict]) -> None:
@@ -471,7 +556,8 @@ def _check_vulkan(findings: list[dict]) -> None:
                 "Vulkan not working",
                 "vulkaninfo reported errors — games using Vulkan/Proton may fail.",
                 detail=out[:1500],
-                fix="sudo apt install mesa-vulkan-drivers libvulkan1 · reboot",
+                fix="sudo apt install mesa-vulkan-drivers libvulkan1",
+                primary_hint="Install Vulkan drivers, then reboot",
                 source="vulkaninfo",
             )
         )
@@ -485,6 +571,7 @@ def _check_vulkan(findings: list[dict]) -> None:
                 "vulkaninfo ran but no discrete GPU device was reported.",
                 detail=out[:800],
                 fix="DRI_PRIME=1 vulkaninfo --summary",
+                primary_hint="Check which GPU Vulkan sees",
                 source="vulkaninfo",
             )
         )
@@ -530,6 +617,16 @@ def run_diagnostics() -> dict:
 
 _cache: tuple[float, dict] = (0.0, {})
 
+_scan_lock = threading.Lock()
+_scan_thread: threading.Thread | None = None
+_scan_state: dict = {
+    "status": "idle",
+    "started_at": None,
+    "finished_at": None,
+    "error": None,
+    "result": None,
+}
+
 
 def invalidate_diagnostics_cache() -> None:
     """Drop cached diagnostics so the next read re-runs checks (e.g. after apt install)."""
@@ -538,16 +635,130 @@ def invalidate_diagnostics_cache() -> None:
 
 
 def scan_findings(findings: list[dict], *, skip_ids: set[str] | None = None) -> list[dict]:
-    """Findings for the collapsed system-scan panel (excludes promoted Guidance cards)."""
+    """Findings for Guidance Scan (excludes promoted cards / all-clear filler)."""
     skip = skip_ids or set()
     return [f for f in findings if f["id"] not in skip and f["id"] != "all-clear"]
 
 
+def primary_finding(findings: list[dict] | None) -> dict | None:
+    """Single 'do this first' finding — hot > warn > info. Silence if nothing real."""
+    order = {"hot": 0, "warn": 1, "info": 2}
+    real = [
+        f
+        for f in (findings or [])
+        if f.get("id") != "all-clear" and f.get("severity") in order
+    ]
+    if not real:
+        return None
+    real.sort(key=lambda f: (order.get(f.get("severity") or "info", 9), f.get("title") or ""))
+    return real[0]
+
+
+def _empty_diagnostics(*, pending: bool = False) -> dict:
+    return {
+        "scanned_at": None,
+        "counts": {"hot": 0, "warn": 0, "info": 0, "ok": 0},
+        "findings": [],
+        "categories": [],
+        "pending": pending,
+    }
+
+
 def get_diagnostics(ttl_sec: float = 90.0, *, force: bool = False) -> dict:
+    """Cached diagnostics. Never blocks the caller on journalctl / Steam walks.
+
+    force=True kicks a background rescan and returns the last good result (or
+    a pending shell) immediately. First paint with an empty cache also starts
+    a background scan instead of freezing the HTTP thread.
+    """
     global _cache
     now = time.time()
+    if force:
+        request_diagnostics_scan()
+
+    with _scan_lock:
+        ready_result = None
+        if _scan_state.get("status") == "ready" and _scan_state.get("result"):
+            ready_result = dict(_scan_state["result"])
+        running = _scan_state.get("status") == "running"
+
+    if ready_result is not None:
+        # Fresh completed scan wins (force path returns last-known until done)
+        if not force or not running:
+            return ready_result
+        # Mid-rescan: still serve last result so UI doesn't go blank
+        return ready_result
+
     if not force and now - _cache[0] < ttl_sec and _cache[1]:
         return _cache[1]
-    result = run_diagnostics()
-    _cache = (now, result)
-    return result
+    if _cache[1]:
+        return _cache[1]
+
+    # Cold start — never sync-run under an HTTP thread
+    if not running:
+        request_diagnostics_scan()
+    return _empty_diagnostics(pending=True)
+
+
+def _background_scan_worker() -> None:
+    global _cache, _scan_thread
+    try:
+        result = run_diagnostics()
+        now = time.time()
+        with _scan_lock:
+            _scan_state["status"] = "ready"
+            _scan_state["finished_at"] = now
+            _scan_state["error"] = None
+            _scan_state["result"] = result
+        _cache = (now, result)
+    except Exception as exc:
+        with _scan_lock:
+            _scan_state["status"] = "error"
+            _scan_state["finished_at"] = time.time()
+            _scan_state["error"] = str(exc)[:400]
+    finally:
+        with _scan_lock:
+            _scan_thread = None
+
+
+def request_diagnostics_scan() -> dict:
+    """Kick a background scan; never blocks the caller on journalctl."""
+    global _scan_thread
+    with _scan_lock:
+        if _scan_state.get("status") == "running" and _scan_thread and _scan_thread.is_alive():
+            return diagnostics_job_status()
+        _scan_state["status"] = "running"
+        _scan_state["started_at"] = time.time()
+        _scan_state["finished_at"] = None
+        _scan_state["error"] = None
+        # Keep previous result visible while rescanning (don't wipe UI to empty)
+        t = threading.Thread(
+            target=_background_scan_worker,
+            daemon=True,
+            name="pulse-diagnostics-scan",
+        )
+        _scan_thread = t
+        t.start()
+    return diagnostics_job_status()
+
+
+def diagnostics_job_status() -> dict:
+    with _scan_lock:
+        status = _scan_state.get("status") or "idle"
+        result = _scan_state.get("result")
+        out = {
+            "status": status,
+            "started_at": _scan_state.get("started_at"),
+            "finished_at": _scan_state.get("finished_at"),
+            "error": _scan_state.get("error"),
+            "running": status == "running",
+            # ready = at least one completed result available (even mid-rescan)
+            "ready": bool(result),
+            "has_result": bool(result),
+        }
+        if result:
+            out["scanned_at"] = result.get("scanned_at")
+            out["counts"] = result.get("counts")
+            out["findings"] = result.get("findings")
+            out["primary"] = primary_finding(result.get("findings") or [])
+        return out

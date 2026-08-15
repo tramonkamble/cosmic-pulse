@@ -580,6 +580,49 @@
       display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .65rem; flex-shrink: 0;
     }
     .guidance-scan-meta { font-size: .92rem; color: var(--muted); white-space: nowrap; }
+    .guidance-scan-meta.is-scanning { color: var(--accent); }
+    .guidance-primary-strip {
+      margin: .55rem .6rem .15rem;
+      padding: .7rem .8rem;
+      border-radius: var(--radius-md);
+      border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      display: flex; flex-direction: column; gap: .4rem;
+      cursor: pointer;
+    }
+    .guidance-primary-strip:hover {
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+    }
+    .guidance-primary-strip[hidden] { display: none; }
+    .guidance-primary-kicker {
+      font-size: .72rem; font-weight: 650; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--accent);
+    }
+    .guidance-primary-title {
+      font-size: 1rem; font-weight: 550; line-height: 1.35; color: var(--text); margin: 0;
+    }
+    .guidance-primary-cmd {
+      display: flex; flex-wrap: wrap; align-items: center; gap: .45rem;
+    }
+    .guidance-primary-cmd code {
+      font-size: .84rem; font-family: ui-monospace, monospace;
+      color: var(--blue); word-break: break-all; flex: 1 1 12rem;
+    }
+    .diag-primary {
+      padding: .85rem .95rem;
+      border-radius: var(--radius-md);
+      border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+      background: color-mix(in srgb, var(--accent) 9%, transparent);
+      display: flex; flex-direction: column; gap: .55rem;
+    }
+    .diag-primary-label {
+      font-size: .72rem; font-weight: 650; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--accent);
+    }
+    .diag-primary-text {
+      margin: 0; font-size: 1.08rem; font-weight: 550; line-height: 1.4; color: var(--text);
+    }
     .guidance-index-scroll {
       flex: 1; overflow: auto; padding: .55rem .6rem;
       max-height: min(64vh, 600px);
@@ -5289,6 +5332,14 @@
               <span class="guidance-scan-meta" id="diagMeta">—</span>
             </div>
           </div>
+          <div class="guidance-primary-strip" id="guidancePrimaryStrip" hidden>
+            <span class="guidance-primary-kicker">Do this first</span>
+            <p class="guidance-primary-title" id="guidancePrimaryTitle"></p>
+            <div class="guidance-primary-cmd" id="guidancePrimaryCmd" hidden>
+              <code id="guidancePrimaryFix"></code>
+              <button class="copy-btn" type="button" id="guidancePrimaryCopy">Copy</button>
+            </div>
+          </div>
           <div class="guidance-index-games" id="guidanceGamesDock" hidden>
             <div class="guidance-game-picker" id="guidanceGamePicker">
               <span class="guidance-index-games-label">Game</span>
@@ -7105,22 +7156,67 @@
     let diagCache = null;
     let lastDiagKey = '';
     let lastGuidanceScanFindings = [];
+    let lastDiagPrimary = null;
+    let diagPollId = null;
+    let diagHasScanned = false;
+
+    function stopDiagPoll() {
+      if (diagPollId) {
+        clearInterval(diagPollId);
+        diagPollId = null;
+      }
+    }
+
+    function startDiagPoll() {
+      if (diagPollId) return;
+      // Taste-test: poll job status without re-forcing (no scan storms)
+      diagPollId = setInterval(() => fetchDiagnostics(false), 900);
+    }
 
     async function fetchDiagnostics(force = false) {
+      const btn = document.getElementById('diagRefresh');
+      if (force && btn) {
+        btn.disabled = true;
+        btn.textContent = 'Scanning…';
+      }
       try {
         const url = force ? '/api/diagnostics?force=1' : '/api/diagnostics';
         const d = await (await fetch(url)).json();
         const scan = d.scan_findings || d.findings || [];
-        const key = JSON.stringify([d.counts, scan.map(f => [f.id, f.severity])]);
+        const running = !!(d.job?.running || d.pending);
+        const key = JSON.stringify([
+          d.counts, d.scanned_at, running,
+          (d.primary && d.primary.id) || null,
+          scan.map(f => [f.id, f.severity, f.fix || '']),
+        ]);
         if (force || key !== lastDiagKey) {
           lastDiagKey = key;
           diagCache = d;
           renderDiagnostics(d);
+        } else if (btn) {
+          btn.disabled = running;
+          btn.textContent = running ? 'Scanning…' : 'Scan';
+        }
+        if (running) startDiagPoll();
+        else {
+          stopDiagPoll();
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Scan';
+          }
         }
         return d;
       } catch {
+        stopDiagPoll();
         const metaEl = document.getElementById('diagMeta');
-        if (metaEl) metaEl.textContent = 'Scan failed';
+        if (metaEl) {
+          metaEl.textContent = 'Scan failed';
+          metaEl.classList.remove('is-scanning');
+        }
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Scan';
+        }
       }
       return null;
     }
@@ -7134,29 +7230,93 @@
       });
     }
 
+    function updateGuidancePrimaryStrip(primary, running) {
+      const strip = document.getElementById('guidancePrimaryStrip');
+      if (!strip) return;
+      // Quiet until sick: hide strip when clean / still first-scanning
+      if (!primary || running) {
+        strip.hidden = true;
+        return;
+      }
+      const title = primary.primary_hint || primary.title || 'Take a look';
+      const fix = (primary.fix || '').trim();
+      document.getElementById('guidancePrimaryTitle').textContent = title;
+      const cmd = document.getElementById('guidancePrimaryCmd');
+      const fixEl = document.getElementById('guidancePrimaryFix');
+      if (fix && cmd && fixEl) {
+        fixEl.textContent = fix;
+        cmd.hidden = false;
+      } else if (cmd) {
+        cmd.hidden = true;
+      }
+      strip.hidden = false;
+      strip.onclick = (ev) => {
+        if (ev.target?.closest?.('button')) return;
+        const pick = `diag:${primary.id}`;
+        guidanceIndexFilter = 'scan';
+        renderGuidanceFilters();
+        renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, pick);
+        selectGuidanceHint(pick, { scroll: true });
+      };
+      const copyBtn = document.getElementById('guidancePrimaryCopy');
+      if (copyBtn && fix) {
+        copyBtn.onclick = (ev) => {
+          ev.stopPropagation();
+          copyText(fix, copyBtn);
+        };
+      }
+    }
+
     function renderDiagnostics(d) {
       if (!d) return;
-      const scan = d.scan_findings || d.findings || [];
+      const scan = (d.scan_findings || d.findings || []).filter(f => f.id !== 'all-clear');
       const scanCounts = { hot: 0, warn: 0, info: 0, ok: 0 };
       scan.forEach(f => { if (scanCounts[f.severity] !== undefined) scanCounts[f.severity]++; });
       const flagged = (scanCounts.hot || 0) + (scanCounts.warn || 0);
+      const running = !!(d.job?.running || d.pending);
+      if (d.scanned_at) diagHasScanned = true;
       const metaEl = document.getElementById('diagMeta');
       if (metaEl) {
-        const when = d.scanned_at
-          ? new Date(d.scanned_at * 1000).toLocaleTimeString()
-          : '—';
-        metaEl.textContent = flagged
-          ? `${flagged} flagged · ${when}`
-          : (scan.length ? `${scan.length} notes · ${when}` : when);
+        metaEl.classList.toggle('is-scanning', running);
+        if (running && !d.scanned_at) {
+          metaEl.textContent = 'Scanning…';
+        } else if (running) {
+          const when = d.scanned_at
+            ? new Date(d.scanned_at * 1000).toLocaleTimeString()
+            : '';
+          metaEl.textContent = when ? `Rescanning · last ${when}` : 'Scanning…';
+        } else if (d.job?.error) {
+          metaEl.textContent = 'Scan error';
+        } else if (!d.scanned_at) {
+          metaEl.textContent = 'Not scanned yet';
+        } else {
+          const when = new Date(d.scanned_at * 1000).toLocaleTimeString();
+          if (flagged) metaEl.textContent = `${flagged} flagged · ${when}`;
+          else if (scan.length) metaEl.textContent = `${scan.length} notes · ${when}`;
+          else metaEl.textContent = `All clear · ${when}`;
+        }
       }
-      guidanceSectionCounts.scan = flagged || scan.length;
+      const btn = document.getElementById('diagRefresh');
+      if (btn) {
+        btn.disabled = running;
+        btn.textContent = running ? 'Scanning…' : 'Scan';
+      }
+      // Keep Scan chip visible after first result so quiet machines aren't lost
+      guidanceSectionCounts.scan = flagged || scan.length || (diagHasScanned ? 0 : 0);
+      // Force chip visibility via special count: 0 still shows if we've scanned
+      guidanceSectionCounts.scan_always = diagHasScanned || running || scan.length > 0;
       guidanceSectionCounts.scan_hot = (scanCounts.hot || 0) > 0;
       lastGuidanceScanFindings = sortScanFindings(scan);
-      if (guidanceIndexFilter === 'scan' && !lastGuidanceScanFindings.length) {
-        guidanceIndexFilter = 'all';
+      lastDiagPrimary = d.primary && d.primary.id !== 'all-clear' ? d.primary : null;
+      // Prefer primary from scan_findings (same quality filter as UI list)
+      if (lastDiagPrimary && !scan.some(f => f.id === lastDiagPrimary.id)) {
+        lastDiagPrimary = scan[0] || null;
+      } else if (!lastDiagPrimary && scan[0]) {
+        lastDiagPrimary = scan[0];
       }
+      updateGuidancePrimaryStrip(lastDiagPrimary, running);
       renderGuidanceFilters();
-      if (lastGuidanceIndexGroups.length || lastGuidanceFixedHints.length || lastGuidanceScanFindings.length) {
+      if (lastGuidanceIndexGroups.length || lastGuidanceFixedHints.length || lastGuidanceScanFindings.length || diagHasScanned) {
         renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
         selectGuidanceHint(lastSelectedGuidanceId, { scroll: false });
       }
@@ -7168,8 +7328,8 @@
       guidanceIndexFilter = 'scan';
       renderGuidanceFilters();
       renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
-      const firstScan = lastGuidanceScanFindings[0];
-      if (firstScan) selectGuidanceHint(`diag:${firstScan.id}`, { scroll: true });
+      const first = lastDiagPrimary || lastGuidanceScanFindings[0];
+      if (first) selectGuidanceHint(`diag:${first.id}`, { scroll: true });
     });
     fetchDiagnostics();
 
@@ -10376,6 +10536,8 @@
 
     const guidanceSectionCounts = {
       steam: 0, system: 0, resolutions: 0, games: 0, scan: 0, fixed: 0,
+      steam_hot: false, system_hot: false, resolutions_hot: false, scan_hot: false,
+      scan_always: false,
     };
 
     function guidanceCategory(h) {
@@ -10502,9 +10664,10 @@
         { key: 'steam', label: 'Steam', n: c.steam, hot: c.steam_hot },
         { key: 'system', label: 'Perf', n: c.system, hot: c.system_hot },
         { key: 'resolutions', label: 'Resolutions', n: c.resolutions, hot: c.resolutions_hot },
-        { key: 'scan', label: 'Scan', n: c.scan, hot: c.scan_hot },
+        // Scan stays available after first run even when quiet (All clear)
+        { key: 'scan', label: 'Scan', n: c.scan, hot: c.scan_hot, always: c.scan_always },
         { key: 'fixed', label: 'Fixed', n: c.fixed },
-      ].filter(f => f.key === 'all' || (f.n || 0) > 0);
+      ].filter(f => f.key === 'all' || f.always || (f.n || 0) > 0);
       el.innerHTML = filters.map(f => {
         const cls = ['btn', guidanceIndexFilter === f.key ? 'active' : ''].filter(Boolean).join(' ');
         const hotDot = f.hot ? '<span class="guidance-filter-hot" aria-hidden="true"></span>' : '';
@@ -10564,9 +10727,16 @@
       }
 
       if (!visibleGroups.length) {
-        const msg = guidanceIndexFilter === 'scan'
-          ? 'No scan results yet. Press <strong>Scan</strong> above to check logs and system health.'
-          : 'Nothing in this view. Try another filter or run Scan.';
+        let msg = 'Nothing in this view. Try another filter or run Scan.';
+        if (guidanceIndexFilter === 'scan') {
+          if (diagCache?.job?.running || diagCache?.pending) {
+            msg = 'Scanning logs and system health…';
+          } else if (diagHasScanned || diagCache?.scanned_at) {
+            msg = 'All clear — no actionable scan findings.';
+          } else {
+            msg = 'Press <strong>Scan</strong> above when something feels wrong.';
+          }
+        }
         listEl.innerHTML = `<p class="guidance-index-empty">${msg}</p>`;
         lastSelectedGuidanceId = null;
         renderGuidanceDetail(null);
@@ -10616,6 +10786,15 @@
         return;
       }
       empty.hidden = true;
+      const hint = (f.primary_hint || '').trim();
+      const fix = (f.fix || '').trim();
+      // One next step first — never bury copy-paste under a log dump
+      const primaryBlock = (hint || fix) ? `
+        <div class="diag-primary">
+          <span class="diag-primary-label">Do this first</span>
+          ${hint ? `<p class="diag-primary-text">${esc(hint)}</p>` : ''}
+          ${fix ? `<div class="diag-fix"><code>${esc(fix)}</code><button class="copy-btn" type="button" data-copy="${esc(fix)}">Copy</button></div>` : ''}
+        </div>` : '';
       card.innerHTML = `
         <article class="diag-scan diag-item ${f.severity}">
           <div class="diag-head">
@@ -10623,12 +10802,9 @@
             ${sevBadge(f.severity, SEV_LABEL[f.severity] || f.severity)}
             <h3 class="diag-title">${esc(f.title)}</h3>
           </div>
+          ${primaryBlock}
           <p class="diag-body">${esc(f.text)}</p>
           ${guidanceScanEvidenceHtml(f)}
-          ${f.fix ? `<div class="rec-section">
-            <h4 class="rec-section-title">Suggested fix</h4>
-            <div class="diag-fix"><code>${esc(f.fix)}</code><button class="copy-btn" type="button" data-copy="${esc(f.fix)}">Copy</button></div>
-          </div>` : ''}
         </article>`;
       card.querySelectorAll('.diag-fix .copy-btn').forEach(btn => {
         btn.onclick = () => copyText(btn.dataset.copy, btn);

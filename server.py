@@ -19,7 +19,13 @@ import psutil
 from apply_fix import apply_fix
 from benchmarks import chassis_identity, cpu_identity, hardware_comparison, memory_identity
 from cosmic_theme import get_cosmic_theme
-from diagnostics import get_diagnostics, invalidate_diagnostics_cache
+from diagnostics import (
+    diagnostics_job_status,
+    get_diagnostics,
+    invalidate_diagnostics_cache,
+    primary_finding,
+    request_diagnostics_scan,
+)
 from game_performance import seed_last_session, tick_game_performance
 from games import (
     LEGACY_GAME_IDS,
@@ -2355,19 +2361,48 @@ class Handler(BaseHTTPRequestHandler):
             from rule_packs import evaluate_rule_packs, scan_findings_for_guidance
 
             force = (qs.get("force") or ["0"])[0] in ("1", "true", "yes")
-            diag = get_diagnostics(force=force)
+            # force starts background job — HTTP never waits on journalctl
+            if force:
+                request_diagnostics_scan()
+            job = diagnostics_job_status()
+            # Prefer last completed scan; never block the request thread.
+            if job.get("has_result") and job.get("findings") is not None:
+                diag = {
+                    "scanned_at": job.get("scanned_at"),
+                    "counts": job.get("counts") or {},
+                    "findings": job.get("findings") or [],
+                    "categories": [],
+                    "pending": bool(job.get("running")),
+                }
+            else:
+                diag = get_diagnostics(force=False)
+            # Snapshot metrics under lock; evaluate outside so scans can't stall sampler.
             with _lock:
-                gt = (_latest_full or {}).get("game_totals") or {}
+                full = _latest_full
+                mem = _mem_spec
+                gt = (full or {}).get("game_totals") or {}
                 active = gt.get("game_id") or gt.get("appid")
-                ctx = system_context()
-                _, emitted = evaluate_rule_packs(_latest_full or {}, _mem_spec, ctx)
-                scan = scan_findings_for_guidance(
-                    diag.get("findings") or [],
-                    emitted,
-                    active_appid=str(active) if active else None,
-                    running=bool(gt.get("running")),
-                )
-            diag = {**diag, "scan_findings": scan}
+                running = bool(gt.get("running"))
+            ctx = system_context()
+            _, emitted = evaluate_rule_packs(full or {}, mem, ctx)
+            scan = scan_findings_for_guidance(
+                diag.get("findings") or [],
+                emitted,
+                active_appid=str(active) if active else None,
+                running=running,
+            )
+            primary = primary_finding(scan) or primary_finding(diag.get("findings") or [])
+            diag = {
+                **diag,
+                "scan_findings": scan,
+                "primary": primary,
+                "job": {
+                    "status": job.get("status"),
+                    "running": bool(job.get("running")),
+                    "ready": bool(job.get("has_result")),
+                    "error": job.get("error"),
+                },
+            }
             self._json(diag)
         elif path == "/api/store":
             self._json(enrich_store_stats())
@@ -2632,6 +2667,8 @@ def main():
     pruned = prune_old()
     if pruned:
         print(f"Cosmic Pulse DB: pruned {pruned} old samples")
+    # Warm Guidance Scan off the request path (quiet async; no modal).
+    request_diagnostics_scan()
     t = threading.Thread(target=sampler, daemon=True, name="pulse-sampler-0")
     t.start()
     wd = threading.Thread(target=sampler_watchdog, daemon=True, name="pulse-sampler-watchdog")
