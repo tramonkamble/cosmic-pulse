@@ -7229,7 +7229,7 @@
       return JSON.stringify((hints || []).map(h => [
         h.insight_id, h.level, h.title, h.text,
         h.games_affected, h.multi_game, h.bucket,
-        !!h.has_fix_script, !!h.requires_root, !!h.fixable,
+        !!h.requires_root,
         (h.actions || []).map(a => [a.label, a.cmd, a.note, a.kind || '']),
       ]));
     }
@@ -7710,7 +7710,7 @@
         else if (installed && t.role === 'helper') { badge = 'ready'; badgeCls = 'done'; }
         else if (installed) { badge = 'idle'; badgeCls = 'med'; }
         const setup = t.setup === 'enable-nvme-smart'
-          ? `<div class="sub" style="margin-top:.35rem">Needs device access — copy Guidance fix script <code>enable-nvme-smart</code> or run:
+          ? `<div class="sub" style="margin-top:.35rem">Needs device access — from Guidance run:
               <code style="display:block;margin-top:.25rem;font-size:.85rem;color:var(--blue)">sudo usermod -aG disk $USER &amp;&amp; echo 'KERNEL=="nvme[0-9]*", GROUP="disk", MODE="0660"' | sudo tee /etc/udev/rules.d/60-nvme-smart-pulse.rules</code>
               Then log out/in and restart Pulse.</div>`
           : '';
@@ -12376,7 +12376,7 @@
         ? fixMarkers.map(m =>
             `<span class="game-perf-marker" title="${m.meta || ''}">${fmtStoreSpan(m.ts)} · fix · ${m.insight_id || m.label}</span>`
           ).join('')
-        : '<span class="game-perf-marker">Fix markers appear when you use one-click Fix during a game session</span>';
+        : '<span class="game-perf-marker">Session markers appear when issues are live during a game</span>';
     }
 
     function renderGamePerfHistory(sessions) {

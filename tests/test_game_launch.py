@@ -114,9 +114,10 @@ def test_proton_wayland_rule_fires_when_gated(monkeypatch):
     assert "proton-wayland-launch-fix" in emitted
     hit = next(h for h in hints if h["insight_id"] == "proton-wayland-launch-fix")
     assert hit["level"] == "warn"
-    assert hit["fixable"] is True
     assert hit["bucket"] == "steam"
     assert "3041230" in hit["games"]
+    assert "fix_script" not in hit
+    assert hit.get("actions")
 
 
 def test_proton_wayland_rule_skips_when_fix_present(monkeypatch):
@@ -231,48 +232,6 @@ def test_game_uses_proton_compatdata_exe_fallback(monkeypatch, tmp_path):
     monkeypatch.setattr(games, "proc_uses_proton", lambda _pid: False)
     assert game_uses_proton("3041230", 999, primary_name="Windrose.exe") is True
     assert game_uses_proton("3041230", 999, primary_name="steamwebhelper") is False
-
-
-def test_proton_wayland_fix_script_writes_steam_config():
-    from fix_scripts import get_fix_script
-
-    script = get_fix_script("proton-wayland-launch-fix", appid="3041230", game_name="Windrose")
-    assert "sudo bash" not in script
-    assert "set_steam_launch_options" in script
-    assert "SDL_VIDEODRIVER=x11" in script
-    assert "PLAYBOOK" not in script
-    assert "3041230" in script
-
-
-def test_apply_fix_is_read_only(tmp_path):
-    """v0.1: apply_fix never writes config or launches processes."""
-    import apply_fix
-
-    cfg = tmp_path / "userdata" / "12345" / "config"
-    cfg.mkdir(parents=True)
-    vdf = cfg / "localconfig.vdf"
-    vdf.write_text(
-        """
-"Apps"
-{
-    "3041230"
-    {
-        "Playtime"		"1"
-    }
-}
-"""
-    )
-    before = vdf.read_text()
-    result = apply_fix.apply_fix(
-        "proton-wayland-launch-fix",
-        game_id="3041230",
-        game_name="Windrose",
-    )
-    assert result["ok"] is False
-    assert result.get("read_only") is True
-    assert result.get("suggest_only") is True
-    assert apply_fix.fix_available("proton-wayland-launch-fix") is False
-    assert vdf.read_text() == before
 
 
 def test_eval_condition_session_game_metrics():

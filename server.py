@@ -16,7 +16,6 @@ from urllib.parse import parse_qs, urlparse
 
 import psutil
 
-from apply_fix import apply_fix
 from benchmarks import chassis_identity, cpu_identity, hardware_comparison, memory_identity
 from cosmic_theme import get_cosmic_theme
 from diagnostics import (
@@ -89,7 +88,7 @@ from store import (
     stats as store_stats,
 )
 from stutter import attach_stutter, effective_disk_io_wait
-from tuning_actions import build_tuning_hints, fix_script_for_insight, system_context
+from tuning_actions import build_tuning_hints, system_context
 
 PORT = int(os.environ.get("PULSE_PORT", "8765"))
 HISTORY_LEN = 600  # 10 minutes at 1 Hz
@@ -97,11 +96,10 @@ ROOT = app_root()
 
 
 def _strip_hint(h: dict) -> dict:
+    """Drop legacy fix-script fields if present in history / older payloads."""
     out = dict(h)
-    if "fix_script" in out:
-        if "has_fix_script" not in out:
-            out["has_fix_script"] = bool(out.get("fix_script"))
-        del out["fix_script"]
+    for key in ("fix_script", "has_fix_script", "fixable"):
+        out.pop(key, None)
     return out
 
 
@@ -142,7 +140,7 @@ def latest_for_api(
     include_game_issues: bool = True,
     include_session_trend: bool = False,
 ) -> dict:
-    """Drop bulky fix_script bodies (and optional session trends) from the browser payload."""
+    """Slim API payload: strip legacy script fields and optional session trends."""
     if not latest:
         return latest
     out = dict(latest)
@@ -1684,10 +1682,7 @@ def update_tuning_history(
                     "text": h["text"],
                     "actions": h.get("actions", []),
                     "insight_id": iid,
-                    "fix_script": h.get("fix_script"),
-                    "has_fix_script": h.get("has_fix_script"),
                     "requires_root": h.get("requires_root"),
-                    "fixable": h.get("fixable"),
                     "games": h.get("games", ["all"]),
                     "bucket": h.get("bucket"),
                     "last_seen": now,
@@ -1696,6 +1691,8 @@ def update_tuning_history(
                     "condition_live": True,
                 }
             )
+            for legacy in ("fix_script", "has_fix_script", "fixable"):
+                hit.pop(legacy, None)
             merge_games_seen(hit, game_hits, now)
             if iid:
                 _tuning_by_id[iid] = hit
@@ -2338,25 +2335,6 @@ class Handler(BaseHTTPRequestHandler):
                 latest = latest_for_api(_latest_full)
                 by_game = latest.get("issues_by_game") or {}
             self._json({"issues_by_game": by_game})
-        elif path == "/api/fix-script":
-            insight_id = (qs.get("insight_id") or [""])[0].strip()
-            if not insight_id:
-                self._json({"ok": False, "error": "insight_id required"}, status=400)
-                return
-            with _lock:
-                script = fix_script_for_insight(
-                    insight_id,
-                    _latest_full,
-                    _mem_spec,
-                    history=_tuning_history,
-                )
-            self._json(
-                {
-                    "ok": bool(script),
-                    "insight_id": insight_id,
-                    "script": script,
-                }
-            )
         elif path == "/api/diagnostics":
             from rule_packs import evaluate_rule_packs, scan_findings_for_guidance
 
@@ -2536,42 +2514,15 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         if path == "/api/apply-fix":
-            # Read-only policy: never execute. Return script text for copy/paste.
-            insight_id = body.get("insight_id")
-            if not insight_id or not isinstance(insight_id, str):
-                self._json({"ok": False, "error": "insight_id required"}, status=400)
-                return
-            iid = insight_id.strip()
-            result = apply_fix(iid)
-            with _lock:
-                latest = _latest_full
-                history = list(_tuning_history)
-            gt = latest.get("game_totals") or {}
-            game_id = gt.get("game_id") if gt.get("running") else None
-            if not game_id:
-                for item in history:
-                    if item.get("insight_id") != iid:
-                        continue
-                    seen = item.get("games_seen") or {}
-                    if seen:
-                        game_id = max(seen, key=lambda k: seen[k])
-                    break
-            try:
-                script = fix_script_for_insight(
-                    iid,
-                    latest or {},
-                    _mem_spec,
-                    history=history,
-                )
-            except Exception:
-                script = ""
-            result = {
-                **result,
-                "insight_id": iid,
-                "script": script or "",
-                "has_fix_script": bool(script),
-            }
-            self._json(result)
+            # Removed: Pulse never ran fixes; scripts are gone too.
+            self._json(
+                {
+                    "ok": False,
+                    "error": "apply-fix removed — use Guidance steps and copy commands",
+                    "read_only": True,
+                },
+                status=410,
+            )
             return
         if path == "/api/store":
             if "retention_days" in body:

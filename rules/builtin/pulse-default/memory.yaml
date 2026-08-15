@@ -21,9 +21,6 @@ rules:
         The system is pushing data to swap (fill {memory.swap_pct:.0f}%, out
         ~{memory.swap_out_kbps:.0f} KB/s). Free RAM before tuning graphics —
         this is a common stutter cause.
-      fix_script: memory-swap-thrash
-      fix_kwargs:
-        swap_pct: memory.swap_pct
       condition_live: true
     actions:
       - label: Lower swappiness now
@@ -52,9 +49,6 @@ rules:
       text: >-
         Memory stall at {memory.psi_avg10}% — the CPU is waiting on RAM.
         Close background apps.
-      fix_script: memory-dram-stall
-      fix_kwargs:
-        psi: memory.psi_avg10
     actions:
       - label: List top memory users
         kind: cmd
@@ -86,10 +80,6 @@ rules:
       text: >-
         {memory.pgmajfault_per_s}/s major page faults while {game.name} is playing —
         assets are still being pulled from disk after load finished.
-      fix_script: memory-page-faults
-      game_context: true
-      fix_kwargs:
-        fault_rate: memory.pgmajfault_per_s
       games: active
     actions:
       - label: Lower texture/world detail

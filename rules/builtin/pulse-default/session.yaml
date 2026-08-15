@@ -31,12 +31,6 @@ rules:
         ~{stutter_detail.est_ms}ms est. hitch · score {stutter.score:.0f}/100 ·
         {stutter.session_events} events in 5m · 1% low proxy ~{stutter_detail.hitch_ms_1pct}ms.
         Likely: {stutter_detail.cause_text}.
-      fix_script: stutter-proxy
-      game_context: true
-      fix_kwargs:
-        score: stutter.score
-        est_ms: stutter_detail.est_ms
-        causes: stutter_detail.cause_text
       games: active
       condition_live: true
     actions:
@@ -73,8 +67,6 @@ rules:
       title: CPU is the limit
       text: >-
         GPU has headroom but the CPU is maxed — common in CPU-heavy scenes in {game.name}.
-      fix_script: cpu-bound
-      game_context: true
     actions:
       - label: "In-game: lower simulation load"
         kind: game

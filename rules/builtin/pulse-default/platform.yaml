@@ -11,7 +11,6 @@ rules:
       text: >-
         Governor is '{ctx.governor}' — cores may not boost fast enough while gaming.
         Switch to performance for game sessions.
-      fix_script: cpu-governor-powersave
     actions:
       - label: Set performance governor (until reboot)
         kind: cmd
@@ -34,9 +33,6 @@ rules:
       text: >-
         vm.swappiness={ctx.swappiness} — the kernel swaps aggressively when RAM fills up,
         which causes hitches in any game.
-      fix_script: vm-swappiness-high
-      fix_kwargs:
-        current: ctx.swappiness
     actions:
       - label: Lower swappiness for this boot
         kind: cmd
@@ -65,7 +61,6 @@ rules:
         desktop is in SDR (colorspace {display.hdr_colorspace}). COSMIC does not yet expose
         a desktop HDR toggle; enable HDR in the monitor OSD and/or use gamescope for
         per-game HDR when the title supports it.
-      fix_script: display-hdr-off
       bucket: tools
       condition_live: true
     actions:

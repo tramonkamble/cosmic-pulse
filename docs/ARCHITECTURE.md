@@ -32,8 +32,7 @@ collect_metrics()  [server.py, sampler thread]
 | `games.py` | Steam AppID detection, Proton/Wayland helpers, game linger |
 | `stutter.py` | Hitch proxy; `effective_disk_io_wait()` dampens zram PSI |
 | `diagnostics.py` | On-demand log/system scan (cached ~90s) |
-| `fix_scripts.py` | Bash templates; loaded lazily via `/api/fix-script` |
-| `apply_fix.py` | Safe user-writable fixes only (no sudo/kill) |
+| `apply_fix.py` | `requires_root` labels only (Pulse never executes) |
 | `pulse_config.py` | `.pulse_config.json` — retention, suppressed/resolved insights |
 | `store.py` | SQLite history (`pulse.db`, gitignored) |
 

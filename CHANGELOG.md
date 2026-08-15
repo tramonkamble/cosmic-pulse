@@ -58,7 +58,7 @@ Dates use the machine local timezone (EDT unless noted).
 
 ### Changed
 - **Rig strip tiles** — hardware filter buttons drop live stats; tall right-side icon panel with subtle top-level brand wordmarks (AMD, Intel, NVIDIA, System76).
-- **Lazy fix scripts** — tuning hints ship `has_fix_script` only; script bodies load on demand via `GET /api/fix-script?insight_id=…` (copy, save, view).
+- **Fix scripts removed (experiment)** — Guidance is steps + copyable commands only; no `/api/fix-script` or downloadable `.sh`.
 - **Metrics polling** — first load uses `/api/metrics?bootstrap=1` (static + full history); each 1s tick fetches latest + one slim history point only (~310 KB vs re-downloading the full buffer).
 - **Metrics payload** — history ring buffer stores slim chart samples (~5 KB/point) instead of full dashboard snapshots (~310 KB/point); `/api/metrics` no longer ships duplicated fix scripts and per-game issues 600×.
 

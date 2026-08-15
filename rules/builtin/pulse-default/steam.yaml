@@ -15,10 +15,6 @@ rules:
       title: Missing gaming libraries
       text: >-
         {diag.lib_missing_summary} — common cause of Proton games failing to launch or rendering black screens.
-      fix_script: game-libs-missing
-      fix_kwargs:
-        lib_findings: diag.lib_findings
-        multilib: diag.lib_multilib_needed
       bucket: steam
       condition_live: true
       requires_root: true
@@ -46,9 +42,6 @@ rules:
         else: warn
       title: "{diag.disk_title}"
       text: "{diag.disk_text}"
-      fix_script: steam-disk-low
-      fix_kwargs:
-        free_gb: diag.disk_free_gb
       bucket: steam
       condition_live: true
     actions:
@@ -74,7 +67,6 @@ rules:
         else: warn
       title: "{diag.vulkan_title}"
       text: "{diag.vulkan_text}"
-      fix_script: vulkan-broken
       bucket: driver
       condition_live: true
       requires_root: true
@@ -103,8 +95,6 @@ rules:
       text: >-
         Steam flagged the install as corrupt — common on Linux after patches;
         causes crashes, missing maps, or failed loads.
-      fix_script: game-files-corrupt
-      game_context: true
       games: active
       bucket: steam
       condition_live: true
@@ -130,13 +120,6 @@ rules:
       title: "{game.name}: finish pending update"
       text: >-
         {steam.update_summary} — playing on a half-patched build causes hitches, shader rebuilds, or odd crashes.
-      fix_script: game-update-pending
-      game_context: true
-      fix_kwargs:
-        pending_mb: steam.pending_mb
-        stage_mb: steam.stage_mb
-        shader_mb: steam.shader_mb
-        suspended: steam.suspended_while_running
       games: active
       bucket: steam
       condition_live: true
@@ -169,10 +152,6 @@ rules:
       text: >-
         {diag.exit_text} — active-game exits only (other titles stay in System scan).
         Try verify files, missing libs, or reset the Proton prefix.
-      fix_script: game-prefix-reset
-      game_context: true
-      fix_kwargs:
-        codes: diag.exit_codes
       games: active
       bucket: steam
       condition_live: true
@@ -202,9 +181,7 @@ rules:
       text: >-
         {game.name} is on Proton + Wayland ({session.desktop}) with no X11 launch
         options in Steam (and the running process does not have the override).
-        Use Fix to write launch options, or copy them manually — then restart.
-      fix_script: proton-wayland-launch-fix
-      game_context: true
+        Copy the launch options from Guidance steps, or set them in Steam — then restart.
       games: active
       bucket: steam
       condition_live: true

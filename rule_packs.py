@@ -15,7 +15,6 @@ import yaml
 from apply_fix import requires_root
 from audio_probe import audio_metrics
 from diagnostics import _PROMOTE_SEVERITIES, scan_findings
-from fix_scripts import get_fix_script
 from games import (
     active_game_context,
     game_meta,
@@ -606,45 +605,6 @@ def _resolve_games(emit: dict, metrics: dict) -> list[str]:
     return out or ["all"]
 
 
-def _resolve_fix_script(
-    emit: dict,
-    metrics: dict,
-    pack_dir: Path,
-    game_kwargs: dict,
-) -> str:
-    spec = emit.get("fix_script")
-    if spec is None or spec == "":
-        return ""
-    spec = str(spec)
-    if spec.startswith("file:"):
-        rel = spec[5:].lstrip("/")
-        try:
-            pack_root = pack_dir.resolve()
-            path = (pack_dir / rel).resolve()
-            # Containment: never read outside the pack directory
-            if path != pack_root and not str(path).startswith(str(pack_root) + os.sep):
-                return ""
-            if not path.is_file():
-                return ""
-            return path.read_text().strip()
-        except OSError:
-            return ""
-
-    insight_id = emit.get("insight_id", spec)
-    kwargs: dict[str, Any] = {}
-    for key, metric_path in (emit.get("fix_kwargs") or {}).items():
-        kwargs[key] = _get_path(metrics, str(metric_path))
-    if emit.get("game_context"):
-        kwargs.update(game_kwargs)
-    try:
-        return get_fix_script(insight_id, **kwargs).strip()
-    except TypeError:
-        try:
-            return get_fix_script(insight_id).strip()
-        except TypeError:
-            return ""
-
-
 def _resolve_level_when(level_when: object, metrics: dict, default: str = "info") -> str:
     """Resolve level_when trees: detect → then, else (string or nested level_when)."""
     if not isinstance(level_when, dict):
@@ -673,7 +633,6 @@ def _resolve_level(emit: dict, metrics: dict) -> str:
 def _pack_hint(
     emit: dict,
     actions: list[dict],
-    fix_script: str,
     metrics: dict,
     *,
     pack_id: str,
@@ -682,19 +641,14 @@ def _pack_hint(
     insight_id = str(emit["insight_id"])
     needs_root = emit.get("requires_root")
     root = requires_root(insight_id) if needs_root is None else bool(needs_root)
-    script = fix_script.strip()
     out = {
         "level": _resolve_level(emit, metrics),
         "title": render_template(str(emit.get("title", "")), metrics),
         "text": render_template(str(emit.get("text", "")), metrics),
         "actions": actions,
         "insight_id": insight_id,
-        "fix_script": script,
-        "has_fix_script": bool(script),
         "games": _resolve_games(emit, metrics),
         "requires_root": root,
-        # v0.1: never one-click execute — scripts are copy/paste only
-        "fixable": False,
         "pack_id": pack_id,
         "rule_id": rule_id,
     }
@@ -900,7 +854,7 @@ def get_game_overrides() -> dict[str, dict]:
 
 
 def game_context_kwargs(metrics: dict) -> dict[str, Any]:
-    """Kwargs for fix scripts from active game metrics."""
+    """Active game kwargs (appid / name) for templates and pack matching."""
     appid = metrics.get("game", {}).get("appid")
     name = metrics.get("game", {}).get("name")
     if appid and (not name or name == "your game"):
@@ -987,7 +941,6 @@ def list_rules(*, pack_id: str | None = None, q: str | None = None) -> list[dict
                     "bucket": bucket,
                     "detect_summary": detect_summary,
                     "actions": len(rule.get("actions") or []),
-                    "fix_script": bool(emit.get("fix_script")),
                 }
             )
     return rows
@@ -1053,28 +1006,6 @@ def set_pack_enabled(pack_id: str, enabled: bool) -> dict:
     return {"ok": True, "pack": hit, "packs": packs}
 
 
-def resolve_fix_script_for_insight(
-    insight_id: str,
-    snap: dict,
-    mem_spec: dict,
-    ctx: dict,
-) -> str:
-    """Rebuild fix script from pack rules + live metrics (fallback for /api/fix-script)."""
-    metrics = flatten_metrics(snap, mem_spec, ctx)
-    game_kwargs = game_context_kwargs(metrics)
-    for pack in _load_packs(include_disabled=False):
-        if not match_pack(pack["manifest"], metrics):
-            continue
-        for rule in pack["rules"]:
-            emit = rule.get("emit") or {}
-            if str(emit.get("insight_id") or "") != insight_id:
-                continue
-            if not eval_condition(rule.get("detect"), metrics):
-                continue
-            return _resolve_fix_script(emit, metrics, pack["dir"], game_kwargs)
-    return ""
-
-
 def evaluate_rule_packs(
     snap: dict,
     mem_spec: dict,
@@ -1082,7 +1013,6 @@ def evaluate_rule_packs(
 ) -> tuple[list[dict], set[str]]:
     """Evaluate enabled packs; return hints and insight_ids emitted."""
     metrics = flatten_metrics(snap, mem_spec, ctx)
-    game_kwargs = game_context_kwargs(metrics)
     hints: list[dict] = []
     emitted: set[str] = set()
 
@@ -1099,12 +1029,10 @@ def evaluate_rule_packs(
             if not insight_id or insight_id in emitted:
                 continue
             actions = _render_actions(rule.get("actions"), metrics)
-            fix_script = _resolve_fix_script(emit, metrics, pack["dir"], game_kwargs)
             hints.append(
                 _pack_hint(
                     emit,
                     actions,
-                    fix_script,
                     metrics,
                     pack_id=pack["id"],
                     rule_id=rule_id,

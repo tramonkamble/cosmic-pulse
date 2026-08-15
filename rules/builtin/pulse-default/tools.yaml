@@ -14,7 +14,6 @@ rules:
         (sample conf → ~/mangohud-logs), Pulse attaches FPS avg / 1% lows to
         finished sessions. Kernel stutter stays as proxy when no log is present.
         Not required — skip if you prefer a clean HUD.
-      fix_script: mangohud-recommended
       bucket: tools
       condition_live: true
       games: all
@@ -43,7 +42,6 @@ rules:
       text: >-
         GameMode asks the system for lower latency while a game runs.
         Wrap Steam launches with gamemoderun for an easy boost — optional, not required.
-      fix_script: gamemode-recommended
       bucket: tools
       condition_live: true
       games: all

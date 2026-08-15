@@ -2,7 +2,7 @@
 
 **A second-monitor performance coach for Linux gaming.**
 
-Cosmic Pulse is a local web dashboard that helps you understand *why* a game stutters — not just CPU/GPU graphs. It ties together hardware context, bandwidth pressure, kernel stall signals (PSI, page faults, swap), and actionable fix scripts. Built for [Pop!_OS](https://pop.system76.com/) / COSMIC; works on other Linux distros with Python 3.11+.
+Cosmic Pulse is a local web dashboard that helps you understand *why* a game stutters — not just CPU/GPU graphs. It ties together hardware context, bandwidth pressure, kernel stall signals (PSI, page faults, swap), and actionable Guidance steps. Built for [Pop!_OS](https://pop.system76.com/) / COSMIC; works on other Linux distros with Python 3.11+.
 
 ![Cosmic Pulse dashboard](docs/screenshots/dashboard.png)
 
@@ -41,7 +41,7 @@ Ensure `~/.local/bin` is on your `PATH` so the `cosmic-pulse` command works.
 - **Live overview** — CPU, RAM, GPU, VRAM, temps, bandwidth, per-core load, GPU engine strip (AMD)
 - **Stutter estimate** — heuristic hitch score from page faults, PSI, swap, and disk I/O (not in-game frametime)
 - **Pulse Index** — session load score vs hardware tier tables
-- **Guidance** — outstanding issues with stable list order, live badges, fix scripts, and safe one-click applies
+- **Guidance** — outstanding issues with stable list order, live badges, and copy-paste fix steps
 - **System scan** — journal, Steam logs, Vulkan, missing libraries (on-demand, cached ~90s)
 - **Steam / Proton** — dynamic game detection, launch-option hints (e.g. Wayland → X11 for Proton)
 - **COSMIC theme sync** — reads accent and surfaces from `~/.config/cosmic` when available
@@ -131,7 +131,7 @@ One-click **Fix** actions are limited to safe, user-owned changes (e.g. open fol
 - Stutter score is a **kernel-signal proxy**, not real frametime.
 - AMD discrete GPU is the happy path; NVIDIA-only rigs may have sparse GPU tiles.
 - Chart.js loads from CDN on first visit (needs internet once).
-- Some fix scripts reference machine-specific sensor labels — review before running.
+- Some Guidance commands are machine-specific — review before running.
 
 See [docs/REVIEW.md](docs/REVIEW.md) for reviewer notes and future work.
 
@@ -157,7 +157,7 @@ More: [docs/INSTALL.md](docs/INSTALL.md) § Troubleshooting.
 | `stutter.py` | Hitch / stutter proxy |
 | `games.py` | Steam detection, Proton/Wayland helpers |
 | `diagnostics.py` | System troubleshooting scanner |
-| `fix_scripts.py` + `apply_fix.py` | Bash templates and safe one-click fixes |
+| `apply_fix.py` | `requires_root` labels for Guidance (no execution) |
 | `store.py` | SQLite history and correlations |
 | `install.sh` | User-local installer |
 | `deploy/build-deb.sh` | Build `.deb` for apt |
@@ -169,8 +169,6 @@ More: [docs/INSTALL.md](docs/INSTALL.md) § Troubleshooting.
 | `GET /` | Dashboard |
 | `GET /api/metrics` | Latest sample; `?bootstrap=1` for full history + static rig |
 | `GET /api/diagnostics` | Troubleshooting scan (`?force=1` to bypass cache) |
-| `GET /api/fix-script?insight_id=…` | Lazy-loaded bash fix script |
-| `POST /api/apply-fix` | Safe one-click fix (whitelisted insights only) |
 | `POST /api/store` | Retention, suppress/resolve insights |
 | `GET /api/trends`, `/api/correlation` | Historical series |
 

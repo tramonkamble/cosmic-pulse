@@ -80,7 +80,8 @@ Same data, deeper views — **not** the main clutter problem; Live overview + su
 
 ### 4. Other pages
 
-- **Guidance:** split index + detail fix scripts  
+- **Guidance:** split index + detail steps with copyable commands  
+
 - **Options:** UI scale, theme mode, data paths, rule packs  
 
 ---

@@ -20,7 +20,7 @@ USE_EXISTING = os.environ.get("PULSE_TEST_EXISTING", "").lower() in ("1", "true"
 _server_proc: subprocess.Popen | None = None
 
 
-def _get(path: str, timeout: float = 8.0) -> tuple[int, dict]:
+def _get(path: str, timeout: float = 8.0) -> tuple[int, dict | None]:
     req = urllib.request.Request(f"{BASE}{path}", headers={"Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -29,7 +29,32 @@ def _get(path: str, timeout: float = 8.0) -> tuple[int, dict]:
     except urllib.error.HTTPError as exc:
         body = exc.read()
         status = exc.code
-    data = json.loads(body.decode()) if body else {}
+    try:
+        data = json.loads(body.decode()) if body else {}
+    except json.JSONDecodeError:
+        data = None
+    return status, data
+
+
+def _post(path: str, payload: dict, timeout: float = 8.0) -> tuple[int, dict | None]:
+    raw = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"{BASE}{path}",
+        data=raw,
+        method="POST",
+        headers={"Accept": "application/json", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read()
+            status = resp.status
+    except urllib.error.HTTPError as exc:
+        body = exc.read()
+        status = exc.code
+    try:
+        data = json.loads(body.decode()) if body else {}
+    except json.JSONDecodeError:
+        data = None
     return status, data
 
 
@@ -105,35 +130,14 @@ def test_bootstrap_latest_shape():
     assert "generation" in samp
 
 
-def test_fix_script_requires_insight_id():
-    status, data = _get("/api/fix-script")
-    assert status == 400
-    assert data.get("ok") is False
-
-
-def test_fix_script_swappiness_non_empty():
+def test_fix_script_endpoint_gone():
     status, data = _get("/api/fix-script?insight_id=vm-swappiness-high")
-    assert status == 200
-    assert data.get("ok") is True
-    script = data.get("script") or ""
-    assert "swappiness" in script.lower()
-    assert len(script) > 80
+    assert status == 404
 
 
-def test_fix_script_game_files_no_cs2_default():
-    status, data = _get("/api/fix-script?insight_id=game-files-corrupt")
-    assert status == 200
-    script = data.get("script") or ""
-    if script:
-        assert "Counter-Strike" not in script
-        assert "steam://validate/730" not in script
-
-
-def test_fix_script_game_libs_non_empty():
-    status, data = _get("/api/fix-script?insight_id=game-libs-missing")
-    assert status == 200
-    script = data.get("script") or ""
-    assert "apt install" in script or "gaming libraries" in script.lower()
+def test_apply_fix_endpoint_gone():
+    status, data = _post("/api/apply-fix", {"insight_id": "vm-swappiness-high"})
+    assert status in (404, 405, 410)
 
 
 def test_diagnostics_force():
@@ -173,10 +177,8 @@ def run_all() -> None:
         test_root_ok()
         test_bootstrap_static_fields()
         test_bootstrap_latest_shape()
-        test_fix_script_requires_insight_id()
-        test_fix_script_swappiness_non_empty()
-        test_fix_script_game_files_no_cs2_default()
-        test_fix_script_game_libs_non_empty()
+        test_fix_script_endpoint_gone()
+        test_apply_fix_endpoint_gone()
         test_diagnostics_force()
         test_issues_by_game()
         test_store_stats()

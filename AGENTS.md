@@ -38,7 +38,7 @@ Do not merge beta UI into `main` until explicitly promoted. Backend/Python work 
 
 **Do not ship the first public build until builtin Guidance is cut to ~5–10 simple rules.**
 
-- Cosmic Pulse **0.1 ships the engine**: live metrics, UI, rule-pack loader, safe fix scripts surface, history.
+- Cosmic Pulse **0.1 ships the engine**: live metrics, UI, rule-pack loader, Guidance steps, history.
 - Builtin pack is a **scaffold** of obvious, high-confidence tips — not a full coach.
 - **Community** (people smarter about specific games/distros/GPUs) owns richer rulesets that improve games.
 - Today `rules/builtin/pulse-default/` is large (~30+ insights) — **dev dogfood**, not release shape.

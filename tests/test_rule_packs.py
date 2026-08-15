@@ -154,7 +154,9 @@ def test_swappiness_rule_fires():
     assert "vm-swappiness-high" in emitted
     hit = next(h for h in hints if h["insight_id"] == "vm-swappiness-high")
     assert "180" in hit["text"]
-    assert hit["has_fix_script"]
+    assert hit.get("actions")
+    assert "fix_script" not in hit
+    assert "has_fix_script" not in hit
 
 
 def test_resolution_swap_stutter_requires_game_running():
@@ -223,7 +225,8 @@ def test_display_hdr_off_rule_fires_when_capable_and_sdr(monkeypatch):
     assert "display-hdr-off" in emitted
     hit = next(h for h in hints if h["insight_id"] == "display-hdr-off")
     assert hit["level"] == "info"
-    assert hit["has_fix_script"]
+    assert hit.get("actions")
+    assert "fix_script" not in hit
     assert "HDR" in hit["title"] or "HDR" in hit["text"]
 
 

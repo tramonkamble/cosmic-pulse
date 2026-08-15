@@ -13,9 +13,6 @@ rules:
       text: >-
         Junction is {gpu.junction_c}°C (alert ≥ {thermal.hot_c:.0f}°C for {thermal.arch_label}).
         Lower graphics settings or improve cooling before sustained throttle.
-      fix_script: gpu-thermal-ceiling
-      fix_kwargs:
-        junction_c: gpu.junction_c
       condition_live: true
     actions:
       - label: "In-game: lower shadow / LOD / draw distance"
@@ -43,9 +40,6 @@ rules:
       text: >-
         Junction {gpu.junction_c}°C and clocks dropped to {thermal.gfx_mhz} MHz
         (session peak ~{thermal.peak_mhz} MHz). {thermal.arch_label} is throttling — lower graphics settings.
-      fix_script: gpu-thermal-ceiling
-      fix_kwargs:
-        junction_c: gpu.junction_c
       condition_live: true
     actions:
       - label: "In-game: lower shadow / LOD / draw distance"
@@ -71,9 +65,6 @@ rules:
       title: GPU getting warm
       text: >-
         Junction is {gpu.junction_c}°C. {thermal.design_note}
-      fix_script: gpu-thermal-warm
-      fix_kwargs:
-        junction_c: gpu.junction_c
     actions:
       - label: Cap FPS in-game
         kind: game
@@ -101,7 +92,6 @@ rules:
       text: >-
         Junction {gpu.junction_c}°C — {thermal.design_note}
         Clocks at {thermal.gfx_mhz} MHz (peak ~{thermal.peak_mhz} MHz this session).
-      fix_script: ""
     actions:
       - label: Check clocks + temps
         kind: cmd
@@ -120,10 +110,6 @@ rules:
       text: >-
         Memory controller at {gpu.mem_busy_pct:.0f}% (~{gpu.vram_used_mb} MB VRAM in use).
         Textures are pushing the GDDR hard.
-      fix_script: gpu-vram-bandwidth
-      game_context: true
-      fix_kwargs:
-        mem_busy_pct: gpu.mem_busy_pct
     actions:
       - label: "In-game: reduce texture / asset quality"
         kind: game
@@ -139,11 +125,6 @@ rules:
       title: Running low on VRAM
       text: >-
         {gpu.vram_pct:.0f}% VRAM used ({gpu.vram_used_mb} MB). Spilling into system RAM causes stutters.
-      fix_script: gpu-vram-full
-      game_context: true
-      fix_kwargs:
-        vram_pct: gpu.vram_pct
-        vram_used_mb: gpu.vram_used_mb
     actions:
       - label: "In-game: lower resolution scale"
         kind: game
@@ -168,10 +149,6 @@ rules:
       text: >-
         Shared memory pool churn at {gpu.gtt_rate_mbps:.0f} MB/s while VRAM is {gpu.vram_pct:.0f}% full
         (GTT pool {gpu.gtt_pool_pct:.0f}% used). Lower textures or resolution if you see hitches.
-      fix_script: gpu-gtt-churn
-      game_context: true
-      fix_kwargs:
-        gtt_rate: gpu.gtt_rate_mbps
     actions:
       - label: "In-game: drop texture / asset mods"
         kind: game

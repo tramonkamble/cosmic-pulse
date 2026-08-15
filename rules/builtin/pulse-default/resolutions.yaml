@@ -18,12 +18,6 @@ rules:
       text: >-
         GPU is {gpu.busy_pct:.0f}% busy on a {display.cap_hz} Hz display while {game.name} runs.
         Frames above {display.cap_hz} FPS won't appear on screen but still burn GPU time.
-      fix_script: gpu-fps-cap
-      game_context: true
-      fix_kwargs:
-        busy_pct: gpu.busy_pct
-        refresh_hz: display.cap_hz
-        junction_c: gpu.junction_c
       games: active
       bucket: resolutions
     actions:
@@ -54,11 +48,6 @@ rules:
       text: >-
         Swap is {memory.swap_pct:.0f}% and stutter proxy is {stutter.score:.0f}/100 while {game.name} runs.
         Close browser tabs and other heavy apps before lowering graphics settings.
-      fix_script: resolution-swap-stutter
-      game_context: true
-      fix_kwargs:
-        swap_pct: memory.swap_pct
-        stutter_score: stutter.score
       games: active
       bucket: resolutions
     actions:
@@ -85,10 +74,6 @@ rules:
       text: >-
         Load-phase settle: {memory.pgmajfault_per_s}/s major page faults — assets still streaming
         into RAM. Wait ~30s after the loading bar before heavy camera moves (avoids false stutter warnings).
-      fix_script: resolution-load-settle
-      game_context: true
-      fix_kwargs:
-        fault_rate: memory.pgmajfault_per_s
       games: active
       bucket: resolutions
     actions:
@@ -117,11 +102,6 @@ rules:
       text: >-
         GPU has headroom but CPU is {cpu.overall_pct:.0f}% busy while governor is '{ctx.governor}'.
         Simulation-heavy scenes in {game.name} benefit from performance mode.
-      fix_script: resolution-cpu-perf
-      game_context: true
-      fix_kwargs:
-        cpu_pct: cpu.overall_pct
-        governor: ctx.governor
       requires_root: true
       games: active
       bucket: resolutions

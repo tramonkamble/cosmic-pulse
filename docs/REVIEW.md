@@ -27,7 +27,7 @@ server.py (sampler thread + HTTP)
     ├── benchmarks.py    → hardware tiers, session index
     ├── stutter.py       → hitch proxy from PSI/faults/swap
     ├── tuning_actions.py→ insights + action commands
-    ├── fix_scripts.py   → bash script strings embedded in hints
+    ├── apply_fix.py    → requires_root labels only (no execution)
     ├── diagnostics.py   → journal/steam/vulkan scans
     ├── games.py         → Steam process detection
     └── store.py         → SQLite pulse.db (gitignored)
@@ -48,9 +48,9 @@ Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` →
 ### High priority
 
 1. **Security / exposure** — `ThreadingHTTPServer(("0.0.0.0", PORT), …)` exposes metrics on all interfaces. Should this default to `127.0.0.1` with an opt-in LAN flag?
-2. **Command injection** — `fix_scripts.py` and `tuning_actions.py` embed shell commands. Are any inputs insufficiently sanitized?
+2. **Command injection** — Guidance `actions` embed shell command *suggestions*. Are any template inputs insufficiently sanitized?
 3. **Thread safety** — `_history` and caches updated under `_lock`; verify handler reads are safe.
-4. **GPU path assumptions** — `GPU_DISCRETE = card1`, hardcoded amdgpu paths in fix scripts. Will break on NVIDIA-only or different DRM ordering.
+4. **GPU path assumptions** — `GPU_DISCRETE = card1`, hardcoded amdgpu paths in some step commands. Will break on NVIDIA-only or different DRM ordering.
 5. **Game paths** — Cities II compatdata path is Proton-specific; CS2/Cities app IDs are in `games.py`.
 
 ### Medium priority
@@ -80,7 +80,7 @@ Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` →
 
 - Stutter score is a **proxy** from kernel signals, not in-game frametime.
 - AMD discrete GPU on `card1` is assumed; multi-GPU and NVIDIA need work.
-- Some fix scripts reference `amdgpu-pci-0300` sensor label — machine-specific.
+- Some Guidance commands reference `amdgpu-pci-0300` sensor label — machine-specific.
 - Steam userdata path was removed; game detection uses process cmdline + compatdata paths.
 
 ## Giving feedback

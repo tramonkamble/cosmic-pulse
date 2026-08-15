@@ -1,21 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Pulse contributors
 # SPDX-License-Identifier: GPL-3.0-only
-"""Read-only fix policy — Cosmic Pulse never executes commands.
+"""Insight metadata for Guidance (no execution, no fix scripts).
 
-v0.1 security pivot: one-click Fix / xdg-open / subprocess launch paths are
-disabled. Guidance only *suggests* shell text (from fix_scripts / rule packs).
-Users copy commands and run them in their own terminal at their own risk.
-
-This module still exports:
-  - requires_root() — UI badge for sudo-heavy suggestions
-  - fix_available() — always False (no GUI apply)
-  - apply_fix() — safe no-op that returns suggest_only + message
+Cosmic Pulse is read-only: it never runs commands. This module only
+labels which suggestions typically need sudo so the UI can say so.
 """
 
 from __future__ import annotations
 
-# UI hint: insight scripts/steps that typically need sudo — shown as "Requires root".
-FIX_REQUIRES_ROOT: dict[str, bool] = {
+# UI hint: steps that typically need sudo — shown as "Requires root".
+REQUIRES_ROOT: dict[str, bool] = {
     "cpu-governor-powersave": True,
     "vm-swappiness-high": True,
     "ram-expo-verify": True,
@@ -46,9 +40,8 @@ FIX_REQUIRES_ROOT: dict[str, bool] = {
     "display-hdr-off": False,
     "enable-nvme-smart": True,
     "system-balanced": False,
-    "mangohud-recommended": True,  # apt install
+    "mangohud-recommended": True,
     "gamemode-recommended": True,
-    # Audio pipeline — inspect / session-only quantum; no root
     "audio-pipeline": False,
     "audio-default-sink-missing": False,
     "audio-hdmi-default-alt": False,
@@ -62,39 +55,6 @@ FIX_REQUIRES_ROOT: dict[str, bool] = {
     "audio-hdmi-priority-conf": False,
 }
 
-# Human-readable policy line for API + UI
-READ_ONLY_MESSAGE = (
-    "Pulse never runs fixes. Copy the suggested command or script and run it "
-    "yourself in a terminal — review first; execute at your own risk."
-)
-
 
 def requires_root(insight_id: str) -> bool:
-    return FIX_REQUIRES_ROOT.get(insight_id, True)
-
-
-def fix_available(insight_id: str) -> bool:
-    """One-click Fix is permanently disabled (read-only product policy)."""
-    return False
-
-
-def apply_fix(
-    insight_id: str,
-    *,
-    game_id: str | None = None,
-    game_name: str | None = None,
-) -> dict:
-    """No-op apply path — never opens apps, never writes config, never spawns shells.
-
-    Kept so /api/apply-fix and older clients fail closed with a clear message.
-    """
-    _ = (insight_id, game_id, game_name)
-    root = requires_root(insight_id) if insight_id else False
-    return {
-        "ok": False,
-        "suggest_only": True,
-        "read_only": True,
-        "fixable": False,
-        "requires_root": root,
-        "message": READ_ONLY_MESSAGE,
-    }
+    return REQUIRES_ROOT.get(insight_id, True)

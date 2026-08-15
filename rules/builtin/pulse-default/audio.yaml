@@ -15,8 +15,7 @@ rules:
       text: >-
         PipeWire/Pulse has no healthy default sink (missing or unavailable).
         Games and Discord will be silent or open a random device. Open sound
-        settings or run the fix script to list sinks and set a default.
-      fix_script: audio-pipeline
+        settings or use the Guidance steps to list sinks and set a default.
       bucket: audio
       condition_live: true
       games: all
@@ -43,7 +42,6 @@ rules:
         {audio.alt_sink_desc} is also available. Games often follow the system
         default — if you hear crackles, wrong device, or “stuttery” audio,
         switch default output to your DAC/headphones (KDE Sound / pavucontrol).
-      fix_script: audio-pipeline
       bucket: audio
       condition_live: true
       games: all
@@ -68,7 +66,6 @@ rules:
         and is a common source of gaming crackles/pops under load. Prefer a
         wired headset or DAC for competitive play; leave BT for voice chat only
         if needed.
-      fix_script: audio-pipeline
       bucket: audio
       condition_live: true
       games: all
@@ -93,7 +90,6 @@ rules:
         44100). Forced high rates (96k) or odd rates (32k) make some games and
         Proton paths resample harder and can sound like stutter or crackle.
         Prefer 48000 unless you know you need something else.
-      fix_script: audio-pipeline
       bucket: audio
       condition_live: true
       games: all
@@ -117,7 +113,6 @@ rules:
         very low buffers can crackle under GPU/CPU load (xruns). For gaming,
         256–512 is a common sweet spot — change only if you feel delay or
         crackles. Pulse will not rewrite your PipeWire conf automatically.
-      fix_script: audio-pipeline
       bucket: audio
       condition_live: true
       games: all
@@ -144,7 +139,6 @@ rules:
         crackles during games — especially with a tight quantum under load.
         Check rate (prefer 48000), raise quantum slightly, and avoid Bluetooth
         for game audio. Sample: {audio.xrun_sample}
-      fix_script: audio-pipeline
       bucket: audio
       condition_live: true
       games: all
@@ -172,8 +166,7 @@ rules:
         That lets games and Steam request very small buffers; under GPU/CPU load
         PipeWire often underruns and you hear crackles/pops that feel like hitching.
         Raise the floor to 256 or 512 in a single context.properties drop-in, then
-        restart PipeWire (fix script explains). Session-only: force-quantum 512–1024.
-      fix_script: audio-pipeline
+        restart PipeWire (see Guidance steps). Session-only: force-quantum 512–1024.
       bucket: audio
       condition_live: true
       games: all
@@ -201,7 +194,6 @@ rules:
         (2) PipeWire not restarted after edits; (3) syntax ignored. Merge clock settings
         into one context.properties block, then:
         systemctl --user restart pipewire pipewire-pulse wireplumber
-      fix_script: audio-pipeline
       bucket: audio
       condition_live: true
       games: all
@@ -230,7 +222,6 @@ rules:
         PipeWire may keep only the last block — clock.rate / quantum settings in the
         first block are silently dropped. Merge into a single context.properties = { }
         and restart PipeWire.
-      fix_script: audio-pipeline
       bucket: audio
       condition_live: true
       games: all
@@ -253,7 +244,6 @@ rules:
         fine for desktop media, easy to miss for games (sound on the monitor,
         “missing” game audio, or odd crackles on the wrong device). Prefer the DAC
         for gaming, or lower HDMI priority.session when you play.
-      fix_script: audio-pipeline
       bucket: audio
       condition_live: true
       games: all

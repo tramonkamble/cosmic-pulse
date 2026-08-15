@@ -950,7 +950,7 @@ def game_data_paths(appid: str | None) -> dict:
 
 
 def active_game_context(game_totals: dict | None) -> dict:
-    """Context dict for hints, fix scripts, and one-click fixes."""
+    """Context dict for hints and game-scoped Guidance."""
     gt = game_totals or {}
     appid = gt.get("game_id") if gt.get("running") else None
     paths = game_data_paths(appid)

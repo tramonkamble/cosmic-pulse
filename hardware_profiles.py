@@ -431,7 +431,7 @@ def _fan_curve_architectures() -> tuple[str, ...]:
 
 FAN_CURVE_ARCHITECTURES = _fan_curve_architectures()
 
-# Per-family fix tooling — used by fix_scripts, apply_fix, and tuning_actions.
+# Per-family tooling notes (thermal / fan guidance).
 FIX_TOOL_SPECS: dict[str, dict[str, str]] = {
     "corectrl": {
         "binary": "corectrl",
