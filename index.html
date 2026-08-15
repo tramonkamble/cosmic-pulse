@@ -7180,9 +7180,7 @@
       document.querySelectorAll('details[data-open-key]').forEach(d => {
         if (!d.open) return;
         const k = d.dataset.openKey;
-        const pre = d.querySelector('.script-pre');
         const steps = d.querySelector('.rec-steps');
-        if (pre) panelScrollState[`${k}:pre`] = pre.scrollTop;
         if (steps) panelScrollState[`${k}:steps`] = steps.scrollTop;
       });
       document.querySelectorAll('.warn-list.stable-scroll, .diag-list.stable-scroll').forEach(el => {
@@ -7195,20 +7193,17 @@
       document.querySelectorAll('details[data-open-key]').forEach(d => {
         if (!d.open) return;
         const k = d.dataset.openKey;
-        const pre = d.querySelector('.script-pre');
         const steps = d.querySelector('.rec-steps');
-        if (pre && panelScrollState[`${k}:pre`] != null) pre.scrollTop = panelScrollState[`${k}:pre`];
         if (steps && panelScrollState[`${k}:steps`] != null) steps.scrollTop = panelScrollState[`${k}:steps`];
       });
       document.querySelectorAll('.warn-list.stable-scroll, .diag-list.stable-scroll').forEach(el => {
         if (el.id && panelScrollState[`scroll:${el.id}`] != null) el.scrollTop = panelScrollState[`scroll:${el.id}`];
       });
-      hydrateScriptPanels();
     }
 
     function bindScrollContainment() {
       document.addEventListener('wheel', e => {
-        const el = e.target.closest('.script-pre, .rec-steps, .diag-pre, .warn-list, .diag-list, .stable-scroll');
+        const el = e.target.closest('.rec-steps, .diag-pre, .warn-list, .diag-list, .stable-scroll');
         if (!el) return;
         const max = el.scrollHeight - el.clientHeight;
         if (max <= 0) return;
@@ -9989,15 +9984,6 @@
       renderSparkChart();
     }
 
-    function downloadScript(name, body) {
-      const blob = new Blob([body], { type: 'text/x-shellscript' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `pulse-fix-${name}.sh`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }
-
     const SEV_LABEL = { hot: 'Critical', warn: 'Important', info: 'Moderate', ok: 'Healthy' };
 
     function esc(s) {
@@ -11221,7 +11207,6 @@
       empty.hidden = true;
       card.innerHTML = recCardHtml(h, 'detail-');
       bindHintActions(card, [h]);
-      hydrateScriptPanels(card);
     }
 
     function selectGuidanceHint(insightId, { scroll = false } = {}) {
@@ -11444,51 +11429,6 @@
       return (list || []).find(h => h.insight_id === iid);
     }
 
-    const fixScriptCache = new Map();
-
-    async function fetchFixScript(insightId) {
-      if (!insightId) return '';
-      if (fixScriptCache.has(insightId)) return fixScriptCache.get(insightId);
-      try {
-        const res = await fetch(`/api/fix-script?insight_id=${encodeURIComponent(insightId)}`);
-        const data = await res.json();
-        const script = data.script || '';
-        if (script) fixScriptCache.set(insightId, script);
-        return script;
-      } catch {
-        return '';
-      }
-    }
-
-    async function loadScriptIntoPre(pre, insightId) {
-      if (!pre || !insightId) return;
-      const code = pre.querySelector('code');
-      const target = code || pre;
-      const body = (target.textContent || '').trim();
-      if (pre.dataset.loaded === '1' && body && body !== 'Loading script…') return;
-      const cached = fixScriptCache.get(insightId);
-      if (cached) {
-        target.textContent = cached;
-        pre.dataset.loaded = '1';
-        return;
-      }
-      target.textContent = 'Loading script…';
-      const script = await fetchFixScript(insightId);
-      target.textContent = script || 'No script available for this insight.';
-      pre.dataset.loaded = '1';
-    }
-
-    function hydrateScriptPanels(root = document) {
-      root.querySelectorAll('[data-script-pre][data-script-iid]').forEach(pre => {
-        loadScriptIntoPre(pre, pre.dataset.scriptIid);
-      });
-      root.querySelectorAll('details.rec-more[data-script-iid]').forEach(det => {
-        if (!det.open) return;
-        const pre = det.querySelector('[data-script-pre]');
-        if (pre) loadScriptIntoPre(pre, det.dataset.scriptIid);
-      });
-    }
-
     function recCardHtml(h, idPrefix = '', rank = 0) {
       const isDetail = idPrefix === 'detail-';
       const lv = h.level || 'info';
@@ -11515,35 +11455,24 @@
         ? `<button class="btn warn-hide" type="button" data-reopen-iid="${esc(sid)}" title="Move back to outstanding">Reopen</button>`
         : '';
       const headActions = `${markFixedBtn}${ignoreBtn}${reopenBtn}`;
-      const steps = (h.actions || []).map((a, ai) => `
+      const actions = h.actions || [];
+      const hasCmd = actions.some(a => a?.cmd);
+      const steps = actions.map((a, ai) => `
         <div class="rec-step">
           <div class="rec-step-label">${esc(a.label)}</div>
           ${a.cmd ? `<code>${esc(a.cmd)}</code>` : ''}
           ${a.note ? `<div class="rec-step-note">${esc(a.note)}</div>` : ''}
           ${a.cmd ? `<button class="copy-btn" type="button" data-iid="${esc(sid)}" data-a="${ai}">Copy</button>` : ''}
         </div>`).join('');
-      const hasScript = !!h.has_fix_script;
-      const cachedScript = fixScriptCache.get(sid);
-      // Read-only: never one-click Fix — always-visible <pre><code> + Copy
-      const scriptBlock = hasScript ? `
-        <div class="rec-action-bar rec-script-readonly">
-          <span class="rec-action-label">What to do · command</span>
-          <p class="fix-risk-warn">Review before running in a terminal. You execute at your own risk.</p>
-          <div class="rec-script-toolbar rec-actions" data-fix-row="${esc(sid)}">
-            <button class="script-btn" type="button" data-copy-script-iid="${esc(sid)}">Copy command</button>
-            <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>
-            ${h.requires_root ? '<span class="fix-root-note">Requires root</span>' : ''}
-          </div>
-          <pre class="script-pre" data-script-pre data-script-iid="${esc(sid)}"${cachedScript ? ' data-loaded="1"' : ''}><code>${cachedScript ? esc(cachedScript) : 'Loading script…'}</code></pre>
-        </div>` : (h.actions || []).some(a => a.cmd) ? `
-        <div class="rec-action-bar">
-          <span class="rec-action-label">What to do</span>
-          <p class="fix-risk-warn">Review before running in a terminal. You execute at your own risk.</p>
-        </div>` : '';
-      const stepCount = (h.actions || []).length;
+      const stepCount = actions.length;
+      const riskNote = hasCmd
+        ? `<p class="fix-risk-warn">Review commands before running them in a terminal.</p>`
+        : '';
       const stepsBlock = steps ? (isDetail ? `
         <div class="rec-section">
           <h4 class="rec-section-title">What to do${stepCount ? ` · ${stepCount} steps` : ''}</h4>
+          ${riskNote}
+          ${h.requires_root ? '<p class="fix-root-note">Some steps require root (sudo).</p>' : ''}
           <div class="rec-steps rec-steps-open">${steps}</div>
         </div>` : `
         <details class="rec-more" data-open-key="hint-${domId}-steps">
@@ -11557,18 +11486,6 @@
             ${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}
           </div>`
         : `<p class="rec-body">${esc(h.text)}</p>${when ? `<p class="rec-meta" data-rec-meta>${when}</p>` : ''}`;
-      // Full script is secondary to the step list — label it as optional deep dive
-      const scriptBlockDetail = hasScript ? `
-        <div class="rec-action-bar rec-script-readonly">
-          <span class="rec-action-label">Full fix script</span>
-          <p class="fix-risk-warn">Review before running in a terminal. You execute at your own risk.</p>
-          <div class="rec-script-toolbar rec-actions" data-fix-row="${esc(sid)}">
-            <button class="script-btn" type="button" data-copy-script-iid="${esc(sid)}">Copy script</button>
-            <button class="script-btn sec" type="button" data-dl-iid="${esc(sid)}">Save .sh</button>
-            ${h.requires_root ? '<span class="fix-root-note">Requires root</span>' : ''}
-          </div>
-          <pre class="script-pre" data-script-pre data-script-iid="${esc(sid)}"${cachedScript ? ' data-loaded="1"' : ''}><code>${cachedScript ? esc(cachedScript) : 'Loading script…'}</code></pre>
-        </div>` : '';
       const detailHead = isDetail
         ? `<header class="rec-head">
             ${statusBadge}
@@ -11585,21 +11502,11 @@
             <h3 class="rec-title">${esc(h.title)}</h3>
             ${headActions ? `<span class="rec-actions-head">${headActions}</span>` : ''}
           </header>`;
-      // Detail order (Insights / Adrenaline): title → steps you can take → full script → why
+      // Detail: title → steps (with copyable commands) → why. No full fix scripts.
       return `<article class="rec-card rec-${lv}${resolved ? ' rec-stale' : ''}" data-level="${lv}" data-iid="${esc(sid)}" id="${domId}">
         ${detailHead}
-        ${isDetail ? `${stepsBlock}${scriptBlockDetail}${whyBlock}` : `${whyBlock}${stepsBlock}${scriptBlock}`}
+        ${isDetail ? `${stepsBlock}${whyBlock}` : `${whyBlock}${stepsBlock}`}
       </article>`;
-    }
-
-    function showFixResult(row, message, ok) {
-      if (!row) return;
-      const el = row.querySelector('[data-fix-result]');
-      if (!el) return;
-      el.textContent = message || '';
-      el.classList.remove('ok', 'err');
-      el.classList.add(ok ? 'ok' : 'err');
-      el.hidden = !message;
     }
 
     function bindHintActions(el, list) {
@@ -11608,42 +11515,7 @@
         const a = h?.actions?.[+btn.dataset.a];
         if (a?.cmd) btn.onclick = () => copyText(a.cmd, btn);
       });
-      // One-click Fix removed — no data-apply-iid handlers
-      el.querySelectorAll('button[data-copy-script-iid]').forEach(btn => {
-        btn.onclick = async () => {
-          const prev = btn.textContent;
-          btn.disabled = true;
-          btn.textContent = 'Loading…';
-          const script = await fetchFixScript(btn.dataset.copyScriptIid);
-          btn.disabled = false;
-          btn.textContent = prev;
-          if (script) copyText(script, btn);
-        };
-      });
-      el.querySelectorAll('[data-dl-iid]').forEach(btn => {
-        btn.onclick = async e => {
-          e.stopPropagation();
-          const prev = btn.textContent;
-          btn.disabled = true;
-          btn.textContent = 'Loading…';
-          const script = await fetchFixScript(btn.dataset.dlIid);
-          btn.disabled = false;
-          btn.textContent = prev;
-          if (script) downloadScript(btn.dataset.dlIid || 'fix', script);
-        };
-      });
-      // Eager-load always-visible script blocks (no accordion)
-      el.querySelectorAll('[data-script-pre][data-script-iid]').forEach(pre => {
-        loadScriptIntoPre(pre, pre.dataset.scriptIid);
-      });
-      el.querySelectorAll('details.rec-more[data-script-iid]').forEach(det => {
-        det.addEventListener('toggle', () => {
-          if (!det.open) return;
-          const pre = det.querySelector('[data-script-pre]');
-          if (pre) loadScriptIntoPre(pre, det.dataset.scriptIid);
-        });
-      });
-      el.querySelectorAll('.script-btn, .copy-btn').forEach(btn => {
+      el.querySelectorAll('.copy-btn').forEach(btn => {
         btn.addEventListener('click', e => e.stopPropagation());
       });
       el.querySelectorAll('.warn-hide[data-hide-iid]').forEach(btn => {
@@ -11664,7 +11536,6 @@
           reopenInsight(btn.dataset.reopenIid);
         };
       });
-      hydrateScriptPanels(el);
     }
 
     function warningRowHtml(h) {
