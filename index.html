@@ -645,92 +645,6 @@
       .guidance-scan-meta { text-align: left; }
     }
 
-    /* Primary remediation — one job, one command */
-    .guidance-start {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 0.75rem 1rem;
-      align-items: center;
-      padding: 0.8rem 1rem;
-      border-radius: var(--radius-md);
-      border: 1px solid color-mix(in srgb, var(--sev-warn) 28%, var(--line));
-      background:
-        linear-gradient(105deg,
-          color-mix(in srgb, var(--sev-warn) 10%, transparent) 0%,
-          color-mix(in srgb, var(--panel-elevated) 92%, #000 8%) 42%);
-      cursor: pointer;
-      transition: border-color 0.12s, background 0.12s;
-    }
-    .guidance-start:hover {
-      border-color: color-mix(in srgb, var(--sev-warn) 48%, var(--line));
-    }
-    .guidance-start[hidden] { display: none; }
-    .guidance-start[data-sev="hot"] {
-      border-color: color-mix(in srgb, var(--sev-hot) 34%, var(--line));
-      background: linear-gradient(105deg,
-        color-mix(in srgb, var(--sev-hot) 12%, transparent) 0%,
-        color-mix(in srgb, var(--panel-elevated) 92%, #000 8%) 42%);
-    }
-    .guidance-start[data-sev="hot"]:hover {
-      border-color: color-mix(in srgb, var(--sev-hot) 52%, var(--line));
-    }
-    .guidance-start[data-sev="info"] {
-      border-color: color-mix(in srgb, var(--sev-info) 30%, var(--line));
-      background: linear-gradient(105deg,
-        color-mix(in srgb, var(--sev-info) 10%, transparent) 0%,
-        color-mix(in srgb, var(--panel-elevated) 92%, #000 8%) 42%);
-    }
-    .guidance-start-badge {
-      width: 2.1rem; height: 2.1rem; border-radius: 50%;
-      display: grid; place-items: center; flex-shrink: 0;
-      font-size: 0.95rem; font-weight: 700; color: #1a1a1a;
-      background: var(--sev-warn);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--sev-warn) 22%, transparent);
-    }
-    .guidance-start[data-sev="hot"] .guidance-start-badge {
-      background: var(--sev-hot);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--sev-hot) 22%, transparent);
-    }
-    .guidance-start[data-sev="info"] .guidance-start-badge {
-      background: var(--sev-info);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--sev-info) 22%, transparent);
-    }
-    .guidance-start-main { min-width: 0; display: flex; flex-direction: column; gap: 0.28rem; }
-    .guidance-start-kicker {
-      font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--muted);
-    }
-    .guidance-start[data-sev="hot"] .guidance-start-kicker { color: var(--sev-hot); }
-    .guidance-start[data-sev="warn"] .guidance-start-kicker { color: var(--sev-warn); }
-    .guidance-start-title {
-      margin: 0; font-size: 1.05rem; font-weight: 600; line-height: 1.25; color: var(--text);
-    }
-    .guidance-start-why {
-      margin: 0; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.35;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
-    }
-    .guidance-start-cmd {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.15rem;
-    }
-    .guidance-start-cmd code {
-      font-size: 0.8rem; font-family: ui-monospace, monospace;
-      color: var(--blue); word-break: break-all; flex: 1 1 10rem;
-      padding: 0.28rem 0.5rem; border-radius: 6px;
-      background: color-mix(in srgb, #000 40%, transparent);
-      border: 1px solid var(--line-soft);
-    }
-    .guidance-start-side {
-      display: flex; flex-direction: column; align-items: stretch; gap: 0.35rem;
-    }
-    .guidance-start-side .btn {
-      white-space: nowrap; font-weight: 600;
-      background: color-mix(in srgb, var(--text) 8%, transparent);
-    }
-    @media (max-width: 720px) {
-      .guidance-start { grid-template-columns: auto 1fr; }
-      .guidance-start-side { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
-    }
-
     /* Master–detail workspace */
     .guidance-split {
       display: grid;
@@ -5676,23 +5590,6 @@
         </div>
       </div>
 
-      <!-- Start-here remediation banner (hidden when all clear) -->
-      <div class="guidance-start" id="guidanceStartHere" hidden data-sev="warn">
-        <span class="guidance-start-badge" aria-hidden="true">1</span>
-        <div class="guidance-start-main">
-          <span class="guidance-start-kicker">Start here</span>
-          <p class="guidance-start-title" id="guidanceStartTitle"></p>
-          <p class="guidance-start-why" id="guidanceStartWhy"></p>
-          <div class="guidance-start-cmd" id="guidanceStartCmd" hidden>
-            <code id="guidanceStartFix"></code>
-            <button class="copy-btn" type="button" id="guidanceStartCopy">Copy</button>
-          </div>
-        </div>
-        <div class="guidance-start-side">
-          <button class="btn" type="button" id="guidanceStartOpen">Details →</button>
-        </div>
-      </div>
-
       <div class="guidance-split">
         <aside class="guidance-index section-target" id="guidanceIndex">
           <div class="guidance-toolbar" id="guidanceIndexFilters">
@@ -7601,116 +7498,6 @@
       });
     }
 
-    function openGuidancePick(pickId, filter) {
-      if (filter) guidanceIndexFilter = filter;
-      renderGuidanceFilters();
-      renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, pickId);
-      selectGuidanceHint(pickId, { scroll: true });
-      setTab('fixes', null, false);
-    }
-
-    function firstActionCmd(h) {
-      if (!h) return '';
-      if (h.fix) return String(h.fix).trim();
-      const a = (h.actions || []).find(x => x?.cmd);
-      return a?.cmd ? String(a.cmd).trim() : '';
-    }
-
-    function pickStartHereItem() {
-      // Prefer live hot > hot > live warn > warn > scan primary
-      const outstanding = guidanceOutstanding(lastGuidanceSummaryHints || []);
-      const rank = (h) => {
-        const lv = h.level || 'info';
-        const sev = { hot: 0, warn: 1, info: 2, ok: 9 }[lv] ?? 5;
-        const live = h.condition_live ? 0 : 1;
-        return sev * 10 + live;
-      };
-      const sorted = [...outstanding].sort((a, b) => rank(a) - rank(b));
-      if (sorted[0]) {
-        return {
-          kind: 'hint',
-          id: sorted[0].insight_id,
-          pick: sorted[0].insight_id,
-          sev: sorted[0].level || 'info',
-          title: sorted[0].title,
-          why: sorted[0].text || '',
-          fix: firstActionCmd(sorted[0]),
-          filter: guidanceCategory(sorted[0]) === 'steam' ? 'steam' : 'all',
-        };
-      }
-      const p = lastDiagPrimary;
-      if (p && p.id !== 'all-clear') {
-        return {
-          kind: 'scan',
-          id: p.id,
-          pick: `diag:${p.id}`,
-          sev: p.severity || 'info',
-          title: p.primary_hint || p.title,
-          why: p.text || '',
-          fix: (p.fix || '').trim(),
-          filter: 'scan',
-        };
-      }
-      const s = lastGuidanceScanFindings[0];
-      if (s) {
-        return {
-          kind: 'scan',
-          id: s.id,
-          pick: `diag:${s.id}`,
-          sev: s.severity || 'info',
-          title: s.primary_hint || s.title,
-          why: s.text || '',
-          fix: (s.fix || '').trim(),
-          filter: 'scan',
-        };
-      }
-      return null;
-    }
-
-    function updateGuidanceStartHere() {
-      const banner = document.getElementById('guidanceStartHere');
-      if (!banner) return;
-      const item = pickStartHereItem();
-      if (!item) {
-        banner.hidden = true;
-        return;
-      }
-      banner.hidden = false;
-      banner.dataset.sev = item.sev || 'info';
-      const titleEl = document.getElementById('guidanceStartTitle');
-      const whyEl = document.getElementById('guidanceStartWhy');
-      if (titleEl) titleEl.textContent = item.title || 'Recommendation';
-      if (whyEl) {
-        // One short line — wall of conf dumps belongs in the detail pane
-        let why = (item.why || '').replace(/\s+/g, ' ').trim();
-        if (why.length > 140) why = `${why.slice(0, 137)}…`;
-        whyEl.textContent = why;
-        whyEl.hidden = !why;
-      }
-      const cmd = document.getElementById('guidanceStartCmd');
-      const fixEl = document.getElementById('guidanceStartFix');
-      if (item.fix && cmd && fixEl) {
-        fixEl.textContent = item.fix;
-        cmd.hidden = false;
-      } else if (cmd) {
-        cmd.hidden = true;
-      }
-      const open = () => openGuidancePick(item.pick, item.filter);
-      banner.onclick = (ev) => {
-        if (ev.target?.closest?.('button')) return;
-        open();
-      };
-      const openBtn = document.getElementById('guidanceStartOpen');
-      if (openBtn) openBtn.onclick = (ev) => { ev.stopPropagation(); open(); };
-      const copyBtn = document.getElementById('guidanceStartCopy');
-      if (copyBtn && item.fix) {
-        copyBtn.onclick = (ev) => {
-          ev.stopPropagation();
-          copyText(item.fix, copyBtn);
-        };
-      }
-    }
-
     function renderDiagnostics(d) {
       if (!d) return;
       const scan = (d.scan_findings || d.findings || []).filter(f => f.id !== 'all-clear');
@@ -7758,7 +7545,6 @@
       } else if (!lastDiagPrimary && scan[0]) {
         lastDiagPrimary = scan[0];
       }
-      updateGuidanceStartHere();
       renderGuidanceHero(lastGuidanceSummaryHints);
       renderGuidanceFilters();
       if (lastGuidanceIndexGroups.length || lastGuidanceFixedHints.length || lastGuidanceScanFindings.length || diagHasScanned) {
@@ -11425,7 +11211,6 @@
           selectGuidanceHint(lastSelectedGuidanceId, { scroll: false });
         };
       });
-      updateGuidanceStartHere();
     }
 
     function updateGuidanceHeadStat(issues) {
