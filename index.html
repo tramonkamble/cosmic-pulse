@@ -426,6 +426,12 @@
     main { padding: 0.85rem 1.15rem 1.25rem; max-width: 1920px; margin: 0 auto; position: relative; z-index: 1; }
     .page { display: none; flex-direction: column; gap: 0.85rem; }
     .page.active { display: flex; }
+    /* Guidance / Options: claim remaining viewport under sticky header */
+    #pageFixes.page.active,
+    #pageOptions.page.active {
+      min-height: calc(100vh - var(--header-scroll-offset, 7rem) - 1.35rem);
+      gap: 0.55rem;
+    }
     .grid { display: grid; gap: 0.85rem; }
     .g-hero { grid-template-columns: repeat(3, 1fr); }
     @media (max-width: 1000px) { .g-hero { grid-template-columns: repeat(2, 1fr); } }
@@ -521,24 +527,27 @@
       text-transform: uppercase; color: var(--muted);
     }
     /* ── Guidance (pro surface) ─────────────────────────────────
-       Hierarchy: status → primary action → browse → detail
-       Color: severity for status only; accent for interaction; quiet chrome
+       Hierarchy: status → browse → detail · fill the second monitor
        ─────────────────────────────────────────────────────────── */
     .guidance-page {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
-      min-height: calc(100vh - var(--header-scroll-offset, 6.5rem) - 1.25rem);
+      gap: 0.5rem;
+      flex: 1 1 auto;
+      min-height: calc(100vh - var(--header-scroll-offset, 7rem) - 1.35rem);
+      /* card chrome already on .card — keep padding tight */
+      padding: 0.65rem 0.75rem !important;
     }
 
     /* Status strip — compact, severity-led edge */
     .guidance-hero {
       display: grid;
-      grid-template-columns: minmax(10rem, 1.15fr) minmax(0, 1.6fr) auto;
-      gap: 0.75rem 1.1rem;
+      grid-template-columns: minmax(9rem, 1.1fr) minmax(0, 1.7fr) auto;
+      gap: 0.5rem 0.85rem;
       align-items: center;
-      padding: 0.85rem 1.05rem;
+      padding: 0.55rem 0.8rem;
       border-radius: var(--radius-md);
+      flex: 0 0 auto;
       border: 1px solid var(--line-soft);
       background:
         linear-gradient(180deg,
@@ -574,7 +583,7 @@
       text-transform: uppercase; color: var(--muted);
     }
     .guidance-hero-title {
-      margin: 0; font-size: 1.28rem; font-weight: 650; letter-spacing: -0.02em;
+      margin: 0; font-size: 1.15rem; font-weight: 650; letter-spacing: -0.02em;
       line-height: 1.15; color: var(--text);
     }
     .guidance-hero[data-health="ok"] .guidance-hero-title { color: var(--sev-ok); }
@@ -590,9 +599,9 @@
       display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.4rem; min-width: 0;
     }
     .guidance-stat {
-      flex: 1 1 4.2rem; min-width: 3.9rem; max-width: 6.5rem;
+      flex: 1 1 3.6rem; min-width: 3.4rem; max-width: 5.8rem;
       display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
-      gap: 0.08rem; padding: 0.45rem 0.6rem;
+      gap: 0.04rem; padding: 0.32rem 0.5rem;
       border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
       background: color-mix(in srgb, #000 18%, transparent);
       color: inherit; font-family: inherit; cursor: pointer; text-align: left;
@@ -608,7 +617,7 @@
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
     }
     .guidance-stat .n {
-      font-size: 1.35rem; font-weight: 700; line-height: 1;
+      font-size: 1.2rem; font-weight: 700; line-height: 1;
       font-variant-numeric: tabular-nums; letter-spacing: -0.03em;
     }
     .guidance-stat .lbl {
@@ -645,19 +654,26 @@
       .guidance-scan-meta { text-align: left; }
     }
 
-    /* Master–detail workspace */
+    /* Master–detail — fill remaining viewport (no artificial max-height cap) */
     .guidance-split {
       display: grid;
-      grid-template-columns: minmax(17rem, 36%) minmax(0, 1fr);
-      gap: 0.7rem;
-      flex: 1;
-      min-height: min(58vh, 560px);
+      grid-template-columns: minmax(16rem, 34%) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+      gap: 0.55rem;
+      flex: 1 1 auto;
+      min-height: 0;
+      /* Hero ~4.5rem + page gaps + main padding — rest is workspace */
+      height: calc(100vh - var(--header-scroll-offset, 7rem) - 6.25rem);
+      max-height: none;
       align-items: stretch;
     }
     @media (max-width: 920px) {
-      .guidance-split { grid-template-columns: 1fr; min-height: 0; }
-      .guidance-index-scroll { max-height: 16rem; }
-      .guidance-detail { max-height: none; min-height: 14rem; }
+      .guidance-split {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(12rem, 38vh) minmax(14rem, 1fr);
+        height: auto;
+        min-height: calc(100vh - var(--header-scroll-offset, 7rem) - 7rem);
+      }
     }
     .guidance-index,
     .guidance-detail {
@@ -666,6 +682,7 @@
       background: color-mix(in srgb, var(--panel-elevated) 90%, #000 10%);
       box-shadow: var(--surface-shine);
       min-height: 0; min-width: 0;
+      max-height: 100%;
     }
     .guidance-index {
       display: flex; flex-direction: column; overflow: hidden;
@@ -720,8 +737,9 @@
       margin: 0; font-size: 1.02rem; font-weight: 600; line-height: 1.35; color: var(--text);
     }
     .guidance-index-scroll {
-      flex: 1; overflow: auto; padding: 0.4rem 0.45rem 0.6rem;
-      max-height: min(62vh, 580px);
+      flex: 1 1 auto; overflow: auto; padding: 0.35rem 0.4rem 0.5rem;
+      min-height: 0;
+      max-height: none; /* fill grid cell — was capping at 580px and wasting screen */
     }
     .guidance-idx-group-label {
       padding: 0.7rem 0.45rem 0.3rem; font-size: 0.66rem; font-weight: 700;
@@ -729,9 +747,9 @@
     }
     .guidance-idx-group-label:first-child { padding-top: 0.25rem; }
     .guidance-idx-row {
-      display: grid; grid-template-columns: 3px minmax(0, 1fr); gap: 0 0.65rem;
+      display: grid; grid-template-columns: 3px minmax(0, 1fr); gap: 0 0.55rem;
       align-items: start; width: 100%; text-align: left;
-      padding: 0.58rem 0.6rem; margin-bottom: 3px;
+      padding: 0.48rem 0.5rem; margin-bottom: 2px;
       border: 1px solid transparent; border-radius: var(--radius-sm);
       background: transparent;
       color: inherit; font-family: inherit; cursor: pointer;
@@ -809,12 +827,15 @@
     .guidance-idx-meta { display: none; }
     .guidance-detail {
       overflow: auto;
-      max-height: min(66vh, 620px);
+      max-height: none;
+      height: 100%;
       padding: 0;
+      display: flex;
+      flex-direction: column;
     }
     body.cosmic-frosted .guidance-detail { background: var(--panel); }
     .guidance-detail-placeholder {
-      margin: 0; padding: 2.5rem 1.25rem; text-align: center;
+      margin: auto 0; padding: 2rem 1.15rem; text-align: center;
       font-size: 0.95rem; color: var(--muted); line-height: 1.55;
     }
     .guidance-detail-placeholder .gd-empty-icon {
@@ -833,7 +854,9 @@
       display: block; color: var(--text); font-size: 1.08rem; margin-bottom: 0.3rem;
     }
     #guidanceDetailCard {
-      padding: 1.05rem 1.15rem 1.25rem;
+      padding: 0.85rem 1rem 1.05rem;
+      flex: 1 1 auto;
+      min-height: 0;
     }
     .guidance-detail .rec-card {
       border: 0; background: transparent; padding: 0; gap: 1rem; border-left: 0;
@@ -3879,36 +3902,51 @@
     }
     .storage-note { margin: 0; font-size: .9rem; color: var(--muted); line-height: 1.5; }
     .storage-msg { font-size: .9rem; color: var(--green); min-height: 1.2em; }
-    /* Options page — single readable column, grouped sections */
+    /* Options — full main width, multi-column on wide screens */
     .options-layout {
       display: grid;
-      gap: 1rem;
-      max-width: 52rem;
+      gap: 0.7rem;
       width: 100%;
-      margin: 0 auto;
+      max-width: none;
+      margin: 0;
+      align-items: start;
+    }
+    @media (min-width: 1100px) {
+      .options-layout {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem 0.85rem;
+      }
+      .options-layout > .options-page-head,
+      .options-layout > .options-msg,
+      .options-layout > #optionsGuidance,
+      .options-layout > #optionsRulePacks,
+      .options-layout > #optionsReset {
+        grid-column: 1 / -1;
+      }
     }
     .options-page-head {
       display: flex;
       flex-wrap: wrap;
       align-items: baseline;
       justify-content: space-between;
-      gap: .35rem 1rem;
-      margin-bottom: .15rem;
+      gap: .25rem 1rem;
+      margin: 0;
+      padding: 0.15rem 0.15rem 0;
     }
     .options-page-head h2 {
       margin: 0;
-      font-size: 1.35rem;
+      font-size: 1.25rem;
       font-weight: 600;
     }
     .options-page-head .sub {
       margin: 0;
-      font-size: .9rem;
+      font-size: .88rem;
       color: var(--muted);
     }
     .options-section {
       display: grid;
-      gap: 0.75rem;
-      padding: 1rem 1.1rem 1.05rem;
+      gap: 0.55rem;
+      padding: 0.75rem 0.9rem 0.8rem;
       border-radius: var(--radius);
       border: 1px solid var(--line-soft);
       background: color-mix(in srgb, var(--panel-elevated) 88%, #000 12%);
@@ -3917,30 +3955,37 @@
     }
     .options-section h2 {
       margin: 0;
-      font-size: 1.02rem;
+      font-size: 0.98rem;
       font-weight: 600;
       letter-spacing: 0.01em;
     }
     .options-section .section-lead {
       margin: 0;
-      font-size: 0.9rem;
+      font-size: 0.86rem;
       color: var(--muted);
-      line-height: 1.5;
+      line-height: 1.4;
     }
     .options-subgrid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1rem 1.25rem;
+      gap: 0.65rem 0.75rem;
       min-width: 0;
     }
     @media (max-width: 720px) {
       .options-subgrid { grid-template-columns: 1fr; }
     }
+    /* Appearance: scale + theme share one row denser on wide */
+    #optionsGeneral .options-subgrid {
+      grid-template-columns: minmax(12rem, 0.85fr) minmax(0, 1.35fr);
+    }
+    @media (max-width: 900px) {
+      #optionsGeneral .options-subgrid { grid-template-columns: 1fr; }
+    }
     .options-subblock {
       display: grid;
-      gap: 0.6rem;
+      gap: 0.45rem;
       min-width: 0;
-      padding: 0.7rem 0.75rem;
+      padding: 0.55rem 0.65rem;
       border-radius: var(--radius-md);
       border: 1px solid var(--line-soft);
       background: rgba(0, 0, 0, 0.18);
@@ -3955,13 +4000,16 @@
     }
     .options-themes-inline {
       display: grid;
-      gap: .75rem;
+      gap: .5rem;
       min-width: 0;
     }
     .theme-mode-list {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: .45rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .35rem;
+    }
+    @media (max-width: 1100px) {
+      .theme-mode-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 520px) {
       .theme-mode-list { grid-template-columns: 1fr; }
@@ -3969,10 +4017,10 @@
     .theme-mode-opt {
       display: grid;
       grid-template-columns: auto 1fr;
-      gap: .15rem .55rem;
+      gap: .1rem .4rem;
       align-items: start;
-      padding: .55rem .65rem;
-      border-radius: 10px;
+      padding: .42rem .5rem;
+      border-radius: 8px;
       border: 1px solid var(--line);
       background: color-mix(in srgb, var(--panel-elevated) 70%, transparent);
       cursor: pointer;
@@ -3996,24 +4044,28 @@
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .theme-mode-opt .theme-mode-desc {
-      grid-column: 2; font-size: .75rem; color: var(--muted); line-height: 1.35; margin: 0;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      grid-column: 2; font-size: .7rem; color: var(--muted); line-height: 1.3; margin: 0;
+      display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    @media (min-width: 1100px) {
+      .theme-mode-opt .theme-mode-desc { display: none; } /* 4-up chips: title is enough */
     }
     .theme-status {
-      margin: 0; font-size: .88rem; color: var(--muted); line-height: 1.45;
+      margin: 0; font-size: .82rem; color: var(--muted); line-height: 1.35;
     }
     .theme-status strong { color: var(--text); font-weight: 500; }
     .theme-preview {
-      border-radius: 14px;
+      border-radius: 10px;
       border: 1px solid var(--tp-line, var(--line));
       background: var(--tp-bg, var(--bg));
       color: var(--tp-text, var(--text));
       overflow: hidden;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+      max-height: 11rem;
     }
     .theme-preview-bar {
       display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-      padding: .55rem .7rem;
+      padding: .4rem .55rem;
       background: var(--tp-glass, var(--glass));
       border-bottom: 1px solid var(--tp-line, var(--line));
     }
@@ -4086,11 +4138,15 @@
       margin: 0; font-size: .78rem; color: var(--muted); line-height: 1.4;
     }
     /* Rule packs */
-    .pack-list { display: grid; gap: .55rem; }
+    .pack-list {
+      display: grid;
+      gap: .45rem;
+      grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    }
     .pack-card {
-      display: grid; gap: .35rem;
-      padding: .75rem .85rem;
-      border-radius: 12px;
+      display: grid; gap: .3rem;
+      padding: .6rem .7rem;
+      border-radius: 10px;
       border: 1px solid var(--line);
       background: color-mix(in srgb, var(--panel-elevated) 75%, transparent);
     }
@@ -4121,8 +4177,15 @@
     }
     .pack-toggle input { accent-color: var(--accent); cursor: pointer; }
     .rule-catalog {
-      display: grid; gap: .35rem; max-height: 16rem; overflow: auto;
-      padding: .15rem;
+      display: grid;
+      gap: .3rem;
+      max-height: min(28vh, 18rem);
+      overflow: auto;
+      padding: .1rem;
+      grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    }
+    @media (min-width: 1400px) {
+      .rule-catalog { max-height: min(36vh, 22rem); }
     }
     .rule-row {
       display: grid; grid-template-columns: auto 1fr auto; gap: .35rem .55rem;
@@ -4166,8 +4229,8 @@
       font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums;
       color: var(--text); min-width: 3rem;
     }
-    .options-scale-hint { font-size: .82rem; color: var(--muted); flex: 1 1 100%; margin: 0; }
-    .options-msg { font-size: .88rem; min-height: 1.15em; margin: 0; }
+    .options-scale-hint { font-size: .78rem; color: var(--muted); flex: 1 1 100%; margin: 0; line-height: 1.35; }
+    .options-msg { font-size: .86rem; min-height: 1.1em; margin: 0; padding: 0 0.1rem; }
     .options-msg.ok { color: var(--green); }
     .options-msg.err { color: var(--hot); }
     .options-stats {
@@ -4192,8 +4255,8 @@
     /* Guidance prefs lists */
     .pref-list {
       display: grid;
-      gap: .35rem;
-      max-height: 11rem;
+      gap: .3rem;
+      max-height: min(22vh, 14rem);
       overflow: auto;
       min-width: 0;
       padding: .1rem;
