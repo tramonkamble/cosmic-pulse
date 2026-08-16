@@ -628,10 +628,27 @@ _scan_state: dict = {
 }
 
 
-def invalidate_diagnostics_cache() -> None:
-    """Drop cached diagnostics so the next read re-runs checks (e.g. after apt install)."""
+def invalidate_diagnostics_cache(*, rescan: bool = True) -> None:
+    """Drop cached diagnostics so the next read is not stuck on a stale async result.
+
+    Clears both the legacy ``_cache`` tuple and the background job's last result
+    marker. By default also kicks a quiet background rescan so Options "Clear
+    scan cache" and DIAG-backed auto-resolve actually get fresh findings.
+    """
     global _cache
     _cache = (0.0, {})
+    with _scan_lock:
+        # Keep last result visible until the new scan finishes — only mark stale.
+        _scan_state["status"] = "idle"
+        _scan_state["error"] = None
+        # scanned_at stays on result so UI can show age; force path starts new work.
+        if _scan_state.get("result") is not None:
+            # Stamp so TTL logic treats it as expired even if wall clock is weird.
+            result = dict(_scan_state["result"])
+            result["_stale"] = True
+            _scan_state["result"] = result
+    if rescan:
+        request_diagnostics_scan()
 
 
 def scan_findings(findings: list[dict], *, skip_ids: set[str] | None = None) -> list[dict]:
@@ -670,6 +687,9 @@ def get_diagnostics(ttl_sec: float = 90.0, *, force: bool = False) -> dict:
     force=True kicks a background rescan and returns the last good result (or
     a pending shell) immediately. First paint with an empty cache also starts
     a background scan instead of freezing the HTTP thread.
+
+    When a completed result is older than ``ttl_sec``, a quiet background rescan
+    is requested while the last findings keep serving (no HTTP stall).
     """
     global _cache
     now = time.time()
@@ -678,20 +698,33 @@ def get_diagnostics(ttl_sec: float = 90.0, *, force: bool = False) -> dict:
 
     with _scan_lock:
         ready_result = None
-        if _scan_state.get("status") == "ready" and _scan_state.get("result"):
+        if _scan_state.get("result"):
             ready_result = dict(_scan_state["result"])
         running = _scan_state.get("status") == "running"
+        status = _scan_state.get("status") or "idle"
 
     if ready_result is not None:
-        # Fresh completed scan wins (force path returns last-known until done)
-        if not force or not running:
-            return ready_result
-        # Mid-rescan: still serve last result so UI doesn't go blank
+        scanned_at = ready_result.get("scanned_at")
+        try:
+            age = now - float(scanned_at) if scanned_at is not None else None
+        except (TypeError, ValueError):
+            age = None
+        stale = bool(ready_result.get("_stale")) or (age is not None and age > ttl_sec)
+        # Quiet TTL refresh — never block the request path on journalctl.
+        if stale and not running and not force:
+            request_diagnostics_scan()
+        ready_result = dict(ready_result)
+        ready_result.pop("_stale", None)
+        if running or (stale and status != "ready"):
+            ready_result["pending"] = True
         return ready_result
 
     if not force and now - _cache[0] < ttl_sec and _cache[1]:
         return _cache[1]
     if _cache[1]:
+        # Cache present but past TTL — refresh in background, still serve it.
+        if not running and now - _cache[0] >= ttl_sec:
+            request_diagnostics_scan()
         return _cache[1]
 
     # Cold start — never sync-run under an HTTP thread

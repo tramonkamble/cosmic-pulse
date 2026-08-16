@@ -186,10 +186,6 @@ rules:
       bucket: steam
       condition_live: true
     actions:
-      - label: Apply X11 launch option (Pulse)
-        kind: pulse
-        cmd: apply-fix:proton-wayland-launch-fix
-        note: Writes Steam launch options for {game.name} — restart the game after
       - label: Steam launch option (copy)
         kind: steam
         cmd: PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%

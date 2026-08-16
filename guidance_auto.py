@@ -75,7 +75,7 @@ def apply_live_hysteresis(
 ) -> set[str]:
     """Hold ``condition_live`` for LIVE_HOLD_SEC after last true evaluation.
 
-    When a rule matches: ``cooldown_until = now + 15``.
+    When a rule matches: ``cooldown_until = now + LIVE_HOLD_SEC``.
     When it stops matching: stay live until ``now > cooldown_until``.
     Returns the set of insight ids considered live after hysteresis (for resolve timers).
     """

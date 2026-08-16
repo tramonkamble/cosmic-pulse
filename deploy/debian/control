@@ -9,7 +9,7 @@ Homepage: https://github.com/tramonkamble/cosmic-pulse
 Description: Local gaming performance dashboard for Linux
  Cosmic Pulse is a second-monitor performance coach for Linux gaming.
  It samples CPU, GPU, memory, and kernel stall signals at 1 Hz and
- serves a local web UI with tuning guidance and fix scripts.
+ serves a local web UI with Guidance steps and copyable commands.
  .
  Optimized for Pop!_OS / COSMIC; works on other distros with Python 3.11+.
  After install: systemctl --user enable --now cosmic-pulse

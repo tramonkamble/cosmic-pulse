@@ -1942,7 +1942,7 @@ def collect_live_core() -> dict:
         "game_performance": {},
         "_degraded": True,
     }
-    # Preserve last full comparison / game context so the UI doesn't blank mid-stall.
+    # Preserve last full secondary series so emergency ticks don't blank UI/charts.
     with _lock:
         prev = _latest_full or {}
     if prev:
@@ -1962,29 +1962,29 @@ def collect_live_core() -> dict:
             "network",
             "disk",
             "nvme_smart",
+            "load_phase",
         ):
-            if prev.get(key) is not None and key in (
-                "comparison",
-                "game_performance",
-                "games",
-                "game_procs",
-                "game_totals",
-                "tuning",
-                "tuning_active",
-                "issues_by_game",
-            ):
+            if prev.get(key) is not None:
                 base[key] = prev[key]
+        # Overlay live CPU/MEM/GPU scoreboard on top of frozen secondaries.
         # Keep richer GPU label/thermal if emergency read was thin.
         prev_d = ((prev.get("gpu") or {}).get("discrete")) or {}
-        if prev_d and not dgpu.get("label"):
-            base["gpu"]["discrete"] = {**prev_d, **{k: v for k, v in dgpu.items() if v is not None}}
+        if prev_d:
+            merged = dict(prev_d)
+            for k, v in dgpu.items():
+                if v is not None:
+                    merged[k] = v
+            base["gpu"]["discrete"] = merged
         if (prev.get("gpu") or {}).get("igpu"):
             base["gpu"]["igpu"] = prev["gpu"]["igpu"]
         if prev.get("cpu") and isinstance(prev["cpu"], dict):
-            if prev["cpu"].get("temps"):
-                base["cpu"]["temps"] = prev["cpu"]["temps"]
-            if prev["cpu"].get("per_core"):
+            if not base["cpu"].get("temps") or base["cpu"]["temps"].get("package") is None:
+                if prev["cpu"].get("temps"):
+                    base["cpu"]["temps"] = prev["cpu"]["temps"]
+            if not base["cpu"].get("per_core") and prev["cpu"].get("per_core"):
                 base["cpu"]["per_core"] = prev["cpu"]["per_core"]
+            if base["cpu"].get("power_w") is None and prev["cpu"].get("power_w") is not None:
+                base["cpu"]["power_w"] = prev["cpu"]["power_w"]
     return base
 
 
@@ -2238,16 +2238,26 @@ def sampler_status() -> dict:
     }
 
 
-def _publish_sample(snap: dict, my_gen: int | None = None) -> bool:
-    """Publish under lock if this generation still owns the loop (or gen is None = emergency)."""
+def _publish_sample(
+    snap: dict,
+    my_gen: int | None = None,
+    *,
+    into_history: bool = True,
+) -> bool:
+    """Publish under lock if this generation still owns the loop (or gen is None = emergency).
+
+    Emergency/degraded samples set ``into_history=False`` so chart series are not
+    zeroed by a partial scoreboard tick.
+    """
     global _history, _latest_full
     with _lock:
         if my_gen is not None and my_gen != _sampler_gen:
             return False
         _latest_full = snap
-        _history.append(slim_history_point(snap))
-        if len(_history) > HISTORY_LEN:
-            _history.pop(0)
+        if into_history:
+            _history.append(slim_history_point(snap))
+            if len(_history) > HISTORY_LEN:
+                _history.pop(0)
     _mark_sample_ok()
     return True
 
@@ -2395,11 +2405,14 @@ def sampler():
 
 
 def _watchdog_emergency_publish() -> bool:
-    """Publish a core scoreboard sample so live chips keep moving during a full-tick hang."""
+    """Publish a core scoreboard sample so live chips keep moving during a full-tick hang.
+
+    Does not append to the chart ring — partial samples would zero secondary series.
+    """
     global _sampler_last_reason
     try:
         snap = collect_live_core()
-        if _publish_sample(snap, my_gen=None):
+        if _publish_sample(snap, my_gen=None, into_history=False):
             _sampler_last_reason = "degraded"
             print(
                 "Cosmic Pulse sampler: emergency core sample published "
