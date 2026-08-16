@@ -303,15 +303,24 @@ _TUNING_CTX_TTL = 5.0
 
 # Sampler liveness — freeze-on-resume used to leave the UI on the last sample forever.
 # generation bumps abandon a stuck tick thread; watchdog starts a fresh loop.
+# Emergency core samples keep the scoreboard moving when a full tick wedges.
 _sampler_gen = 0
 _sampler_last_ok_mono = 0.0
 _sampler_last_ok_wall = 0.0
 _sampler_stalls = 0
 _sampler_last_reason = ""
 _sampler_ready = threading.Event()
+_sampler_restart_mono = 0.0
+_sampler_restart_lock = threading.Lock()
 SAMPLER_STALL_SEC = 8.0
+# Don't thrash generations when a full tick is still wedged (thread storm → futex death).
+SAMPLER_RESTART_COOLDOWN_SEC = 15.0
 # Wall advanced much more than monotonic → suspend/resume (or a large NTP step).
 WALL_JUMP_SEC = 2.5
+# tools_status() hits which()/smart cache — fine occasionally, wasteful every 1 Hz tick.
+_tools_status_cache: tuple[float, dict] = (0.0, {})
+_TOOLS_STATUS_TTL = 30.0
+_sensors_lock = threading.Lock()
 
 VRAM_PEAK_GBPS = 800.0
 # PCIe 4.0 x16 one-way theoretical payload ≈ 31.5 GB/s
@@ -577,52 +586,69 @@ def read_cpu_power_w() -> float | None:
 
 
 def parse_sensors() -> dict:
+    """lm-sensors JSON dump — cached, single-flight, stderr silenced.
+
+    Virtual chips often print ``temp1_input: Can't read`` on stderr every call;
+    that used to spam the Pulse log and drown real stall messages.
+    """
     global _sensors_cache
     now = time.time()
     if now - _sensors_cache[0] < 2.0:
         return _sensors_cache[1]
-    out: dict[str, float | int | None] = {}
-    try:
-        raw = subprocess.check_output(["sensors", "-j"], text=True, timeout=2)
-        data = json.loads(raw)
-        amdgpu_names = {"edge": "temp1_input", "junction": "temp2_input", "mem": "temp3_input"}
-        for chip, vals in data.items():
-            for key, v in vals.items():
-                if not isinstance(v, dict):
-                    continue
-                label = f"{chip}:{key}"
-                if chip.startswith("amdgpu") and key in amdgpu_names:
-                    tval = v.get(amdgpu_names[key])
-                    if tval is not None:
-                        out[f"{chip}:{key}"] = round(tval, 1)
-                for field, suffix in (
-                    ("temp1_input", "c"),
-                    ("temp2_input", "c"),
-                    ("temp3_input", "c"),
-                    ("temp4_input", "c"),
-                    ("temp5_input", "c"),
-                    ("fan1_input", "rpm"),
-                    ("fan2_input", "rpm"),
-                    ("fan1", "rpm"),
-                    ("power1_average", "w"),
-                    ("power1_input", "w"),
-                    ("in0_input", "v"),
-                ):
-                    val = v.get(field)
-                    if val is None:
+    with _sensors_lock:
+        now = time.time()
+        if now - _sensors_cache[0] < 2.0:
+            return _sensors_cache[1]
+        out: dict[str, float | int | None] = {}
+        try:
+            raw = subprocess.check_output(
+                ["sensors", "-j"],
+                text=True,
+                timeout=1.5,
+                stderr=subprocess.DEVNULL,
+            )
+            data = json.loads(raw)
+            amdgpu_names = {"edge": "temp1_input", "junction": "temp2_input", "mem": "temp3_input"}
+            for chip, vals in data.items():
+                for key, v in vals.items():
+                    if not isinstance(v, dict):
                         continue
-                    k = label if field.startswith("temp") else f"{label}:{field}"
-                    if suffix == "w" and isinstance(val, (int, float)):
-                        # sensors-json: watts; sysfs-style dumps: microwatts
-                        out[k] = round(val / 1_000_000, 1) if val > 50_000 else round(val, 1)
-                    elif suffix == "v":
-                        out[k] = round(val, 3)
-                    else:
-                        out[k] = round(val, 1) if isinstance(val, float) else val
-    except (subprocess.SubprocessError, json.JSONDecodeError, OSError):
-        pass
-    _sensors_cache = (now, out)
-    return out
+                    label = f"{chip}:{key}"
+                    if chip.startswith("amdgpu") and key in amdgpu_names:
+                        tval = v.get(amdgpu_names[key])
+                        if tval is not None:
+                            out[f"{chip}:{key}"] = round(tval, 1)
+                    for field, suffix in (
+                        ("temp1_input", "c"),
+                        ("temp2_input", "c"),
+                        ("temp3_input", "c"),
+                        ("temp4_input", "c"),
+                        ("temp5_input", "c"),
+                        ("fan1_input", "rpm"),
+                        ("fan2_input", "rpm"),
+                        ("fan1", "rpm"),
+                        ("power1_average", "w"),
+                        ("power1_input", "w"),
+                        ("in0_input", "v"),
+                    ):
+                        val = v.get(field)
+                        if val is None:
+                            continue
+                        k = label if field.startswith("temp") else f"{label}:{field}"
+                        if suffix == "w" and isinstance(val, (int, float)):
+                            # sensors-json: watts; sysfs-style dumps: microwatts
+                            out[k] = round(val / 1_000_000, 1) if val > 50_000 else round(val, 1)
+                        elif suffix == "v":
+                            out[k] = round(val, 3)
+                        else:
+                            out[k] = round(val, 1) if isinstance(val, float) else val
+        except (subprocess.SubprocessError, json.JSONDecodeError, OSError):
+            # Keep last good parse if any — better than blanking temps on a blip.
+            if _sensors_cache[1]:
+                _sensors_cache = (now, _sensors_cache[1])
+                return _sensors_cache[1]
+        _sensors_cache = (now, out)
+        return out
 
 
 def psi_read(kind: str) -> dict | None:
@@ -1445,7 +1471,13 @@ def tools_status() -> dict:
 
     Removed from the old shopping list: nvtop, radeontop, turbostat, perf, iotop, nethogs.
     Those never improved dashboard data (Pulse already samples /sys and /proc).
+    Cached ~30s — must not run on the 1 Hz sampler critical path every tick.
     """
+    global _tools_status_cache
+    now = time.time()
+    if _tools_status_cache[1] and now - _tools_status_cache[0] < _TOOLS_STATUS_TTL:
+        return _tools_status_cache[1]
+
     smart = probe_nvme_smart()
     sensors_ok = bool(shutil.which("sensors"))
     dmidecode_ok = bool(shutil.which("dmidecode"))
@@ -1534,7 +1566,7 @@ def tools_status() -> dict:
                 "id": t.get("id", t["bin"]),
             }
         )
-    return {
+    out = {
         "sensors": sensors_ok,
         "dmidecode": dmidecode_ok,
         "smartctl": bool(smart.get("installed")),
@@ -1551,6 +1583,8 @@ def tools_status() -> dict:
             "message": smart.get("message"),
         },
     }
+    _tools_status_cache = (now, out)
+    return out
 
 
 def _migrate_tuning_history() -> None:
@@ -1778,6 +1812,182 @@ def tuning_hints(snap: dict) -> list[dict]:
     return build_tuning_hints(snap, _mem_spec, ctx)
 
 
+def _gpu_stats_sysfs_only(base: Path, label: str) -> dict:
+    """GPU scoreboard fields from sysfs only — never calls ``sensors`` (watchdog-safe)."""
+    hw = gpu_hwmon(base)
+    vram_used = read_int(base / "mem_info_vram_used", 1024**2)
+    vram_total = read_int(base / "mem_info_vram_total", 1024**2)
+    busy = sanitize_pct(read_int(base / "gpu_busy_percent"))
+    mem_busy = sanitize_pct(read_int(base / "mem_busy_percent"))
+    temp = read_int(hw / "temp1_input", 1000) if hw else None
+    junction = read_int(hw / "temp2_input", 1000) if hw else None
+    mem_temp = read_int(hw / "temp3_input", 1000) if hw else None
+    power_w = None
+    if hw:
+        for fname in ("power1_average", "power1_input"):
+            raw = read_float(hw / fname) if (hw / fname).is_file() else None
+            if raw is None or raw <= 0:
+                continue
+            w = raw / 1_000_000 if raw > 500 else raw
+            if 0.5 <= w < 500:
+                power_w = round(w, 1)
+                break
+    fan = read_int(hw / "fan1_input") if hw else None
+    gfx_mhz = read_dpm_active_mhz(base / "pp_dpm_sclk")
+    mclk_mhz = read_dpm_active_mhz(base / "pp_dpm_mclk")
+    vram_pct = None
+    if vram_used is not None and vram_total:
+        vram_pct = round(100.0 * float(vram_used) / float(vram_total), 1)
+    engines = [
+        {"id": "gfx", "label": "Shaders", "pct": busy},
+        {"id": "vram", "label": "Memory bus", "pct": mem_busy},
+        {"id": "mm", "label": "Video", "pct": None},
+    ]
+    return {
+        "label": label,
+        "busy_pct": busy,
+        "mem_busy_pct": mem_busy,
+        "engines": engines,
+        "vram_used_mb": vram_used,
+        "vram_total_mb": vram_total,
+        "vram_pct": vram_pct,
+        "temp_c": temp,
+        "junction_c": junction if junction is not None else temp,
+        "mem_temp_c": mem_temp,
+        "power_w": power_w,
+        "fan_rpm": fan,
+        "gfx_mhz": gfx_mhz,
+        "mclk_mhz": mclk_mhz,
+        "gtt": {},
+    }
+
+
+def collect_live_core() -> dict:
+    """Minimal scoreboard sample — sysfs + psutil only, no sensors subprocess / game scan.
+
+    Used by the watchdog when a full ``collect_metrics`` tick wedges so CPU/MEM/GPU/VRAM
+    keep advancing instead of freezing for hours.
+    """
+    cpu_pct = psutil.cpu_percent(interval=None, percpu=True)
+    overall_cpu = round(sum(cpu_pct) / len(cpu_pct), 1) if cpu_pct else 0.0
+    vm = psutil.virtual_memory()
+    sw = psutil.swap_memory()
+    load1, load5, load15 = os.getloadavg()
+    label = (_gpu_spec or {}).get("label") or (_gpu_spec or {}).get("model", "GPU") or "GPU"
+    try:
+        dgpu = _gpu_stats_sysfs_only(gpu_device_path(), label)
+    except Exception:
+        dgpu = {
+            "label": label,
+            "busy_pct": None,
+            "mem_busy_pct": None,
+            "engines": [],
+            "vram_used_mb": None,
+            "vram_total_mb": None,
+            "vram_pct": None,
+            "junction_c": None,
+            "power_w": None,
+            "gtt": {},
+        }
+    base = {
+        "ts": time.time(),
+        "cpu": {
+            "overall_pct": overall_cpu,
+            "iowait_pct": 0.0,
+            "per_core": [],
+            "cores": psutil.cpu_count(logical=False),
+            "threads": psutil.cpu_count(logical=True),
+            "load": [round(load1, 2), round(load5, 2), round(load15, 2)],
+            "temps": {"package": None, "ccd": []},
+            "power_w": None,
+        },
+        "memory": {
+            "used_gb": round(vm.used / 1024**3, 2),
+            "total_gb": round(vm.total / 1024**3, 2),
+            "installed_gb": (_mem_spec or {}).get("total_gb"),
+            "available_gb": round(vm.available / 1024**3, 2),
+            "pct": vm.percent,
+            "swap_used_gb": round(sw.used / 1024**3, 2),
+            "swap_total_gb": round(sw.total / 1024**3, 2),
+            "swap_pct": round(sw.percent, 1),
+        },
+        "gpu": {"discrete": dgpu, "igpu": {}},
+        "network": {},
+        "disk": {},
+        "games": {},
+        "game_procs": [],
+        "game_totals": {
+            "running": False,
+            "primary_name": None,
+            "primary_pid": None,
+            "cpu_pct": 0.0,
+            "rss_mb": 0.0,
+            "tree_rss_mb": 0.0,
+            "proc_count": 0,
+            "game_id": None,
+            "game_name": None,
+            "lingering": False,
+            "linger_remaining_sec": None,
+        },
+        "sensors": [],
+        "bandwidth": {"gpu": {}, "memory": {}},
+        "load_phase": {},
+        "stutter": {"score": 0, "smoothness": 100, "causes": [], "session": {}},
+        "nvme_smart": {},
+        "tuning_active": [],
+        "tuning": [],
+        "issues_by_game": {},
+        "sensor_health": {"total": 0, "ok": 0, "missing": []},
+        "comparison": None,
+        "game_performance": {},
+        "_degraded": True,
+    }
+    # Preserve last full comparison / game context so the UI doesn't blank mid-stall.
+    with _lock:
+        prev = _latest_full or {}
+    if prev:
+        for key in (
+            "comparison",
+            "game_performance",
+            "games",
+            "game_procs",
+            "game_totals",
+            "tuning",
+            "tuning_active",
+            "issues_by_game",
+            "bandwidth",
+            "stutter",
+            "sensors",
+            "sensor_health",
+            "network",
+            "disk",
+            "nvme_smart",
+        ):
+            if prev.get(key) is not None and key in (
+                "comparison",
+                "game_performance",
+                "games",
+                "game_procs",
+                "game_totals",
+                "tuning",
+                "tuning_active",
+                "issues_by_game",
+            ):
+                base[key] = prev[key]
+        # Keep richer GPU label/thermal if emergency read was thin.
+        prev_d = ((prev.get("gpu") or {}).get("discrete")) or {}
+        if prev_d and not dgpu.get("label"):
+            base["gpu"]["discrete"] = {**prev_d, **{k: v for k, v in dgpu.items() if v is not None}}
+        if (prev.get("gpu") or {}).get("igpu"):
+            base["gpu"]["igpu"] = prev["gpu"]["igpu"]
+        if prev.get("cpu") and isinstance(prev["cpu"], dict):
+            if prev["cpu"].get("temps"):
+                base["cpu"]["temps"] = prev["cpu"]["temps"]
+            if prev["cpu"].get("per_core"):
+                base["cpu"]["per_core"] = prev["cpu"]["per_core"]
+    return base
+
+
 def collect_metrics() -> dict:
     # interval=None: delta since last cpu_percent (primed in sampler) — avoids ~80ms block/tick.
     cpu_pct = psutil.cpu_percent(interval=None, percpu=True)
@@ -1907,8 +2117,10 @@ def collect_metrics() -> dict:
         },
     }
     snap["load_phase"] = tick_load_phase(snap)
+    # Copy history under lock; compute stutter outside so HTTP never waits on stutter math.
     with _lock:
-        attach_stutter(snap, _history)
+        hist_snap = list(_history)
+    attach_stutter(snap, hist_snap)
     # Optional smartctl NVMe health (cached ~3 min; no-op without permissions)
     smart = probe_nvme_smart()
     snap["nvme_smart"] = {
@@ -2026,12 +2238,27 @@ def sampler_status() -> dict:
     }
 
 
+def _publish_sample(snap: dict, my_gen: int | None = None) -> bool:
+    """Publish under lock if this generation still owns the loop (or gen is None = emergency)."""
+    global _history, _latest_full
+    with _lock:
+        if my_gen is not None and my_gen != _sampler_gen:
+            return False
+        _latest_full = snap
+        _history.append(slim_history_point(snap))
+        if len(_history) > HISTORY_LEN:
+            _history.pop(0)
+    _mark_sample_ok()
+    return True
+
+
 def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
     """1 Hz sample loop for one generation. Abandoned gens exit without publishing."""
-    global _history, _latest_full, _sampler_last_reason
+    global _sampler_last_reason
 
     last_wall = time.time()
     last_mono = time.monotonic()
+    tools_tick = 0
 
     while my_gen == _sampler_gen:
         # Must never exit on a single tick failure — that used to freeze the UI.
@@ -2057,8 +2284,10 @@ def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
                 return
 
             _static["cosmic_theme"] = get_cosmic_theme()
-            # Refresh tool feed status (cheap; smartctl itself is cached)
-            _static["tools"] = tools_status()
+            # Tool inventory is TTL-cached; refresh every ~30 ticks max, not every second.
+            tools_tick += 1
+            if tools_tick == 1 or tools_tick % 30 == 0:
+                _static["tools"] = tools_status()
             # Re-detect running DE rarely — session hops are uncommon
             now_plat = time.time()
             if now_plat - platform_last_refresh > 900:  # 15 min
@@ -2071,15 +2300,9 @@ def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
             snap = collect_metrics()
             if my_gen != _sampler_gen:
                 return
-            with _lock:
-                if my_gen != _sampler_gen:
-                    return
-                _latest_full = snap
-                _history.append(slim_history_point(snap))
-                if len(_history) > HISTORY_LEN:
-                    _history.pop(0)
-            _mark_sample_ok()
-            if _sampler_last_reason in ("resume", "stall", "starting"):
+            if not _publish_sample(snap, my_gen):
+                return
+            if _sampler_last_reason in ("resume", "stall", "starting", "degraded"):
                 _sampler_last_reason = ""
             try:
                 record_sample_maybe_prune(snap)
@@ -2139,15 +2362,15 @@ def sampler():
         ),
         "gpu": _gpu_spec,
         "vram_peak_gbps": _gpu_spec.get("vram_peak_gbps", VRAM_PEAK_GBPS),
-        "dram_peak_gbps": _mem_spec.get("peak_gbps", 89.6),
+        "dram_peak_gbps": (_mem_spec or {}).get("peak_gbps", 89.6),
         "pcie_peak_gbps": PCIE_PEAK_GBPS,
-        "memory": _mem_spec,
+        "memory": _mem_spec or {},
         "platform": host_platform,
         "rig": {
             "chassis": chassis_identity(machine, os.uname().nodename, s76_vendor),
             "cpu": cpu_identity(cpu_model),
             "gpu": _gpu_spec,
-            "memory": memory_identity(_mem_spec),
+            "memory": memory_identity(_mem_spec or {}),
             "storage": storage_drives,
         },
         "tools": tools_status(),
@@ -2171,9 +2394,32 @@ def sampler():
     _run_sampler_loop(_sampler_gen, platform_last_refresh)
 
 
+def _watchdog_emergency_publish() -> bool:
+    """Publish a core scoreboard sample so live chips keep moving during a full-tick hang."""
+    global _sampler_last_reason
+    try:
+        snap = collect_live_core()
+        if _publish_sample(snap, my_gen=None):
+            _sampler_last_reason = "degraded"
+            print(
+                "Cosmic Pulse sampler: emergency core sample published "
+                f"(cpu={snap['cpu'].get('overall_pct')}% "
+                f"gpu={((snap.get('gpu') or {}).get('discrete') or {}).get('busy_pct')}%)",
+                flush=True,
+            )
+            return True
+    except Exception as exc:
+        print(f"Cosmic Pulse sampler: emergency sample failed: {exc}", flush=True)
+    return False
+
+
 def sampler_watchdog() -> None:
-    """Restart the sample loop if a tick blocks past SAMPLER_STALL_SEC (e.g. hung I/O after resume)."""
-    global _sampler_gen, _sampler_stalls, _sampler_last_reason
+    """Keep live stats alive if a full tick blocks past SAMPLER_STALL_SEC.
+
+    1. Immediately publish a lightweight core sample (CPU/MEM/GPU/VRAM) so the UI unfreezes.
+    2. Cooldown-restart a fresh full sample loop (abandon stuck gen) without spawning a storm.
+    """
+    global _sampler_gen, _sampler_stalls, _sampler_last_reason, _sampler_restart_mono
 
     if not _sampler_ready.wait(timeout=45):
         print("Cosmic Pulse sampler: watchdog — sampler never became ready", flush=True)
@@ -2185,21 +2431,34 @@ def sampler_watchdog() -> None:
         age = time.monotonic() - _sampler_last_ok_mono
         if age < SAMPLER_STALL_SEC:
             continue
-        _sampler_stalls += 1
-        _sampler_gen += 1
-        _sampler_last_reason = "stall"
+
+        # Always try to unfreeze the scoreboard first.
+        _watchdog_emergency_publish()
+
+        now_m = time.monotonic()
+        with _sampler_restart_lock:
+            if now_m - _sampler_restart_mono < SAMPLER_RESTART_COOLDOWN_SEC:
+                continue
+            _sampler_restart_mono = now_m
+            _sampler_stalls += 1
+            _sampler_gen += 1
+            new_gen = _sampler_gen
+            _sampler_last_reason = "stall"
         print(
             f"Cosmic Pulse sampler: stalled {age:.1f}s — "
-            f"restarting generation {_sampler_gen} (stalls={_sampler_stalls})",
+            f"restarting generation {new_gen} (stalls={_sampler_stalls})",
             flush=True,
         )
-        reprime_rate_baselines()
-        _prime_rate_counters()
+        try:
+            reprime_rate_baselines()
+            _prime_rate_counters()
+        except Exception as exc:
+            print(f"Cosmic Pulse sampler: reprime after stall failed: {exc}", flush=True)
         t = threading.Thread(
             target=_run_sampler_loop,
-            args=(_sampler_gen, time.time()),
+            args=(new_gen, time.time()),
             daemon=True,
-            name=f"pulse-sampler-{_sampler_gen}",
+            name=f"pulse-sampler-{new_gen}",
         )
         t.start()
 
@@ -2361,12 +2620,16 @@ class Handler(BaseHTTPRequestHandler):
             # Snapshot metrics under lock; evaluate outside so scans can't stall sampler.
             with _lock:
                 full = _latest_full
-                mem = _mem_spec
+                mem = _mem_spec or {}
                 gt = (full or {}).get("game_totals") or {}
                 active = gt.get("game_id") or gt.get("appid")
                 running = bool(gt.get("running"))
             ctx = system_context()
-            _, emitted = evaluate_rule_packs(full or {}, mem, ctx)
+            try:
+                _, emitted = evaluate_rule_packs(full or {}, mem, ctx)
+            except Exception as exc:
+                print(f"Cosmic Pulse diagnostics: rule pack eval failed: {exc}", flush=True)
+                emitted = set()
             scan = scan_findings_for_guidance(
                 diag.get("findings") or [],
                 emitted,

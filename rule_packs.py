@@ -280,8 +280,11 @@ def _flatten_steam(active_appid: str | None, running: bool) -> dict:
     }
 
 
-def flatten_metrics(snap: dict, mem_spec: dict, ctx: dict) -> dict:
+def flatten_metrics(snap: dict, mem_spec: dict | None, ctx: dict) -> dict:
     """Namespace for pack detect conditions and emit templates."""
+    mem_spec = mem_spec if isinstance(mem_spec, dict) else {}
+    snap = snap if isinstance(snap, dict) else {}
+    ctx = ctx if isinstance(ctx, dict) else {}
     g = (snap.get("gpu") or {}).get("discrete") or {}
     mem = snap.get("memory") or {}
     bw = snap.get("bandwidth") or {}
@@ -1021,11 +1024,11 @@ def set_pack_enabled(pack_id: str, enabled: bool) -> dict:
 
 def evaluate_rule_packs(
     snap: dict,
-    mem_spec: dict,
-    ctx: dict,
+    mem_spec: dict | None,
+    ctx: dict | None,
 ) -> tuple[list[dict], set[str]]:
     """Evaluate enabled packs; return hints and insight_ids emitted."""
-    metrics = flatten_metrics(snap, mem_spec, ctx)
+    metrics = flatten_metrics(snap or {}, mem_spec, ctx or {})
     hints: list[dict] = []
     emitted: set[str] = set()
 
