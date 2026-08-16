@@ -1316,94 +1316,67 @@
     }
     .sum-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1.05fr;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       grid-template-rows: auto auto;
       grid-template-areas:
-        "cpu mem gpu league"
+        "cpu mem gpu vram"
         "health health game game";
-      gap: 0.4rem;
+      gap: 0.35rem;
       min-height: 0;
-      min-width: min(100%, 48rem);
-      align-items: start;
+      min-width: min(100%, 42rem);
+      align-items: stretch;
     }
     .sum-grid.game-prominent {
       grid-template-rows: auto auto auto;
       grid-template-areas:
-        "cpu mem gpu league"
+        "cpu mem gpu vram"
         "health health health health"
         "game game game game";
       min-height: 0;
-      align-items: start;
+      align-items: stretch;
     }
-    /* Pulse Index — match scoreboard chip density */
-    #sumLeagueCell.sum-cell {
-      padding: 0.4rem 0.7rem;
-      min-height: 0;
-      height: auto;
-      border: none;
-      background: rgba(0, 0, 0, .18);
-      box-shadow: none;
-    }
-    #sumLeagueCell .sum-head { margin: 0 0 0.15rem; }
-    #sumLeagueCell .sum-body {
-      flex-direction: row;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.35rem 0.65rem;
-      flex: 0 1 auto;
-    }
-    #sumLeagueCell .sum-value { font-size: 1.15rem; margin: 0; }
-    #sumLeagueCell .sum-foot {
-      flex-direction: row;
-      align-items: center;
-      gap: 0.45rem;
-      margin: 0;
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-    #sumLeagueCell .sum-meter { height: 4px; flex: 1 1 4rem; min-width: 3rem; max-width: 8rem; }
-    #sumLeagueCell .sum-detail { font-size: var(--fs-xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #sumHealthCell { grid-area: health; }
     #sumCpuCell { grid-area: cpu; }
     #sumMemCell { grid-area: mem; }
     #sumGpuCell { grid-area: gpu; }
+    #sumVramCell { grid-area: vram; }
     #sumGameCell { grid-area: game; }
-    #sumLeagueCell { grid-area: league; }
     @media (max-width: 900px) {
       .sum-grid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         grid-template-rows: auto;
         grid-template-areas:
-          "health health league"
-          "cpu mem gpu"
-          "game game game";
+          "health health"
+          "cpu mem"
+          "gpu vram"
+          "game game";
         min-height: 0;
         min-width: 100%;
       }
       .sum-grid.game-prominent {
         grid-template-rows: auto;
         grid-template-areas:
-          "health health league"
-          "cpu mem gpu"
-          "game game game";
+          "health health"
+          "cpu mem"
+          "gpu vram"
+          "game game";
         min-height: 0;
       }
     }
     @media (max-width: 520px) {
       .sum-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr 1fr;
         grid-template-areas:
           "health health"
-          "league league"
           "cpu mem"
-          "gpu game";
+          "gpu vram"
+          "game game";
       }
       .sum-grid.game-prominent {
         grid-template-areas:
           "health health"
-          "league league"
           "cpu mem"
-          "gpu gpu"
+          "gpu vram"
           "game game";
       }
       .sum-grid.game-prominent #sumGameCell {
@@ -1633,16 +1606,51 @@
     .sum-cell.game .sum-value.fair { color: var(--tier-fair); }
     .sum-cell.game .sum-value.poor { color: var(--tier-poor); }
     .sum-cell.game .sum-value.bad { color: var(--tier-bad); }
+    /* Game + Pulse Index share one strip */
+    #sumGameCell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "game-main game-index";
+      align-items: stretch;
+      column-gap: 0.55rem;
+      padding: 0.4rem 0.5rem;
+      cursor: default;
+    }
+    #sumGameCell:not(.tall) .sum-game-art { display: none !important; }
+    #sumGameCell .sum-game-main {
+      grid-area: game-main;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      min-width: 0;
+      align-items: stretch;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      padding: 0.15rem 0.2rem;
+      border-radius: var(--radius-sm);
+    }
+    #sumGameCell .sum-game-main:hover {
+      background: color-mix(in srgb, var(--m-game) 8%, transparent);
+    }
+    #sumGameCell:not(.tall) .sum-game-stats { display: none !important; }
+    #sumGameCell .sum-game-index {
+      grid-area: game-index;
+    }
     .sum-grid.game-prominent #sumGameCell {
       display: grid;
-      grid-template-columns: 8.5rem minmax(0, 1fr);
+      grid-template-columns: 7.5rem minmax(0, 1fr) minmax(8.5rem, 11rem);
       grid-template-rows: auto auto;
       grid-template-areas:
-        "game-art game-hero"
-        "game-info game-stats";
-      column-gap: 0.75rem;
-      row-gap: 0.4rem;
-      padding: 0.65rem 0.85rem 0.7rem 0.95rem;
+        "game-art game-hero game-index"
+        "game-info game-stats game-index";
+      column-gap: 0.7rem;
+      row-gap: 0.3rem;
+      padding: 0.55rem 0.75rem 0.6rem 0.85rem;
       align-items: center;
       align-content: center;
       width: 100%;
@@ -1650,6 +1658,18 @@
       min-height: 0;
       overflow: visible;
     }
+    .sum-grid.game-prominent #sumGameCell .sum-game-main {
+      display: contents; /* children place into grid areas */
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-art { grid-area: game-art; align-self: center; }
+    .sum-grid.game-prominent #sumGameCell .sum-game-info {
+      grid-area: game-info;
+      display: flex;
+      min-width: 0;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-primary { grid-area: game-hero; }
+    .sum-grid.game-prominent #sumGameCell .sum-game-stats { grid-area: game-stats; }
+    .sum-grid.game-prominent #sumGameCell .sum-detail { display: none; }
     .sum-game-info {
       display: flex;
       flex-direction: column;
@@ -4779,55 +4799,109 @@
       color: var(--dial-color);
     }
 
-    /* Compact top scoreboard chips (CPU / Mem / GPU) — load detail in Live bars */
+    /* Scoreboard chips — dense, equal, family-colored (CPU / Mem / GPU / VRAM) */
     .sum-cell.sum-chip {
-      padding: 0.4rem 0.7rem;
-      min-height: 0;
-      max-height: none;
-      height: auto;
+      display: flex;
+      flex-direction: column;
       justify-content: center;
+      gap: 0.28rem;
+      padding: 0.42rem 0.55rem 0.45rem;
+      min-height: 0;
+      height: auto;
       align-self: stretch;
       border: none;
-      background: rgba(0, 0, 0, .18);
-      box-shadow: none;
+      border-radius: var(--radius-sm);
+      background: rgba(0, 0, 0, .22);
+      box-shadow: var(--surface-shine);
       overflow: hidden;
+      position: relative;
     }
-    .sum-cell.sum-chip .sum-chip-row {
+    .sum-cell.sum-chip.cpu {
+      box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-cpu) 55%, transparent);
+      background:
+        linear-gradient(105deg, color-mix(in srgb, var(--m-cpu) 9%, transparent), transparent 55%),
+        rgba(0, 0, 0, .22);
+    }
+    .sum-cell.sum-chip.mem {
+      box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-mem) 55%, transparent);
+      background:
+        linear-gradient(105deg, color-mix(in srgb, var(--m-mem) 9%, transparent), transparent 55%),
+        rgba(0, 0, 0, .22);
+    }
+    .sum-cell.sum-chip.gpu {
+      box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-gpu) 55%, transparent);
+      background:
+        linear-gradient(105deg, color-mix(in srgb, var(--m-gpu) 9%, transparent), transparent 55%),
+        rgba(0, 0, 0, .22);
+    }
+    .sum-cell.sum-chip.vram {
+      box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-gpu-vram) 60%, transparent);
+      background:
+        linear-gradient(105deg, color-mix(in srgb, var(--m-gpu-vram) 10%, transparent), transparent 55%),
+        rgba(0, 0, 0, .22);
+    }
+    .sum-cell.sum-chip .sum-chip-top {
       display: flex;
       align-items: baseline;
-      gap: 0.45rem 0.55rem;
+      justify-content: space-between;
+      gap: 0.4rem;
       width: 100%;
       min-width: 0;
     }
     .sum-cell.sum-chip .sum-label {
       flex: 0 0 auto;
       margin: 0;
-      font-size: var(--fs-xs);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
     }
     .sum-cell.sum-chip .sum-chip-val {
-      flex: 0 0 4.75rem;
-      min-width: 4.75rem;
-      width: 4.75rem;
-      font-size: 1.15rem;
+      flex: 0 0 auto;
+      font-size: 1.2rem;
       font-weight: 700;
       font-variant-numeric: tabular-nums;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
       line-height: 1;
       text-align: right;
     }
     .sum-cell.sum-chip.cpu .sum-chip-val { color: var(--m-cpu); }
     .sum-cell.sum-chip.mem .sum-chip-val { color: var(--m-mem); }
     .sum-cell.sum-chip.gpu .sum-chip-val { color: var(--m-gpu); }
-    .sum-cell.sum-chip .sum-chip-sub {
-      flex: 1 1 auto;
-      min-width: 0;
-      font-size: var(--fs-xs);
+    .sum-cell.sum-chip.vram .sum-chip-val { color: var(--m-gpu-vram); }
+    .sum-chip-bar {
+      height: 4px;
+      border-radius: 999px;
+      background: color-mix(in srgb, #fff 7%, transparent);
+      overflow: hidden;
+      width: 100%;
+    }
+    .sum-chip-bar > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: var(--chip-bar, var(--m-cpu));
+      box-shadow: 0 0 8px color-mix(in srgb, var(--chip-bar, var(--m-cpu)) 35%, transparent);
+      transition: width 0.35s cubic-bezier(.22, 1, .36, 1);
+    }
+    .sum-cell.sum-chip.cpu { --chip-bar: var(--m-cpu); }
+    .sum-cell.sum-chip.mem { --chip-bar: var(--m-mem); }
+    .sum-cell.sum-chip.gpu { --chip-bar: var(--m-gpu); }
+    .sum-cell.sum-chip.vram { --chip-bar: var(--m-gpu-vram); }
+    .sum-cell.sum-chip .sum-chip-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.15rem 0.4rem;
+      font-size: 0.72rem;
       font-weight: 500;
       color: var(--muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-align: right;
+      line-height: 1.2;
+      min-width: 0;
+    }
+    .sum-cell.sum-chip .sum-chip-meta .em {
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
     }
     .sum-ring-sr {
       position: absolute;
@@ -4836,8 +4910,76 @@
       pointer-events: none;
       overflow: hidden;
     }
-    .sum-cell.sum-chip {
-      position: relative;
+    /* Pulse Index docked on the game / live-session strip */
+    .sum-game-index {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.22rem;
+      min-width: 0;
+      padding: 0.4rem 0.55rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid color-mix(in srgb, var(--m-league) 28%, var(--line-soft));
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--m-league) 12%, transparent), transparent 70%),
+        color-mix(in srgb, #000 28%, transparent);
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+    }
+    .sum-game-index:hover {
+      border-color: color-mix(in srgb, var(--m-league) 48%, var(--line));
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--m-league) 16%, transparent), transparent 70%),
+        color-mix(in srgb, #000 22%, transparent);
+    }
+    .sum-game-index-k {
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, var(--m-league) 55%, var(--muted));
+    }
+    .sum-game-index-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .sum-game-index-v {
+      font-size: 1.15rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      color: var(--m-league);
+      line-height: 1;
+    }
+    .sum-game-index .sum-meter {
+      height: 3px;
+      flex: 1 1 3rem;
+      min-width: 2.5rem;
+      max-width: 5.5rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, #fff 8%, transparent);
+      overflow: hidden;
+    }
+    .sum-game-index .sum-meter > span {
+      display: block;
+      height: 100%;
+      background: var(--m-league);
+      border-radius: inherit;
+    }
+    .sum-game-index .sum-detail {
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sum-grid.game-prominent #sumGameCell .sum-game-index {
+      align-self: stretch;
+      justify-content: center;
     }
     .metric-list-compact .metric-bar-label { font-size: var(--label-size); }
     .metric-list-compact .metric-bar-val { font-size: var(--fs-sm); font-weight: 600; }
@@ -4920,71 +5062,99 @@
             <div class="health-clear-note" id="sumHealthClear" hidden>Live rules look clean — click for the full Guidance tab anytime.</div>
           </div>
         </button>
-        <!-- Compact scoreboard chips — full load detail lives in Live overview bars -->
-        <button type="button" class="sum-cell cpu sum-ring-cell sum-chip" id="sumCpuCell" data-drill="drill-compute" data-hw="cpu"
+        <!-- Scoreboard: CPU · Mem · GPU · VRAM — equal chips, bar meters (detail in Live overview) -->
+        <button type="button" class="sum-cell cpu sum-chip" id="sumCpuCell" data-drill="drill-compute" data-hw="cpu"
           title="CPU utilization — open Compute">
-          <div class="sum-chip-row">
+          <div class="sum-chip-top">
             <span class="sum-label">CPU</span>
             <span class="sum-chip-val" id="sumCpuVal">—</span>
-            <span class="sum-chip-sub" id="sumCpuTemp">—</span>
+          </div>
+          <div class="sum-chip-bar" aria-hidden="true"><span id="sumCpuBar"></span></div>
+          <div class="sum-chip-meta">
+            <span class="em" id="sumCpuTemp">—</span>
+            <span aria-hidden="true">·</span>
+            <span id="sumCpuLoad">load —</span>
           </div>
           <svg class="sum-ring sum-ring-sr" viewBox="0 0 36 36" aria-hidden="true">
             <circle class="sum-ring-fill" id="sumCpuRing" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="0 100" />
           </svg>
-          <span class="dash-secondary" id="sumCpuLoad" hidden>—</span>
         </button>
-        <button type="button" class="sum-cell mem sum-ring-cell sum-chip" id="sumMemCell" data-drill="drill-bandwidth" data-hw="memory"
-          title="Memory utilization — open Bandwidth">
-          <div class="sum-chip-row">
+        <button type="button" class="sum-cell mem sum-chip" id="sumMemCell" data-drill="drill-bandwidth" data-hw="memory"
+          title="System memory — open Bandwidth">
+          <div class="sum-chip-top">
             <span class="sum-label">Mem</span>
             <span class="sum-chip-val" id="sumMemVal">—</span>
-            <span class="sum-chip-sub" id="sumMemUsed">—</span>
+          </div>
+          <div class="sum-chip-bar" aria-hidden="true"><span id="sumMemBar"></span></div>
+          <div class="sum-chip-meta">
+            <span class="em" id="sumMemUsed">—</span>
+            <span aria-hidden="true">·</span>
+            <span id="sumMemSwap">swap —</span>
           </div>
           <svg class="sum-ring sum-ring-sr" viewBox="0 0 36 36" aria-hidden="true">
             <circle class="sum-ring-fill" id="sumMemRing" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="0 100" />
           </svg>
-          <span class="dash-secondary" id="sumMemSwap" hidden>—</span>
         </button>
-        <button type="button" class="sum-cell gpu sum-ring-cell sum-chip" id="sumGpuCell" data-drill="drill-compute" data-hw="gpu"
+        <button type="button" class="sum-cell gpu sum-chip" id="sumGpuCell" data-drill="drill-compute" data-hw="gpu"
           title="GPU shader load — open Compute">
-          <div class="sum-chip-row">
+          <div class="sum-chip-top">
             <span class="sum-label">GPU</span>
             <span class="sum-chip-val" id="sumGpuVal">—</span>
-            <span class="sum-chip-sub" id="sumGpuTemp">—</span>
+          </div>
+          <div class="sum-chip-bar" aria-hidden="true"><span id="sumGpuBar"></span></div>
+          <div class="sum-chip-meta">
+            <span class="em" id="sumGpuTemp">—</span>
+            <span aria-hidden="true">·</span>
+            <span id="sumGpuPower">—</span>
           </div>
           <svg class="sum-ring sum-ring-sr" viewBox="0 0 36 36" aria-hidden="true">
             <circle class="sum-ring-fill" id="sumGpuRing" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="0 100" />
           </svg>
-          <span class="dash-secondary" id="sumGpuPower" hidden>—</span>
           <span class="dash-secondary" id="sumGpuMemBus" hidden>—</span>
         </button>
-        <button type="button" class="sum-cell game" id="sumGameCell" data-drill="viz-game" data-hw="cpu gpu">
-          <div class="sum-game-art" id="sumGameArt" hidden>
-            <img id="sumGameArtImg" alt="">
+        <button type="button" class="sum-cell vram sum-chip" id="sumVramCell" data-drill="drill-compute" data-hw="gpu"
+          title="Video memory fill — open Compute">
+          <div class="sum-chip-top">
+            <span class="sum-label">VRAM</span>
+            <span class="sum-chip-val" id="sumVramVal">—</span>
           </div>
-          <div class="sum-game-info">
-            <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label" id="sumGameLabel">Game</span></div>
-            <span class="sum-game-context" id="sumGameContext"></span>
+          <div class="sum-chip-bar" aria-hidden="true"><span id="sumVramBar"></span></div>
+          <div class="sum-chip-meta">
+            <span class="em" id="sumVramUsed">—</span>
+            <span aria-hidden="true">·</span>
+            <span id="sumVramBus">bus —</span>
           </div>
-          <div class="sum-game-primary">
-            <span class="sum-value" id="sumGameVal">—</span>
-            <div id="sumGameBadge" class="sum-game-badge"></div>
-            <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
-          </div>
-          <div class="sum-game-stats" id="sumGameStats" hidden></div>
-          <span class="sum-detail" id="sumGameSub">—</span>
         </button>
-        <button type="button" class="sum-cell tall league" id="sumLeagueCell" data-drill="viz-index" data-hw-keep>
-          <div class="sum-head"><span class="hw-icon-box league" data-glyph="league"></span><span class="sum-label">Pulse Index</span></div>
-          <div class="sum-body">
-            <span class="sum-value" id="sumLeagueVal">—</span>
-            <div class="sum-foot">
+        <div class="sum-cell game" id="sumGameCell" data-hw="cpu gpu">
+          <button type="button" class="sum-game-main" id="sumGameMain" data-drill="viz-game"
+            title="Game performance — open Game view">
+            <div class="sum-game-art" id="sumGameArt" hidden>
+              <img id="sumGameArtImg" alt="">
+            </div>
+            <div class="sum-game-info">
+              <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label" id="sumGameLabel">Game</span></div>
+              <span class="sum-game-context" id="sumGameContext"></span>
+            </div>
+            <div class="sum-game-primary">
+              <span class="sum-value" id="sumGameVal">—</span>
+              <div id="sumGameBadge" class="sum-game-badge"></div>
+              <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
+            </div>
+            <div class="sum-game-stats" id="sumGameStats" hidden></div>
+            <span class="sum-detail" id="sumGameSub">—</span>
+          </button>
+          <!-- Pulse Index lives with the session strip (not competing with load chips) -->
+          <button type="button" class="sum-game-index" id="sumGameIndex" data-drill="viz-index" data-hw-keep
+            title="Open Pulse Index — build score for this rig">
+            <span class="sum-game-index-k">Pulse Index</span>
+            <div class="sum-game-index-row">
+              <span class="sum-game-index-v" id="sumLeagueVal">—</span>
               <div id="sumLeagueBadge" class="sum-league-badge"></div>
               <div class="sum-meter league"><span id="sumLeagueMeter" style="width:0%"></span></div>
-              <span class="sum-detail" id="sumLeagueSub">—</span>
             </div>
-          </div>
-        </button>
+            <span class="sum-detail" id="sumLeagueSub">—</span>
+          </button>
+        </div>
       </div>
       </div>
       <div class="sum-game-banner" id="sumGameBanner" hidden>
@@ -7462,8 +7632,11 @@
     document.getElementById('warnMoreFixesBtn')?.addEventListener('click', () => {
       setTab('fixes', 'insightsSection');
     });
-    document.querySelectorAll('.sum-cell[data-drill]').forEach(btn => {
-      btn.onclick = () => jumpTo(btn.dataset.drill);
+    document.querySelectorAll('.sum-cell[data-drill], .sum-game-main[data-drill], .sum-game-index[data-drill]').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        jumpTo(btn.dataset.drill);
+      };
     });
     // Pulse Index tab is the analysis view; full comparison table stays in drill-league
     setTab(activeTab);
@@ -8146,8 +8319,16 @@
       if (clearEl) clearEl.hidden = totalOpen > 0;
       const leagueIdx = comparison ? smoothDisplayPct('session-index', comparison.session_index) : 0;
 
+      const setChipBar = (id, pct) => {
+        const bar = document.getElementById(id);
+        if (!bar) return;
+        const p = Math.max(0, Math.min(100, Number(pct) || 0));
+        bar.style.width = `${p.toFixed(1)}%`;
+      };
+
       const cpuPct = c.overall_pct ?? 0;
       setRingPct(document.getElementById('sumCpuRing'), cpuPct);
+      setChipBar('sumCpuBar', cpuPct);
       document.getElementById('sumCpuVal').textContent =
         Number.isFinite(Number(cpuPct)) ? `${Math.round(Number(cpuPct))}%` : '—';
       const cpuTemp = document.getElementById('sumCpuTemp');
@@ -8157,16 +8338,16 @@
       const cpuLoad = document.getElementById('sumCpuLoad');
       if (cpuLoad) {
         const l1 = c.load?.[0];
-        cpuLoad.textContent = l1 != null ? Number(l1).toFixed(2) : '—';
+        cpuLoad.textContent = l1 != null ? `load ${Number(l1).toFixed(2)}` : 'load —';
       }
 
       const memPct = m.pct ?? 0;
       setRingPct(document.getElementById('sumMemRing'), memPct);
+      setChipBar('sumMemBar', memPct);
       document.getElementById('sumMemVal').textContent =
         Number.isFinite(Number(memPct)) ? `${Math.round(Number(memPct))}%` : '—';
       const memUsed = document.getElementById('sumMemUsed');
       if (memUsed) {
-        // Full “used / total GB” — rail is wide enough; no ellipsis mid-number
         if (m.used_gb != null && m.total_gb != null) {
           const used = Number(m.used_gb);
           const total = Number(m.total_gb);
@@ -8174,9 +8355,9 @@
           const totalStr = Number.isFinite(total)
             ? (Math.abs(total - Math.round(total)) < 0.05 ? String(Math.round(total)) : total.toFixed(1))
             : String(m.total_gb);
-          const label = `${usedStr} / ${totalStr} GB`;
+          const label = `${usedStr}/${totalStr} GB`;
           memUsed.textContent = label;
-          memUsed.title = label;
+          memUsed.title = `${usedStr} / ${totalStr} GB used`;
         } else {
           memUsed.textContent = '—';
           memUsed.removeAttribute('title');
@@ -8184,10 +8365,9 @@
       }
       const memSwap = document.getElementById('sumMemSwap');
       if (memSwap) {
-        memSwap.textContent = m.swap_pct != null ? `${Math.round(m.swap_pct)}%` : '—';
+        memSwap.textContent = m.swap_pct != null ? `swap ${Math.round(m.swap_pct)}%` : 'swap —';
       }
 
-      // Same layout as CPU/Mem: one large ring = shader usage (GFX). Side stack holds the rest.
       const engines = Array.isArray(g.engines) ? g.engines : [];
       const engPct = (id, fallback) => {
         const hit = engines.find(e => e && e.id === id);
@@ -8197,6 +8377,7 @@
       const gfxPct = engPct('gfx', g.busy_pct);
       const memBusPct = engPct('vram', g.mem_busy_pct);
       setRingPct(document.getElementById('sumGpuRing'), gfxPct ?? 0);
+      setChipBar('sumGpuBar', gfxPct ?? 0);
       document.getElementById('sumGpuVal').textContent =
         gfxPct != null && Number.isFinite(Number(gfxPct))
           ? `${Math.round(Number(gfxPct))}%`
@@ -8205,6 +8386,10 @@
       if (gpuTemp) {
         gpuTemp.textContent = g.junction_c != null ? `${Math.round(g.junction_c)}°C` : '—';
       }
+      const gpuPower = document.getElementById('sumGpuPower');
+      if (gpuPower) {
+        gpuPower.textContent = g.power_w != null ? `${Math.round(g.power_w)} W` : '— W';
+      }
       const gpuMemBus = document.getElementById('sumGpuMemBus');
       if (gpuMemBus) {
         gpuMemBus.textContent =
@@ -8212,11 +8397,42 @@
             ? `${Math.round(Number(memBusPct))}%`
             : '—';
       }
-      const gpuPower = document.getElementById('sumGpuPower');
-      if (gpuPower) {
-        gpuPower.textContent = g.power_w != null ? `${Math.round(g.power_w)} W` : '—';
+
+      // VRAM chip — gaming-critical headroom next to GPU busy
+      const vramPctRaw = g.vram_pct != null
+        ? Number(g.vram_pct)
+        : (g.vram_used_mb != null && g.vram_total_mb
+          ? (100 * Number(g.vram_used_mb) / Number(g.vram_total_mb))
+          : null);
+      const vramPct = vramPctRaw != null && Number.isFinite(vramPctRaw) ? vramPctRaw : 0;
+      setChipBar('sumVramBar', vramPct);
+      const vramVal = document.getElementById('sumVramVal');
+      if (vramVal) {
+        vramVal.textContent = vramPctRaw != null && Number.isFinite(vramPctRaw)
+          ? `${Math.round(vramPctRaw)}%`
+          : '—';
+      }
+      const vramUsedEl = document.getElementById('sumVramUsed');
+      if (vramUsedEl) {
+        if (g.vram_used_mb != null && g.vram_total_mb != null) {
+          const u = Math.round(Number(g.vram_used_mb) / 1024 * 10) / 10;
+          const t = Math.round(Number(g.vram_total_mb) / 1024 * 10) / 10;
+          vramUsedEl.textContent = `${u}/${t} GB`;
+          vramUsedEl.title = `${Math.round(g.vram_used_mb)} / ${Math.round(g.vram_total_mb)} MB`;
+        } else {
+          vramUsedEl.textContent = '—';
+          vramUsedEl.removeAttribute('title');
+        }
+      }
+      const vramBusEl = document.getElementById('sumVramBus');
+      if (vramBusEl) {
+        vramBusEl.textContent =
+          memBusPct != null && Number.isFinite(Number(memBusPct))
+            ? `bus ${Math.round(Number(memBusPct))}%`
+            : 'bus —';
       }
 
+      // Pulse Index — docked on game / live-session strip
       const soleFocus = soleHwFocus();
       if (soleFocus && comparison) {
         const part = soleFocus === 'memory' ? comparison.memory : comparison[soleFocus];
@@ -8225,15 +8441,15 @@
         document.getElementById('sumLeagueVal').textContent = `${liveSmooth}%`;
         setTierBadge(document.getElementById('sumLeagueBadge'), part?.tier_rank);
         document.getElementById('sumLeagueSub').textContent =
-          `Class ${part?.tier_rank ?? '—'} · score ${part?.tier_score ?? '—'}/100`;
+          `Class ${part?.tier_rank ?? '—'} · ${part?.tier_score ?? '—'}/100`;
         setMeterWidth(document.getElementById('sumLeagueMeter'), liveSmooth);
       } else {
-        document.getElementById('sumLeagueVal').textContent = comparison ? `${leagueIdx}/100` : '—/100';
+        document.getElementById('sumLeagueVal').textContent = comparison ? `${leagueIdx}` : '—';
         setTierBadge(document.getElementById('sumLeagueBadge'), comparison?.composite_rank);
         document.getElementById('sumLeagueSub').textContent =
           comparison?.composite_rank != null
-            ? `Class ${comparison.composite_rank} · session ${leagueIdx}/100`
-            : '—';
+            ? `Class ${comparison.composite_rank} · /100`
+            : 'Build score';
         setMeterWidth(document.getElementById('sumLeagueMeter'), leagueIdx);
       }
 
