@@ -758,20 +758,25 @@ def request_diagnostics_scan() -> dict:
     """Kick a background scan; never blocks the caller on journalctl."""
     global _scan_thread
     with _scan_lock:
+        # Do NOT call diagnostics_job_status() while holding _scan_lock —
+        # that re-acquires the same non-reentrant Lock (deadlock).
         if _scan_state.get("status") == "running" and _scan_thread and _scan_thread.is_alive():
-            return diagnostics_job_status()
-        _scan_state["status"] = "running"
-        _scan_state["started_at"] = time.time()
-        _scan_state["finished_at"] = None
-        _scan_state["error"] = None
-        # Keep previous result visible while rescanning (don't wipe UI to empty)
-        t = threading.Thread(
-            target=_background_scan_worker,
-            daemon=True,
-            name="pulse-diagnostics-scan",
-        )
-        _scan_thread = t
-        t.start()
+            already_running = True
+        else:
+            already_running = False
+            _scan_state["status"] = "running"
+            _scan_state["started_at"] = time.time()
+            _scan_state["finished_at"] = None
+            _scan_state["error"] = None
+            # Keep previous result visible while rescanning (don't wipe UI to empty)
+            t = threading.Thread(
+                target=_background_scan_worker,
+                daemon=True,
+                name="pulse-diagnostics-scan",
+            )
+            _scan_thread = t
+            t.start()
+    # Status snapshot outside the lock
     return diagnostics_job_status()
 
 

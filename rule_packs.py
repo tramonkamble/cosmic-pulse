@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -491,15 +492,26 @@ def _safe_audio_metrics() -> dict:
         }
 
 
+_ldconfig_cache: tuple[float, str] = (0.0, "")
+_LDCONFIG_TTL = 120.0  # ldconfig -p is stable; never hit it on the 1 Hz path cold every tick
+
+
 def _ldconfig_quick() -> str:
+    """Cached ``ldconfig -p`` — uncached calls on every rule eval stalled the sampler."""
+    global _ldconfig_cache
+    now = time.time()
+    if _ldconfig_cache[1] and now - _ldconfig_cache[0] < _LDCONFIG_TTL:
+        return _ldconfig_cache[1]
     try:
         import subprocess
 
-        return subprocess.check_output(
-            ["ldconfig", "-p"], text=True, timeout=5, stderr=subprocess.STDOUT
+        text = subprocess.check_output(
+            ["ldconfig", "-p"], text=True, timeout=2, stderr=subprocess.STDOUT
         )
     except Exception:
-        return ""
+        text = _ldconfig_cache[1] or ""
+    _ldconfig_cache = (now, text)
+    return text
 
 
 def _flatten_display_hdr() -> dict:

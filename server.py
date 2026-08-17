@@ -312,15 +312,25 @@ _sampler_last_reason = ""
 _sampler_ready = threading.Event()
 _sampler_restart_mono = 0.0
 _sampler_restart_lock = threading.Lock()
+# Set when a full tick begins; cleared on publish. Watchdog uses this so a hang
+# mid-tick is visible even if the last emergency refresh was recent.
+_sampler_tick_started_mono = 0.0
+_sampler_tick_lock = threading.Lock()
 SAMPLER_STALL_SEC = 8.0
 # Don't thrash generations when a full tick is still wedged (thread storm → futex death).
 SAMPLER_RESTART_COOLDOWN_SEC = 15.0
+# Cap concurrent abandoned sampler loops (Python can't kill them; limit the mess).
+SAMPLER_MAX_ABANDONED = 3
+_sampler_live_loops = 0
+_sampler_live_lock = threading.Lock()
 # Wall advanced much more than monotonic → suspend/resume (or a large NTP step).
 WALL_JUMP_SEC = 2.5
 # tools_status() hits which()/smart cache — fine occasionally, wasteful every 1 Hz tick.
 _tools_status_cache: tuple[float, dict] = (0.0, {})
 _TOOLS_STATUS_TTL = 30.0
 _sensors_lock = threading.Lock()
+# Emergency sample must never block the watchdog (sysfs can wedge after suspend).
+EMERGENCY_TIMEOUT_SEC = 1.5
 
 VRAM_PEAK_GBPS = 800.0
 # PCIe 4.0 x16 one-way theoretical payload ≈ 31.5 GB/s
@@ -1862,6 +1872,121 @@ def _gpu_stats_sysfs_only(base: Path, label: str) -> dict:
     }
 
 
+def collect_live_core_psutil() -> dict:
+    """Absolute-minimum scoreboard sample — psutil/os only, no sysfs, no locks.
+
+    Last-resort path when even sysfs GPU reads wedge (seen after long stalls /
+    suspend). Enough for CPU/MEM chips to keep moving.
+    """
+    try:
+        cpu_pct = psutil.cpu_percent(interval=None, percpu=True)
+        overall_cpu = round(sum(cpu_pct) / len(cpu_pct), 1) if cpu_pct else 0.0
+    except Exception:
+        overall_cpu = 0.0
+        cpu_pct = []
+    try:
+        vm = psutil.virtual_memory()
+        sw = psutil.swap_memory()
+        mem = {
+            "used_gb": round(vm.used / 1024**3, 2),
+            "total_gb": round(vm.total / 1024**3, 2),
+            "installed_gb": (_mem_spec or {}).get("total_gb"),
+            "available_gb": round(vm.available / 1024**3, 2),
+            "pct": vm.percent,
+            "swap_used_gb": round(sw.used / 1024**3, 2),
+            "swap_total_gb": round(sw.total / 1024**3, 2),
+            "swap_pct": round(sw.percent, 1),
+        }
+    except Exception:
+        mem = {
+            "used_gb": None,
+            "total_gb": None,
+            "installed_gb": (_mem_spec or {}).get("total_gb"),
+            "available_gb": None,
+            "pct": 0,
+            "swap_used_gb": None,
+            "swap_total_gb": None,
+            "swap_pct": None,
+        }
+    try:
+        load1, load5, load15 = os.getloadavg()
+        load = [round(load1, 2), round(load5, 2), round(load15, 2)]
+    except Exception:
+        load = [0.0, 0.0, 0.0]
+    label = (_gpu_spec or {}).get("label") or (_gpu_spec or {}).get("model", "GPU") or "GPU"
+    # Preserve last GPU snapshot if any — do not touch sysfs here.
+    prev_gpu = {}
+    try:
+        got = _lock.acquire(blocking=False)
+        if got:
+            try:
+                prev = _latest_full or {}
+                prev_gpu = ((prev.get("gpu") or {}).get("discrete")) or {}
+            finally:
+                _lock.release()
+    except Exception:
+        prev_gpu = {}
+    dgpu = dict(prev_gpu) if prev_gpu else {
+        "label": label,
+        "busy_pct": None,
+        "mem_busy_pct": None,
+        "engines": [],
+        "vram_used_mb": None,
+        "vram_total_mb": None,
+        "vram_pct": None,
+        "junction_c": None,
+        "power_w": None,
+        "gtt": {},
+    }
+    if not dgpu.get("label"):
+        dgpu["label"] = label
+    return {
+        "ts": time.time(),
+        "cpu": {
+            "overall_pct": overall_cpu,
+            "iowait_pct": 0.0,
+            "per_core": [],
+            "cores": psutil.cpu_count(logical=False),
+            "threads": psutil.cpu_count(logical=True),
+            "load": load,
+            "temps": {"package": None, "ccd": []},
+            "power_w": None,
+        },
+        "memory": mem,
+        "gpu": {"discrete": dgpu, "igpu": {}},
+        "network": {},
+        "disk": {},
+        "games": {},
+        "game_procs": [],
+        "game_totals": {
+            "running": False,
+            "primary_name": None,
+            "primary_pid": None,
+            "cpu_pct": 0.0,
+            "rss_mb": 0.0,
+            "tree_rss_mb": 0.0,
+            "proc_count": 0,
+            "game_id": None,
+            "game_name": None,
+            "lingering": False,
+            "linger_remaining_sec": None,
+        },
+        "sensors": [],
+        "bandwidth": {"gpu": {}, "memory": {}},
+        "load_phase": {},
+        "stutter": {"score": 0, "smoothness": 100, "causes": [], "session": {}},
+        "nvme_smart": {},
+        "tuning_active": [],
+        "tuning": [],
+        "issues_by_game": {},
+        "sensor_health": {"total": 0, "ok": 0, "missing": []},
+        "comparison": None,
+        "game_performance": {},
+        "_degraded": True,
+        "_degraded_level": "psutil",
+    }
+
+
 def collect_live_core() -> dict:
     """Minimal scoreboard sample — sysfs + psutil only, no sensors subprocess / game scan.
 
@@ -1941,10 +2066,17 @@ def collect_live_core() -> dict:
         "comparison": None,
         "game_performance": {},
         "_degraded": True,
+        "_degraded_level": "sysfs",
     }
     # Preserve last full secondary series so emergency ticks don't blank UI/charts.
-    with _lock:
-        prev = _latest_full or {}
+    # Non-blocking: skip preserve if lock is held by a wedged tick (never block watchdog).
+    prev = {}
+    got_lock = _lock.acquire(blocking=False)
+    if got_lock:
+        try:
+            prev = _latest_full or {}
+        finally:
+            _lock.release()
     if prev:
         for key in (
             "comparison",
@@ -1967,7 +2099,6 @@ def collect_live_core() -> dict:
             if prev.get(key) is not None:
                 base[key] = prev[key]
         # Overlay live CPU/MEM/GPU scoreboard on top of frozen secondaries.
-        # Keep richer GPU label/thermal if emergency read was thin.
         prev_d = ((prev.get("gpu") or {}).get("discrete")) or {}
         if prev_d:
             merged = dict(prev_d)
@@ -2227,14 +2358,25 @@ def sampler_status() -> dict:
             "generation": _sampler_gen,
             "stalls": _sampler_stalls,
             "reason": _sampler_last_reason or "starting",
+            "degraded": False,
         }
     age = time.monotonic() - _sampler_last_ok_mono
+    tick_age = None
+    with _sampler_tick_lock:
+        started = _sampler_tick_started_mono
+    if started:
+        tick_age = round(time.monotonic() - started, 2)
+    degraded = _sampler_last_reason in ("degraded", "stall")
+    # Full tick in-flight longer than stall threshold even if emergency keeps age low.
+    tick_wedged = bool(tick_age is not None and tick_age >= SAMPLER_STALL_SEC)
     return {
-        "ok": age < SAMPLER_STALL_SEC,
+        "ok": age < SAMPLER_STALL_SEC and not tick_wedged,
         "age_sec": round(age, 2),
+        "tick_age_sec": tick_age,
         "generation": _sampler_gen,
         "stalls": _sampler_stalls,
         "reason": _sampler_last_reason or None,
+        "degraded": degraded or tick_wedged,
     }
 
 
@@ -2249,7 +2391,23 @@ def _publish_sample(
     Emergency/degraded samples set ``into_history=False`` so chart series are not
     zeroed by a partial scoreboard tick.
     """
-    global _history, _latest_full
+    global _history, _latest_full, _sampler_tick_started_mono
+    # Emergency must not block forever if a wedged tick holds the lock.
+    if my_gen is None:
+        got = _lock.acquire(blocking=True, timeout=0.5)
+        if not got:
+            # Last resort: publish without lock (single writer risk is better than freeze).
+            _latest_full = snap
+            _mark_sample_ok()
+            return True
+        try:
+            _latest_full = snap
+            # never into_history for emergency
+        finally:
+            _lock.release()
+        _mark_sample_ok()
+        return True
+
     with _lock:
         if my_gen is not None and my_gen != _sampler_gen:
             return False
@@ -2258,77 +2416,95 @@ def _publish_sample(
             _history.append(slim_history_point(snap))
             if len(_history) > HISTORY_LEN:
                 _history.pop(0)
+    with _sampler_tick_lock:
+        _sampler_tick_started_mono = 0.0
     _mark_sample_ok()
     return True
 
 
 def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
     """1 Hz sample loop for one generation. Abandoned gens exit without publishing."""
-    global _sampler_last_reason
+    global _sampler_last_reason, _sampler_tick_started_mono, _sampler_live_loops
 
+    with _sampler_live_lock:
+        _sampler_live_loops += 1
     last_wall = time.time()
     last_mono = time.monotonic()
     tools_tick = 0
 
-    while my_gen == _sampler_gen:
-        # Must never exit on a single tick failure — that used to freeze the UI.
-        try:
-            now_wall = time.time()
-            now_mono = time.monotonic()
-            wall_dt = now_wall - last_wall
-            mono_dt = max(0.0, now_mono - last_mono)
-            # Suspend/resume: wall jumps hours while mono only advanced ~sleep remainder.
-            if (wall_dt - mono_dt) > WALL_JUMP_SEC or (wall_dt > 5.0 and mono_dt < 2.0):
-                print(
-                    "Cosmic Pulse sampler: resume/time-jump detected "
-                    f"(wall_dt={wall_dt:.1f}s mono_dt={mono_dt:.1f}s) — reprime rates",
-                    flush=True,
-                )
-                _sampler_last_reason = "resume"
-                reprime_rate_baselines()
-                _prime_rate_counters()
-            last_wall = now_wall
-            last_mono = now_mono
+    try:
+        while my_gen == _sampler_gen:
+            # Must never exit on a single tick failure — that used to freeze the UI.
+            try:
+                now_wall = time.time()
+                now_mono = time.monotonic()
+                wall_dt = now_wall - last_wall
+                mono_dt = max(0.0, now_mono - last_mono)
+                # Suspend/resume: wall jumps hours while mono only advanced ~sleep remainder.
+                if (wall_dt - mono_dt) > WALL_JUMP_SEC or (wall_dt > 5.0 and mono_dt < 2.0):
+                    print(
+                        "Cosmic Pulse sampler: resume/time-jump detected "
+                        f"(wall_dt={wall_dt:.1f}s mono_dt={mono_dt:.1f}s) — reprime rates",
+                        flush=True,
+                    )
+                    _sampler_last_reason = "resume"
+                    reprime_rate_baselines()
+                    _prime_rate_counters()
+                last_wall = now_wall
+                last_mono = now_mono
 
-            if my_gen != _sampler_gen:
-                return
+                if my_gen != _sampler_gen:
+                    return
 
-            _static["cosmic_theme"] = get_cosmic_theme()
-            # Tool inventory is TTL-cached; refresh every ~30 ticks max, not every second.
-            tools_tick += 1
-            if tools_tick == 1 or tools_tick % 30 == 0:
-                _static["tools"] = tools_status()
-            # Re-detect running DE rarely — session hops are uncommon
-            now_plat = time.time()
-            if now_plat - platform_last_refresh > 900:  # 15 min
                 try:
-                    _static["platform"] = platform_identity()
-                    platform_last_refresh = now_plat
+                    _static["cosmic_theme"] = get_cosmic_theme()
                 except Exception:
                     pass
+                # Tool inventory is TTL-cached; refresh every ~30 ticks max, not every second.
+                tools_tick += 1
+                if tools_tick == 1 or tools_tick % 30 == 0:
+                    try:
+                        _static["tools"] = tools_status()
+                    except Exception:
+                        pass
+                # Re-detect running DE rarely — session hops are uncommon
+                now_plat = time.time()
+                if now_plat - platform_last_refresh > 900:  # 15 min
+                    try:
+                        _static["platform"] = platform_identity()
+                        platform_last_refresh = now_plat
+                    except Exception:
+                        pass
 
-            snap = collect_metrics()
-            if my_gen != _sampler_gen:
-                return
-            if not _publish_sample(snap, my_gen):
-                return
-            if _sampler_last_reason in ("resume", "stall", "starting", "degraded"):
-                _sampler_last_reason = ""
-            try:
-                record_sample_maybe_prune(snap)
+                with _sampler_tick_lock:
+                    _sampler_tick_started_mono = time.monotonic()
+                snap = collect_metrics()
+                if my_gen != _sampler_gen:
+                    return
+                if not _publish_sample(snap, my_gen):
+                    return
+                if _sampler_last_reason in ("resume", "stall", "starting", "degraded"):
+                    _sampler_last_reason = ""
+                try:
+                    record_sample_maybe_prune(snap)
+                except Exception as exc:
+                    print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
             except Exception as exc:
-                print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
-        except Exception as exc:
-            print(f"Cosmic Pulse sampler: tick failed (will retry): {exc}", flush=True)
-            import traceback
+                print(f"Cosmic Pulse sampler: tick failed (will retry): {exc}", flush=True)
+                import traceback
 
-            traceback.print_exc()
+                traceback.print_exc()
+                with _sampler_tick_lock:
+                    _sampler_tick_started_mono = 0.0
 
-        # Slice sleep so abandoned generations exit quickly and resume is noticed soon.
-        for _ in range(10):
-            if my_gen != _sampler_gen:
-                return
-            time.sleep(0.1)
+            # Slice sleep so abandoned generations exit quickly and resume is noticed soon.
+            for _ in range(10):
+                if my_gen != _sampler_gen:
+                    return
+                time.sleep(0.1)
+    finally:
+        with _sampler_live_lock:
+            _sampler_live_loops = max(0, _sampler_live_loops - 1)
 
 
 def sampler():
@@ -2400,6 +2576,8 @@ def sampler():
     except Exception:
         pass
     _sampler_last_reason = "starting"
+    # Arm liveness so a hang on the *first* full tick is still recoverable.
+    _mark_sample_ok()
     _sampler_ready.set()
     _run_sampler_loop(_sampler_gen, platform_last_refresh)
 
@@ -2407,22 +2585,53 @@ def sampler():
 def _watchdog_emergency_publish() -> bool:
     """Publish a core scoreboard sample so live chips keep moving during a full-tick hang.
 
-    Does not append to the chart ring — partial samples would zero secondary series.
+    Never blocks the watchdog: sysfs/GPU reads run with a hard timeout; on timeout
+    fall back to pure psutil. Does not append to the chart ring.
     """
     global _sampler_last_reason
-    try:
-        snap = collect_live_core()
+    box: dict = {"snap": None, "err": None}
+
+    def _worker(use_sysfs: bool) -> None:
+        try:
+            box["snap"] = collect_live_core() if use_sysfs else collect_live_core_psutil()
+        except Exception as exc:
+            box["err"] = exc
+
+    # Prefer sysfs GPU; if it wedges, fall back to psutil-only.
+    for use_sysfs, label in ((True, "sysfs"), (False, "psutil")):
+        box["snap"] = None
+        box["err"] = None
+        t = threading.Thread(
+            target=_worker,
+            args=(use_sysfs,),
+            daemon=True,
+            name=f"pulse-emergency-{label}",
+        )
+        t.start()
+        t.join(timeout=EMERGENCY_TIMEOUT_SEC)
+        if t.is_alive():
+            print(
+                f"Cosmic Pulse sampler: emergency {label} timed out "
+                f"({EMERGENCY_TIMEOUT_SEC}s) — trying fallback",
+                flush=True,
+            )
+            continue
+        if box["err"] is not None:
+            print(f"Cosmic Pulse sampler: emergency {label} failed: {box['err']}", flush=True)
+            continue
+        snap = box["snap"]
+        if not snap:
+            continue
         if _publish_sample(snap, my_gen=None, into_history=False):
             _sampler_last_reason = "degraded"
             print(
                 "Cosmic Pulse sampler: emergency core sample published "
-                f"(cpu={snap['cpu'].get('overall_pct')}% "
+                f"({label} cpu={snap['cpu'].get('overall_pct')}% "
                 f"gpu={((snap.get('gpu') or {}).get('discrete') or {}).get('busy_pct')}%)",
                 flush=True,
             )
             return True
-    except Exception as exc:
-        print(f"Cosmic Pulse sampler: emergency sample failed: {exc}", flush=True)
+    print("Cosmic Pulse sampler: emergency sample failed (all paths)", flush=True)
     return False
 
 
@@ -2431,49 +2640,79 @@ def sampler_watchdog() -> None:
 
     1. Immediately publish a lightweight core sample (CPU/MEM/GPU/VRAM) so the UI unfreezes.
     2. Cooldown-restart a fresh full sample loop (abandon stuck gen) without spawning a storm.
+
+    The watchdog loop itself must never block on sysfs/sensors/locks — that is how
+    metrics stayed frozen for hours after a single stalled recovery.
     """
     global _sampler_gen, _sampler_stalls, _sampler_last_reason, _sampler_restart_mono
 
     if not _sampler_ready.wait(timeout=45):
         print("Cosmic Pulse sampler: watchdog — sampler never became ready", flush=True)
+        # Still try to keep something alive.
+        _mark_sample_ok()
 
     while True:
-        time.sleep(2.0)
-        if not _sampler_last_ok_mono:
-            continue
-        age = time.monotonic() - _sampler_last_ok_mono
-        if age < SAMPLER_STALL_SEC:
-            continue
-
-        # Always try to unfreeze the scoreboard first.
-        _watchdog_emergency_publish()
-
-        now_m = time.monotonic()
-        with _sampler_restart_lock:
-            if now_m - _sampler_restart_mono < SAMPLER_RESTART_COOLDOWN_SEC:
-                continue
-            _sampler_restart_mono = now_m
-            _sampler_stalls += 1
-            _sampler_gen += 1
-            new_gen = _sampler_gen
-            _sampler_last_reason = "stall"
-        print(
-            f"Cosmic Pulse sampler: stalled {age:.1f}s — "
-            f"restarting generation {new_gen} (stalls={_sampler_stalls})",
-            flush=True,
-        )
         try:
-            reprime_rate_baselines()
-            _prime_rate_counters()
+            time.sleep(2.0)
+            if not _sampler_last_ok_mono:
+                _mark_sample_ok()
+                continue
+            age = time.monotonic() - _sampler_last_ok_mono
+            with _sampler_tick_lock:
+                started = _sampler_tick_started_mono
+            tick_age = (time.monotonic() - started) if started else 0.0
+            # Stall if no publish recently OR a full tick has been in-flight too long
+            # (emergency samples alone must not hide a permanently wedged full loop).
+            stalled = age >= SAMPLER_STALL_SEC or tick_age >= SAMPLER_STALL_SEC
+            if not stalled:
+                continue
+
+            # Always try to unfreeze the scoreboard first (timeout-bounded).
+            _watchdog_emergency_publish()
+
+            now_m = time.monotonic()
+            with _sampler_restart_lock:
+                if now_m - _sampler_restart_mono < SAMPLER_RESTART_COOLDOWN_SEC:
+                    continue
+                with _sampler_live_lock:
+                    live = _sampler_live_loops
+                if live >= SAMPLER_MAX_ABANDONED + 1:
+                    # Don't spawn more abandoned loops; emergency keeps chips alive.
+                    print(
+                        f"Cosmic Pulse sampler: stalled age={age:.1f}s tick={tick_age:.1f}s — "
+                        f"live loops={live} at cap, emergency only",
+                        flush=True,
+                    )
+                    _sampler_restart_mono = now_m
+                    continue
+                _sampler_restart_mono = now_m
+                _sampler_stalls += 1
+                _sampler_gen += 1
+                new_gen = _sampler_gen
+                _sampler_last_reason = "stall"
+            print(
+                f"Cosmic Pulse sampler: stalled age={age:.1f}s tick={tick_age:.1f}s — "
+                f"restarting generation {new_gen} (stalls={_sampler_stalls})",
+                flush=True,
+            )
+            try:
+                reprime_rate_baselines()
+                _prime_rate_counters()
+            except Exception as exc:
+                print(f"Cosmic Pulse sampler: reprime after stall failed: {exc}", flush=True)
+            t = threading.Thread(
+                target=_run_sampler_loop,
+                args=(new_gen, time.time()),
+                daemon=True,
+                name=f"pulse-sampler-{new_gen}",
+            )
+            t.start()
         except Exception as exc:
-            print(f"Cosmic Pulse sampler: reprime after stall failed: {exc}", flush=True)
-        t = threading.Thread(
-            target=_run_sampler_loop,
-            args=(new_gen, time.time()),
-            daemon=True,
-            name=f"pulse-sampler-{new_gen}",
-        )
-        t.start()
+            print(f"Cosmic Pulse sampler: watchdog error (continuing): {exc}", flush=True)
+            import traceback
+
+            traceback.print_exc()
+            time.sleep(2.0)
 
 
 class Handler(BaseHTTPRequestHandler):
