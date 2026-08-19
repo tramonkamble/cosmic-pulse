@@ -18,3 +18,8 @@ reviews_*-ux-review.md
 # Editor / OS
 *.swp
 .DS_Store
+# Killable sampler IPC
+.sample_live.json
+.sample_live.json.tmp
+.sample_worker.pid
+sample-worker.log

@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -2386,25 +2387,30 @@ def _publish_sample(
     *,
     into_history: bool = True,
 ) -> bool:
-    """Publish under lock if this generation still owns the loop (or gen is None = emergency).
+    """Publish under lock if this generation still owns the loop (or gen is None = supervisor).
 
-    Emergency/degraded samples set ``into_history=False`` so chart series are not
-    zeroed by a partial scoreboard tick.
+    Degraded/emergency samples set ``into_history=False`` so chart series are not
+    zeroed by a partial scoreboard tick. Full child samples use ``into_history=True``.
     """
     global _history, _latest_full, _sampler_tick_started_mono
-    # Emergency must not block forever if a wedged tick holds the lock.
+    # Supervisor / emergency path (no generation ownership).
     if my_gen is None:
         got = _lock.acquire(blocking=True, timeout=0.5)
         if not got:
-            # Last resort: publish without lock (single writer risk is better than freeze).
+            # Last resort: publish without lock (better than freeze).
             _latest_full = snap
             _mark_sample_ok()
             return True
         try:
             _latest_full = snap
-            # never into_history for emergency
+            if into_history:
+                _history.append(slim_history_point(snap))
+                if len(_history) > HISTORY_LEN:
+                    _history.pop(0)
         finally:
             _lock.release()
+        with _sampler_tick_lock:
+            _sampler_tick_started_mono = 0.0
         _mark_sample_ok()
         return True
 
@@ -2507,7 +2513,13 @@ def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
             _sampler_live_loops = max(0, _sampler_live_loops - 1)
 
 
-def sampler():
+def init_probe_state(*, for_child: bool = False) -> float:
+    """Load hardware identity + static payload used by collect_metrics / HTTP.
+
+    Returns ``platform_last_refresh`` wall time. Safe to call in parent (HTTP) and
+    in the killable sample child (spawn). ``for_child`` skips backlog JSON read
+    noise and keeps child init lean.
+    """
     global _history, _latest_full, _static, _mem_spec, _gpu_spec, VRAM_PEAK_GBPS, _gpu_peak_by_game
     global _sampler_last_reason
     import hardware_probe as hp
@@ -2533,6 +2545,12 @@ def sampler():
     # Prefer chassis OEM (sys_vendor) so System76 Thelio is recognized reliably
     s76_vendor = sys_vendor or board_vendor or (host_platform.get("vendor") or {}).get("name") or ""
     platform_last_refresh = time.time()
+    backlog: list = []
+    if not for_child and BACKLOG_FILE.exists():
+        try:
+            backlog = json.loads(BACKLOG_FILE.read_text())
+        except Exception:
+            backlog = []
     _static = {
         "hostname": os.uname().nodename,
         "machine": machine,
@@ -2560,7 +2578,7 @@ def sampler():
             "storage": storage_drives,
         },
         "tools": tools_status(),
-        "backlog": json.loads(BACKLOG_FILE.read_text()) if BACKLOG_FILE.exists() else [],
+        "backlog": backlog,
         "pulse_root": str(ROOT),
         "cosmic_theme": get_cosmic_theme(),
         "suppressed_insights": get_suppressed_insights(),
@@ -2570,13 +2588,17 @@ def sampler():
         "legacy_game_ids": dict(LEGACY_GAME_IDS),
     }
     _prime_rate_counters()
-    # One blocking prime so first live % is meaningful (only at process start).
     try:
         psutil.cpu_percent(interval=0.1, percpu=True)
     except Exception:
         pass
     _sampler_last_reason = "starting"
-    # Arm liveness so a hang on the *first* full tick is still recoverable.
+    return platform_last_refresh
+
+
+def sampler():
+    """Legacy in-process sampler (tests / fallback). Production uses sample_supervisor."""
+    platform_last_refresh = init_probe_state(for_child=False)
     _mark_sample_ok()
     _sampler_ready.set()
     _run_sampler_loop(_sampler_gen, platform_last_refresh)
@@ -3130,6 +3152,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    # spawn children must be protected on some platforms; always fine as main.
     init_db()
     # Background SQLite writer (WAL) — sample inserts never block the 1 Hz sampler.
     start_writer_worker()
@@ -3137,12 +3160,18 @@ def main():
     pruned = prune_old()
     if pruned:
         print(f"Cosmic Pulse DB: pruned {pruned} old samples")
+    # Static probe in the PARENT so /api/metrics bootstrap works immediately.
+    init_probe_state(for_child=False)
+    _mark_sample_ok()
+    _sampler_ready.set()
     # Warm Guidance Scan off the request path (quiet async; no modal).
     request_diagnostics_scan()
-    t = threading.Thread(target=sampler, daemon=True, name="pulse-sampler-0")
-    t.start()
-    wd = threading.Thread(target=sampler_watchdog, daemon=True, name="pulse-sampler-watchdog")
-    wd.start()
+    # Killable sample child — wedged ticks get SIGKILL; parent stays alive forever.
+    # Pass this module explicitly: when launched as ``python server.py`` we are
+    # ``__main__``, not ``server``, and a second import would shadow state.
+    from sample_supervisor import start_sample_supervisor
+
+    start_sample_supervisor(srv=sys.modules[__name__])
     time.sleep(1.2)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"Cosmic Pulse: http://localhost:{PORT}")
@@ -3156,4 +3185,12 @@ def main():
 
 
 if __name__ == "__main__":
+    # Required for multiprocessing spawn on some platforms
+    mp_method = os.environ.get("PULSE_MP_START", "spawn")
+    try:
+        import multiprocessing as _mp
+
+        _mp.set_start_method(mp_method, force=False)
+    except RuntimeError:
+        pass
     main()
