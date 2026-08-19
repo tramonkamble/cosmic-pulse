@@ -13772,8 +13772,32 @@
       if (rawHistory.length > maxLen) rawHistory.splice(0, rawHistory.length - maxLen);
     }
 
+    let tickInFlight = false;
+    let tickAbort = null;
+    let wakeRecoverAt = 0;
+    const FETCH_TIMEOUT_MS = 5000;
+
+    async function fetchJson(url, timeoutMs = FETCH_TIMEOUT_MS) {
+      if (tickAbort) {
+        try { tickAbort.abort(); } catch (_) { /* ignore */ }
+      }
+      tickAbort = new AbortController();
+      const timer = setTimeout(() => tickAbort.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { cache: 'no-store', signal: tickAbort.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     /** After suspend/resume or sampler respawn — clear chart pause/zoom and force fresh history. */
-    function forceWakeRecover(reason) {
+    function forceWakeRecover(reason, { kickTick = true } = {}) {
+      const now = Date.now();
+      // Debounce — visibility+focus+wall-jump often fire together on lid open.
+      if (now - wakeRecoverAt < 800) return;
+      wakeRecoverAt = now;
       try {
         if (typeof resumeChartsLive === 'function') resumeChartsLive();
       } catch (_) { /* charts may not be wired yet */ }
@@ -13781,7 +13805,16 @@
       sameTsStreak = 0;
       lastSampleTs = null;
       try { resetSparkRing(); } catch (_) { /* ignore */ }
+      // Abort any hung pre-suspend fetch so the next tick can run.
+      if (tickAbort) {
+        try { tickAbort.abort(); } catch (_) { /* ignore */ }
+      }
+      tickInFlight = false;
       console.info('Cosmic Pulse: wake recover —', reason || 'resume');
+      // Don't wait for the 1 Hz interval — pull immediately (unless already inside tick).
+      if (kickTick) {
+        try { tick(); } catch (_) { /* ignore */ }
+      }
     }
 
     // Tab becomes visible again after sleep / laptop lid — recover UI immediately.
@@ -13806,6 +13839,8 @@
 
     /** 1 Hz poll: bootstrap once, then slim history points. Render helpers diff via layout keys. */
     async function tick() {
+      if (tickInFlight) return;
+      tickInFlight = true;
       try {
         // Client-side suspend/resume: wall jumps while performance.now barely moves.
         const wallNow = Date.now() / 1000;
@@ -13813,13 +13848,20 @@
         const wallDt = wallNow - lastWallSec;
         const perfDt = Math.max(0, perfNow - lastPerfSec);
         if ((wallDt - perfDt) > CLIENT_WALL_JUMP_SEC || (wallDt > 5 && perfDt < 2)) {
-          forceWakeRecover('tick-wall-jump');
+          // Don't recurse via forceWakeRecover→tick; just reset state here.
+          wakeRecoverAt = Date.now();
+          try { if (typeof resumeChartsLive === 'function') resumeChartsLive(); } catch (_) { /* ignore */ }
+          metricsBootstrapped = false;
+          sameTsStreak = 0;
+          lastSampleTs = null;
+          try { resetSparkRing(); } catch (_) { /* ignore */ }
+          console.info('Cosmic Pulse: wake recover — tick-wall-jump');
         }
         lastWallSec = wallNow;
         lastPerfSec = perfNow;
 
         const url = metricsBootstrapped ? '/api/metrics' : '/api/metrics?bootstrap=1';
-        const data = await (await fetch(url, { cache: 'no-store' })).json();
+        const data = await fetchJson(url);
         const wasBootstrap = !metricsBootstrapped;
         if (wasBootstrap) {
           rawHistory = data.history || [];
@@ -13856,10 +13898,10 @@
           const gen = samp.generation;
           const epoch = samp.resume_epoch;
           if (lastSamplerGeneration != null && gen != null && gen !== lastSamplerGeneration) {
-            forceWakeRecover(`generation ${lastSamplerGeneration}→${gen}`);
+            forceWakeRecover(`generation ${lastSamplerGeneration}→${gen}`, { kickTick: false });
           }
           if (lastResumeEpoch != null && epoch != null && epoch !== lastResumeEpoch) {
-            forceWakeRecover(`resume_epoch ${lastResumeEpoch}→${epoch}`);
+            forceWakeRecover(`resume_epoch ${lastResumeEpoch}→${epoch}`, { kickTick: false });
           }
           if (gen != null) lastSamplerGeneration = gen;
           if (epoch != null) lastResumeEpoch = epoch;
@@ -13953,10 +13995,14 @@
           document.getElementById('liveDot').style.background = 'var(--lime)';
           document.getElementById('liveLabel').textContent = 'Online';
         }
-      } catch {
+      } catch (err) {
         metricsBootstrapped = false;
-        document.getElementById('liveDot').style.background = 'var(--hot)';
-        document.getElementById('liveLabel').textContent = 'Offline';
+        try { if (typeof resumeChartsLive === 'function') resumeChartsLive(); } catch (_) { /* ignore */ }
+        const aborted = err && (err.name === 'AbortError' || /abort/i.test(String(err.message || err)));
+        document.getElementById('liveDot').style.background = aborted ? 'var(--amber, #e6a817)' : 'var(--hot)';
+        document.getElementById('liveLabel').textContent = aborted ? 'Reconnecting…' : 'Offline';
+      } finally {
+        tickInFlight = false;
       }
     }
 
