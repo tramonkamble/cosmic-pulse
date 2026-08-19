@@ -310,6 +310,7 @@ _sampler_last_ok_mono = 0.0
 _sampler_last_ok_wall = 0.0
 _sampler_stalls = 0
 _sampler_last_reason = ""
+_sampler_resume_epoch = 0  # bumps on suspend/resume kill — clients force UI recover
 _sampler_ready = threading.Event()
 _sampler_restart_mono = 0.0
 _sampler_restart_lock = threading.Lock()
@@ -2376,6 +2377,7 @@ def sampler_status() -> dict:
         "tick_age_sec": tick_age,
         "generation": _sampler_gen,
         "stalls": _sampler_stalls,
+        "resume_epoch": int(_sampler_resume_epoch or 0),
         "reason": _sampler_last_reason or None,
         "degraded": degraded or tick_wedged,
     }

@@ -6546,10 +6546,15 @@
     /** Frozen sample after suspend/resume: same ts for N polls or server sampler.ok=false. */
     let lastSampleTs = null;
     let sameTsStreak = 0;
+    let lastSamplerGeneration = null;
+    let lastResumeEpoch = null;
+    let lastWallSec = Date.now() / 1000;
+    let lastPerfSec = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
     const STALE_AGE_SEC = 5;
     const REBOOTSTRAP_STALE_SEC = 12;
     const SAME_TS_STALE = 3;
     const SAME_TS_REBOOTSTRAP = 8;
+    const CLIENT_WALL_JUMP_SEC = 2.5;
     const chartRollup = { util: null, bw: null, io: null };
     const DEFAULT_ENABLED = {
       util: { cpu: true, gpu: true, ram: true, swap: false, gameCpu: true },
@@ -9343,7 +9348,6 @@
       }
 
       if (structKey === sparkChart._pulseStructKey && sparkChart.data.datasets.length === newDatasets.length) {
-        sparkChart.data.labels = labels.slice();
         newDatasets.forEach((ds, i) => {
           const cur = sparkChart.data.datasets[i];
           cur.data = ds.data;
@@ -9361,18 +9365,18 @@
         });
       } else {
         sparkChart._pulseStructKey = structKey;
-        sparkChart.data.labels = labels.slice();
         sparkChart.data.datasets = newDatasets;
       }
       updateSparkSwatches(active);
       const chartLabel = document.getElementById('sparkChartLabel');
       if (chartLabel) {
+        const mode = chartZoomed ? 'zoomed' : (chartsPaused ? 'paused' : '5 min');
         if (!anyHwFocus()) {
-          chartLabel.textContent = showTempAxis ? 'Load & temps · 5 min' : 'Load · 5 min';
+          chartLabel.textContent = showTempAxis ? `Load & temps · ${mode}` : `Load · ${mode}`;
         } else if (hwFocusSet.size === 1 && hwFocusHas('storage')) {
-          chartLabel.textContent = `Disk · 5 min · ${SPARK_DISK_REF_MBPS} MB/s = 100%`;
+          chartLabel.textContent = `Disk · ${mode} · ${SPARK_DISK_REF_MBPS} MB/s = 100%`;
         } else {
-          chartLabel.textContent = `${hwFocusLabelText()} · 5 min`;
+          chartLabel.textContent = `${hwFocusLabelText()} · ${mode}`;
         }
       }
       sparkChart.update('none');
@@ -13768,11 +13772,54 @@
       if (rawHistory.length > maxLen) rawHistory.splice(0, rawHistory.length - maxLen);
     }
 
+    /** After suspend/resume or sampler respawn — clear chart pause/zoom and force fresh history. */
+    function forceWakeRecover(reason) {
+      try {
+        if (typeof resumeChartsLive === 'function') resumeChartsLive();
+      } catch (_) { /* charts may not be wired yet */ }
+      metricsBootstrapped = false;
+      sameTsStreak = 0;
+      lastSampleTs = null;
+      try { resetSparkRing(); } catch (_) { /* ignore */ }
+      console.info('Cosmic Pulse: wake recover —', reason || 'resume');
+    }
+
+    // Tab becomes visible again after sleep / laptop lid — recover UI immediately.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') forceWakeRecover('visibility');
+    });
+    window.addEventListener('pageshow', (ev) => {
+      if (ev.persisted) forceWakeRecover('pageshow');
+    });
+    window.addEventListener('focus', () => {
+      // Cheap: only recover if wall jumped while we were unfocused
+      const wall = Date.now() / 1000;
+      const perf = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
+      const wallDt = wall - lastWallSec;
+      const perfDt = Math.max(0, perf - lastPerfSec);
+      if ((wallDt - perfDt) > CLIENT_WALL_JUMP_SEC || wallDt > 30) {
+        forceWakeRecover('focus-wall-jump');
+      }
+      lastWallSec = wall;
+      lastPerfSec = perf;
+    });
+
     /** 1 Hz poll: bootstrap once, then slim history points. Render helpers diff via layout keys. */
     async function tick() {
       try {
+        // Client-side suspend/resume: wall jumps while performance.now barely moves.
+        const wallNow = Date.now() / 1000;
+        const perfNow = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
+        const wallDt = wallNow - lastWallSec;
+        const perfDt = Math.max(0, perfNow - lastPerfSec);
+        if ((wallDt - perfDt) > CLIENT_WALL_JUMP_SEC || (wallDt > 5 && perfDt < 2)) {
+          forceWakeRecover('tick-wall-jump');
+        }
+        lastWallSec = wallNow;
+        lastPerfSec = perfNow;
+
         const url = metricsBootstrapped ? '/api/metrics' : '/api/metrics?bootstrap=1';
-        const data = await (await fetch(url)).json();
+        const data = await (await fetch(url, { cache: 'no-store' })).json();
         const wasBootstrap = !metricsBootstrapped;
         if (wasBootstrap) {
           rawHistory = data.history || [];
@@ -13804,6 +13851,19 @@
         if (sampleTs === lastSampleTs) sameTsStreak += 1;
         else { sameTsStreak = 0; lastSampleTs = sampleTs; }
         const samp = data.sampler || null;
+        // Sampler child respawn / resume kill — force UI out of pause/zoom and rebootstrap.
+        if (samp) {
+          const gen = samp.generation;
+          const epoch = samp.resume_epoch;
+          if (lastSamplerGeneration != null && gen != null && gen !== lastSamplerGeneration) {
+            forceWakeRecover(`generation ${lastSamplerGeneration}→${gen}`);
+          }
+          if (lastResumeEpoch != null && epoch != null && epoch !== lastResumeEpoch) {
+            forceWakeRecover(`resume_epoch ${lastResumeEpoch}→${epoch}`);
+          }
+          if (gen != null) lastSamplerGeneration = gen;
+          if (epoch != null) lastResumeEpoch = epoch;
+        }
         const serverStale = samp && samp.ok === false;
         const serverDegraded = !!(samp && samp.degraded);
         const clientStale = ageSec > STALE_AGE_SEC || sameTsStreak >= SAME_TS_STALE || serverStale;
@@ -13813,6 +13873,7 @@
           (samp && samp.age_sec != null && samp.age_sec > REBOOTSTRAP_STALE_SEC);
         if (needRebootstrap) {
           metricsBootstrapped = false;
+          try { if (typeof resumeChartsLive === 'function') resumeChartsLive(); } catch (_) { /* ignore */ }
         }
 
         if (wasBootstrap || l.issues_by_game) {

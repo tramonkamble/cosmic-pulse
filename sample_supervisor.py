@@ -22,6 +22,8 @@ from pathlib import Path
 CHILD_STALL_SEC = 8.0
 RESPAWN_PAUSE_SEC = 0.4
 POLL_SEC = 0.5
+# Wall advanced much more than monotonic → suspend/resume (or large NTP step).
+WALL_JUMP_SEC = 2.5
 
 
 def _read_live(path: Path) -> dict | None:
@@ -89,6 +91,11 @@ def _supervisor_loop(srv=None) -> None:
 
     srv._mark_sample_ok()
     srv._sampler_ready.set()
+    if not hasattr(srv, "_sampler_resume_epoch"):
+        srv._sampler_resume_epoch = 0
+
+    prev_wall = time.time()
+    prev_mono = time.monotonic()
 
     while True:
         # Clear stale live file so we don't treat an old sample as fresh
@@ -120,11 +127,48 @@ def _supervisor_loop(srv=None) -> None:
             f"watching {live_path}",
             flush=True,
         )
-        last_good_ts = 0.0
+        last_good_wall = 0.0
+        last_good_mono = 0.0
         saw_ready = False
         last_seen_file_ts = 0.0
         deadline_boot = time.monotonic() + max(CHILD_STALL_SEC, 25.0)
         samples_applied = 0
+        # Fresh loop — sync clocks so we don't false-trigger resume on spawn
+        prev_wall = time.time()
+        prev_mono = time.monotonic()
+
+        def _kill_and_emergency(reason: str) -> None:
+            nonlocal stalls
+            stalls += 1
+            srv._sampler_stalls = stalls
+            srv._sampler_last_reason = "stall"
+            if reason == "resume":
+                srv._sampler_resume_epoch = int(getattr(srv, "_sampler_resume_epoch", 0)) + 1
+            print(
+                f"Cosmic Pulse sampler: worker pid={child_pid} {reason} — SIGKILL "
+                f"(stalls={stalls} resume_epoch={getattr(srv, '_sampler_resume_epoch', 0)})",
+                flush=True,
+            )
+            try:
+                os.killpg(child_pid, signal.SIGKILL)
+            except Exception:
+                _kill_pid(child_pid)
+            try:
+                proc.wait(timeout=2)
+            except Exception:
+                pass
+            try:
+                snap = srv.collect_live_core_psutil()
+                srv._publish_sample(snap, my_gen=None, into_history=False)
+                srv._sampler_last_reason = "degraded"
+                print(
+                    "Cosmic Pulse sampler: parent emergency (psutil) "
+                    f"cpu={snap['cpu'].get('overall_pct')}%",
+                    flush=True,
+                )
+            except Exception as exc:
+                print(f"Cosmic Pulse sampler: parent emergency failed: {exc}", flush=True)
+                srv._mark_sample_ok()
 
         try:
             while True:
@@ -140,6 +184,16 @@ def _supervisor_loop(srv=None) -> None:
                 payload = _read_live(live_path)
                 now_m = time.monotonic()
                 now_wall = time.time()
+                wall_dt = now_wall - prev_wall
+                mono_dt = max(0.0, now_m - prev_mono)
+                prev_wall = now_wall
+                prev_mono = now_m
+
+                # Suspend/resume: wall jumps while mono barely moves — kill worker
+                # immediately (its sysfs/sensors state is often wedged after wake).
+                if (wall_dt - mono_dt) > WALL_JUMP_SEC or (wall_dt > 5.0 and mono_dt < 2.0):
+                    _kill_and_emergency("resume")
+                    break
 
                 if payload:
                     kind = payload.get("kind")
@@ -148,7 +202,8 @@ def _supervisor_loop(srv=None) -> None:
                     is_new = file_ts > last_seen_file_ts
                     if kind == "ready" and is_new:
                         saw_ready = True
-                        last_good_ts = file_ts or now_wall
+                        last_good_wall = file_ts or now_wall
+                        last_good_mono = now_m
                         last_seen_file_ts = file_ts
                         print("Cosmic Pulse sampler: worker ready", flush=True)
                     elif kind == "error" and is_new:
@@ -156,11 +211,13 @@ def _supervisor_loop(srv=None) -> None:
                             f"Cosmic Pulse sampler: worker error: {payload.get('error')}",
                             flush=True,
                         )
-                        last_good_ts = file_ts or last_good_ts
+                        last_good_wall = file_ts or last_good_wall
+                        last_good_mono = now_m
                         last_seen_file_ts = file_ts
                     elif kind == "sample" and isinstance(payload.get("snap"), dict) and is_new:
                         saw_ready = True
-                        last_good_ts = file_ts or now_wall
+                        last_good_wall = file_ts or now_wall
+                        last_good_mono = now_m
                         last_seen_file_ts = file_ts
                         snap = payload["snap"]
                         try:
@@ -189,44 +246,17 @@ def _supervisor_loop(srv=None) -> None:
                         except Exception as exc:
                             print(f"Cosmic Pulse DB: sample write failed: {exc}", flush=True)
 
-                # Stall detection
-                if last_good_ts:
-                    age = now_wall - last_good_ts
-                    stalled = age >= CHILD_STALL_SEC
+                # Stall detection — prefer monotonic (stable across NTP); wall is
+                # backup for "file timestamp never moved after resume".
+                if last_good_mono:
+                    age_mono = now_m - last_good_mono
+                    age_wall = (now_wall - last_good_wall) if last_good_wall else 0.0
+                    stalled = age_mono >= CHILD_STALL_SEC or age_wall >= CHILD_STALL_SEC
                 else:
                     stalled = now_m >= deadline_boot
 
                 if stalled:
-                    stalls += 1
-                    srv._sampler_stalls = stalls
-                    srv._sampler_last_reason = "stall"
-                    print(
-                        f"Cosmic Pulse sampler: worker pid={child_pid} stale "
-                        f"(no fresh sample) — SIGKILL (stalls={stalls})",
-                        flush=True,
-                    )
-                    # Kill process group
-                    try:
-                        os.killpg(child_pid, signal.SIGKILL)
-                    except Exception:
-                        _kill_pid(child_pid)
-                    try:
-                        proc.wait(timeout=2)
-                    except Exception:
-                        pass
-                    # Parent emergency — psutil only, never sysfs
-                    try:
-                        snap = srv.collect_live_core_psutil()
-                        srv._publish_sample(snap, my_gen=None, into_history=False)
-                        srv._sampler_last_reason = "degraded"
-                        print(
-                            "Cosmic Pulse sampler: parent emergency (psutil) "
-                            f"cpu={snap['cpu'].get('overall_pct')}%",
-                            flush=True,
-                        )
-                    except Exception as exc:
-                        print(f"Cosmic Pulse sampler: parent emergency failed: {exc}", flush=True)
-                        srv._mark_sample_ok()
+                    _kill_and_emergency("stale")
                     break
 
                 time.sleep(POLL_SEC)
@@ -240,6 +270,10 @@ def _supervisor_loop(srv=None) -> None:
                     proc.wait(timeout=1)
                 except Exception:
                     pass
+            try:
+                log_f.close()
+            except Exception:
+                pass
 
         time.sleep(RESPAWN_PAUSE_SEC)
 
