@@ -12,9 +12,9 @@
   <link rel="icon" type="image/png" sizes="64x64" href="/assets/brand/favicon-64.png" />
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+  <script src="/assets/vendor/chart.umd.min.js"></script>
+  <script src="/assets/vendor/hammer.min.js"></script>
+  <script src="/assets/vendor/chartjs-plugin-zoom.min.js"></script>
   <style>
     :root {
       /* Fallbacks — overridden by COSMIC theme when available */
@@ -5031,6 +5031,25 @@
     .chart-box, .stutter-chart-box { cursor: crosshair; }
     .charts-paused .chart-box,
     .charts-paused .stutter-chart-box { outline: 1px dashed color-mix(in srgb, var(--amber, #e6a817) 45%, transparent); outline-offset: 2px; }
+    .rig-chart-swatches { display: flex; flex-wrap: wrap; gap: .25rem .4rem; align-items: center; }
+    .rig-chart-swatch {
+      display: inline-flex; align-items: center; gap: .28rem;
+      padding: .15rem .4rem; border-radius: 999px; cursor: pointer;
+      border: 1px solid var(--line-soft); background: transparent;
+      font-size: .72rem; font-weight: 650; color: var(--text-secondary);
+      line-height: 1.2; user-select: none;
+    }
+    .rig-chart-swatch i {
+      width: .55rem; height: .55rem; border-radius: 50%; display: inline-block;
+      box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
+    }
+    .rig-chart-swatch.is-off {
+      opacity: .4; text-decoration: line-through;
+      filter: grayscale(.35);
+    }
+    .rig-chart-swatch:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 1px;
+    }
     .sensor-strip-wrap {
       border-top-color: var(--line-soft);
       padding-top: var(--space-3);
@@ -6758,13 +6777,11 @@
     }
 
     function zoomPluginOpts() {
-      if (typeof Chart === 'undefined' || !Chart.registry?.plugins?.get('zoom')) {
-        return {};
-      }
+      // Always attach zoom config. Plugin is registered before charts are created.
       return {
         zoom: {
           zoom: {
-            wheel: { enabled: true, modifierKey: 'ctrl', speed: 0.1 },
+            wheel: { enabled: true, modifierKey: 'ctrl', speed: 0.12 },
             pinch: { enabled: true },
             drag: {
               enabled: true,
@@ -6781,9 +6798,8 @@
             modifierKey: 'shift',
             onPanComplete: ({ chart }) => onChartInspectComplete(chart),
           },
-          limits: {
-            x: { min: 'original', max: 'original', minRange: 5 },
-          },
+          // Unix-sec axis: minRange = 15 seconds of visible window
+          limits: { x: { minRange: 15 } },
         },
       };
     }
@@ -6833,14 +6849,22 @@
       };
     }
 
-    // Register zoom plugin once Chart.js + plugin scripts have loaded
-    try {
-      if (typeof Chart !== 'undefined' && window['chartjs-plugin-zoom']) {
-        Chart.register(window['chartjs-plugin-zoom']);
+    // Register zoom BEFORE any new Chart(...) — UMD may auto-register; force it.
+    (function registerZoomPlugin() {
+      try {
+        if (typeof Chart === 'undefined') {
+          console.warn('Chart.js missing — charts disabled');
+          return;
+        }
+        const zoomPlug = window['chartjs-plugin-zoom'] || window.ChartZoom;
+        if (zoomPlug) Chart.register(zoomPlug);
+        if (!Chart.registry?.plugins?.get('zoom')) {
+          console.warn('chartjs-plugin-zoom not registered — drag-zoom unavailable');
+        }
+      } catch (e) {
+        console.warn('Chart zoom plugin unavailable', e);
       }
-    } catch (e) {
-      console.warn('Chart zoom plugin unavailable', e);
-    }
+    })();
 
     const utilChart = new Chart(document.getElementById('utilChart'), { type: 'line', data: { datasets: [] }, options: chartOpts() });
     utilChart.options.scales.y.min = 0;
@@ -7307,12 +7331,16 @@
         const vals = newDatasets.flatMap(d => d.data.map(p => p.y));
         if (vals.length) stableAxisMax(chart, 'y', Math.max(...vals), 5);
       }
-      if (!chartsPaused && !chartZoomed) {
-        chart.options.scales.x.min = win.min;
-        chart.options.scales.x.max = win.max;
-      } else if (chartRange) {
-        chart.options.scales.x.min = chartRange.min;
-        chart.options.scales.x.max = chartRange.max;
+      // Live follow: let Chart.js fit x to data. Zoom/pause: lock the inspected window.
+      // (Constantly rewriting x.min/max every tick was destroying drag-zoom.)
+      if (chartsPaused || chartZoomed) {
+        if (chartRange) {
+          chart.options.scales.x.min = chartRange.min;
+          chart.options.scales.x.max = chartRange.max;
+        }
+      } else {
+        delete chart.options.scales.x.min;
+        delete chart.options.scales.x.max;
       }
       if (structKey === chart._pulseStructKey && chart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => { chart.data.datasets[i].data = ds.data; });
@@ -9018,12 +9046,45 @@
       gpu: [],
       ram: [],
       disk: [],
+      diskR: [],
+      diskW: [],
       cpuTemp: [],
       gpuTemp: [],
       lastTs: 0,
-      ema: { cpu: null, gpu: null, ram: null, disk: null, cpuTemp: null, gpuTemp: null },
+      ema: {
+        cpu: null, gpu: null, ram: null, disk: null,
+        diskR: null, diskW: null, cpuTemp: null, gpuTemp: null,
+      },
       seeded: false,
     };
+
+    const SPARK_TOGGLE_DEFAULTS = {
+      cpu: true, gpu: true, ram: true,
+      diskR: true, diskW: true,
+      cpuTemp: true, gpuTemp: true,
+    };
+    function loadSparkEnabled() {
+      try {
+        const raw = sessionStorage.getItem('pulse-spark-enabled');
+        if (!raw) return { ...SPARK_TOGGLE_DEFAULTS };
+        const parsed = JSON.parse(raw);
+        return { ...SPARK_TOGGLE_DEFAULTS, ...parsed };
+      } catch (_) {
+        return { ...SPARK_TOGGLE_DEFAULTS };
+      }
+    }
+    let sparkEnabled = loadSparkEnabled();
+    function persistSparkEnabled() {
+      try { sessionStorage.setItem('pulse-spark-enabled', JSON.stringify(sparkEnabled)); } catch (_) { /* ignore */ }
+    }
+    function toggleSparkSeries(key) {
+      if (!(key in sparkEnabled)) return;
+      sparkEnabled[key] = !sparkEnabled[key];
+      // Keep at least one series on
+      if (!Object.values(sparkEnabled).some(Boolean)) sparkEnabled[key] = true;
+      persistSparkEnabled();
+      try { renderSparkChart(); } catch (_) { /* ignore */ }
+    }
 
     function resetSparkRing() {
       sparkRing.ts = [];
@@ -9032,10 +9093,15 @@
       sparkRing.gpu = [];
       sparkRing.ram = [];
       sparkRing.disk = [];
+      sparkRing.diskR = [];
+      sparkRing.diskW = [];
       sparkRing.cpuTemp = [];
       sparkRing.gpuTemp = [];
       sparkRing.lastTs = 0;
-      sparkRing.ema = { cpu: null, gpu: null, ram: null, disk: null, cpuTemp: null, gpuTemp: null };
+      sparkRing.ema = {
+        cpu: null, gpu: null, ram: null, disk: null,
+        diskR: null, diskW: null, cpuTemp: null, gpuTemp: null,
+      };
       sparkRing.seeded = false;
       if (typeof sparkChart !== 'undefined' && sparkChart) {
         sparkChart._pulseStructKey = '';
@@ -9047,6 +9113,12 @@
       const w = Number(disk?.write_mbps) || 0;
       // Throughput only — busy_pct often pegs at 100% under light sustained I/O.
       return clampPct((Math.max(r, w) / SPARK_DISK_REF_MBPS) * 100);
+    }
+    function sparkDiskReadPct(disk) {
+      return clampPct(((Number(disk?.read_mbps) || 0) / SPARK_DISK_REF_MBPS) * 100);
+    }
+    function sparkDiskWritePct(disk) {
+      return clampPct(((Number(disk?.write_mbps) || 0) / SPARK_DISK_REF_MBPS) * 100);
     }
 
     function sparkCpuTempC(h) {
@@ -9089,6 +9161,8 @@
         sparkRing.gpu.shift();
         sparkRing.ram.shift();
         sparkRing.disk.shift();
+        sparkRing.diskR.shift();
+        sparkRing.diskW.shift();
         sparkRing.cpuTemp.shift();
         sparkRing.gpuTemp.shift();
       }
@@ -9101,6 +9175,8 @@
       sparkRing.gpu.push(sparkEmaPush('gpu', h.gpu?.discrete?.busy_pct ?? 0, alphas.pct));
       sparkRing.ram.push(sparkEmaPush('ram', h.memory?.pct ?? 0, alphas.pct * 0.9));
       sparkRing.disk.push(sparkEmaPush('disk', sparkDiskActivity(h.disk), alphas.pct * 0.85));
+      sparkRing.diskR.push(sparkEmaPush('diskR', sparkDiskReadPct(h.disk), alphas.pct * 0.85));
+      sparkRing.diskW.push(sparkEmaPush('diskW', sparkDiskWritePct(h.disk), alphas.pct * 0.85));
       sparkRing.cpuTemp.push(sparkEmaPush('cpuTemp', sparkCpuTempC(h), alphas.temp, { clamp01: false }));
       sparkRing.gpuTemp.push(sparkEmaPush('gpuTemp', sparkGpuTempC(h), alphas.temp, { clamp01: false }));
     }
@@ -9166,17 +9242,26 @@
       };
     }
 
-    function updateSparkSwatches(series) {
+    function updateSparkSwatches(allSeries, activeKeys) {
       const el = document.getElementById('sparkChartSwatches');
       if (!el) return;
-      const key = series.map(s => `${s.key}:${s.color}`).join('|');
+      const key = allSeries.map(s => `${s.key}:${sparkEnabled[s.key] ? 1 : 0}:${s.color}`).join('|');
       if (el.dataset.key === key) return;
       el.dataset.key = key;
-      el.innerHTML = series.map(s =>
-        `<span class="rig-chart-swatch" title="${esc(s.label)}">`
-        + `<i style="background:${s.color};color:${s.color}"></i>`
-        + `<span>${esc(s.label)}</span></span>`
-      ).join('');
+      el.innerHTML = allSeries.map(s => {
+        const on = sparkEnabled[s.key] !== false;
+        return `<button type="button" class="rig-chart-swatch${on ? '' : ' is-off'}" data-spark-key="${esc(s.key)}" `
+          + `title="${on ? 'Hide' : 'Show'} ${esc(s.label)}" aria-pressed="${on ? 'true' : 'false'}">`
+          + `<i style="background:${s.color};color:${s.color}"></i>`
+          + `<span>${esc(s.label)}</span></button>`;
+      }).join('');
+      el.querySelectorAll('[data-spark-key]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleSparkSeries(btn.dataset.sparkKey);
+        });
+      });
     }
 
     function renderSparkChart() {
@@ -9191,8 +9276,8 @@
 
       const n = sparkRing.ts.length;
 
-      // Load series (left axis %) — solid. Colors from METRIC so bars/dials/chart match.
-      const loadSeries = [
+      // All toggleable series — Disk R/W are separate (scaled % of SPARK_DISK_REF_MBPS).
+      const allSparkSeries = [
         {
           key: 'cpu', label: 'CPU', color: METRIC.cpu, focus: ['cpu'],
           data: sparkRing.cpu, fillTop: 0.22, fillBot: 0.02, primary: true, axis: 'y',
@@ -9206,12 +9291,13 @@
           data: sparkRing.ram, fillTop: 0.14, fillBot: 0.01, axis: 'y',
         },
         {
-          key: 'disk', label: 'Disk', color: METRIC.disk, focus: ['storage'],
-          data: sparkRing.disk, fillTop: 0.1, fillBot: 0.01, isDisk: true, axis: 'y',
+          key: 'diskR', label: 'Disk R', color: METRIC.disk, focus: ['storage'],
+          data: sparkRing.diskR, fillTop: 0.1, fillBot: 0.01, isDisk: true, axis: 'y',
         },
-      ];
-      // Temps: same hue as their load series (dotted = temp, solid = usage)
-      const tempSeries = [
+        {
+          key: 'diskW', label: 'Disk W', color: METRIC.diskWrite, focus: ['storage'],
+          data: sparkRing.diskW, fillTop: 0.1, fillBot: 0.01, isDisk: true, axis: 'y',
+        },
         {
           key: 'cpuTemp', label: 'CPU °C', color: METRIC.cpu, focus: ['cpu'],
           data: sparkRing.cpuTemp, axis: 'y1', isTemp: true,
@@ -9222,44 +9308,18 @@
         },
       ];
 
-      let active;
-      if (!anyHwFocus()) {
-        // Overview: load (CPU/GPU/RAM) + CPU/GPU package temps. Disk only when busy.
-        active = loadSeries.filter(s => s.key !== 'disk');
-        const hasCpuT = sparkRing.cpuTemp.some(v => v != null);
-        const hasGpuT = sparkRing.gpuTemp.some(v => v != null);
-        if (hasCpuT) active.push(tempSeries[0]);
-        if (hasGpuT) active.push(tempSeries[1]);
-        const diskPeak = sparkRing.disk.length ? Math.max(...sparkRing.disk) : 0;
-        if (diskPeak >= 28) active.push(loadSeries.find(s => s.key === 'disk'));
-      } else {
-        // Multi-select: load for focus domains + matching temps for CPU/GPU.
-        const seen = new Set();
-        active = [];
-        const pushUnique = (rows) => {
-          rows.forEach(row => {
-            if (seen.has(row.key)) return;
-            seen.add(row.key);
-            active.push(row);
-          });
-        };
-        if (hwFocusHas('cpu')) {
-          pushUnique(loadSeries.filter(d => d.focus.includes('cpu')));
-          pushUnique([tempSeries[0]]);
-        }
-        if (hwFocusHas('gpu')) {
-          pushUnique(loadSeries.filter(d => d.focus.includes('gpu')));
-          pushUnique([tempSeries[1]]);
-        }
-        if (hwFocusHas('memory')) {
-          pushUnique(loadSeries.filter(d => d.focus.includes('memory')));
-        }
-        if (hwFocusHas('storage')) {
-          pushUnique(loadSeries.filter(s => s.key === 'disk'));
-        }
+      // HW focus filters the *available* set; sparkEnabled toggles what is drawn.
+      let candidates = allSparkSeries;
+      if (anyHwFocus()) {
+        candidates = allSparkSeries.filter(s => s.focus.some(f => hwFocusHas(f)));
+        if (!candidates.length) candidates = allSparkSeries;
       }
+      // Always show swatches for the candidate set (including off ones).
+      updateSparkSwatches(candidates);
+      let active = candidates.filter(s => sparkEnabled[s.key] !== false);
+      if (!active.length) active = candidates.slice(0, 1);
 
-      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${n}|${chartsPaused}|${chartZoomed}`;
+      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${Object.values(sparkEnabled).join('')}|${n}|${chartsPaused}|${chartZoomed}`;
 
       const newDatasets = active.map((d, idx) => {
         const isDisk = !!d.isDisk;
@@ -9291,13 +9351,14 @@
         };
       });
 
-      const sparkWin = (!chartsPaused && !chartZoomed)
-        ? (sparkRing.ts.length
-          ? { min: sparkRing.ts[0], max: sparkRing.ts.at(-1) }
-          : getLiveChartWindow())
-        : getActiveChartWindow();
-      sparkChart.options.scales.x.min = sparkWin.min;
-      sparkChart.options.scales.x.max = sparkWin.max;
+      if (chartsPaused || chartZoomed) {
+        const sparkWin = getActiveChartWindow();
+        sparkChart.options.scales.x.min = sparkWin.min;
+        sparkChart.options.scales.x.max = sparkWin.max;
+      } else {
+        delete sparkChart.options.scales.x.min;
+        delete sparkChart.options.scales.x.max;
+      }
 
       const showTempAxis = active.some(s => s.isTemp);
       sparkChart.options.scales.y.min = 0;
@@ -9367,14 +9428,16 @@
         sparkChart._pulseStructKey = structKey;
         sparkChart.data.datasets = newDatasets;
       }
-      updateSparkSwatches(active);
       const chartLabel = document.getElementById('sparkChartLabel');
       if (chartLabel) {
         const mode = chartZoomed ? 'zoomed' : (chartsPaused ? 'paused' : '5 min');
+        const diskOn = sparkEnabled.diskR || sparkEnabled.diskW;
         if (!anyHwFocus()) {
-          chartLabel.textContent = showTempAxis ? `Load & temps · ${mode}` : `Load · ${mode}`;
+          chartLabel.textContent = diskOn
+            ? `Load · disk (${SPARK_DISK_REF_MBPS} MB/s=100%) · ${mode}`
+            : (showTempAxis ? `Load & temps · ${mode}` : `Load · ${mode}`);
         } else if (hwFocusSet.size === 1 && hwFocusHas('storage')) {
-          chartLabel.textContent = `Disk · ${mode} · ${SPARK_DISK_REF_MBPS} MB/s = 100%`;
+          chartLabel.textContent = `Disk R/W · ${mode} · ${SPARK_DISK_REF_MBPS} MB/s = 100%`;
         } else {
           chartLabel.textContent = `${hwFocusLabelText()} · ${mode}`;
         }
@@ -9534,12 +9597,14 @@
       }
       const peakEst = Math.max(0, ...estLine.filter(v => v > 0), 0);
       stableAxisMax(stutterChart, 'y1', Math.max(40, peakEst), 40);
-      if (!chartsPaused && !chartZoomed) {
-        stutterChart.options.scales.x.min = win.min;
-        stutterChart.options.scales.x.max = win.max;
-      } else if (chartRange) {
-        stutterChart.options.scales.x.min = chartRange.min;
-        stutterChart.options.scales.x.max = chartRange.max;
+      if (chartsPaused || chartZoomed) {
+        if (chartRange) {
+          stutterChart.options.scales.x.min = chartRange.min;
+          stutterChart.options.scales.x.max = chartRange.max;
+        }
+      } else {
+        delete stutterChart.options.scales.x.min;
+        delete stutterChart.options.scales.x.max;
       }
       if (structKey === stutterChart._pulseStructKey && stutterChart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => { stutterChart.data.datasets[i].data = ds.data; });
@@ -9916,12 +9981,14 @@
           pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y',
         },
       ];
-      if (!chartsPaused && !chartZoomed) {
-        indexChart.options.scales.x.min = win.min;
-        indexChart.options.scales.x.max = win.max;
-      } else if (chartRange) {
-        indexChart.options.scales.x.min = chartRange.min;
-        indexChart.options.scales.x.max = chartRange.max;
+      if (chartsPaused || chartZoomed) {
+        if (chartRange) {
+          indexChart.options.scales.x.min = chartRange.min;
+          indexChart.options.scales.x.max = chartRange.max;
+        }
+      } else {
+        delete indexChart.options.scales.x.min;
+        delete indexChart.options.scales.x.max;
       }
       if (structKey === indexChart._pulseStructKey && indexChart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => {
