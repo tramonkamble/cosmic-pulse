@@ -13,6 +13,8 @@
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
     :root {
       /* Fallbacks — overridden by COSMIC theme when available */
@@ -5010,6 +5012,25 @@
       text-transform: uppercase;
     }
     .viz-panel-head { margin-bottom: var(--space-3); gap: var(--space-2) var(--space-3); }
+    .chart-live-controls {
+      display: inline-flex; flex-wrap: wrap; align-items: center; gap: .35rem .45rem;
+      margin-left: auto;
+    }
+    .chart-live-controls .btn {
+      padding: .35rem .65rem; font-size: .8rem; font-weight: 600;
+    }
+    .chart-live-controls .btn.is-active {
+      background: var(--accent); color: var(--accent-on); border-color: var(--accent);
+    }
+    .chart-view-status {
+      font-size: .78rem; font-weight: 600; color: var(--muted);
+      letter-spacing: .02em; min-width: 4.5rem;
+    }
+    .chart-view-status.is-paused { color: var(--amber, #e6a817); }
+    .chart-view-status.is-zoom { color: var(--blue); }
+    .chart-box, .stutter-chart-box { cursor: crosshair; }
+    .charts-paused .chart-box,
+    .charts-paused .stutter-chart-box { outline: 1px dashed color-mix(in srgb, var(--amber, #e6a817) 45%, transparent); outline-offset: 2px; }
     .sensor-strip-wrap {
       border-top-color: var(--line-soft);
       padding-top: var(--space-3);
@@ -5237,6 +5258,12 @@
           <button type="button" class="viz-tab active" role="tab" data-viz-tab="rig" aria-selected="true">Snapshot</button>
           <button type="button" class="viz-tab" role="tab" data-viz-tab="index" aria-selected="false">Pulse Index</button>
           <button type="button" class="viz-tab" role="tab" data-viz-tab="stutter" aria-selected="false">Stutter</button>
+        </div>
+        <div class="chart-live-controls" id="chartLiveControls" title="Pause freezes chart follow. Drag on a chart to zoom a time range. Ctrl+scroll zooms; Shift+drag pans.">
+          <button type="button" class="btn" id="btnChartsPause" aria-pressed="false">Pause</button>
+          <button type="button" class="btn" id="btnChartsResume" hidden>Resume live</button>
+          <button type="button" class="btn" id="btnChartsResetZoom" hidden>Reset zoom</button>
+          <span class="chart-view-status" id="chartViewStatus">Live</span>
         </div>
       </div>
       <div class="viz-grid viz-focus-rig" id="vizGrid">
@@ -5650,6 +5677,12 @@
               <button class="btn mag" data-roll="60">1m</button>
               <button class="btn mag" data-roll="300">5m</button>
               <button class="btn vio" data-roll="600">10m</button>
+            </div>
+            <div class="chart-live-controls" id="chartLiveControlsDrill" aria-label="Chart playback">
+              <button type="button" class="btn" data-charts-pause>Pause</button>
+              <button type="button" class="btn" data-charts-resume hidden>Resume live</button>
+              <button type="button" class="btn" data-charts-reset-zoom hidden>Reset zoom</button>
+              <span class="chart-view-status" data-charts-status>Live</span>
             </div>
           </div>
           <div class="grid g-charts-3">
@@ -6641,40 +6674,186 @@
     const gridColor = 'rgba(255,255,255,.06)';
     const tickColor = '#9aa3b2';
 
+    /* —— Chart pause / drag-zoom (all Chart.js graphs) —— */
+    let chartsPaused = false;
+    /** Fixed unix-sec window when paused or zoomed; null = follow live spanSec tail. */
+    let chartRange = null;
+    let chartZoomed = false;
+    let _chartZoomSyncing = false;
+
+    function fmtTimeAxis(ts) {
+      if (ts == null || !Number.isFinite(+ts)) return '';
+      return new Date(+ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function getLiveChartWindow() {
+      const last = rawHistory.at(-1)?.ts ?? (Date.now() / 1000);
+      return { min: last - spanSec, max: last };
+    }
+
+    function getActiveChartWindow() {
+      if (chartRange && Number.isFinite(chartRange.min) && Number.isFinite(chartRange.max)) {
+        return chartRange;
+      }
+      return getLiveChartWindow();
+    }
+
+    function xySeries(tsArr, valArr) {
+      const out = [];
+      const n = Math.min(tsArr.length, valArr.length);
+      for (let i = 0; i < n; i++) {
+        const x = tsArr[i];
+        if (x == null || !Number.isFinite(+x)) continue;
+        out.push({ x: +x, y: valArr[i] });
+      }
+      return out;
+    }
+
+    function onChartInspectComplete(chart) {
+      if (_chartZoomSyncing || !chart?.scales?.x) return;
+      const x = chart.scales.x;
+      if (!Number.isFinite(x.min) || !Number.isFinite(x.max) || x.max <= x.min) return;
+      chartRange = { min: x.min, max: x.max };
+      chartZoomed = true;
+      chartsPaused = true;
+      syncChartControlUI();
+      applyChartRangeToAll(chartRange, chart);
+      refreshAllCharts();
+    }
+
+    function applyChartRangeToAll(range, except) {
+      if (!range) return;
+      _chartZoomSyncing = true;
+      try {
+        for (const c of ALL_PULSE_CHARTS) {
+          if (!c || c === except || !c.options?.scales?.x) continue;
+          c.options.scales.x.min = range.min;
+          c.options.scales.x.max = range.max;
+          try { c.update('none'); } catch (_) { /* ignore */ }
+        }
+      } finally {
+        _chartZoomSyncing = false;
+      }
+    }
+
+    function clearChartRangeLimits() {
+      _chartZoomSyncing = true;
+      try {
+        for (const c of ALL_PULSE_CHARTS) {
+          if (!c?.options?.scales?.x) continue;
+          delete c.options.scales.x.min;
+          delete c.options.scales.x.max;
+          try {
+            if (typeof c.resetZoom === 'function') c.resetZoom('none');
+          } catch (_) { /* ignore */ }
+        }
+      } finally {
+        _chartZoomSyncing = false;
+      }
+    }
+
+    function zoomPluginOpts() {
+      if (typeof Chart === 'undefined' || !Chart.registry?.plugins?.get('zoom')) {
+        return {};
+      }
+      return {
+        zoom: {
+          zoom: {
+            wheel: { enabled: true, modifierKey: 'ctrl', speed: 0.1 },
+            pinch: { enabled: true },
+            drag: {
+              enabled: true,
+              backgroundColor: 'rgba(230, 155, 253, 0.18)',
+              borderColor: 'rgba(230, 155, 253, 0.65)',
+              borderWidth: 1,
+            },
+            mode: 'x',
+            onZoomComplete: ({ chart }) => onChartInspectComplete(chart),
+          },
+          pan: {
+            enabled: true,
+            mode: 'x',
+            modifierKey: 'shift',
+            onPanComplete: ({ chart }) => onChartInspectComplete(chart),
+          },
+          limits: {
+            x: { min: 'original', max: 'original', minRange: 5 },
+          },
+        },
+      };
+    }
+
+    function timeXScale(extra = {}) {
+      return {
+        type: 'linear',
+        ticks: {
+          color: tickColor,
+          maxTicksLimit: 7,
+          font: { size: 15, weight: '500' },
+          callback: (v) => fmtTimeAxis(v),
+        },
+        grid: { color: gridColor },
+        ...extra,
+      };
+    }
+
     function chartOpts(y2) {
       const scales = {
-        x: { ticks: { color: tickColor, maxTicksLimit: 7, font: { size: 15, weight: '500' } }, grid: { color: gridColor } },
+        x: timeXScale(),
         y: { position: 'left', ticks: { color: tickColor, font: { size: 15, weight: '500' } }, grid: { color: gridColor } },
       };
       if (y2) scales.y1 = { position: 'right', ticks: { color: tickColor, font: { size: 15, weight: '500' } }, grid: { drawOnChartArea: false } };
       return {
         responsive: true, maintainAspectRatio: false, animation: false,
-        interaction: { mode: 'index', intersect: false },
+        parsing: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
         plugins: {
           legend: { display: false },
-          tooltip: { backgroundColor: '#2b2e34', titleFont: { family: 'Inter', weight: '500' }, bodyFont: { family: 'Inter', weight: '400' }, padding: 12, cornerRadius: 10 },
+          tooltip: {
+            backgroundColor: '#2b2e34',
+            titleFont: { family: 'Inter', weight: '500' },
+            bodyFont: { family: 'Inter', weight: '400' },
+            padding: 12,
+            cornerRadius: 10,
+            callbacks: {
+              title(items) {
+                const x = items?.[0]?.parsed?.x;
+                return fmtTimeAxis(x);
+              },
+            },
+          },
+          ...zoomPluginOpts(),
         },
         scales,
       };
     }
 
-    const utilChart = new Chart(document.getElementById('utilChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts() });
+    // Register zoom plugin once Chart.js + plugin scripts have loaded
+    try {
+      if (typeof Chart !== 'undefined' && window['chartjs-plugin-zoom']) {
+        Chart.register(window['chartjs-plugin-zoom']);
+      }
+    } catch (e) {
+      console.warn('Chart zoom plugin unavailable', e);
+    }
+
+    const utilChart = new Chart(document.getElementById('utilChart'), { type: 'line', data: { datasets: [] }, options: chartOpts() });
     utilChart.options.scales.y.min = 0;
     utilChart.options.scales.y.max = 100;
-    const bwChart = new Chart(document.getElementById('bwChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts(true) });
+    const bwChart = new Chart(document.getElementById('bwChart'), { type: 'line', data: { datasets: [] }, options: chartOpts(true) });
     bwChart.options.scales.y.min = 0;
     bwChart.options.scales.y1.min = 0;
-    const ioChart = new Chart(document.getElementById('ioChart'), { type: 'line', data: { labels: [], datasets: [] }, options: chartOpts() });
+    const ioChart = new Chart(document.getElementById('ioChart'), { type: 'line', data: { datasets: [] }, options: chartOpts() });
     ioChart.options.scales.y.min = 0;
     const sparkChart = new Chart(document.getElementById('sparkChart'), {
       type: 'line',
-      data: { labels: [], datasets: [] },
+      data: { datasets: [] },
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
-        interaction: { mode: 'index', intersect: false },
+        parsing: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
         layout: { padding: { top: 4, right: 6, bottom: 2, left: 2 } },
         plugins: {
-          /* Top swatches (#sparkChartSwatches) are the legend — no bottom duplicate */
           legend: { display: false },
           tooltip: {
             backgroundColor: 'rgba(32, 34, 40, .94)',
@@ -6686,20 +6865,27 @@
             borderWidth: 1,
             displayColors: true,
             boxPadding: 4,
+            callbacks: {
+              title(items) {
+                return fmtTimeAxis(items?.[0]?.parsed?.x);
+              },
+            },
           },
+          ...zoomPluginOpts(),
         },
         scales: {
-          x: {
+          x: timeXScale({
             ticks: {
               color: 'rgba(154, 163, 178, .85)',
               maxTicksLimit: 6,
               font: { size: 9, weight: '500' },
               maxRotation: 0,
               autoSkipPadding: 8,
+              callback: (v) => fmtTimeAxis(v),
             },
             grid: { display: false },
             border: { display: false },
-          },
+          }),
           y: {
             min: 0, max: 100,
             ticks: {
@@ -6721,47 +6907,94 @@
     });
     const stutterChartOpts = {
       responsive: true, maintainAspectRatio: false, animation: false,
-      interaction: { mode: 'index', intersect: false },
+      parsing: false,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
       plugins: {
         legend: {
           display: true, position: 'bottom',
           labels: { color: tickColor, font: { family: 'Inter', size: 10 }, boxWidth: 10, padding: 10 },
         },
-        tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
+        tooltip: {
+          backgroundColor: '#404349',
+          titleFont: { family: 'Inter' },
+          bodyFont: { family: 'Inter' },
+          padding: 10,
+          callbacks: { title(items) { return fmtTimeAxis(items?.[0]?.parsed?.x); } },
+        },
+        ...zoomPluginOpts(),
       },
       scales: {
-        x: { ticks: { color: tickColor, maxTicksLimit: 5, font: { size: 9 } }, grid: { display: false } },
+        x: timeXScale({
+          ticks: { color: tickColor, maxTicksLimit: 5, font: { size: 9 }, callback: (v) => fmtTimeAxis(v) },
+          grid: { display: false },
+        }),
         y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 }, callback: v => v }, grid: { color: gridColor } },
       },
     };
     const stutterChart = new Chart(document.getElementById('stutterChart'), {
       type: 'line',
-      data: { labels: [], datasets: [] },
+      data: { datasets: [] },
       options: stutterChartOpts,
     });
     const indexChart = new Chart(document.getElementById('indexChart'), {
       type: 'line',
-      data: { labels: [], datasets: [] },
-      options: stutterChartOpts,
+      data: { datasets: [] },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        parsing: false,
+        interaction: { mode: 'nearest', axis: 'x', intersect: false },
+        plugins: {
+          legend: {
+            display: true, position: 'bottom',
+            labels: { color: tickColor, font: { family: 'Inter', size: 10 }, boxWidth: 10, padding: 10 },
+          },
+          tooltip: {
+            backgroundColor: '#404349',
+            titleFont: { family: 'Inter' },
+            bodyFont: { family: 'Inter' },
+            padding: 10,
+            callbacks: { title(items) { return fmtTimeAxis(items?.[0]?.parsed?.x); } },
+          },
+          ...zoomPluginOpts(),
+        },
+        scales: {
+          x: timeXScale({
+            ticks: { color: tickColor, maxTicksLimit: 5, font: { size: 9 }, callback: (v) => fmtTimeAxis(v) },
+            grid: { display: false },
+          }),
+          y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 }, callback: v => v }, grid: { color: gridColor } },
+        },
+      },
     });
     const gamePerfChartOpts = {
       responsive: true, maintainAspectRatio: false, animation: false,
-      interaction: { mode: 'index', intersect: false },
+      parsing: false,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
       plugins: {
         legend: {
           display: true, position: 'bottom',
           labels: { color: tickColor, font: { family: 'Inter', size: 10 }, boxWidth: 10, padding: 8 },
         },
-        tooltip: { backgroundColor: '#404349', titleFont: { family: 'Inter' }, bodyFont: { family: 'Inter' }, padding: 10 },
+        tooltip: {
+          backgroundColor: '#404349',
+          titleFont: { family: 'Inter' },
+          bodyFont: { family: 'Inter' },
+          padding: 10,
+          callbacks: { title(items) { return fmtTimeAxis(items?.[0]?.parsed?.x); } },
+        },
+        ...zoomPluginOpts(),
       },
       scales: {
-        x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 } }, grid: { display: false } },
+        x: timeXScale({
+          ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 }, callback: (v) => fmtTimeAxis(v) },
+          grid: { display: false },
+        }),
         y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 } }, grid: { color: gridColor } },
       },
     };
     const gamePerfChart = new Chart(document.getElementById('gamePerfChart'), {
       type: 'line',
-      data: { labels: [], datasets: [] },
+      data: { datasets: [] },
       options: gamePerfChartOpts,
     });
     const gamePerfSessionsChart = new Chart(document.getElementById('gamePerfSessionsChart'), {
@@ -6789,6 +7022,7 @@
               },
             },
           },
+          ...zoomPluginOpts(),
         },
         scales: {
           x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 } }, grid: { color: gridColor } },
@@ -6796,6 +7030,80 @@
         },
       },
     });
+
+    const ALL_PULSE_CHARTS = [
+      utilChart, bwChart, ioChart, sparkChart, stutterChart, indexChart, gamePerfChart, gamePerfSessionsChart,
+    ];
+
+    function syncChartControlUI() {
+      const paused = chartsPaused || chartZoomed;
+      document.body.classList.toggle('charts-paused', paused);
+      const statusText = chartZoomed ? 'Zoomed' : (chartsPaused ? 'Paused' : 'Live');
+      const statusCls = chartZoomed ? 'is-zoom' : (chartsPaused ? 'is-paused' : '');
+      document.querySelectorAll('#chartViewStatus, [data-charts-status]').forEach(el => {
+        el.textContent = statusText;
+        el.classList.remove('is-paused', 'is-zoom');
+        if (statusCls) el.classList.add(statusCls);
+      });
+      document.querySelectorAll('#btnChartsPause, [data-charts-pause]').forEach(el => {
+        el.hidden = chartsPaused && !chartZoomed;
+        el.setAttribute('aria-pressed', chartsPaused ? 'true' : 'false');
+        el.classList.toggle('is-active', chartsPaused && !chartZoomed);
+      });
+      document.querySelectorAll('#btnChartsResume, [data-charts-resume]').forEach(el => {
+        el.hidden = !chartsPaused && !chartZoomed;
+      });
+      document.querySelectorAll('#btnChartsResetZoom, [data-charts-reset-zoom]').forEach(el => {
+        el.hidden = !chartZoomed;
+      });
+    }
+
+    function pauseCharts() {
+      if (!chartRange) chartRange = getLiveChartWindow();
+      chartsPaused = true;
+      syncChartControlUI();
+      applyChartRangeToAll(chartRange);
+    }
+
+    function resumeChartsLive() {
+      chartsPaused = false;
+      chartZoomed = false;
+      chartRange = null;
+      clearChartRangeLimits();
+      syncChartControlUI();
+      refreshAllCharts();
+    }
+
+    function resetChartsZoom() {
+      chartZoomed = false;
+      if (!chartsPaused) chartRange = null;
+      else chartRange = getLiveChartWindow();
+      clearChartRangeLimits();
+      if (chartsPaused && chartRange) applyChartRangeToAll(chartRange);
+      syncChartControlUI();
+      refreshAllCharts();
+    }
+
+    function refreshAllCharts() {
+      try { renderCharts(); } catch (_) { /* ignore */ }
+      try { renderSparkChart(); } catch (_) { /* ignore */ }
+      try { renderStutterChart(); } catch (_) { /* ignore */ }
+      try { renderIndexChart(); } catch (_) { /* ignore */ }
+    }
+
+    function wireChartLiveControls() {
+      document.querySelectorAll('#btnChartsPause, [data-charts-pause]').forEach(el => {
+        el.addEventListener('click', () => pauseCharts());
+      });
+      document.querySelectorAll('#btnChartsResume, [data-charts-resume]').forEach(el => {
+        el.addEventListener('click', () => resumeChartsLive());
+      });
+      document.querySelectorAll('#btnChartsResetZoom, [data-charts-reset-zoom]').forEach(el => {
+        el.addEventListener('click', () => resumeChartsLive());
+      });
+      syncChartControlUI();
+    }
+    wireChartLiveControls();
 
     const utilDefs = [
       { key: 'cpu', label: 'CPU %', color: CHART.cpu, pick: h => h.cpu.overall_pct },
@@ -6944,41 +7252,67 @@
     }
 
     function renderOneChart(chart, defs, group, metaEl, rollup, dualAxis) {
-      const last = rawHistory.at(-1)?.ts ?? 0;
-      const cut = rawHistory.filter(h => h.ts >= last - spanSec);
-      const { labels, points } = bucketize(cut, rollup);
+      const win = getActiveChartWindow();
+      const cut = rawHistory.filter(h => h.ts >= win.min && h.ts <= win.max + 0.05);
+      const { labels: midTs, points } = bucketize(cut, rollup);
+      // bucketize currently returns fmtTime strings — rebuild numeric midpoints from cut
+      const buckets = [];
+      if (cut.length) {
+        const t0 = cut[0].ts;
+        let bucketStart = t0;
+        let slice = [];
+        for (const h of cut) {
+          if (h.ts - bucketStart >= rollup && slice.length) {
+            buckets.push({ t: bucketStart, slice });
+            bucketStart = h.ts;
+            slice = [];
+          }
+          slice.push(h);
+        }
+        if (slice.length) buckets.push({ t: bucketStart, slice });
+      }
+      const tsMids = buckets.map(b => b.t + rollup / 2);
+      const bucketPoints = buckets.map(b => b.slice);
       const rollLabel = ROLL_LABELS[rollup] || rollup + 's';
-      metaEl.textContent = `${spanSec / 60}m window · ${rollLabel} rollup · ${labels.length} points`;
+      const winSec = Math.max(1, win.max - win.min);
+      const modeTag = chartZoomed ? 'zoom' : (chartsPaused ? 'paused' : `${(winSec / 60).toFixed(winSec >= 60 ? 0 : 1)}m`);
+      metaEl.textContent = `${modeTag} · ${rollLabel} rollup · ${tsMids.length} points · drag to zoom · Shift+drag pan · Ctrl+wheel`;
       const getVal = rollup <= 1 ? (p, fn) => fn(p) : (p, fn) => avg(p, fn);
       const activeDefs = defs.filter(d => enabled[group][d.key]);
       const enabledKey = activeDefs.map(d => d.key).join(',');
-      const structKey = `${group}|${labels.length}|${labels[0] ?? ''}|${labels.at(-1) ?? ''}|${rollup}|${enabledKey}`;
+      const structKey = `${group}|${tsMids.length}|${tsMids[0] ?? ''}|${tsMids.at(-1) ?? ''}|${rollup}|${enabledKey}|${chartsPaused}|${chartZoomed}`;
       const newDatasets = activeDefs.map(d => {
-        const raw = points.map(p => getVal(p, d.pick));
+        const raw = bucketPoints.map(p => getVal(p, d.pick));
         const alpha = group === 'io' ? CHART_SMOOTH_ALPHA_SPIKY : CHART_SMOOTH_ALPHA;
-        const data = smoothChartSeries(`${group}:${d.key}`, raw, alpha);
+        const smoothed = smoothChartSeries(`${group}:${d.key}`, raw, alpha);
         return {
-          label: d.label, data,
+          label: d.label,
+          data: xySeries(tsMids, smoothed),
           borderColor: d.color, backgroundColor: d.color + '20',
           yAxisID: dualAxis ? (d.yAxis || 'y') : 'y',
           fill: group !== 'io', tension: .35, pointRadius: 0, borderWidth: 3,
         };
       });
       if (group === 'bw') {
-        const yVals = newDatasets.filter(d => d.yAxisID === 'y').flatMap(d => d.data);
-        const y1Vals = newDatasets.filter(d => d.yAxisID === 'y1').flatMap(d => d.data);
+        const yVals = newDatasets.filter(d => d.yAxisID === 'y').flatMap(d => d.data.map(p => p.y));
+        const y1Vals = newDatasets.filter(d => d.yAxisID === 'y1').flatMap(d => d.data.map(p => p.y));
         if (yVals.length) stableAxisMax(chart, 'y', Math.max(...yVals));
         if (y1Vals.length) stableAxisMax(chart, 'y1', Math.max(...y1Vals), 50);
       } else if (group === 'io') {
-        const vals = newDatasets.flatMap(d => d.data);
+        const vals = newDatasets.flatMap(d => d.data.map(p => p.y));
         if (vals.length) stableAxisMax(chart, 'y', Math.max(...vals), 5);
       }
+      if (!chartsPaused && !chartZoomed) {
+        chart.options.scales.x.min = win.min;
+        chart.options.scales.x.max = win.max;
+      } else if (chartRange) {
+        chart.options.scales.x.min = chartRange.min;
+        chart.options.scales.x.max = chartRange.max;
+      }
       if (structKey === chart._pulseStructKey && chart.data.datasets.length === newDatasets.length) {
-        chart.data.labels = labels;
         newDatasets.forEach((ds, i) => { chart.data.datasets[i].data = ds.data; });
       } else {
         chart._pulseStructKey = structKey;
-        chart.data.labels = labels;
         chart.data.datasets = newDatasets;
       }
       chart.update('none');
@@ -8841,12 +9175,16 @@
     }
 
     function renderSparkChart() {
-      // Ingest newest sample into append-only ring (no recompute of history)
-      if (lastLatest) sparkRingIngest(lastLatest);
-      else if (rawHistory.length) sparkRingIngest(rawHistory.at(-1));
+      // Ingest newest sample into append-only ring (unless charts are paused/zoomed —
+      // history still grows via rawHistory; ring freezes for a stable inspect view).
+      if (!chartsPaused && !chartZoomed) {
+        if (lastLatest) sparkRingIngest(lastLatest);
+        else if (rawHistory.length) sparkRingIngest(rawHistory.at(-1));
+      } else if (!sparkRing.seeded) {
+        sparkRingSeedFromHistory();
+      }
 
-      const labels = sparkRing.labels;
-      const n = labels.length;
+      const n = sparkRing.ts.length;
 
       // Load series (left axis %) — solid. Colors from METRIC so bars/dials/chart match.
       const loadSeries = [
@@ -8916,15 +9254,16 @@
         }
       }
 
-      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}`;
+      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${n}|${chartsPaused}|${chartZoomed}`;
 
       const newDatasets = active.map((d, idx) => {
         const isDisk = !!d.isDisk;
         const isTemp = !!d.isTemp;
         const primary = idx === 0;
+        const pts = xySeries(sparkRing.ts, d.data);
         return {
           label: d.label,
-          data: d.data.slice(),
+          data: pts,
           borderColor: d.color,
           backgroundColor: isTemp || isDisk
             ? 'transparent'
@@ -8933,11 +9272,9 @@
           tension: isTemp ? 0.12 : 0.28,
           borderWidth: isTemp ? 1.75 : (primary ? 2.5 : (isDisk ? 2 : 2.15)),
           borderJoinStyle: 'round',
-          // round caps on solid load; butt + short dash = dotted temps
           borderCapStyle: isTemp ? 'round' : 'round',
           borderDash: isTemp ? [1.5, 3.5] : undefined,
-          // Tip markers only — full-series dots made idle multi-axis plots unreadable
-          pointRadius: n ? Array.from({ length: n }, (_, i) => (i === n - 1 ? (isTemp ? 2.4 : (primary ? 2.5 : 2)) : 0)) : [],
+          pointRadius: pts.length ? Array.from({ length: pts.length }, (_, i) => (i === pts.length - 1 ? (isTemp ? 2.4 : (primary ? 2.5 : 2)) : 0)) : [],
           pointHoverRadius: 4,
           pointBackgroundColor: d.color,
           pointBorderColor: rgbaFromHex(d.color, 0.4),
@@ -8948,6 +9285,14 @@
           spanGaps: true,
         };
       });
+
+      const sparkWin = (!chartsPaused && !chartZoomed)
+        ? (sparkRing.ts.length
+          ? { min: sparkRing.ts[0], max: sparkRing.ts.at(-1) }
+          : getLiveChartWindow())
+        : getActiveChartWindow();
+      sparkChart.options.scales.x.min = sparkWin.min;
+      sparkChart.options.scales.x.max = sparkWin.max;
 
       const showTempAxis = active.some(s => s.isTemp);
       sparkChart.options.scales.y.min = 0;
@@ -9126,35 +9471,47 @@
     }
 
     function renderStutterChart() {
-      const last = rawHistory.at(-1)?.ts ?? 0;
-      const cut = rawHistory.filter(h => h.ts >= last - 300);
-      const { labels, points } = bucketize(cut, 5);
-      const structKey = 'stutter';
-      const scoreRaw = points.map(p => {
-        const slice = Array.isArray(p) ? p : [p];
-        return avg(slice, h => h.stutter?.score ?? 0);
-      });
+      const win = chartRange || (() => {
+        const last = rawHistory.at(-1)?.ts ?? 0;
+        return { min: last - 300, max: last };
+      })();
+      const cut = rawHistory.filter(h => h.ts >= win.min && h.ts <= win.max + 0.05);
+      const rollup = 5;
+      const buckets = [];
+      if (cut.length) {
+        let bucketStart = cut[0].ts;
+        let slice = [];
+        for (const h of cut) {
+          if (h.ts - bucketStart >= rollup && slice.length) {
+            buckets.push({ t: bucketStart, slice });
+            bucketStart = h.ts;
+            slice = [];
+          }
+          slice.push(h);
+        }
+        if (slice.length) buckets.push({ t: bucketStart, slice });
+      }
+      const tsMids = buckets.map(b => b.t + rollup / 2);
+      const points = buckets.map(b => b.slice);
+      const structKey = `stutter|${tsMids.length}|${chartsPaused}|${chartZoomed}`;
+      const scoreRaw = points.map(p => avg(p, h => h.stutter?.score ?? 0));
       const scoreLine = smoothChartSeries('stutter:score', scoreRaw, 0.22);
-      const estRaw = points.map(p => {
-        const slice = Array.isArray(p) ? p : [p];
-        return avg(slice, h => h.stutter?.est_ms ?? 0);
-      });
+      const estRaw = points.map(p => avg(p, h => h.stutter?.est_ms ?? 0));
       const estLine = smoothChartSeries('stutter:est', estRaw, CHART_SMOOTH_ALPHA_SPIKY);
       const eventPoints = [];
       points.forEach((p, i) => {
-        const slice = Array.isArray(p) ? p : [p];
-        if (slice.some(h => h.stutter?.event)) {
-          eventPoints.push({ x: labels[i], y: scoreLine[i] });
+        if (p.some(h => h.stutter?.event)) {
+          eventPoints.push({ x: tsMids[i], y: scoreLine[i] });
         }
       });
       const newDatasets = [
         {
-          label: 'Hitch score', data: scoreLine, borderColor: CHART.stutter || METRIC.stutter,
+          label: 'Hitch score', data: xySeries(tsMids, scoreLine), borderColor: CHART.stutter || METRIC.stutter,
           backgroundColor: sparkAreaFill(CHART.stutter || METRIC.stutter, 0.18, 0.02), fill: true, tension: .35,
           pointRadius: 0, borderWidth: 2.5, yAxisID: 'y',
         },
         {
-          label: 'Est. ms', data: estLine, borderColor: METRIC.thermal,
+          label: 'Est. ms', data: xySeries(tsMids, estLine), borderColor: METRIC.thermal,
           backgroundColor: 'transparent', fill: false, tension: .35,
           pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y1',
         },
@@ -9173,12 +9530,17 @@
       }
       const peakEst = Math.max(0, ...estLine.filter(v => v > 0), 0);
       stableAxisMax(stutterChart, 'y1', Math.max(40, peakEst), 40);
+      if (!chartsPaused && !chartZoomed) {
+        stutterChart.options.scales.x.min = win.min;
+        stutterChart.options.scales.x.max = win.max;
+      } else if (chartRange) {
+        stutterChart.options.scales.x.min = chartRange.min;
+        stutterChart.options.scales.x.max = chartRange.max;
+      }
       if (structKey === stutterChart._pulseStructKey && stutterChart.data.datasets.length === newDatasets.length) {
-        stutterChart.data.labels = labels;
         newDatasets.forEach((ds, i) => { stutterChart.data.datasets[i].data = ds.data; });
       } else {
         stutterChart._pulseStructKey = structKey;
-        stutterChart.data.labels = labels;
         stutterChart.data.datasets = newDatasets;
       }
       stutterChart.update('none');
@@ -9501,15 +9863,31 @@
     }
 
     function renderIndexChart() {
-      const last = rawHistory.at(-1)?.ts ?? 0;
-      const cut = rawHistory.filter(h => h.ts >= last - 300);
-      const { labels, points } = bucketize(cut, 5);
+      const win = chartRange || (() => {
+        const last = rawHistory.at(-1)?.ts ?? 0;
+        return { min: last - 300, max: last };
+      })();
+      const cut = rawHistory.filter(h => h.ts >= win.min && h.ts <= win.max + 0.05);
+      const rollup = 5;
+      const buckets = [];
+      if (cut.length) {
+        let bucketStart = cut[0].ts;
+        let slice = [];
+        for (const h of cut) {
+          if (h.ts - bucketStart >= rollup && slice.length) {
+            buckets.push({ t: bucketStart, slice });
+            bucketStart = h.ts;
+            slice = [];
+          }
+          slice.push(h);
+        }
+        if (slice.length) buckets.push({ t: bucketStart, slice });
+      }
+      const tsMids = buckets.map(b => b.t + rollup / 2);
+      const points = buckets.map(b => b.slice);
       const focusKey = hwFocusKey();
-      const structKey = `index|${focusKey}`;
-      const indexRaw = points.map(p => {
-        const slice = Array.isArray(p) ? p : [p];
-        return avg(slice, indexHistoryPick);
-      });
+      const structKey = `index|${focusKey}|${tsMids.length}|${chartsPaused}|${chartZoomed}`;
+      const indexRaw = points.map(p => avg(p, indexHistoryPick));
       const indexLine = smoothChartSeries(`index:${focusKey}:idx`, indexRaw, 0.22);
       const headRaw = indexLine.map(v => Math.max(0, 100 - (v || 0)));
       const headLine = smoothChartSeries(`index:${focusKey}:head`, headRaw, 0.22);
@@ -9524,18 +9902,24 @@
         : METRIC.league;
       const newDatasets = [
         {
-          label: mainLabel, data: indexLine, borderColor: mainColor,
+          label: mainLabel, data: xySeries(tsMids, indexLine), borderColor: mainColor,
           backgroundColor: sparkAreaFill(mainColor, 0.2, 0.02), fill: true, tension: .35,
           pointRadius: 0, borderWidth: 2.5, yAxisID: 'y',
         },
         {
-          label: 'Headroom', data: headLine, borderColor: CHART.headroom || METRIC.cpu,
+          label: 'Headroom', data: xySeries(tsMids, headLine), borderColor: CHART.headroom || METRIC.cpu,
           backgroundColor: 'transparent', fill: false, tension: .35,
           pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y',
         },
       ];
+      if (!chartsPaused && !chartZoomed) {
+        indexChart.options.scales.x.min = win.min;
+        indexChart.options.scales.x.max = win.max;
+      } else if (chartRange) {
+        indexChart.options.scales.x.min = chartRange.min;
+        indexChart.options.scales.x.max = chartRange.max;
+      }
       if (structKey === indexChart._pulseStructKey && indexChart.data.datasets.length === newDatasets.length) {
-        indexChart.data.labels = labels;
         newDatasets.forEach((ds, i) => {
           indexChart.data.datasets[i].data = ds.data;
           indexChart.data.datasets[i].label = ds.label;
@@ -9544,7 +9928,6 @@
         });
       } else {
         indexChart._pulseStructKey = structKey;
-        indexChart.data.labels = labels;
         indexChart.data.datasets = newDatasets;
       }
       indexChart.update('none');
@@ -12261,11 +12644,11 @@
     function applyGamePerfTrendChart(trend, title) {
       const lead = document.getElementById('gamePerfTrendLead');
       const points = trend || [];
-      gamePerfChart.data.labels = points.map(p => fmtTime(p.ts));
+      const ts = points.map(p => p.ts);
       gamePerfChart.data.datasets = [
         {
           label: 'Smooth %',
-          data: points.map(p => p.smoothness ?? null),
+          data: xySeries(ts, points.map(p => p.smoothness ?? null)),
           borderColor: METRIC.mem,
           backgroundColor: sparkAreaFill(METRIC.mem, 0.16, 0.02),
           fill: true,
@@ -12275,7 +12658,7 @@
         },
         {
           label: 'Stutter',
-          data: points.map(p => p.stutter_score ?? null),
+          data: xySeries(ts, points.map(p => p.stutter_score ?? null)),
           borderColor: METRIC.stutter,
           backgroundColor: 'transparent',
           borderWidth: 2,
@@ -12284,7 +12667,7 @@
         },
         {
           label: 'Game process',
-          data: points.map(p => p.game_cpu ?? null),
+          data: xySeries(ts, points.map(p => p.game_cpu ?? null)),
           borderColor: METRIC.cpu,
           backgroundColor: 'transparent',
           borderWidth: 2,
@@ -12292,6 +12675,13 @@
           tension: 0.2,
         },
       ];
+      if (ts.length >= 2 && !chartZoomed) {
+        gamePerfChart.options.scales.x.min = Math.min(...ts);
+        gamePerfChart.options.scales.x.max = Math.max(...ts);
+      } else if (chartRange) {
+        gamePerfChart.options.scales.x.min = chartRange.min;
+        gamePerfChart.options.scales.x.max = chartRange.max;
+      }
       gamePerfChart.update('none');
       if (lead) lead.textContent = title;
     }
