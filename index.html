@@ -6704,6 +6704,8 @@
     let chartRange = null;
     let chartZoomed = false;
     let _chartZoomSyncing = false;
+    /** True while user is mid drag-zoom / pan — skip scale rewrites that abort the gesture. */
+    let chartInteractActive = false;
 
     function fmtTimeAxis(ts) {
       if (ts == null || !Number.isFinite(+ts)) return '';
@@ -6790,18 +6792,44 @@
               borderWidth: 1,
             },
             mode: 'x',
-            onZoomComplete: ({ chart }) => onChartInspectComplete(chart),
+            onZoomStart: () => { chartInteractActive = true; },
+            onZoomComplete: ({ chart }) => {
+              chartInteractActive = false;
+              onChartInspectComplete(chart);
+            },
           },
           pan: {
             enabled: true,
             mode: 'x',
             modifierKey: 'shift',
-            onPanComplete: ({ chart }) => onChartInspectComplete(chart),
+            onPanStart: () => { chartInteractActive = true; },
+            onPanComplete: ({ chart }) => {
+              chartInteractActive = false;
+              onChartInspectComplete(chart);
+            },
           },
           // Unix-sec axis: minRange = 15 seconds of visible window
           limits: { x: { minRange: 15 } },
         },
       };
+    }
+
+    /** Apply rolling live window so the plot always spans the full spanSec/5m — not auto-fit to sparse data. */
+    function applyLiveTimeAxis(chart, windowSec) {
+      if (!chart?.options?.scales?.x) return;
+      if (chartsPaused || chartZoomed || chartInteractActive) {
+        if (chartRange) {
+          chart.options.scales.x.min = chartRange.min;
+          chart.options.scales.x.max = chartRange.max;
+        }
+        return;
+      }
+      const last = rawHistory.at(-1)?.ts
+        ?? sparkRing?.ts?.at(-1)
+        ?? (Date.now() / 1000);
+      const span = Math.max(30, windowSec || spanSec || 300);
+      chart.options.scales.x.min = last - span;
+      chart.options.scales.x.max = last;
     }
 
     function timeXScale(extra = {}) {
@@ -7331,24 +7359,14 @@
         const vals = newDatasets.flatMap(d => d.data.map(p => p.y));
         if (vals.length) stableAxisMax(chart, 'y', Math.max(...vals), 5);
       }
-      // Live follow: let Chart.js fit x to data. Zoom/pause: lock the inspected window.
-      // (Constantly rewriting x.min/max every tick was destroying drag-zoom.)
-      if (chartsPaused || chartZoomed) {
-        if (chartRange) {
-          chart.options.scales.x.min = chartRange.min;
-          chart.options.scales.x.max = chartRange.max;
-        }
-      } else {
-        delete chart.options.scales.x.min;
-        delete chart.options.scales.x.max;
-      }
+      if (!chartInteractActive) applyLiveTimeAxis(chart, spanSec);
       if (structKey === chart._pulseStructKey && chart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => { chart.data.datasets[i].data = ds.data; });
       } else {
         chart._pulseStructKey = structKey;
         chart.data.datasets = newDatasets;
       }
-      chart.update('none');
+      if (!chartInteractActive) chart.update('none');
     }
 
     function renderCharts() {
@@ -9351,14 +9369,7 @@
         };
       });
 
-      if (chartsPaused || chartZoomed) {
-        const sparkWin = getActiveChartWindow();
-        sparkChart.options.scales.x.min = sparkWin.min;
-        sparkChart.options.scales.x.max = sparkWin.max;
-      } else {
-        delete sparkChart.options.scales.x.min;
-        delete sparkChart.options.scales.x.max;
-      }
+      if (!chartInteractActive) applyLiveTimeAxis(sparkChart, SPARK_WINDOW_SEC);
 
       const showTempAxis = active.some(s => s.isTemp);
       sparkChart.options.scales.y.min = 0;
@@ -9442,7 +9453,7 @@
           chartLabel.textContent = `${hwFocusLabelText()} · ${mode}`;
         }
       }
-      sparkChart.update('none');
+      if (!chartInteractActive) sparkChart.update('none');
     }
 
     function renderRigInsight(l) {
@@ -9597,22 +9608,14 @@
       }
       const peakEst = Math.max(0, ...estLine.filter(v => v > 0), 0);
       stableAxisMax(stutterChart, 'y1', Math.max(40, peakEst), 40);
-      if (chartsPaused || chartZoomed) {
-        if (chartRange) {
-          stutterChart.options.scales.x.min = chartRange.min;
-          stutterChart.options.scales.x.max = chartRange.max;
-        }
-      } else {
-        delete stutterChart.options.scales.x.min;
-        delete stutterChart.options.scales.x.max;
-      }
+      if (!chartInteractActive) applyLiveTimeAxis(stutterChart, 300);
       if (structKey === stutterChart._pulseStructKey && stutterChart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => { stutterChart.data.datasets[i].data = ds.data; });
       } else {
         stutterChart._pulseStructKey = structKey;
         stutterChart.data.datasets = newDatasets;
       }
-      stutterChart.update('none');
+      if (!chartInteractActive) stutterChart.update('none');
     }
 
     const STUTTER_SEV_WORD = { severe: 'Severe', moderate: 'Moderate', mild: 'Mild', none: 'Smooth' };
@@ -9981,15 +9984,7 @@
           pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y',
         },
       ];
-      if (chartsPaused || chartZoomed) {
-        if (chartRange) {
-          indexChart.options.scales.x.min = chartRange.min;
-          indexChart.options.scales.x.max = chartRange.max;
-        }
-      } else {
-        delete indexChart.options.scales.x.min;
-        delete indexChart.options.scales.x.max;
-      }
+      if (!chartInteractActive) applyLiveTimeAxis(indexChart, 300);
       if (structKey === indexChart._pulseStructKey && indexChart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => {
           indexChart.data.datasets[i].data = ds.data;
@@ -10001,7 +9996,7 @@
         indexChart._pulseStructKey = structKey;
         indexChart.data.datasets = newDatasets;
       }
-      indexChart.update('none');
+      if (!chartInteractActive) indexChart.update('none');
     }
 
     function indexPartShortName(spec, part) {
