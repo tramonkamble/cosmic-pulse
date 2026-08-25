@@ -169,6 +169,9 @@ def test_poll_metrics_slim():
     assert samp.get("ok") is True
     assert samp.get("age_sec") is not None
     assert samp["age_sec"] < 15
+    assert samp.get("state") in ("healthy", "starting", "degraded")
+    assert "last_apply_age_sec" in samp
+    assert "watchdog_age_sec" in samp
 
 
 def run_all() -> None:

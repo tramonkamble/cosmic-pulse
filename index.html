@@ -4812,6 +4812,7 @@
     /* Hot/warn only push beyond the family color when severe */
     .pulse-dial.is-hot .pulse-dial-v { color: var(--sev-hot); }
     .pulse-dial.is-warn .pulse-dial-v { color: var(--sev-warn); }
+    .pulse-dial.is-missing .pulse-dial-v { opacity: 0.45; }
     .pulse-dial.is-active .pulse-dial-k {
       color: var(--dial-color);
     }
@@ -6814,7 +6815,11 @@
       };
     }
 
-    /** Apply rolling live window so the plot always spans the full spanSec/5m — not auto-fit to sparse data. */
+    /**
+     * Live X window: fill the plot with whatever history we have until it reaches
+     * windowSec, then roll. Locking last−windowSec with a short ring left a huge
+     * empty left gutter ("not using space") after reload/resume.
+     */
     function applyLiveTimeAxis(chart, windowSec) {
       if (!chart?.options?.scales?.x) return;
       if (chartsPaused || chartZoomed || chartInteractActive) {
@@ -6828,8 +6833,27 @@
         ?? sparkRing?.ts?.at(-1)
         ?? (Date.now() / 1000);
       const span = Math.max(30, windowSec || spanSec || 300);
-      chart.options.scales.x.min = last - span;
-      chart.options.scales.x.max = last;
+      let first = null;
+      const ds = chart.data?.datasets;
+      if (ds?.length) {
+        for (const d of ds) {
+          const x0 = d?.data?.[0]?.x;
+          if (Number.isFinite(+x0) && (first == null || +x0 < first)) first = +x0;
+        }
+      }
+      if (first == null && sparkRing?.ts?.length) first = sparkRing.ts[0];
+      if (first == null && rawHistory.length) first = rawHistory[0].ts;
+      if (first == null || !Number.isFinite(+first)) first = last - span;
+      const dataSpan = Math.max(0, last - first);
+      // Pad tiny windows so a single point isn't glued to both edges.
+      const minPad = 30;
+      if (dataSpan < span) {
+        chart.options.scales.x.min = dataSpan < minPad ? last - minPad : first;
+        chart.options.scales.x.max = last;
+      } else {
+        chart.options.scales.x.min = last - span;
+        chart.options.scales.x.max = last;
+      }
     }
 
     function timeXScale(extra = {}) {
@@ -7163,10 +7187,10 @@
     wireChartLiveControls();
 
     const utilDefs = [
-      { key: 'cpu', label: 'CPU %', color: CHART.cpu, pick: h => h.cpu.overall_pct },
-      { key: 'gpu', label: 'GPU %', color: CHART.gpu, pick: h => h.gpu.discrete.busy_pct ?? 0 },
-      { key: 'ram', label: 'RAM %', color: CHART.ram, pick: h => h.memory.pct },
-      { key: 'swap', label: 'Swap %', color: CHART.swap, pick: h => h.memory.swap_pct },
+      { key: 'cpu', label: 'CPU %', color: CHART.cpu, pick: h => h.cpu?.overall_pct ?? 0 },
+      { key: 'gpu', label: 'GPU %', color: CHART.gpu, pick: h => h.gpu?.discrete?.busy_pct ?? 0 },
+      { key: 'ram', label: 'RAM %', color: CHART.ram, pick: h => h.memory?.pct ?? 0 },
+      { key: 'swap', label: 'Swap %', color: CHART.swap, pick: h => h.memory?.swap_pct ?? 0 },
       { key: 'gameCpu', label: 'Game process', color: CHART.gameCpu, pick: h => h.game_totals?.cpu_pct ?? 0 },
     ];
     const bwDefs = [
@@ -7177,8 +7201,8 @@
     const ioDefs = [
       { key: 'netDn', label: 'Net ↓', color: CHART.netDn, pick: h => h.network?.down_mbps ?? 0 },
       { key: 'netUp', label: 'Net ↑', color: CHART.netUp, pick: h => h.network?.up_mbps ?? 0 },
-      { key: 'diskR', label: 'Disk R', color: CHART.diskR, pick: h => h.disk.read_mbps },
-      { key: 'diskW', label: 'Disk W', color: CHART.diskW, pick: h => h.disk.write_mbps },
+      { key: 'diskR', label: 'Disk R', color: CHART.diskR, pick: h => h.disk?.read_mbps ?? 0 },
+      { key: 'diskW', label: 'Disk W', color: CHART.diskW, pick: h => h.disk?.write_mbps ?? 0 },
     ];
 
     function buildToggles(container, defs, group) {
@@ -7334,7 +7358,10 @@
       const winSec = Math.max(1, win.max - win.min);
       const modeTag = chartZoomed ? 'zoom' : (chartsPaused ? 'paused' : `${(winSec / 60).toFixed(winSec >= 60 ? 0 : 1)}m`);
       metaEl.textContent = `${modeTag} · ${rollLabel} rollup · ${tsMids.length} points · drag to zoom · Shift+drag pan · Ctrl+wheel`;
-      const getVal = rollup <= 1 ? (p, fn) => fn(p) : (p, fn) => avg(p, fn);
+      // bucketPoints are always slices (arrays of samples). avg() handles len=1.
+      // The old rollup<=1 path passed the array into pick() and threw on Live rollup,
+      // leaving util/bw/io with empty datasets while meta still showed a point count.
+      const getVal = (p, fn) => avg(p, fn);
       const activeDefs = defs.filter(d => enabled[group][d.key]);
       const enabledKey = activeDefs.map(d => d.key).join(',');
       const structKey = `${group}|${tsMids.length}|${tsMids[0] ?? ''}|${tsMids.at(-1) ?? ''}|${rollup}|${enabledKey}|${chartsPaused}|${chartZoomed}`;
@@ -7350,7 +7377,14 @@
           fill: group !== 'io', tension: .35, pointRadius: 0, borderWidth: 3,
         };
       });
-      if (group === 'bw') {
+      if (group === 'util') {
+        const vals = newDatasets.flatMap(d => d.data.map(p => p.y)).filter(Number.isFinite);
+        if (vals.length) {
+          // Idle load used to sit in the bottom 10% of a locked 0–100 axis.
+          stableAxisMax(chart, 'y', Math.max(...vals), 40, 100);
+        }
+        chart.options.scales.y.min = 0;
+      } else if (group === 'bw') {
         const yVals = newDatasets.filter(d => d.yAxisID === 'y').flatMap(d => d.data.map(p => p.y));
         const y1Vals = newDatasets.filter(d => d.yAxisID === 'y1').flatMap(d => d.data.map(p => p.y));
         if (yVals.length) stableAxisMax(chart, 'y', Math.max(...yVals));
@@ -7370,9 +7404,15 @@
     }
 
     function renderCharts() {
-      renderOneChart(utilChart, utilDefs, 'util', document.getElementById('utilMeta'), chartRollup.util ?? globalRollup);
-      renderOneChart(bwChart, bwDefs, 'bw', document.getElementById('bwMeta'), chartRollup.bw ?? globalRollup, true);
-      renderOneChart(ioChart, ioDefs, 'io', document.getElementById('ioMeta'), chartRollup.io ?? globalRollup);
+      try {
+        renderOneChart(utilChart, utilDefs, 'util', document.getElementById('utilMeta'), chartRollup.util ?? globalRollup);
+      } catch (e) { console.warn('util chart render failed', e); }
+      try {
+        renderOneChart(bwChart, bwDefs, 'bw', document.getElementById('bwMeta'), chartRollup.bw ?? globalRollup, true);
+      } catch (e) { console.warn('bw chart render failed', e); }
+      try {
+        renderOneChart(ioChart, ioDefs, 'io', document.getElementById('ioMeta'), chartRollup.io ?? globalRollup);
+      } catch (e) { console.warn('io chart render failed', e); }
     }
 
     function vsFmtPlain(n) {
@@ -7779,13 +7819,24 @@
       return rates.map(r => clampPct(((Number(r) || 0) / ceil) * 100));
     }
 
-    function stableAxisMax(chart, axisId, dataMax, min = 8) {
+    function stableAxisMax(chart, axisId, dataMax, min = 8, cap = Infinity) {
       const scale = chart.options.scales[axisId];
       if (!scale) return;
-      const target = Math.max(min, Math.ceil(dataMax * 1.12));
+      const target = Math.min(cap, Math.max(min, Math.ceil(dataMax * 1.12)));
       const prev = scale._pulseMax ?? target;
-      scale._pulseMax = target > prev ? target : prev + (target - prev) * 0.08;
-      scale.max = scale._pulseMax;
+      let next;
+      if (target > prev) {
+        next = target; // expand immediately so spikes aren't clipped
+      } else if (target < prev * 0.65) {
+        // Regime change (disk toggled off / spike left the window) — snap down
+        // so the plot doesn't stay stuck on an old 0–100 ceiling.
+        next = prev + (target - prev) * 0.35;
+      } else {
+        next = prev + (target - prev) * 0.1;
+      }
+      if (next > cap) next = cap;
+      scale._pulseMax = next;
+      scale.max = next;
     }
 
     function setMeterWidth(el, pct) {
@@ -8911,18 +8962,19 @@
     ];
 
     /** Unified pulse dial updater — same API for temps / bus / storage / power. */
-    function setPulseDial(rootId, dialId, pct, text, { hot = false, warn = false } = {}) {
+    function setPulseDial(rootId, dialId, pct, text, { hot = false, warn = false, missing = false } = {}) {
       const root = document.getElementById(rootId);
       if (!root || !root.classList.contains('pulse-dials')) return;
       const el = root.querySelector(`[data-dial="${dialId}"]`);
       if (!el) return;
-      const p = Math.max(0, Math.min(100, Number(pct) || 0));
+      const p = missing ? 0 : Math.max(0, Math.min(100, Number(pct) || 0));
       el.style.setProperty('--dial-p', p.toFixed(1));
       const val = el.querySelector('[data-val]');
       if (val) val.textContent = text;
       el.classList.toggle('is-hot', !!hot);
       el.classList.toggle('is-warn', !!warn && !hot);
       el.classList.toggle('is-active', p >= 4);
+      el.classList.toggle('is-missing', !!missing);
     }
 
     function updateIoCompact(diskRead, diskWrite, diskBusy) {
@@ -9053,7 +9105,8 @@
      * Past points are NEVER recomputed — only a new tip is pushed each second.
      * This is what keeps the graph readable; re-bucketing rawHistory always wiggled.
      */
-    const SPARK_WINDOW_SEC = 300;
+    /** Match server HISTORY_LEN so Live spark keeps a full 10 minutes (was 5m — felt like data vanished too soon). */
+    const SPARK_WINDOW_SEC = 600;
     const SPARK_DISK_REF_MBPS = 100; // 100 MB/s → 100% (NVMe can do more; gaming-relevant scale)
     const SPARK_TEMP_MIN = 30;  // right-axis °C floor
     const SPARK_TEMP_MAX = 105; // right-axis °C ceiling (matches temp bar scale)
@@ -9171,8 +9224,23 @@
     }
 
     function sparkRingTrim() {
-      const max = SPARK_WINDOW_SEC;
-      while (sparkRing.ts.length > max) {
+      // Prefer time window so a burst of faster samples can't shrink visible history.
+      const oldest = (sparkRing.ts.at(-1) ?? 0) - SPARK_WINDOW_SEC;
+      while (sparkRing.ts.length > 2 && sparkRing.ts[0] < oldest) {
+        sparkRing.ts.shift();
+        sparkRing.labels.shift();
+        sparkRing.cpu.shift();
+        sparkRing.gpu.shift();
+        sparkRing.ram.shift();
+        sparkRing.disk.shift();
+        sparkRing.diskR.shift();
+        sparkRing.diskW.shift();
+        sparkRing.cpuTemp.shift();
+        sparkRing.gpuTemp.shift();
+      }
+      // Hard cap against runaway growth if timestamps stall/repeat.
+      const maxPts = SPARK_WINDOW_SEC + 30;
+      while (sparkRing.ts.length > maxPts) {
         sparkRing.ts.shift();
         sparkRing.labels.shift();
         sparkRing.cpu.shift();
@@ -9373,7 +9441,24 @@
 
       const showTempAxis = active.some(s => s.isTemp);
       sparkChart.options.scales.y.min = 0;
-      sparkChart.options.scales.y.max = 100;
+      // Autoscale % so idle CPU/GPU/RAM fill the plot. Include disk in the ceiling
+      // only when it actually spikes — otherwise a quiet Disk R line kept us locked
+      // near 0–100 and crushed load into the bottom band.
+      const loadVals = active
+        .filter(s => !s.isTemp && !s.isDisk)
+        .flatMap(s => (s.data || []).filter(Number.isFinite));
+      const diskVals = active
+        .filter(s => s.isDisk)
+        .flatMap(s => (s.data || []).filter(Number.isFinite));
+      const loadMax = loadVals.length ? Math.max(...loadVals) : 0;
+      const diskMax = diskVals.length ? Math.max(...diskVals) : 0;
+      const includeDisk = diskMax > Math.max(loadMax * 1.5, 50);
+      const dataMax = includeDisk ? Math.max(loadMax, diskMax) : loadMax;
+      if (loadVals.length || diskVals.length) {
+        stableAxisMax(sparkChart, 'y', dataMax, 40, 100);
+      } else {
+        sparkChart.options.scales.y.max = 100;
+      }
       sparkChart.options.scales.y.ticks.callback = v => `${v}%`;
       sparkChart.options.scales.y.title = {
         display: true,
@@ -9441,7 +9526,8 @@
       }
       const chartLabel = document.getElementById('sparkChartLabel');
       if (chartLabel) {
-        const mode = chartZoomed ? 'zoomed' : (chartsPaused ? 'paused' : '5 min');
+        const liveMin = Math.round(SPARK_WINDOW_SEC / 60);
+        const mode = chartZoomed ? 'zoomed' : (chartsPaused ? 'paused' : `${liveMin} min`);
         const diskOn = sparkEnabled.diskR || sparkEnabled.diskW;
         if (!anyHwFocus()) {
           chartLabel.textContent = diskOn
@@ -10284,10 +10370,17 @@
       const gpuText = gpuPower != null
         ? (mhz != null ? `${gpuPower}W` : `${gpuPower}W`)
         : '—';
-      const cpuText = cpuPower != null ? `${cpuPower}W` : '—';
+      const cpuText = cpuPower != null ? `${cpuPower}W` : 'n/a';
+      const cpuPowerEl = document.querySelector('#glanceGrid [data-dial="cpu-power"]');
+      if (cpuPowerEl) {
+        cpuPowerEl.title = cpuPower != null
+          ? 'CPU package power (RAPL)'
+          : 'CPU package power unavailable — RAPL energy_uj is root-only. Install deploy/99-rapl-readable.rules';
+      }
       setPulseDial('glanceGrid', 'cpu-power', cpuPower != null ? cpuPct : 0, cpuText, {
         hot: cpuPct >= 92,
         warn: cpuPct >= 80 && cpuPct < 92,
+        missing: cpuPower == null,
       });
       setPulseDial('glanceGrid', 'gpu-power', gpuPower != null ? gpuPct : 0, gpuText, {
         hot: gpuPct >= 92,
@@ -10597,18 +10690,23 @@
       const dramPeak = bw.memory?.dram_peak_gbps || 1;
       const vramGbps = bw.gpu?.vram_est_gbps;
       const dramGbps = bw.memory?.dram_est_gbps;
-      const vramBusy = bw.gpu?.vram_busy_pct ?? ((vramGbps ?? 0) / vramPeak) * 100;
+      const vramBusyFromGbps = vramGbps != null ? (Number(vramGbps) / vramPeak) * 100 : 0;
+      const vramBusy = Math.max(Number(bw.gpu?.vram_busy_pct) || 0, vramBusyFromGbps);
       const dramBusy = bw.memory?.dram_util_pct ?? ((dramGbps ?? 0) / dramPeak) * 100;
-      const psiPct = Math.min(100, (bw.memory?.psi_avg10 ?? 0) * 5);
+      const memWait = Number(bw.memory?.psi_avg10) || 0;
+      const ioWait = Number(bw.memory?.io_wait_pct) || 0;
+      const waitPct = Math.max(memWait, ioWait);
+      const waitFill = Math.min(100, waitPct * 5);
+      const dramApprox = bw.memory?.dram_method === 'workload';
       setPulseDial('bwMeters', 'vram-bw', vramBusy,
         vramGbps != null ? `${Number(vramGbps).toFixed(0)} GB/s` : '—',
         { hot: vramBusy >= 90 });
       setPulseDial('bwMeters', 'dram-bw', dramBusy,
-        dramGbps != null ? `${Number(dramGbps).toFixed(0)} GB/s` : '—',
+        dramGbps != null ? `${dramApprox ? '~' : ''}${Number(dramGbps).toFixed(0)} GB/s` : '—',
         { hot: dramBusy >= 90 });
-      setPulseDial('bwMeters', 'dram-psi', psiPct,
-        `${bw.memory?.psi_avg10 ?? 0}%`,
-        { hot: psiPct >= 40, warn: psiPct >= 20 && psiPct < 40 });
+      setPulseDial('bwMeters', 'dram-psi', waitFill,
+        `${waitPct.toFixed(1)}%`,
+        { hot: waitFill >= 40, warn: waitFill >= 20 && waitFill < 40 });
 
       const diskRead = disk.read_mbps ?? 0;
       const diskWrite = disk.write_mbps ?? 0;
@@ -12741,14 +12839,22 @@
           tension: 0.2,
         },
       ];
-      if (ts.length >= 2 && !chartZoomed) {
-        gamePerfChart.options.scales.x.min = Math.min(...ts);
-        gamePerfChart.options.scales.x.max = Math.max(...ts);
-      } else if (chartRange) {
-        gamePerfChart.options.scales.x.min = chartRange.min;
-        gamePerfChart.options.scales.x.max = chartRange.max;
+      if (!chartInteractActive) {
+        if (chartsPaused || chartZoomed) {
+          if (chartRange) {
+            gamePerfChart.options.scales.x.min = chartRange.min;
+            gamePerfChart.options.scales.x.max = chartRange.max;
+          }
+        } else if (ts.length >= 2) {
+          const tMin = Math.min(...ts.filter(Number.isFinite));
+          const tMax = Math.max(...ts.filter(Number.isFinite));
+          // Pad to at least 60s so short sessions don't look "sped up"
+          const pad = Math.max(60, (tMax - tMin) * 0.02);
+          gamePerfChart.options.scales.x.min = tMin - pad * 0.05;
+          gamePerfChart.options.scales.x.max = Math.max(tMax, tMin + pad);
+        }
+        gamePerfChart.update('none');
       }
-      gamePerfChart.update('none');
       if (lead) lead.textContent = title;
     }
 

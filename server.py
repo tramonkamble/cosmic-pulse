@@ -325,6 +325,12 @@ SAMPLER_RESTART_COOLDOWN_SEC = 15.0
 SAMPLER_MAX_ABANDONED = 3
 _sampler_live_loops = 0
 _sampler_live_lock = threading.Lock()
+# Supervisor heartbeats (sample_supervisor.py). Distinct from _sampler_last_ok_mono
+# so emergency chips cannot hide a wedged apply thread.
+_watchdog_last_mono = 0.0
+_apply_last_mono = 0.0
+_apply_loop_mono = 0.0
+_apply_gen = 0
 # Wall advanced much more than monotonic → suspend/resume (or a large NTP step).
 WALL_JUMP_SEC = 2.5
 # tools_status() hits which()/smart cache — fine occasionally, wasteful every 1 Hz tick.
@@ -869,8 +875,14 @@ def vram_peak_gbps() -> float:
 
 
 def _engine_pct(metrics_val: int | None, sysfs_fallback: int | None) -> float | None:
-    val = metrics_val if metrics_val is not None else sysfs_fallback
-    return round(float(val), 1) if val is not None else None
+    """Prefer any live (>0) reading. gpu_metrics can report 0 while gpu_busy_percent
+    is moving, and mem_busy_percent is often stuck at 0 on RDNA3 while UMC activity is not.
+    """
+    nums = [float(v) for v in (metrics_val, sysfs_fallback) if v is not None]
+    if not nums:
+        return None
+    positives = [n for n in nums if n > 0]
+    return round(max(positives) if positives else 0.0, 1)
 
 
 def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = True) -> dict:
@@ -896,7 +908,6 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
     link_width = read_int(base / "current_link_width")
     gtt = gtt_rates(base) if track_gtt and base.resolve() == gpu_device_path().resolve() else {}
     peak = vram_peak_gbps()
-    vram_est_gbps = round((mem_busy or 0) * peak / 100, 1) if mem_busy is not None else None
     pcie_est_gbps = round(min(gtt.get("rate_mbps", 0) / 1024, PCIE_PEAK_GBPS), 2) if gtt else None
     junction = mem_temp = None
     for k, v in sens.items():
@@ -916,16 +927,18 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
     if mem_temp is None and hw:
         mem_temp = read_int(hw / "temp3_input", 1000)
     engine_raw = read_gpu_engines(base) or {}
+    gfx_pct = _engine_pct(engine_raw.get("gfx"), busy)
+    umc_pct = _engine_pct(engine_raw.get("vram"), mem_busy)
     engines = [
         {
             "id": "gfx",
             "label": "Shaders",
-            "pct": _engine_pct(engine_raw.get("gfx"), busy),
+            "pct": gfx_pct,
         },
         {
             "id": "vram",
             "label": "Memory bus",
-            "pct": _engine_pct(engine_raw.get("vram"), mem_busy),
+            "pct": umc_pct,
         },
         {
             "id": "mm",
@@ -933,6 +946,11 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
             "pct": _engine_pct(engine_raw.get("mm"), None),
         },
     ]
+    # Bus GB/s from the coalesced UMC % — sysfs mem_busy alone is often 0 on 7900 XTX.
+    vram_busy_for_bw = umc_pct if umc_pct is not None else mem_busy
+    vram_est_gbps = (
+        round((vram_busy_for_bw or 0) * peak / 100, 1) if vram_busy_for_bw is not None else None
+    )
     return {
         "label": label,
         "busy_pct": busy,
@@ -951,6 +969,7 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
         "pcie_active": pcie_active,
         "pcie_link": f"{link_speed or '?'} x{link_width or '?'}",
         "vram_est_gbps": vram_est_gbps,
+        "vram_busy_pct": vram_busy_for_bw,
         "vram_peak_gbps": peak,
         "pcie_est_gbps": pcie_est_gbps,
         "pcie_peak_gbps": PCIE_PEAK_GBPS,
@@ -1044,21 +1063,21 @@ def sensor_wall(dgpu: dict | None = None, igpu: dict | None = None) -> list[dict
         {
             "id": "cpu_pkg",
             "label": "CPU Package",
-            "value": pick("k10temp", "Tctl"),
+            "value": pick("k10temp", "Tctl", match_all=True),
             "unit": "°C",
             "kind": "temp",
         },
         {
             "id": "ccd1",
             "label": "CCD1 Die",
-            "value": pick("k10temp", "Tccd1"),
+            "value": pick("k10temp", "Tccd1", match_all=True),
             "unit": "°C",
             "kind": "temp",
         },
         {
             "id": "ccd2",
             "label": "CCD2 Die",
-            "value": pick("k10temp", "Tccd2"),
+            "value": pick("k10temp", "Tccd2", match_all=True),
             "unit": "°C",
             "kind": "temp",
         },
@@ -1440,16 +1459,17 @@ def memory_bandwidth(cpu_pct: float = 0.0, game_cpu_pct: float = 0.0) -> dict:
     workload_cpu = max(float(cpu_pct or 0), float(game_cpu_pct or 0))
     dram_peak = _mem_spec.get("peak_gbps") or 89.6
 
-    # Workload demand model — no perf counter on Linux without root.
-    # Blends CPU load, RAM residency, PSI stall, and page-fault churn.
-    churn_pct = min(22.0, vmstat["pgfault_per_s"] / 1400.0)
+    # Workload demand model — no DRAM perf counter on Linux without root.
+    # Minor page faults are *not* bus traffic (Pulse's own sampler can do 80k/s
+    # while DRAM is idle). Only major faults / PSI / CPU / residency count.
+    maj_churn_pct = min(8.0, vmstat["pgmajfault_per_s"] / 40.0)
     demand_pct = min(
         100.0,
         (psi10 / 100.0) * 50.0
         + (workload_cpu / 100.0) * 40.0
         + (ram_pct / 100.0) * 15.0
-        + churn_pct
-        + min(12.0, dram_fault_gbps / dram_peak * 100),
+        + maj_churn_pct
+        + min(8.0, dram_fault_gbps / max(dram_peak, 1) * 100),
     )
     if workload_cpu > 12 or ram_pct > 45:
         demand_pct = max(demand_pct, workload_cpu * 0.28 + ram_pct * 0.10)
@@ -2236,7 +2256,7 @@ def collect_metrics() -> dict:
         "bandwidth": {
             "gpu": {
                 "engine_busy_pct": dgpu.get("busy_pct"),
-                "vram_busy_pct": dgpu.get("mem_busy_pct"),
+                "vram_busy_pct": dgpu.get("vram_busy_pct", dgpu.get("mem_busy_pct")),
                 "vram_est_gbps": dgpu.get("vram_est_gbps"),
                 "vram_peak_gbps": dgpu.get("vram_peak_gbps") or vram_peak_gbps(),
                 "mclk_mhz": dgpu.get("mclk_mhz"),
@@ -2352,7 +2372,16 @@ def _mark_sample_ok() -> None:
 
 
 def sampler_status() -> dict:
-    """Liveness for /api/metrics — client uses this to show Stale vs Online."""
+    """Liveness for /api/metrics — client uses this to show Stale vs Online.
+
+    ``ok`` follows the **apply** heartbeat after the first full sample. Emergency
+    scoreboard ticks still refresh ``age_sec`` so chips can move, but they cannot
+    keep ``ok`` true while apply is dead (worker-fine / API-frozen).
+    """
+    now = time.monotonic()
+    wd_age = round(now - _watchdog_last_mono, 2) if _watchdog_last_mono else None
+    apply_age = round(now - _apply_last_mono, 2) if _apply_last_mono else None
+    apply_loop_age = round(now - _apply_loop_mono, 2) if _apply_loop_mono else None
     if not _sampler_last_ok_mono:
         return {
             "ok": False,
@@ -2361,25 +2390,42 @@ def sampler_status() -> dict:
             "stalls": _sampler_stalls,
             "reason": _sampler_last_reason or "starting",
             "degraded": False,
+            "state": "starting",
+            "last_apply_age_sec": apply_age,
+            "watchdog_age_sec": wd_age,
+            "apply_loop_age_sec": apply_loop_age,
         }
-    age = time.monotonic() - _sampler_last_ok_mono
+    age = now - _sampler_last_ok_mono
     tick_age = None
     with _sampler_tick_lock:
         started = _sampler_tick_started_mono
     if started:
-        tick_age = round(time.monotonic() - started, 2)
+        tick_age = round(now - started, 2)
     degraded = _sampler_last_reason in ("degraded", "stall")
-    # Full tick in-flight longer than stall threshold even if emergency keeps age low.
     tick_wedged = bool(tick_age is not None and tick_age >= SAMPLER_STALL_SEC)
+    full_ok = bool(_apply_last_mono and (now - _apply_last_mono) < SAMPLER_STALL_SEC)
+    boot_ok = (not _apply_last_mono) and age < SAMPLER_STALL_SEC
+    if tick_wedged or (not full_ok and not boot_ok):
+        state = "stale"
+    elif degraded:
+        state = "degraded"
+    elif boot_ok:
+        state = "starting"
+    else:
+        state = "healthy"
     return {
-        "ok": age < SAMPLER_STALL_SEC and not tick_wedged,
+        "ok": state in ("healthy", "starting", "degraded") and not tick_wedged,
         "age_sec": round(age, 2),
         "tick_age_sec": tick_age,
         "generation": _sampler_gen,
         "stalls": _sampler_stalls,
         "resume_epoch": int(_sampler_resume_epoch or 0),
         "reason": _sampler_last_reason or None,
-        "degraded": degraded or tick_wedged,
+        "degraded": degraded or tick_wedged or state == "stale",
+        "state": state,
+        "last_apply_age_sec": apply_age,
+        "watchdog_age_sec": wd_age,
+        "apply_loop_age_sec": apply_loop_age,
     }
 
 
@@ -2394,7 +2440,7 @@ def _publish_sample(
     Degraded/emergency samples set ``into_history=False`` so chart series are not
     zeroed by a partial scoreboard tick. Full child samples use ``into_history=True``.
     """
-    global _history, _latest_full, _sampler_tick_started_mono
+    global _history, _latest_full, _sampler_tick_started_mono, _apply_last_mono
     # Supervisor / emergency path (no generation ownership).
     if my_gen is None:
         got = _lock.acquire(blocking=True, timeout=0.5)
@@ -2402,6 +2448,8 @@ def _publish_sample(
             # Last resort: publish without lock (better than freeze).
             _latest_full = snap
             _mark_sample_ok()
+            if into_history:
+                _apply_last_mono = time.monotonic()
             return True
         try:
             _latest_full = snap
@@ -2414,6 +2462,8 @@ def _publish_sample(
         with _sampler_tick_lock:
             _sampler_tick_started_mono = 0.0
         _mark_sample_ok()
+        if into_history:
+            _apply_last_mono = time.monotonic()
         return True
 
     with _lock:
@@ -2427,6 +2477,8 @@ def _publish_sample(
     with _sampler_tick_lock:
         _sampler_tick_started_mono = 0.0
     _mark_sample_ok()
+    if into_history:
+        _apply_last_mono = time.monotonic()
     return True
 
 
