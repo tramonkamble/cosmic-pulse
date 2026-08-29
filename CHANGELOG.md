@@ -14,8 +14,8 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
-- **Lab tools grid** — Warnings / Sensors / Charts / etc. sit as a COSMIC-style tile dock; opening one expands a sheet above the grid (not a stacked accordion).
-- **Live lab vitals** — right-side dials are clocks (CPU/GPU/VRAM fill), thermals + fan, power + hitch, then wait/swap/disk. Dropped idle storage R/W and opaque bus GB/s.
+- **Lab tools grid** — Warnings / Sensors / Charts / etc. sit as a COSMIC-style tile dock; opening one expands a sheet above the grid (not a stacked accordion). Tile titles wrap (no ellipsis clip); Sessions / Drives labels fit a normal dock width.
+- **Live lab vitals** — right-side dials fill the Live lab column (tall tiles, rings scale with the chart). CPU / GPU / memory / storage stay in-family but each dial has its own shade. Dropped idle storage R/W and opaque bus GB/s.
 - **Dashboard density** — one glance row, chip sparklines, compact header/rig tiles; idle game strip and duplicate load/sensor chrome stay off the main screen.
 
 ### Fixed

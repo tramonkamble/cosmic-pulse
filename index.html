@@ -71,8 +71,13 @@
       */
       --m-cpu: #38bdf8;
       --m-cpu-deep: #0ea5e9;
+      --m-cpu-temp: #7dd3fc;
+      --m-cpu-power: #1d4ed8;
       --m-gpu: #c084fc;
       --m-gpu-deep: #a855f7;
+      --m-gpu-power: #7e22ce;
+      --m-gpu-temp: #6366f1;
+      --m-gpu-fan: #ddd6fe;
       --m-gpu-vram: #e9d5ff;
       --m-gpu-gtt: #ddd6fe;
       --m-mem: #34d399;
@@ -2414,31 +2419,37 @@
     /* Right: one flat surface, stacked sections (no nested cards) */
     .rig-col-vitals {
       overflow: hidden;
+      min-height: 0;
+      height: 100%;
     }
     .rig-vitals {
-      flex: 0 1 auto;
+      flex: 1 1 auto;
       min-height: 0;
-      overflow-x: hidden;
-      overflow-y: visible;
+      height: 100%;
+      overflow: hidden;
       overscroll-behavior: contain;
       gap: 0;
       display: flex;
       flex-direction: column;
-      padding: 0.5rem 0.65rem 0.55rem;
+      padding: 0.4rem 0.55rem 0.45rem;
     }
     /* Full-width stacked sections so matched dials have room for labels */
     .rig-vitals-flat {
       display: flex;
       flex-direction: column;
       gap: 0;
-      align-content: start;
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
     }
     .rig-vitals-flat .rig-vitals-section {
       min-width: 0;
+      min-height: 0;
+      flex: 1 1 0;
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
-      padding: 0.4rem 0;
+      gap: 0.28rem;
+      padding: 0.32rem 0;
       border: none;
       background: transparent;
       border-radius: 0;
@@ -2447,7 +2458,8 @@
       border-top: 1px solid var(--line-soft);
     }
     .rig-vitals-flat .rig-vitals-section .stutter-side-label {
-      margin: 0 0 0.05rem;
+      margin: 0;
+      flex-shrink: 0;
       opacity: .85;
     }
     .rig-vitals-flat .metric-list-compact {
@@ -2455,7 +2467,7 @@
       flex: 0 0 auto;
     }
     .rig-vitals-power {
-      flex: 0 0 auto;
+      flex: 1 1 0;
     }
     /* legacy 2×2 cells (if any remain outside flat layout) */
     .rig-vitals-grid {
@@ -2717,6 +2729,8 @@
         min-height: 0;
       }
       .rig-layout .stutter-chart-box { min-height: 11rem; max-height: none; }
+      .rig-vitals-flat .rig-vitals-section { min-height: 8.75rem; }
+      .pulse-dial { min-height: 7.6rem; }
     }
     @media (max-width: 700px) {
       .stutter-layout.rig-layout {
@@ -2732,6 +2746,7 @@
       .rig-vitals-grid { grid-template-columns: 1fr 1fr; }
       .rig-layout .glance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .rig-kpis-inline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .drill-stack { grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); }
     }
     .core-strip {
       display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; align-items: end; height: 72px;
@@ -3597,8 +3612,8 @@
        one sheet expands full-width above the grid so Live lab stays the hero. */
     .drill-stack {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(10.75rem, 1fr));
-      gap: 0.45rem;
+      grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+      gap: 0.55rem;
       align-items: stretch;
     }
     details.drill[open] {
@@ -3655,9 +3670,10 @@
       flex-direction: column;
       align-items: flex-start;
       justify-content: flex-start;
-      gap: 0.45rem;
-      min-height: 5.5rem;
-      padding: 0.7rem 0.75rem 0.75rem;
+      gap: 0.4rem;
+      min-height: 7.25rem;
+      height: auto;
+      padding: 0.72rem 0.8rem 0.78rem;
     }
     details.drill:not([open]) .drill-chevron { display: none; }
     details.drill > summary {
@@ -3695,22 +3711,28 @@
       color: var(--text);
       font-weight: 600;
       letter-spacing: -0.01em;
-      line-height: 1.2;
-      white-space: nowrap;
+      line-height: 1.25;
+      white-space: normal;
       overflow: hidden;
-      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
     }
     details.drill.drill-primary .drill-title { font-weight: 650; }
     .drill-rollup {
       font-size: .78rem;
-      line-height: 1.3;
+      line-height: 1.35;
       color: var(--muted);
       font-weight: 400;
       text-align: left;
       min-width: 0;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
       font-variant-numeric: tabular-nums;
     }
     details.drill[open] .drill-rollup {
@@ -4759,36 +4781,40 @@
     /* ── Unified dial system (temps / bus / storage / power) ───────────────
        Same radius, stroke language, track, and label stack everywhere. */
     .pulse-dials {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       align-items: stretch;
       gap: 0.4rem;
       min-width: 0;
+      min-height: 0;
+      flex: 1 1 auto;
+      height: 100%;
     }
     .pulse-dial {
       --dial-p: 0;
       --dial-color: var(--m-cpu);
-      flex: 1 1 0;
       min-width: 0;
-      height: 2.55rem;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, .2);
+      min-height: 0;
+      height: 100%;
+      container-type: size;
+      border-radius: 14px;
+      background: rgba(0, 0, 0, .22);
       border: none;
       box-shadow: none;
-      display: flex;
-      align-items: center;
-      gap: 0.38rem;
-      padding: 0.22rem 0.48rem 0.22rem 0.28rem;
+      display: grid;
+      place-items: center;
+      padding: 0.22rem;
       overflow: hidden;
     }
-    /* Family colors — same token as load bars + chart (CPU always = --m-cpu, etc.) */
-    .pulse-dial[data-dial="cpu-pkg"],
-    .pulse-dial[data-dial="cpu-power"],
+    /* Family colors: same hue family, distinct shade per dial */
     .pulse-dial[data-dial="cpu-clk"] { --dial-color: var(--m-cpu); }
-    .pulse-dial[data-dial="gpu-junc"],
-    .pulse-dial[data-dial="gpu-power"],
-    .pulse-dial[data-dial="power"],
-    .pulse-dial[data-dial="fan"],
+    .pulse-dial[data-dial="cpu-pkg"] { --dial-color: var(--m-cpu-temp); }
+    .pulse-dial[data-dial="cpu-power"] { --dial-color: var(--m-cpu-power); }
     .pulse-dial[data-dial="gpu-clk"] { --dial-color: var(--m-gpu); }
+    .pulse-dial[data-dial="gpu-junc"] { --dial-color: var(--m-gpu-temp); }
+    .pulse-dial[data-dial="fan"] { --dial-color: var(--m-gpu-fan); }
+    .pulse-dial[data-dial="gpu-power"],
+    .pulse-dial[data-dial="power"] { --dial-color: var(--m-gpu-power); }
     .pulse-dial[data-dial="gpu-mem"],
     .pulse-dial[data-dial="vram-fill"] { --dial-color: var(--m-gpu-vram); }
     .pulse-dial[data-dial="dram-bw"],
@@ -4799,39 +4825,53 @@
     .pulse-dial[data-dial="busy"] { --dial-color: var(--m-disk); }
     .pulse-dial[data-dial="write"] { --dial-color: var(--m-disk-write); }
     .pulse-dial-ring {
-      width: 1.85rem;
-      height: 1.85rem;
+      grid-area: 1 / 1;
+      width: 5.4rem;
+      height: 5.4rem;
+      min-width: 3.8rem;
+      min-height: 3.8rem;
       border-radius: 50%;
-      flex-shrink: 0;
       background:
-        conic-gradient(var(--dial-color) calc(var(--dial-p) * 1%), rgba(255, 255, 255, .075) 0);
-      -webkit-mask: radial-gradient(circle, transparent 54%, #000 55%);
-      mask: radial-gradient(circle, transparent 54%, #000 55%);
+        conic-gradient(var(--dial-color) calc(var(--dial-p) * 1%), rgba(255, 255, 255, .1) 0);
+      -webkit-mask: radial-gradient(circle, transparent 56%, #000 57%);
+      mask: radial-gradient(circle, transparent 56%, #000 57%);
+    }
+    @supports (width: 1cqmin) {
+      .pulse-dial-ring {
+        width: min(9.2rem, 94cqmin);
+        height: min(9.2rem, 94cqmin);
+      }
     }
     .pulse-dial-core {
+      grid-area: 1 / 1;
+      z-index: 1;
       min-width: 0;
-      flex: 1 1 auto;
+      width: 56%;
+      max-width: 6.2rem;
       display: flex;
       flex-direction: column;
+      align-items: center;
       justify-content: center;
-      gap: 0.04rem;
-      line-height: 1.1;
+      gap: 0.08rem;
+      line-height: 1.05;
+      text-align: center;
+      pointer-events: none;
     }
     .pulse-dial-k {
-      font-size: 0.65rem;
+      font-size: clamp(0.58rem, 9cqmin, 0.72rem);
       font-weight: 700;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: color-mix(in srgb, var(--dial-color) 55%, var(--muted));
+      color: color-mix(in srgb, var(--dial-color) 62%, var(--muted));
     }
     .pulse-dial-v {
-      font-size: 0.8rem;
+      font-size: clamp(0.78rem, 16cqmin, 1.22rem);
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       color: var(--dial-color);
       white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis;
+      max-width: 100%;
     }
     /* Hot/warn only push beyond the family color when severe */
     .pulse-dial.is-hot .pulse-dial-v { color: var(--sev-hot); }
@@ -5171,14 +5211,15 @@
     body.dash-dedupe .rig-load-dup,
     body.dash-dedupe .rig-col-load { display: none !important; }
     body.dash-dedupe .stutter-layout.rig-layout {
-      grid-template-columns: minmax(22rem, 2.4fr) minmax(13rem, 1fr);
+      grid-template-columns: minmax(20rem, 1.7fr) minmax(17.5rem, 1.15fr);
       height: 100%;
     }
     body.dash-dedupe .rig-layout .stutter-chart-box { min-height: 18rem; }
     body.dash-dedupe .rig-col-vitals,
     body.dash-dedupe .rig-vitals {
       height: 100%;
-      overflow-y: auto;
+      min-height: 0;
+      overflow: hidden;
     }
     /* One glance row: Guidance · chips · game */
     body.dash-dedupe .sum-grid,
@@ -5919,7 +5960,7 @@
         <summary class="drill-summary">
           <span class="drill-icon game" data-glyph="game"></span>
           <span class="drill-summary-text">
-            <span class="drill-title">Session history &amp; processes</span>
+            <span class="drill-title">Sessions</span>
             <span class="drill-rollup" id="drillGameSum">—</span>
           </span>
           <span class="drill-chevron" aria-hidden="true"></span>
@@ -6107,7 +6148,7 @@
         <summary class="drill-summary">
           <span class="drill-icon storage" data-glyph="storage"></span>
           <span class="drill-summary-text">
-            <span class="drill-title">Drives & history</span>
+            <span class="drill-title">Drives</span>
             <span class="drill-rollup" id="drillStorageSum">—</span>
           </span>
           <span class="drill-chevron" aria-hidden="true"></span>
