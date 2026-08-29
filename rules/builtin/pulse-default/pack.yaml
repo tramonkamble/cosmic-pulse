@@ -1,6 +1,6 @@
 id: pulse-default
 name: Pulse default guidance
-version: "1.1.0"
+version: "1.2.0"
 requires_pulse: "0.1"
 priority: 100
 # Optional per-AppID process-detection tuning (names still come from Steam manifests).

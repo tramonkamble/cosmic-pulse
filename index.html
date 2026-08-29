@@ -5023,6 +5023,9 @@
     .chart-live-controls .btn.is-active {
       background: var(--accent); color: var(--accent-on); border-color: var(--accent);
     }
+    .chart-view-btns .btn.active {
+      color: var(--accent-on); background: var(--accent); border-color: var(--accent);
+    }
     .chart-view-status {
       font-size: .78rem; font-weight: 600; color: var(--muted);
       letter-spacing: .02em; min-width: 4.5rem;
@@ -5066,9 +5069,237 @@
       background: var(--inset-fill);
     }
 
+    /* ── beta/ui-noc: space-first dashboard (dedupe + fill) ─────────────── */
+    body.dash-dedupe header {
+      padding: 0.38rem 0.95rem;
+      gap: 0.4rem 0.85rem;
+      align-items: center;
+    }
+    body.dash-dedupe header > div:first-child {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.28rem 0.7rem;
+      min-width: 0;
+      flex: 1 1 18rem;
+    }
+    body.dash-dedupe h1 { font-size: 1.22rem; }
+    body.dash-dedupe h1 .brand-mark {
+      width: 1.35rem; height: 1.35rem; margin-right: 0.32rem;
+    }
+    body.dash-dedupe .header-brand {
+      margin-top: 0;
+      gap: 0.22rem 0.32rem;
+    }
+    body.dash-dedupe .host-badge {
+      padding: 0.16rem 0.48rem 0.16rem 0.22rem;
+      font-size: 0.7rem;
+      gap: 0.3rem;
+    }
+    body.dash-dedupe .host-badge .host-badge-mark {
+      width: 1.05rem; height: 1.05rem; border-radius: 5px;
+    }
+    body.dash-dedupe .host-badge .host-badge-detail { display: none; }
+    body.dash-dedupe .header-right {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    body.dash-dedupe .tab-btn { padding: 0.38rem 0.78rem; font-size: 0.86rem; }
+    body.dash-dedupe .pill { padding: 0.28rem 0.58rem; font-size: 0.8rem; }
+    body.dash-dedupe .nav-tabs { padding: 3px; }
+    body.dash-dedupe .chart-view-btns .btn { padding: 0.28rem 0.5rem; font-size: 0.75rem; }
+    body.dash-dedupe .chart-live-controls .ctrl-label { padding: 0 0.2rem; font-size: 0.72rem; }
+
+    body.dash-dedupe #pageDashboard.page.active {
+      min-height: calc(100dvh - 4.4rem);
+      gap: 0.45rem;
+    }
+    body.dash-dedupe #pageDashboard #summaryBar {
+      flex: 0 0 auto;
+      padding: 0.5rem 0.75rem;
+      gap: 0.4rem;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 22rem;
+      padding: 0.7rem 0.85rem 0.85rem;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .viz-panel-head { margin-bottom: 0.4rem; }
+    body.dash-dedupe #pageDashboard #vizPanel .viz-grid,
+    body.dash-dedupe #pageDashboard #vizPanel .viz-block,
+    body.dash-dedupe #pageDashboard #vizPanel .viz-block-body,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
+    }
+    /* Hardware sensors already live in Live lab temps/power + Sensors drill */
+    body.dash-dedupe .sensor-strip-wrap { display: none !important; }
+    /* Idle game strip duplicates the Game cell — show only while a title is live */
+    body.dash-dedupe .game-perf-hero.is-minimized { display: none !important; }
+    body.dash-dedupe .game-perf-hero:not(.is-minimized) { margin: 0; }
+    /* Load bars duplicate chips; core maps stay in the Compute drill */
+    body.dash-dedupe .rig-load-dup,
+    body.dash-dedupe .rig-col-load { display: none !important; }
+    body.dash-dedupe .stutter-layout.rig-layout {
+      grid-template-columns: minmax(22rem, 2.4fr) minmax(13rem, 1fr);
+      height: 100%;
+    }
+    body.dash-dedupe .rig-layout .stutter-chart-box { min-height: 18rem; }
+    body.dash-dedupe .rig-col-vitals,
+    body.dash-dedupe .rig-vitals {
+      height: 100%;
+      overflow-y: auto;
+    }
+    /* One glance row: Guidance · chips · game */
+    body.dash-dedupe .sum-grid,
+    body.dash-dedupe .sum-grid.game-prominent {
+      grid-template-columns: minmax(10.5rem, 1.15fr) repeat(4, minmax(5.4rem, 0.7fr)) minmax(13rem, 1.55fr);
+      grid-template-rows: auto;
+      grid-template-areas: "health cpu mem gpu vram game";
+      min-height: 0;
+      gap: 0.3rem;
+    }
+    body.dash-dedupe #sumHealthCell .sum-detail,
+    body.dash-dedupe #sumHealthCell .health-list,
+    body.dash-dedupe #sumHealthCell .health-clear-note { display: none !important; }
+    body.dash-dedupe #sumHealthCell.sum-cell.tall {
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0.3rem;
+    }
+    body.dash-dedupe #sumHealthCell .health-sev-row {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    body.dash-dedupe #sumHealthCell .health-sev {
+      min-height: 0;
+      padding: 0.12rem 0.1rem;
+      flex-direction: row;
+      gap: 0.22rem;
+    }
+    body.dash-dedupe #sumHealthCell .health-sev .n { font-size: 0.92rem; }
+    body.dash-dedupe #pageDashboard #summaryBar { padding: 0.4rem 0.65rem; gap: 0.28rem; }
+    body.dash-dedupe .summary-bar.compact-rig .rig-panel {
+      padding-bottom: 0.12rem;
+      border-bottom-color: var(--line-soft);
+    }
+    body.dash-dedupe .summary-bar.compact-rig .rig-strip {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0.28rem;
+    }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile {
+      min-height: 2.05rem;
+    }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-body {
+      padding: 0.22rem 0.45rem 0.22rem 0.5rem;
+      gap: 0.08rem;
+    }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-meta { gap: 0.32rem; }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-type {
+      font-size: 0.58rem;
+      letter-spacing: 0.08em;
+    }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-brand { font-size: 0.58rem; padding-left: 0.32rem; }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-name {
+      font-size: 0.74rem;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: block;
+      -webkit-line-clamp: unset;
+    }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-art { width: 1.7rem; }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-art .hw-glyph svg {
+      width: 1.05rem; height: 1.05rem;
+    }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-art .rig-brand-logo {
+      width: 0.72rem; height: 0.72rem; right: 0.12rem; bottom: 0.12rem;
+    }
+    body.dash-dedupe .sum-cell.sum-chip {
+      justify-content: flex-start;
+      gap: 0.18rem;
+      padding: 0.32rem 0.45rem 0.32rem;
+      min-height: 5.4rem;
+    }
+    body.dash-dedupe .sum-chip-spark-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 2.4rem;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    body.dash-dedupe .sum-chip-spark {
+      position: absolute;
+      inset: 0 0 4px 0;
+      width: 100%;
+      height: auto;
+      display: block;
+      overflow: visible;
+    }
+    body.dash-dedupe .sum-chip-spark-fill {
+      fill: color-mix(in srgb, var(--chip-bar, var(--m-cpu)) 22%, transparent);
+      stroke: none;
+    }
+    body.dash-dedupe .sum-chip-spark-line {
+      fill: none;
+      stroke: var(--chip-bar, var(--m-cpu));
+      stroke-width: 1.6;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+    }
+    body.dash-dedupe .sum-chip-bar {
+      height: 3px;
+      flex: 0 0 3px;
+      margin-top: auto;
+      position: relative;
+      z-index: 1;
+    }
+    body.dash-dedupe #sumGameCell:not(.tall) {
+      padding: 0.28rem 0.4rem;
+      min-height: 0;
+    }
+    body.dash-dedupe #sumGameCell:not(.tall) .sum-game-primary .sum-value { font-size: 1.15rem; }
+    body.dash-dedupe #sumGameCell:not(.tall) .sum-detail { display: none; }
+    body.dash-dedupe #sumGameCell:not(.tall) .sum-game-context {
+      font-size: 0.72rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    @media (max-width: 1100px) {
+      body.dash-dedupe .sum-grid,
+      body.dash-dedupe .sum-grid.game-prominent {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas:
+          "health health"
+          "cpu mem"
+          "gpu vram"
+          "game game";
+      }
+      body.dash-dedupe .stutter-layout.rig-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      body.dash-dedupe #pageDashboard #vizPanel { min-height: 18rem; }
+      body.dash-dedupe .summary-bar.compact-rig .rig-strip {
+        grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
+      }
+    }
+
   </style>
 </head>
-<body>
+<body class="dash-dedupe">
   <header>
     <div>
       <h1>
@@ -5123,14 +5354,20 @@
             <div class="health-clear-note" id="sumHealthClear" hidden>Live rules look clean — click for the full Guidance tab anytime.</div>
           </div>
         </button>
-        <!-- Scoreboard: CPU · Mem · GPU · VRAM — equal chips, bar meters (detail in Live overview) -->
+        <!-- Scoreboard: CPU · Mem · GPU · VRAM — spark fills leftover card height -->
         <button type="button" class="sum-cell cpu sum-chip" id="sumCpuCell" data-drill="drill-compute" data-hw="cpu"
           title="CPU utilization — open Compute">
           <div class="sum-chip-top">
             <span class="sum-label">CPU</span>
             <span class="sum-chip-val" id="sumCpuVal">—</span>
           </div>
-          <div class="sum-chip-bar" aria-hidden="true"><span id="sumCpuBar"></span></div>
+          <div class="sum-chip-spark-wrap" aria-hidden="true">
+            <svg class="sum-chip-spark" id="sumCpuSpark" viewBox="0 0 120 36" preserveAspectRatio="none">
+              <path class="sum-chip-spark-fill" />
+              <path class="sum-chip-spark-line" />
+            </svg>
+            <div class="sum-chip-bar"><span id="sumCpuBar"></span></div>
+          </div>
           <div class="sum-chip-meta">
             <span class="em" id="sumCpuTemp">—</span>
             <span aria-hidden="true">·</span>
@@ -5146,7 +5383,13 @@
             <span class="sum-label">Mem</span>
             <span class="sum-chip-val" id="sumMemVal">—</span>
           </div>
-          <div class="sum-chip-bar" aria-hidden="true"><span id="sumMemBar"></span></div>
+          <div class="sum-chip-spark-wrap" aria-hidden="true">
+            <svg class="sum-chip-spark" id="sumMemSpark" viewBox="0 0 120 36" preserveAspectRatio="none">
+              <path class="sum-chip-spark-fill" />
+              <path class="sum-chip-spark-line" />
+            </svg>
+            <div class="sum-chip-bar"><span id="sumMemBar"></span></div>
+          </div>
           <div class="sum-chip-meta">
             <span class="em" id="sumMemUsed">—</span>
             <span aria-hidden="true">·</span>
@@ -5162,7 +5405,13 @@
             <span class="sum-label">GPU</span>
             <span class="sum-chip-val" id="sumGpuVal">—</span>
           </div>
-          <div class="sum-chip-bar" aria-hidden="true"><span id="sumGpuBar"></span></div>
+          <div class="sum-chip-spark-wrap" aria-hidden="true">
+            <svg class="sum-chip-spark" id="sumGpuSpark" viewBox="0 0 120 36" preserveAspectRatio="none">
+              <path class="sum-chip-spark-fill" />
+              <path class="sum-chip-spark-line" />
+            </svg>
+            <div class="sum-chip-bar"><span id="sumGpuBar"></span></div>
+          </div>
           <div class="sum-chip-meta">
             <span class="em" id="sumGpuTemp">—</span>
             <span aria-hidden="true">·</span>
@@ -5179,7 +5428,13 @@
             <span class="sum-label">VRAM</span>
             <span class="sum-chip-val" id="sumVramVal">—</span>
           </div>
-          <div class="sum-chip-bar" aria-hidden="true"><span id="sumVramBar"></span></div>
+          <div class="sum-chip-spark-wrap" aria-hidden="true">
+            <svg class="sum-chip-spark" id="sumVramSpark" viewBox="0 0 120 36" preserveAspectRatio="none">
+              <path class="sum-chip-spark-fill" />
+              <path class="sum-chip-spark-line" />
+            </svg>
+            <div class="sum-chip-bar"><span id="sumVramBar"></span></div>
+          </div>
           <div class="sum-chip-meta">
             <span class="em" id="sumVramUsed">—</span>
             <span aria-hidden="true">·</span>
@@ -5279,7 +5534,14 @@
           <button type="button" class="viz-tab" role="tab" data-viz-tab="index" aria-selected="false">Pulse Index</button>
           <button type="button" class="viz-tab" role="tab" data-viz-tab="stutter" aria-selected="false">Stutter</button>
         </div>
-        <div class="chart-live-controls" id="chartLiveControls" title="Pause freezes chart follow. Drag on a chart to zoom a time range. Ctrl+scroll zooms; Shift+drag pans.">
+        <div class="chart-live-controls" id="chartLiveControls" title="Pause freezes chart follow. Drag on a chart to zoom a time range. Ctrl+scroll zooms; Shift+drag pans. View is how much time the X-axis shows; samples stay 1 Hz.">
+          <span class="ctrl-label" title="How much time the graphs show. Collector still samples at 1 Hz.">View</span>
+          <div class="ctrl-group chart-view-btns" id="chartViewBtns" role="group" aria-label="Chart time window">
+            <button type="button" class="btn" data-view="60">1m</button>
+            <button type="button" class="btn" data-view="300">5m</button>
+            <button type="button" class="btn active" data-view="600">10m</button>
+            <button type="button" class="btn" data-view="3600">60m</button>
+          </div>
           <button type="button" class="btn" id="btnChartsPause" aria-pressed="false">Pause</button>
           <button type="button" class="btn" id="btnChartsResume" hidden>Resume live</button>
           <button type="button" class="btn" id="btnChartsResetZoom" hidden>Reset zoom</button>
@@ -5293,7 +5555,7 @@
             <div class="stutter-layout rig-layout">
               <!-- LEFT: load + activity -->
               <div class="stutter-col stutter-drivers rig-col rig-col-load">
-                <div class="rig-panel">
+                <div class="rig-panel rig-load-dup" hidden>
                   <div class="rig-panel-head">
                     <span class="stutter-side-label">Load</span>
                     <span class="rig-status ok" id="rigStatus" title="">—</span>
@@ -5549,7 +5811,7 @@
                 <div class="rig-panel rig-panel-chart">
                   <div class="rig-chart-head">
                     <div class="rig-chart-title-row">
-                      <span class="stutter-side-label">Score · last 5 min</span>
+                      <span class="stutter-side-label" id="stutterChartLabel">Score · last 5 min</span>
                     </div>
                   </div>
                   <div class="stutter-chart-box"><canvas id="stutterChart"></canvas></div>
@@ -5641,7 +5903,7 @@
         </summary>
         <div class="drill-body">
           <p class="section-lead" style="margin:0 0 .55rem">
-            Live KPIs and charts stay in the <strong>Game performance</strong> strip at the top of the dashboard (always visible).
+            Live KPIs and charts sit in the <strong>Game performance</strong> strip when a title is running. History and processes stay here.
           </p>
           <div class="game-perf-history">
             <h3 class="guidance-section-title" style="margin:.2rem 0 .45rem">Past sessions</h3>
@@ -5686,10 +5948,11 @@
         <div class="drill-body section-target" id="chartsSection">
           <div class="chart-controls-top">
             <span class="ctrl-label">Span</span>
-            <div class="ctrl-group" id="spanBtns">
-              <button class="btn" data-span="60">1m</button>
-              <button class="btn active" data-span="300">5m</button>
-              <button class="btn" data-span="600">10m</button>
+            <div class="ctrl-group chart-view-btns" id="spanBtns">
+              <button class="btn" data-view="60" data-span="60">1m</button>
+              <button class="btn" data-view="300" data-span="300">5m</button>
+              <button class="btn active" data-view="600" data-span="600">10m</button>
+              <button class="btn" data-view="3600" data-span="3600">60m</button>
             </div>
             <span class="ctrl-label">Rollup</span>
             <div class="ctrl-group" id="rollupBtns">
@@ -6562,7 +6825,21 @@
       System: s => /load|uptime|procs|threads|ctx|intr|fan|pwr|mhz|clk/i.test(`${s.id} ${s.label}`),
       Other: () => true,
     };
-    let spanSec = 300, globalRollup = 1, rawHistory = [], metricsBootstrapped = false;
+    let globalRollup = 1, rawHistory = [], metricsBootstrapped = false;
+    const CHART_VIEW_OPTS = [60, 300, 600, 3600];
+    const CHART_VIEW_LABELS = { 60: '1 min', 300: '5 min', 600: '10 min', 3600: '60 min' };
+    function loadChartView() {
+      try {
+        const n = +sessionStorage.getItem('pulse-chart-view');
+        if (CHART_VIEW_OPTS.includes(n)) return n;
+      } catch (_) { /* ignore */ }
+      return 600;
+    }
+    let chartViewSec = loadChartView();
+    let spanSec = chartViewSec;
+    function persistChartView() {
+      try { sessionStorage.setItem('pulse-chart-view', String(chartViewSec)); } catch (_) { /* ignore */ }
+    }
     /** Frozen sample after suspend/resume: same ts for N polls or server sampler.ok=false. */
     let lastSampleTs = null;
     let sameTsStreak = 0;
@@ -6736,6 +7013,53 @@
       return out;
     }
 
+    /** Epoch-aligned visual buckets so a sliding window does not crawl the line. */
+    function epochBucketSeries(tsArr, valArr, bucketSec, agg = 'avg') {
+      const n = Math.min(tsArr?.length || 0, valArr?.length || 0);
+      if (!n) return [];
+      const b = Math.max(1, Number(bucketSec) || 1);
+      if (b <= 1) return xySeries(tsArr, valArr);
+      const map = new Map();
+      for (let i = 0; i < n; i++) {
+        const x = tsArr[i];
+        if (x == null || !Number.isFinite(+x)) continue;
+        const t = Math.floor(+x / b) * b;
+        let s = map.get(t);
+        if (!s) { s = []; map.set(t, s); }
+        s.push(valArr[i]);
+      }
+      const keys = [...map.keys()].sort((a, c) => a - c);
+      const reduce = (vals) => {
+        const nums = vals.filter(v => v != null && Number.isFinite(+v)).map(Number);
+        if (!nums.length) return null;
+        if (agg === 'max') return Math.max(...nums);
+        if (agg === 'min') return Math.min(...nums);
+        return +(nums.reduce((a, c) => a + c, 0) / nums.length).toFixed(2);
+      };
+      return keys.map(t => ({ x: t + b / 2, y: reduce(map.get(t)) }));
+    }
+
+    function epochBucketsFromHistory(cut, bucketSec) {
+      if (!cut?.length) return { tsMids: [], slices: [] };
+      const b = Math.max(1, Number(bucketSec) || 1);
+      if (b <= 1) {
+        return { tsMids: cut.map(h => +h.ts), slices: cut.map(h => [h]) };
+      }
+      const map = new Map();
+      for (const h of cut) {
+        if (h?.ts == null || !Number.isFinite(+h.ts)) continue;
+        const t = Math.floor(+h.ts / b) * b;
+        let s = map.get(t);
+        if (!s) { s = []; map.set(t, s); }
+        s.push(h);
+      }
+      const keys = [...map.keys()].sort((a, c) => a - c);
+      return {
+        tsMids: keys.map(t => t + b / 2),
+        slices: keys.map(t => map.get(t)),
+      };
+    }
+
     function onChartInspectComplete(chart) {
       if (_chartZoomSyncing || !chart?.scales?.x) return;
       const x = chart.scales.x;
@@ -6816,9 +7140,8 @@
     }
 
     /**
-     * Live X window: fill the plot with whatever history we have until it reaches
-     * windowSec, then roll. Locking last−windowSec with a short ring left a huge
-     * empty left gutter ("not using space") after reload/resume.
+     * Live X window is always [now − view, now]. Seconds-per-pixel stays constant
+     * so 1 Hz does not stretch across a 10m/60m plot when history is still short.
      */
     function applyLiveTimeAxis(chart, windowSec) {
       if (!chart?.options?.scales?.x) return;
@@ -6833,26 +7156,12 @@
         ?? sparkRing?.ts?.at(-1)
         ?? (Date.now() / 1000);
       const span = Math.max(30, windowSec || spanSec || 300);
-      let first = null;
-      const ds = chart.data?.datasets;
-      if (ds?.length) {
-        for (const d of ds) {
-          const x0 = d?.data?.[0]?.x;
-          if (Number.isFinite(+x0) && (first == null || +x0 < first)) first = +x0;
-        }
-      }
-      if (first == null && sparkRing?.ts?.length) first = sparkRing.ts[0];
-      if (first == null && rawHistory.length) first = rawHistory[0].ts;
-      if (first == null || !Number.isFinite(+first)) first = last - span;
-      const dataSpan = Math.max(0, last - first);
-      // Pad tiny windows so a single point isn't glued to both edges.
-      const minPad = 30;
-      if (dataSpan < span) {
-        chart.options.scales.x.min = dataSpan < minPad ? last - minPad : first;
-        chart.options.scales.x.max = last;
-      } else {
-        chart.options.scales.x.min = last - span;
-        chart.options.scales.x.max = last;
+      chart.options.scales.x.min = last - span;
+      chart.options.scales.x.max = last;
+      const ticks = chart.options.scales.x.ticks;
+      if (ticks) {
+        ticks.maxTicksLimit = 7;
+        ticks.stepSize = span <= 60 ? 10 : span <= 300 ? 30 : span <= 600 ? 60 : 300;
       }
     }
 
@@ -7170,6 +7479,32 @@
       try { renderSparkChart(); } catch (_) { /* ignore */ }
       try { renderStutterChart(); } catch (_) { /* ignore */ }
       try { renderIndexChart(); } catch (_) { /* ignore */ }
+      try {
+        if (lastLatest) {
+          renderGamePerfLiveTrend(
+            rawHistory,
+            lastLatest.game_performance || {},
+            lastLatest.game_totals || {},
+          );
+        }
+      } catch (_) { /* ignore */ }
+    }
+
+    function syncChartViewUI() {
+      document.querySelectorAll('[data-view]').forEach(btn => {
+        btn.classList.toggle('active', +btn.dataset.view === chartViewSec);
+      });
+    }
+
+    function setChartView(sec) {
+      const n = +sec;
+      if (!CHART_VIEW_OPTS.includes(n)) return;
+      if (n === chartViewSec) return;
+      chartViewSec = n;
+      spanSec = n;
+      persistChartView();
+      syncChartViewUI();
+      refreshAllCharts();
     }
 
     function wireChartLiveControls() {
@@ -7185,6 +7520,10 @@
       syncChartControlUI();
     }
     wireChartLiveControls();
+    document.querySelectorAll('[data-view]').forEach(btn => {
+      btn.addEventListener('click', () => setChartView(btn.dataset.view));
+    });
+    syncChartViewUI();
 
     const utilDefs = [
       { key: 'cpu', label: 'CPU %', color: CHART.cpu, pick: h => h.cpu?.overall_pct ?? 0 },
@@ -7238,12 +7577,7 @@
     });
 
     document.querySelectorAll('#spanBtns .btn').forEach(b => {
-      b.onclick = () => {
-        document.querySelectorAll('#spanBtns .btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active');
-        spanSec = +b.dataset.span;
-        renderCharts();
-      };
+      b.onclick = () => setChartView(b.dataset.view || b.dataset.span);
     });
     document.querySelectorAll('#rollupBtns .btn').forEach(b => {
       b.onclick = () => {
@@ -7335,36 +7669,19 @@
     function renderOneChart(chart, defs, group, metaEl, rollup, dualAxis) {
       const win = getActiveChartWindow();
       const cut = rawHistory.filter(h => h.ts >= win.min && h.ts <= win.max + 0.05);
-      const { labels: midTs, points } = bucketize(cut, rollup);
-      // bucketize currently returns fmtTime strings — rebuild numeric midpoints from cut
-      const buckets = [];
-      if (cut.length) {
-        const t0 = cut[0].ts;
-        let bucketStart = t0;
-        let slice = [];
-        for (const h of cut) {
-          if (h.ts - bucketStart >= rollup && slice.length) {
-            buckets.push({ t: bucketStart, slice });
-            bucketStart = h.ts;
-            slice = [];
-          }
-          slice.push(h);
-        }
-        if (slice.length) buckets.push({ t: bucketStart, slice });
-      }
-      const tsMids = buckets.map(b => b.t + rollup / 2);
-      const bucketPoints = buckets.map(b => b.slice);
-      const rollLabel = ROLL_LABELS[rollup] || rollup + 's';
+      const visual = (rollup && rollup > 1) ? rollup : 1;
+      const { tsMids, slices: bucketPoints } = epochBucketsFromHistory(cut, visual);
+      const rollLabel = visual === 1 ? '1 Hz' : (ROLL_LABELS[visual] || `${visual}s`);
       const winSec = Math.max(1, win.max - win.min);
       const modeTag = chartZoomed ? 'zoom' : (chartsPaused ? 'paused' : `${(winSec / 60).toFixed(winSec >= 60 ? 0 : 1)}m`);
-      metaEl.textContent = `${modeTag} · ${rollLabel} rollup · ${tsMids.length} points · drag to zoom · Shift+drag pan · Ctrl+wheel`;
+      metaEl.textContent = `${modeTag} · ${rollLabel} · ${tsMids.length} pts · drag to zoom · Shift+drag pan · Ctrl+wheel`;
       // bucketPoints are always slices (arrays of samples). avg() handles len=1.
       // The old rollup<=1 path passed the array into pick() and threw on Live rollup,
       // leaving util/bw/io with empty datasets while meta still showed a point count.
       const getVal = (p, fn) => avg(p, fn);
       const activeDefs = defs.filter(d => enabled[group][d.key]);
       const enabledKey = activeDefs.map(d => d.key).join(',');
-      const structKey = `${group}|${tsMids.length}|${tsMids[0] ?? ''}|${tsMids.at(-1) ?? ''}|${rollup}|${enabledKey}|${chartsPaused}|${chartZoomed}`;
+      const structKey = `${group}|${tsMids.length}|${tsMids[0] ?? ''}|${tsMids.at(-1) ?? ''}|${visual}|${enabledKey}|${chartsPaused}|${chartZoomed}`;
       const newDatasets = activeDefs.map(d => {
         const raw = bucketPoints.map(p => getVal(p, d.pick));
         const alpha = group === 'io' ? CHART_SMOOTH_ALPHA_SPIKY : CHART_SMOOTH_ALPHA;
@@ -7378,12 +7695,7 @@
         };
       });
       if (group === 'util') {
-        const vals = newDatasets.flatMap(d => d.data.map(p => p.y)).filter(Number.isFinite);
-        if (vals.length) {
-          // Idle load used to sit in the bottom 10% of a locked 0–100 axis.
-          stableAxisMax(chart, 'y', Math.max(...vals), 40, 100);
-        }
-        chart.options.scales.y.min = 0;
+        lockPctAxis(chart, 'y');
       } else if (group === 'bw') {
         const yVals = newDatasets.filter(d => d.yAxisID === 'y').flatMap(d => d.data.map(p => p.y));
         const y1Vals = newDatasets.filter(d => d.yAxisID === 'y1').flatMap(d => d.data.map(p => p.y));
@@ -7393,7 +7705,7 @@
         const vals = newDatasets.flatMap(d => d.data.map(p => p.y));
         if (vals.length) stableAxisMax(chart, 'y', Math.max(...vals), 5);
       }
-      if (!chartInteractActive) applyLiveTimeAxis(chart, spanSec);
+      if (!chartInteractActive) applyLiveTimeAxis(chart, chartViewSec);
       if (structKey === chart._pulseStructKey && chart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => { chart.data.datasets[i].data = ds.data; });
       } else {
@@ -7817,6 +8129,14 @@
       const fixed = refMbps != null ? refMbps : floor;
       const ceil = Math.max(fixed, softRateCeil(key, rates, fixed));
       return rates.map(r => clampPct(((Number(r) || 0) / ceil) * 100));
+    }
+
+    function lockPctAxis(chart, axisId = 'y') {
+      const scale = chart.options?.scales?.[axisId];
+      if (!scale) return;
+      scale.min = 0;
+      scale.max = 100;
+      scale._pulseMax = 100;
     }
 
     function stableAxisMax(chart, axisId, dataMax, min = 8, cap = Infinity) {
@@ -8262,11 +8582,18 @@
         return;
       }
       if (activeTab !== 'dashboard') setTab('dashboard');
-      // Game hero is always on-screen under the nav — scroll, never open a tab/accordion
+      // Game hero only occupies the main screen while a title is live
       if (id === 'viz-game' || id === 'gameVizBlock' || id === 'gamePerformanceHero') {
+        const hero = document.getElementById('gamePerformanceHero');
+        const live = !!(hero && !hero.classList.contains('is-minimized'));
         requestAnimationFrame(() => {
-          scrollToElement(document.getElementById('gamePerformanceHero'));
-          try { gamePerfChart?.resize(); gamePerfSessionsChart?.resize(); } catch (_) { /* */ }
+          if (live) {
+            scrollToElement(hero);
+            try { gamePerfChart?.resize(); gamePerfSessionsChart?.resize(); } catch (_) { /* */ }
+          } else {
+            openDrill('drill-game');
+            scrollToElement(document.getElementById('drill-game'));
+          }
         });
         return;
       }
@@ -8315,6 +8642,10 @@
           ? `<div class="sub" style="margin-top:.35rem">Needs device access — from Guidance run:
               <code style="display:block;margin-top:.25rem;font-size:.85rem;color:var(--blue)">sudo usermod -aG disk $USER &amp;&amp; echo 'KERNEL=="nvme[0-9]*", GROUP="disk", MODE="0660"' | sudo tee /etc/udev/rules.d/60-nvme-smart-pulse.rules</code>
               Then log out/in and restart Pulse.</div>`
+          : t.setup === 'enable-cpu-rapl'
+          ? `<div class="sub" style="margin-top:.35rem">RAPL <code>energy_uj</code> is root-only — CPU watt dial stays n/a until:
+              <code style="display:block;margin-top:.25rem;font-size:.85rem;color:var(--blue)">sudo cp deploy/99-rapl-readable.rules /etc/udev/rules.d/ &amp;&amp; sudo udevadm control --reload &amp;&amp; sudo udevadm trigger -s powercap</code>
+              Then restart Pulse (from the Pulse install dir). No extra apt package; zenpower is not in Pop repos.</div>`
           : '';
         // Title = package people search for in apt; bin is what Pulse runs.
         const pkg = t.pkg || t.bin || t.id || 'tool';
@@ -9105,8 +9436,8 @@
      * Past points are NEVER recomputed — only a new tip is pushed each second.
      * This is what keeps the graph readable; re-bucketing rawHistory always wiggled.
      */
-    /** Match server HISTORY_LEN so Live spark keeps a full 10 minutes (was 5m — felt like data vanished too soon). */
-    const SPARK_WINDOW_SEC = 600;
+    /** Keep a full hour in the ring so 60m view has data; X-axis window is chartViewSec. */
+    const SPARK_RING_KEEP_SEC = 3600;
     const SPARK_DISK_REF_MBPS = 100; // 100 MB/s → 100% (NVMe can do more; gaming-relevant scale)
     const SPARK_TEMP_MIN = 30;  // right-axis °C floor
     const SPARK_TEMP_MAX = 105; // right-axis °C ceiling (matches temp bar scale)
@@ -9225,7 +9556,7 @@
 
     function sparkRingTrim() {
       // Prefer time window so a burst of faster samples can't shrink visible history.
-      const oldest = (sparkRing.ts.at(-1) ?? 0) - SPARK_WINDOW_SEC;
+      const oldest = (sparkRing.ts.at(-1) ?? 0) - SPARK_RING_KEEP_SEC;
       while (sparkRing.ts.length > 2 && sparkRing.ts[0] < oldest) {
         sparkRing.ts.shift();
         sparkRing.labels.shift();
@@ -9239,7 +9570,7 @@
         sparkRing.gpuTemp.shift();
       }
       // Hard cap against runaway growth if timestamps stall/repeat.
-      const maxPts = SPARK_WINDOW_SEC + 30;
+      const maxPts = SPARK_RING_KEEP_SEC + 30;
       while (sparkRing.ts.length > maxPts) {
         sparkRing.ts.shift();
         sparkRing.labels.shift();
@@ -9276,7 +9607,7 @@
       }
       if (sparkRing.seeded) return;
       sparkRing.seeded = true;
-      const cut = rawHistory.filter(h => h.ts >= (rawHistory.at(-1).ts - SPARK_WINDOW_SEC));
+      const cut = rawHistory.filter(h => h.ts >= (rawHistory.at(-1).ts - SPARK_RING_KEEP_SEC));
       let last = 0;
       for (const h of cut) {
         // Allow denser seed when history is sparse; skip only true duplicates
@@ -9350,6 +9681,76 @@
       });
     }
 
+    function downsampleSpark(arr, maxPts) {
+      if (!arr || !arr.length) return [];
+      if (arr.length <= maxPts) return arr;
+      const out = [];
+      const step = (arr.length - 1) / (maxPts - 1);
+      for (let i = 0; i < maxPts; i++) out.push(arr[Math.round(i * step)]);
+      return out;
+    }
+
+    function chipSparkPath(values, w, h) {
+      const n = values.length;
+      if (n < 2) return '';
+      const nums = values.map(v => Math.max(0, Math.min(100, Number(v) || 0)));
+      const dataMax = Math.max(...nums);
+      // Autoscale so idle 8% still fills the card; keep 100% as the ceiling.
+      const yMax = Math.max(20, Math.min(100, Math.ceil((dataMax + 4) / 5) * 5));
+      const pts = nums.map((v, i) => {
+        const x = (i / (n - 1)) * w;
+        const y = (1 - v / yMax) * (h - 1.2) + 0.4;
+        return [x, y];
+      });
+      let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+      for (let i = 1; i < pts.length; i++) d += ` L${pts[i][0].toFixed(2)} ${pts[i][1].toFixed(2)}`;
+      return d;
+    }
+
+    function vramHistoryPcts() {
+      if (!Array.isArray(rawHistory) || !rawHistory.length) return [];
+      return rawHistory.map(h => {
+        const g = h.gpu?.discrete || {};
+        if (g.vram_pct != null && Number.isFinite(Number(g.vram_pct))) return Number(g.vram_pct);
+        if (g.vram_used_mb != null && g.vram_total_mb) {
+          return 100 * Number(g.vram_used_mb) / Number(g.vram_total_mb);
+        }
+        return 0;
+      });
+    }
+
+    function paintChipSpark(svgId, values) {
+      const svg = document.getElementById(svgId);
+      if (!svg) return;
+      const series = downsampleSpark(values, 48);
+      const line = chipSparkPath(series, 120, 36);
+      const fill = line ? `${line} L120 36 L0 36 Z` : '';
+      const lineEl = svg.querySelector('.sum-chip-spark-line');
+      const fillEl = svg.querySelector('.sum-chip-spark-fill');
+      if (lineEl && lineEl.getAttribute('d') !== line) lineEl.setAttribute('d', line);
+      if (fillEl && fillEl.getAttribute('d') !== fill) fillEl.setAttribute('d', fill);
+    }
+
+    function sliceSeriesToView(tsArr, valArr) {
+      const n = Math.min(tsArr?.length || 0, valArr?.length || 0);
+      if (!n) return [];
+      const tCut = (tsArr[n - 1] || 0) - chartViewSec;
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        if (tsArr[i] >= tCut) out.push(valArr[i]);
+      }
+      return out;
+    }
+
+    function paintChipSparks() {
+      paintChipSpark('sumCpuSpark', sliceSeriesToView(sparkRing.ts, sparkRing.cpu));
+      paintChipSpark('sumGpuSpark', sliceSeriesToView(sparkRing.ts, sparkRing.gpu));
+      paintChipSpark('sumMemSpark', sliceSeriesToView(sparkRing.ts, sparkRing.ram));
+      const vram = vramHistoryPcts();
+      const vramTs = Array.isArray(rawHistory) ? rawHistory.map(h => h.ts) : [];
+      paintChipSpark('sumVramSpark', sliceSeriesToView(vramTs, vram));
+    }
+
     function renderSparkChart() {
       // Ingest newest sample into append-only ring (unless charts are paused/zoomed —
       // history still grows via rawHistory; ring freezes for a stable inspect view).
@@ -9405,7 +9806,7 @@
       let active = candidates.filter(s => sparkEnabled[s.key] !== false);
       if (!active.length) active = candidates.slice(0, 1);
 
-      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${Object.values(sparkEnabled).join('')}|${n}|${chartsPaused}|${chartZoomed}`;
+      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${Object.values(sparkEnabled).join('')}|${n}|${chartViewSec}|${chartsPaused}|${chartZoomed}`;
 
       const newDatasets = active.map((d, idx) => {
         const isDisk = !!d.isDisk;
@@ -9437,29 +9838,14 @@
         };
       });
 
-      if (!chartInteractActive) applyLiveTimeAxis(sparkChart, SPARK_WINDOW_SEC);
+      if (!chartInteractActive) applyLiveTimeAxis(sparkChart, chartViewSec);
 
       const showTempAxis = active.some(s => s.isTemp);
-      sparkChart.options.scales.y.min = 0;
-      // Autoscale % so idle CPU/GPU/RAM fill the plot. Include disk in the ceiling
-      // only when it actually spikes — otherwise a quiet Disk R line kept us locked
-      // near 0–100 and crushed load into the bottom band.
-      const loadVals = active
-        .filter(s => !s.isTemp && !s.isDisk)
-        .flatMap(s => (s.data || []).filter(Number.isFinite));
-      const diskVals = active
-        .filter(s => s.isDisk)
-        .flatMap(s => (s.data || []).filter(Number.isFinite));
-      const loadMax = loadVals.length ? Math.max(...loadVals) : 0;
-      const diskMax = diskVals.length ? Math.max(...diskVals) : 0;
-      const includeDisk = diskMax > Math.max(loadMax * 1.5, 50);
-      const dataMax = includeDisk ? Math.max(loadMax, diskMax) : loadMax;
-      if (loadVals.length || diskVals.length) {
-        stableAxisMax(sparkChart, 'y', dataMax, 40, 100);
-      } else {
-        sparkChart.options.scales.y.max = 100;
+      lockPctAxis(sparkChart, 'y');
+      if (sparkChart.options.scales.y.ticks) {
+        sparkChart.options.scales.y.ticks.stepSize = 25;
+        sparkChart.options.scales.y.ticks.callback = v => `${v}%`;
       }
-      sparkChart.options.scales.y.ticks.callback = v => `${v}%`;
       sparkChart.options.scales.y.title = {
         display: true,
         text: '%',
@@ -9526,8 +9912,8 @@
       }
       const chartLabel = document.getElementById('sparkChartLabel');
       if (chartLabel) {
-        const liveMin = Math.round(SPARK_WINDOW_SEC / 60);
-        const mode = chartZoomed ? 'zoomed' : (chartsPaused ? 'paused' : `${liveMin} min`);
+        const viewLbl = CHART_VIEW_LABELS[chartViewSec] || `${Math.round(chartViewSec / 60)} min`;
+        const mode = chartZoomed ? 'zoomed' : (chartsPaused ? 'paused' : viewLbl);
         const diskOn = sparkEnabled.diskR || sparkEnabled.diskW;
         if (!anyHwFocus()) {
           chartLabel.textContent = diskOn
@@ -9540,6 +9926,7 @@
         }
       }
       if (!chartInteractActive) sparkChart.update('none');
+      paintChipSparks();
     }
 
     function renderRigInsight(l) {
@@ -9637,27 +10024,11 @@
     function renderStutterChart() {
       const win = chartRange || (() => {
         const last = rawHistory.at(-1)?.ts ?? 0;
-        return { min: last - 300, max: last };
+        return { min: last - chartViewSec, max: last };
       })();
       const cut = rawHistory.filter(h => h.ts >= win.min && h.ts <= win.max + 0.05);
-      const rollup = 5;
-      const buckets = [];
-      if (cut.length) {
-        let bucketStart = cut[0].ts;
-        let slice = [];
-        for (const h of cut) {
-          if (h.ts - bucketStart >= rollup && slice.length) {
-            buckets.push({ t: bucketStart, slice });
-            bucketStart = h.ts;
-            slice = [];
-          }
-          slice.push(h);
-        }
-        if (slice.length) buckets.push({ t: bucketStart, slice });
-      }
-      const tsMids = buckets.map(b => b.t + rollup / 2);
-      const points = buckets.map(b => b.slice);
-      const structKey = `stutter|${tsMids.length}|${chartsPaused}|${chartZoomed}`;
+      const { tsMids, slices: points } = epochBucketsFromHistory(cut, 1);
+      const structKey = `stutter|${chartViewSec}|${tsMids.length}|${chartsPaused}|${chartZoomed}`;
       const scoreRaw = points.map(p => avg(p, h => h.stutter?.score ?? 0));
       const scoreLine = smoothChartSeries('stutter:score', scoreRaw, 0.22);
       const estRaw = points.map(p => avg(p, h => h.stutter?.est_ms ?? 0));
@@ -9694,7 +10065,8 @@
       }
       const peakEst = Math.max(0, ...estLine.filter(v => v > 0), 0);
       stableAxisMax(stutterChart, 'y1', Math.max(40, peakEst), 40);
-      if (!chartInteractActive) applyLiveTimeAxis(stutterChart, 300);
+      lockPctAxis(stutterChart, 'y');
+      if (!chartInteractActive) applyLiveTimeAxis(stutterChart, chartViewSec);
       if (structKey === stutterChart._pulseStructKey && stutterChart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => { stutterChart.data.datasets[i].data = ds.data; });
       } else {
@@ -9702,6 +10074,8 @@
         stutterChart.data.datasets = newDatasets;
       }
       if (!chartInteractActive) stutterChart.update('none');
+      const stLabel = document.getElementById('stutterChartLabel');
+      if (stLabel) stLabel.textContent = `Score · ${CHART_VIEW_LABELS[chartViewSec] || 'window'}`;
     }
 
     const STUTTER_SEV_WORD = { severe: 'Severe', moderate: 'Moderate', mild: 'Mild', none: 'Smooth' };
@@ -10023,28 +10397,12 @@
     function renderIndexChart() {
       const win = chartRange || (() => {
         const last = rawHistory.at(-1)?.ts ?? 0;
-        return { min: last - 300, max: last };
+        return { min: last - chartViewSec, max: last };
       })();
       const cut = rawHistory.filter(h => h.ts >= win.min && h.ts <= win.max + 0.05);
-      const rollup = 5;
-      const buckets = [];
-      if (cut.length) {
-        let bucketStart = cut[0].ts;
-        let slice = [];
-        for (const h of cut) {
-          if (h.ts - bucketStart >= rollup && slice.length) {
-            buckets.push({ t: bucketStart, slice });
-            bucketStart = h.ts;
-            slice = [];
-          }
-          slice.push(h);
-        }
-        if (slice.length) buckets.push({ t: bucketStart, slice });
-      }
-      const tsMids = buckets.map(b => b.t + rollup / 2);
-      const points = buckets.map(b => b.slice);
+      const { tsMids, slices: points } = epochBucketsFromHistory(cut, 1);
       const focusKey = hwFocusKey();
-      const structKey = `index|${focusKey}|${tsMids.length}|${chartsPaused}|${chartZoomed}`;
+      const structKey = `index|${focusKey}|${chartViewSec}|${tsMids.length}|${chartsPaused}|${chartZoomed}`;
       const indexRaw = points.map(p => avg(p, indexHistoryPick));
       const indexLine = smoothChartSeries(`index:${focusKey}:idx`, indexRaw, 0.22);
       const headRaw = indexLine.map(v => Math.max(0, 100 - (v || 0)));
@@ -10070,7 +10428,8 @@
           pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y',
         },
       ];
-      if (!chartInteractActive) applyLiveTimeAxis(indexChart, 300);
+      lockPctAxis(indexChart, 'y');
+      if (!chartInteractActive) applyLiveTimeAxis(indexChart, chartViewSec);
       if (structKey === indexChart._pulseStructKey && indexChart.data.datasets.length === newDatasets.length) {
         newDatasets.forEach((ds, i) => {
           indexChart.data.datasets[i].data = ds.data;
@@ -10308,9 +10667,10 @@
 
       const chartLabel = document.getElementById('indexChartLabel');
       if (chartLabel) {
+        const viewLbl = CHART_VIEW_LABELS[chartViewSec] || 'window';
         chartLabel.textContent = anyHwFocus()
-          ? `${hwFocusLabelText()} load · last 5 min`
-          : 'Index · last 5 min';
+          ? `${hwFocusLabelText()} load · ${viewLbl}`
+          : `Index · ${viewLbl}`;
       }
 
       const statusEl = document.getElementById('indexStatus');
@@ -10375,7 +10735,9 @@
       if (cpuPowerEl) {
         cpuPowerEl.title = cpuPower != null
           ? 'CPU package power (RAPL)'
-          : 'CPU package power unavailable — RAPL energy_uj is root-only. Install deploy/99-rapl-readable.rules';
+          : 'CPU watts need RAPL udev — energy_uj is root-only. sudo cp deploy/99-rapl-readable.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger -s powercap';
+        const kEl = cpuPowerEl.querySelector('.pulse-dial-k');
+        if (kEl) kEl.textContent = cpuPower != null ? 'CPU' : 'CPU udev';
       }
       setPulseDial('glanceGrid', 'cpu-power', cpuPower != null ? cpuPct : 0, cpuText, {
         hot: cpuPct >= 92,
@@ -12839,6 +13201,7 @@
           tension: 0.2,
         },
       ];
+      lockPctAxis(gamePerfChart, 'y');
       if (!chartInteractActive) {
         if (chartsPaused || chartZoomed) {
           if (chartRange) {

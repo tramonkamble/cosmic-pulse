@@ -439,6 +439,7 @@ def flatten_metrics(snap: dict, mem_spec: dict | None, ctx: dict) -> dict:
             "mangohud": bool(shutil.which("mangohud")),
             "gamemoded": bool(shutil.which("gamemoded")),
             "gamemode_lib": "libgamemode.so.0" in _ldconfig_quick(),
+            **_cpu_rapl_tools(),
         },
         "audio": _safe_audio_metrics(),
         "mem_spec": {
@@ -447,6 +448,22 @@ def flatten_metrics(snap: dict, mem_spec: dict | None, ctx: dict) -> dict:
             "source": mem_spec.get("source") or "",
             "part": mem_spec.get("part") or "",
         },
+    }
+
+
+def _cpu_rapl_tools() -> dict:
+    energy = Path("/sys/class/powercap/intel-rapl:0/energy_uj")
+    present = energy.is_file()
+    readable = False
+    if present:
+        try:
+            energy.read_text()
+            readable = True
+        except OSError:
+            readable = False
+    return {
+        "cpu_rapl": readable,
+        "cpu_rapl_present": present,
     }
 
 

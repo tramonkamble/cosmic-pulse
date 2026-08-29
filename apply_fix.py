@@ -42,6 +42,8 @@ REQUIRES_ROOT: dict[str, bool] = {
     "system-balanced": False,
     "mangohud-recommended": True,
     "gamemode-recommended": True,
+    "cpu-rapl-unreadable": True,
+    "enable-cpu-rapl": True,
     "audio-pipeline": False,
     "audio-default-sink-missing": False,
     "audio-hdmi-default-alt": False,

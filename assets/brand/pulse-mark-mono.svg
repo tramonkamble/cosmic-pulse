@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <!-- Monochrome mark for small chrome / currentColor contexts -->
+  <circle cx="12" cy="12" r="7.25" stroke="currentColor" stroke-width="1.35" opacity=".35"/>
+  <ellipse cx="12" cy="12" rx="10.25" ry="4.1"
+    transform="rotate(-28 12 12)"
+    stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <path
+    d="M4.5 13h2.4l1.15-2.6 1.7 5.8L12 5.2l1.85 5.6L15.5 11l1.15 2H19.5"
+    stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -337,3 +337,50 @@ def test_render_template_formats_numbers():
     out = render_template("CPU {cpu.overall_pct:.0f}% in {game.name}", metrics)
     assert "82%" in out
     assert "your game" not in out or True  # name may be resolved from game context
+
+
+def test_cpu_rapl_unreadable_rule_fires():
+    import rule_packs
+
+    orig = rule_packs._cpu_rapl_tools
+    rule_packs._cpu_rapl_tools = lambda: {"cpu_rapl": False, "cpu_rapl_present": True}
+    try:
+        reload_packs()
+        snap = _snap()
+        ctx = {"governor": "performance", "swappiness": 10}
+        hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+        assert "cpu-rapl-unreadable" in emitted
+        hit = next(h for h in hints if h["insight_id"] == "cpu-rapl-unreadable")
+        assert hit["pack_id"] == "pulse-default"
+        assert hit["level"] == "info"
+        assert hit.get("actions")
+        assert "udev" in hit["title"].lower() or "udev" in hit["text"].lower()
+        assert "fix_script" not in hit
+    finally:
+        rule_packs._cpu_rapl_tools = orig
+
+
+def test_cpu_rapl_rule_skips_when_readable():
+    import rule_packs
+
+    orig = rule_packs._cpu_rapl_tools
+    rule_packs._cpu_rapl_tools = lambda: {"cpu_rapl": True, "cpu_rapl_present": True}
+    try:
+        reload_packs()
+        _, emitted = evaluate_rule_packs(_snap(), {}, {"governor": "performance", "swappiness": 10})
+        assert "cpu-rapl-unreadable" not in emitted
+    finally:
+        rule_packs._cpu_rapl_tools = orig
+
+
+def test_cpu_rapl_rule_skips_when_absent():
+    import rule_packs
+
+    orig = rule_packs._cpu_rapl_tools
+    rule_packs._cpu_rapl_tools = lambda: {"cpu_rapl": False, "cpu_rapl_present": False}
+    try:
+        reload_packs()
+        _, emitted = evaluate_rule_packs(_snap(), {}, {"governor": "performance", "swappiness": 10})
+        assert "cpu-rapl-unreadable" not in emitted
+    finally:
+        rule_packs._cpu_rapl_tools = orig

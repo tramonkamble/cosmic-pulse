@@ -92,7 +92,7 @@ from stutter import attach_stutter, effective_disk_io_wait
 from tuning_actions import build_tuning_hints, system_context
 
 PORT = int(os.environ.get("PULSE_PORT", "8765"))
-HISTORY_LEN = 600  # 10 minutes at 1 Hz
+HISTORY_LEN = 3600  # 60 minutes at 1 Hz (Live lab 1m/5m/10m/60m views)
 ROOT = app_root()
 
 
@@ -176,7 +176,7 @@ def slim_history_point(snap: dict) -> dict:
     """Ring-buffer entry for charts and stutter session stats — not full dashboard state.
 
     Keep only series the UI charts read (see index.html chart pickers). Full bandwidth
-    / stutter blobs bloat bootstrap (~1 MB for 600 points) without adding fidelity.
+    / stutter blobs bloat bootstrap without adding fidelity.
     """
     comp = snap.get("comparison") or {}
     cpu_c = comp.get("cpu") or {}
@@ -505,6 +505,20 @@ def read_gpu_power_w(base: Path, sens: dict, sensor_prefix: str) -> float | None
         return round(max(sysfs_w, sensor_w), 1)
     pick = sysfs_w if sysfs_w is not None else sensor_w
     return round(pick, 1) if pick is not None else None
+
+
+def cpu_rapl_probe() -> dict:
+    """RAPL package energy counter: present vs readable (often root-only)."""
+    energy = Path("/sys/class/powercap/intel-rapl:0/energy_uj")
+    present = energy.is_file()
+    readable = False
+    if present:
+        try:
+            energy.read_text()
+            readable = True
+        except OSError:
+            readable = False
+    return {"present": present, "readable": readable}
 
 
 def read_cpu_power_w() -> float | None:
@@ -1514,6 +1528,7 @@ def tools_status() -> dict:
     sensors_ok = bool(shutil.which("sensors"))
     dmidecode_ok = bool(shutil.which("dmidecode"))
     corectrl_ok = bool(shutil.which("corectrl"))
+    rapl = cpu_rapl_probe()
 
     mem_src = (_mem_spec or {}).get("source") or ""
     mem_feeding = mem_src in ("dmidecode", "dmidecode-cache", "cache") or bool(
@@ -1548,6 +1563,29 @@ def tools_status() -> dict:
             "setup": (
                 "enable-nvme-smart"
                 if smart.get("installed") and not smart.get("readable")
+                else None
+            ),
+        },
+        {
+            "id": "cpu-rapl",
+            "bin": "powercap",
+            "pkg": "RAPL udev rule",
+            "role": "data",
+            "note": "CPU package watts from RAPL energy_uj (no extra apt package)",
+            "installed": bool(rapl.get("present")),
+            "feeding": bool(rapl.get("readable")),
+            "detail": (
+                "live · RAPL package-0"
+                if rapl.get("readable")
+                else (
+                    "energy_uj is root-only — install deploy/99-rapl-readable.rules"
+                    if rapl.get("present")
+                    else "no intel-rapl sysfs node"
+                )
+            ),
+            "setup": (
+                "enable-cpu-rapl"
+                if rapl.get("present") and not rapl.get("readable")
                 else None
             ),
         },

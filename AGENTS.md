@@ -11,7 +11,7 @@ Entry: **server.py** (HTTP) + **index.html** (UI). No app.py.
 | `main` | Stable / shipping dashboard UI |
 | `beta/ui-*` | Experimental frontends (same `index.html`, different design) |
 
-Current beta: **`beta/ui-noc`** — Cosmic NOC wallboard (dials, Lab shell, session poster wall). Diff is **`index.html` only** vs `main`.
+Current beta: **`beta/ui-noc`** — space-first dashboard (dedupe the main screen, Live lab fills the viewport). Diff is **`index.html` only** vs `main`.
 
 ```bash
 # daily / release work
@@ -25,6 +25,10 @@ git checkout main && git checkout -b beta/ui-<name>
 ```
 
 Do not merge beta UI into `main` until explicitly promoted. Backend/Python work should land on `main` first, then rebase beta branches.
+
+## Host probes
+
+- **CPU watts** need RAPL `energy_uj` readable. Kernel exposes it (`intel-rapl`) but mode `400` root-only. Dep: `deploy/99-rapl-readable.rules` via udev (not an apt package). `k10temp` has temps only; `zenpower` is not in Pop repos.
 
 ## Product scope (until stated otherwise)
 
