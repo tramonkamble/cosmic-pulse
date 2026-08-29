@@ -84,7 +84,10 @@ Do not merge beta UI into `main` until explicitly promoted. Backend/Python work 
 ls *.py
 rg -n "threading|while True|time.sleep|global " server.py store.py stutter.py | head -40
 sed -n '1,100p' server.py
-python3 -m pytest tests/ -q --tb=line
+python3 tests/harness.py            # product smoke (spawn :18765)
+PULSE_TEST_EXISTING=1 python3 tests/harness.py   # against running Pulse
+python3 tests/harness.py --full     # + slow sampler unit tests
+python3 -m pytest tests/ -q --tb=line   # if pytest is installed
 ```
 
 Hot files: server.py, store.py, stutter.py, games.py, diagnostics.py, index.html

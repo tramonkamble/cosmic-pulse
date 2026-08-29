@@ -28,7 +28,8 @@ Before committing Python changes:
 cd pulse   # your clone directory
 ruff check . --fix
 ruff format .
-python3 tests/test_*.py   # or: pytest tests/ if installed
+python3 tests/harness.py          # product smoketest (no pytest)
+python3 tests/test_*.py           # or: pytest tests/ if installed
 ```
 
 Ruff config lives in `pyproject.toml`. Install: `snap install ruff` or `pip install ruff`.
