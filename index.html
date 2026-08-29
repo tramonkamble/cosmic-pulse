@@ -4762,15 +4762,19 @@
     }
     /* Family colors — same token as load bars + chart (CPU always = --m-cpu, etc.) */
     .pulse-dial[data-dial="cpu-pkg"],
-    .pulse-dial[data-dial="cpu-power"] { --dial-color: var(--m-cpu); }
+    .pulse-dial[data-dial="cpu-power"],
+    .pulse-dial[data-dial="cpu-clk"] { --dial-color: var(--m-cpu); }
     .pulse-dial[data-dial="gpu-junc"],
     .pulse-dial[data-dial="gpu-power"],
     .pulse-dial[data-dial="power"],
     .pulse-dial[data-dial="fan"],
-    .pulse-dial[data-dial="vram-bw"] { --dial-color: var(--m-gpu); }
-    .pulse-dial[data-dial="gpu-mem"] { --dial-color: var(--m-gpu-vram); }
+    .pulse-dial[data-dial="gpu-clk"] { --dial-color: var(--m-gpu); }
+    .pulse-dial[data-dial="gpu-mem"],
+    .pulse-dial[data-dial="vram-fill"] { --dial-color: var(--m-gpu-vram); }
     .pulse-dial[data-dial="dram-bw"],
     .pulse-dial[data-dial="dram-psi"] { --dial-color: var(--m-mem); }
+    .pulse-dial[data-dial="hitch"] { --dial-color: var(--m-stutter); }
+    .pulse-dial[data-dial="swap"] { --dial-color: var(--m-swap); }
     .pulse-dial[data-dial="read"],
     .pulse-dial[data-dial="busy"] { --dial-color: var(--m-disk); }
     .pulse-dial[data-dial="write"] { --dial-color: var(--m-disk-write); }
@@ -5610,18 +5614,43 @@
               <!-- RIGHT: flat vitals (no nested card grid) -->
               <div class="stutter-col stutter-summary rig-col rig-col-vitals" data-hw-keep>
                 <div class="rig-panel rig-vitals rig-vitals-flat">
-                  <div class="rig-vitals-section rig-vitals-power">
-                    <div class="stutter-side-label">Power</div>
-                    <!-- CPU + GPU watts + GPU fan (GPU keeps family violet) -->
-                    <div class="pulse-dials" id="glanceGrid" role="group" aria-label="CPU and GPU power">
-                      <div class="pulse-dial" data-dial="cpu-power" data-hw="cpu" title="CPU package power (RAPL / sensors)">
+                  <div class="rig-vitals-section">
+                    <div class="stutter-side-label">Clocks</div>
+                    <div class="pulse-dials" id="clockMeters" role="group" aria-label="Clocks and VRAM">
+                      <div class="pulse-dial" data-dial="cpu-clk" data-hw="cpu" title="Average CPU clock vs boost">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">CPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="gpu-power" data-hw="gpu" title="GPU board power (PPT)">
+                      <div class="pulse-dial" data-dial="gpu-clk" data-hw="gpu" title="GPU shader clock vs boost">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">GPU</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="pulse-dial" data-dial="vram-fill" data-hw="gpu" title="Video memory fill">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">VRAM</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="rig-vitals-section">
+                    <div class="stutter-side-label">Thermals</div>
+                    <div class="pulse-dials" id="tempMeters" role="group" aria-label="Temperatures and fan">
+                      <div class="pulse-dial" data-dial="cpu-pkg" data-hw="cpu" title="CPU package">
+                        <div class="pulse-dial-ring" aria-hidden="true"></div>
+                        <div class="pulse-dial-core">
+                          <span class="pulse-dial-k">CPU</span>
+                          <span class="pulse-dial-v" data-val>—</span>
+                        </div>
+                      </div>
+                      <div class="pulse-dial" data-dial="gpu-junc" data-hw="gpu" title="GPU hotspot">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">GPU</span>
@@ -5637,79 +5666,53 @@
                       </div>
                     </div>
                   </div>
-                  <div class="rig-vitals-section">
-                    <div class="stutter-side-label">Temps</div>
-                    <div class="pulse-dials" id="tempMeters" role="group" aria-label="Temperatures">
-                      <div class="pulse-dial" data-dial="cpu-pkg" data-hw="cpu" title="CPU package">
+                  <div class="rig-vitals-section rig-vitals-power">
+                    <div class="stutter-side-label">Power · hitch</div>
+                    <div class="pulse-dials" id="glanceGrid" role="group" aria-label="Power and hitch">
+                      <div class="pulse-dial" data-dial="cpu-power" data-hw="cpu" title="CPU package power (RAPL / sensors)">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">CPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="gpu-junc" data-hw="gpu" title="GPU hotspot">
+                      <div class="pulse-dial" data-dial="gpu-power" data-hw="gpu" title="GPU board power (PPT)">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">GPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="gpu-mem" data-hw="gpu" title="VRAM temp">
+                      <div class="pulse-dial" data-dial="hitch" data-hw-keep title="Stutter proxy score (0 = smooth)">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
-                          <span class="pulse-dial-k">VRAM</span>
+                          <span class="pulse-dial-k">Hitch</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div class="rig-vitals-section">
-                    <div class="stutter-side-label">Bus</div>
-                    <div class="pulse-dials" id="bwMeters" role="group" aria-label="Bus activity">
-                      <div class="pulse-dial" data-dial="vram-bw" data-hw="gpu" title="GPU memory bus">
-                        <div class="pulse-dial-ring" aria-hidden="true"></div>
-                        <div class="pulse-dial-core">
-                          <span class="pulse-dial-k">GPU</span>
-                          <span class="pulse-dial-v" data-val>—</span>
-                        </div>
-                      </div>
-                      <div class="pulse-dial" data-dial="dram-bw" data-hw="memory" title="System RAM bandwidth">
-                        <div class="pulse-dial-ring" aria-hidden="true"></div>
-                        <div class="pulse-dial-core">
-                          <span class="pulse-dial-k">RAM</span>
-                          <span class="pulse-dial-v" data-val>—</span>
-                        </div>
-                      </div>
-                      <div class="pulse-dial" data-dial="dram-psi" data-hw="memory" title="Memory stall / wait">
+                  <div class="rig-vitals-section" data-hw="memory storage">
+                    <div class="stutter-side-label">Pressure</div>
+                    <div class="pulse-dials" id="pressureMeters" role="group" aria-label="Wait, swap, disk">
+                      <div class="pulse-dial" data-dial="dram-psi" data-hw="memory" title="Memory stall / I/O wait">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">Wait</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  <div class="rig-vitals-section" data-hw="storage">
-                    <div class="stutter-side-label">Storage</div>
-                    <div class="pulse-dials" id="ioMeters" role="group" aria-label="Storage activity">
-                      <div class="pulse-dial" data-dial="read" data-hw="storage" title="Disk read">
+                      <div class="pulse-dial" data-dial="swap" data-hw="memory" title="Swap fill">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
-                          <span class="pulse-dial-k">R</span>
-                          <span class="pulse-dial-v" data-val>—</span>
-                        </div>
-                      </div>
-                      <div class="pulse-dial" data-dial="write" data-hw="storage" title="Disk write">
-                        <div class="pulse-dial-ring" aria-hidden="true"></div>
-                        <div class="pulse-dial-core">
-                          <span class="pulse-dial-k">W</span>
+                          <span class="pulse-dial-k">Swap</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
                       <div class="pulse-dial" data-dial="busy" data-hw="storage" title="Disk busy">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
-                          <span class="pulse-dial-k">Busy</span>
+                          <span class="pulse-dial-k">Disk</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
@@ -9376,12 +9379,11 @@
     }
 
     function updateIoCompact(diskRead, diskWrite, diskBusy) {
-      const rPct = Math.min(100, (diskRead / DISK_RATE_CEIL) * 100);
-      const wPct = Math.min(100, (diskWrite / DISK_RATE_CEIL) * 100);
       const bPct = Number(diskBusy) || 0;
-      setPulseDial('ioMeters', 'read', rPct, fmtDiskRate(diskRead), { hot: rPct >= 85 });
-      setPulseDial('ioMeters', 'write', wPct, fmtDiskRate(diskWrite), { hot: wPct >= 85 });
-      setPulseDial('ioMeters', 'busy', bPct, `${Math.round(bPct)}%`, { hot: bPct >= 85 });
+      const tip = `${fmtDiskRate(diskRead || 0)} R · ${fmtDiskRate(diskWrite || 0)} W`;
+      const el = document.querySelector('#pressureMeters [data-dial="busy"]');
+      if (el) el.title = `Disk busy · ${tip}`;
+      setPulseDial('pressureMeters', 'busy', bPct, `${Math.round(bPct)}%`, { hot: bPct >= 85 });
     }
     const NET_SPECS = [
       { id: 'net-down', label: 'Down', icon: 'net', cls: 'net-down', hw: '' },
@@ -9476,6 +9478,19 @@
     function tempPct(v, maxC) {
       const max = maxC || hwScales.cpu_temp_max_c || 105;
       return v == null ? 0 : Math.min(100, (v / max) * 100);
+    }
+    function fmtClockMhz(mhz) {
+      if (mhz == null || !Number.isFinite(Number(mhz))) return '—';
+      const n = Number(mhz);
+      return n >= 1000 ? `${(n / 1000).toFixed(1)}G` : `${Math.round(n)}M`;
+    }
+    function cpuClockStats(cores) {
+      const mhz = (cores || []).map(c => Number(c.mhz)).filter(n => n > 0);
+      if (!mhz.length) return { avg: null, peak: null };
+      return {
+        avg: Math.round(mhz.reduce((a, b) => a + b, 0) / mhz.length),
+        peak: Math.round(Math.max(...mhz)),
+      };
     }
     function tempValCls(v) {
       if (v == null) return '';
@@ -10819,11 +10834,13 @@
       setPulseDial('glanceGrid', 'gpu-power', gpuPower != null ? gpuPct : 0, gpuText, {
         hot: gpuPct >= 92,
       });
-      // Back-compat if any leftover data-dial="power"
-      setPulseDial('glanceGrid', 'power', gpuPower != null ? gpuPct : 0, gpuText, {
-        hot: gpuPct >= 92,
+      setPulseDial('tempMeters', 'fan', fanPct, fan != null ? `${fan}` : '—', { hot: fanPct >= 90 });
+      const hitch = Number(l.stutter?.score);
+      const hitchOk = Number.isFinite(hitch);
+      setPulseDial('glanceGrid', 'hitch', hitchOk ? hitch : 0, hitchOk ? `${Math.round(hitch)}` : '—', {
+        hot: hitchOk && hitch >= 50,
+        warn: hitchOk && hitch >= 30 && hitch < 50,
       });
-      setPulseDial('glanceGrid', 'fan', fanPct, fan != null ? `${fan}` : '—', { hot: fanPct >= 90 });
     }
 
     function shortDriveLabel(sensor) {
@@ -11120,32 +11137,43 @@
         hot: gpuT != null && gpuT >= gpuTMax * 0.90,
         warn: gpuT != null && gpuT >= gpuTMax * 0.76 && gpuT < gpuTMax * 0.90,
       });
-      setPulseDial('tempMeters', 'gpu-mem', tempPct(vramT, gpuTMax), vramT != null ? `${Math.round(vramT)}°` : '—', {
-        hot: vramT != null && vramT >= gpuTMax * 0.90,
-        warn: vramT != null && vramT >= gpuTMax * 0.81 && vramT < gpuTMax * 0.90,
-      });
 
-      const vramPeak = bw.gpu?.vram_peak_gbps || 1;
-      const dramPeak = bw.memory?.dram_peak_gbps || 1;
-      const vramGbps = bw.gpu?.vram_est_gbps;
-      const dramGbps = bw.memory?.dram_est_gbps;
-      const vramBusyFromGbps = vramGbps != null ? (Number(vramGbps) / vramPeak) * 100 : 0;
-      const vramBusy = Math.max(Number(bw.gpu?.vram_busy_pct) || 0, vramBusyFromGbps);
-      const dramBusy = bw.memory?.dram_util_pct ?? ((dramGbps ?? 0) / dramPeak) * 100;
+      const clk = cpuClockStats(c.per_core);
+      const cpuBoost = Math.max(5500, clk.peak || 0);
+      const gpuBoost = Number(g.thermal_profile?.boost_mhz) || 2500;
+      const gpuClk = g.gfx_mhz != null ? Number(g.gfx_mhz) : null;
+      const cpuClkEl = document.querySelector('#clockMeters [data-dial="cpu-clk"]');
+      if (cpuClkEl && clk.peak != null) {
+        cpuClkEl.title = `CPU clocks · avg ${fmtClockMhz(clk.avg)} · peak ${fmtClockMhz(clk.peak)}`;
+      }
+      const gpuClkEl = document.querySelector('#clockMeters [data-dial="gpu-clk"]');
+      if (gpuClkEl && gpuClk != null) {
+        gpuClkEl.title = `GPU shader clock ${Math.round(gpuClk)} MHz · boost ${gpuBoost} MHz`;
+      }
+      setPulseDial('clockMeters', 'cpu-clk', clk.avg != null ? (clk.avg / cpuBoost) * 100 : 0,
+        fmtClockMhz(clk.avg), { hot: clk.avg != null && clk.avg >= cpuBoost * 0.98 });
+      setPulseDial('clockMeters', 'gpu-clk', gpuClk != null ? Math.min(100, (gpuClk / gpuBoost) * 100) : 0,
+        fmtClockMhz(gpuClk), { hot: gpuClk != null && gpuClk >= gpuBoost * 0.96 });
+      const vramPct = g.vram_pct != null ? Number(g.vram_pct) : null;
+      const vramFillEl = document.querySelector('#clockMeters [data-dial="vram-fill"]');
+      if (vramFillEl && g.vram_used_mb != null) {
+        vramFillEl.title = `VRAM ${g.vram_used_mb} / ${g.vram_total_mb} MB`;
+      }
+      setPulseDial('clockMeters', 'vram-fill', vramPct ?? 0,
+        vramPct != null ? `${Math.round(vramPct)}%` : '—',
+        { hot: vramPct != null && vramPct >= 90, warn: vramPct != null && vramPct >= 75 && vramPct < 90 });
+
       const memWait = Number(bw.memory?.psi_avg10) || 0;
       const ioWait = Number(bw.memory?.io_wait_pct) || 0;
       const waitPct = Math.max(memWait, ioWait);
       const waitFill = Math.min(100, waitPct * 5);
-      const dramApprox = bw.memory?.dram_method === 'workload';
-      setPulseDial('bwMeters', 'vram-bw', vramBusy,
-        vramGbps != null ? `${Number(vramGbps).toFixed(0)} GB/s` : '—',
-        { hot: vramBusy >= 90 });
-      setPulseDial('bwMeters', 'dram-bw', dramBusy,
-        dramGbps != null ? `${dramApprox ? '~' : ''}${Number(dramGbps).toFixed(0)} GB/s` : '—',
-        { hot: dramBusy >= 90 });
-      setPulseDial('bwMeters', 'dram-psi', waitFill,
+      setPulseDial('pressureMeters', 'dram-psi', waitFill,
         `${waitPct.toFixed(1)}%`,
         { hot: waitFill >= 40, warn: waitFill >= 20 && waitFill < 40 });
+      const swapPct = Number(m.swap_pct);
+      setPulseDial('pressureMeters', 'swap', Number.isFinite(swapPct) ? swapPct : 0,
+        Number.isFinite(swapPct) ? `${Math.round(swapPct)}%` : '—',
+        { hot: swapPct >= 20, warn: swapPct >= 8 && swapPct < 20 });
 
       const diskRead = disk.read_mbps ?? 0;
       const diskWrite = disk.write_mbps ?? 0;
