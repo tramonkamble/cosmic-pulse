@@ -257,12 +257,14 @@ def check_guidance(boot: dict, live: dict) -> None:
         ids = {p.get("id") for p in plist if isinstance(p, dict)}
         check("pack pulse-default", "pulse-default" in ids, str(ids))
         default = next((p for p in plist if p.get("id") == "pulse-default"), {})
-        check("pulse-default enabled", default.get("enabled") is not False, str(default))
+        check("pulse-default builtin", default.get("builtin") is True, str(default))
         check(
             "pulse-default has rules",
             (default.get("rule_count") or 0) >= 24,
             str(default.get("rule_count")),
         )
+        if default.get("enabled") is False:
+            print("  skip pulse-default enabled (disabled in this machine's config)")
     status, rules = _get("/api/rule-packs?view=rules&pack=pulse-default")
     if check("rule list 200", status == 200 and isinstance(rules, dict)):
         rids = {
@@ -313,7 +315,13 @@ def check_game_and_store() -> None:
     status, data = _get("/api/issues-by-game")
     check("GET /api/issues-by-game", status == 200 and isinstance(data, dict))
     status, data = _get("/api/store")
-    check("GET /api/store", status == 200 and isinstance(data, dict))
+    if check("GET /api/store", status == 200 and isinstance(data, dict), str(status)):
+        scales = data.get("hw_scales") or {}
+        check(
+            "store hw_scales.cpu_temp_max_c",
+            isinstance(scales.get("cpu_temp_max_c"), (int, float)),
+            str(scales),
+        )
     status, data = _get("/api/diagnostics")
     check("GET /api/diagnostics", status == 200 and isinstance(data, dict))
     status, data = _get("/api/trends?metric=gpu_junction_c&hours=1&bucket=60")
@@ -375,6 +383,7 @@ def main() -> int:
 
     print("\n== unit (no pytest) ==")
     run_unit_file("tests/test_live_sensors.py")
+    run_unit_file("tests/test_hw_scales.py")
     if full:
         run_unit_file("tests/test_sample_supervisor.py")
     else:

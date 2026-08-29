@@ -32,6 +32,29 @@ THEME_MODES = ("cosmic", "system", "dark", "light")
 BYTES_PER_SAMPLE_EST = 200
 SAMPLES_PER_DAY = 86400
 
+# Per-machine graph / dial ceilings (this rig's Options → Hardware scales).
+HW_SCALE_DEFAULTS = {
+    "cpu_temp_min_c": 30,
+    "cpu_temp_max_c": 105,
+    "gpu_temp_max_c": 105,
+    "cpu_power_max_w": 170,
+    "gpu_power_max_w": 355,
+}
+HW_SCALE_BOUNDS = {
+    "cpu_temp_min_c": (0, 50),
+    "cpu_temp_max_c": (60, 120),
+    "gpu_temp_max_c": (70, 120),
+    "cpu_power_max_w": (45, 400),
+    "gpu_power_max_w": (50, 600),
+}
+HW_SCALE_STEP = {
+    "cpu_temp_min_c": 1,
+    "cpu_temp_max_c": 1,
+    "gpu_temp_max_c": 1,
+    "cpu_power_max_w": 5,
+    "gpu_power_max_w": 5,
+}
+
 
 def _clamp(days: int) -> int:
     return max(RETENTION_MIN_DAYS, min(RETENTION_MAX_DAYS, int(days)))
@@ -53,6 +76,29 @@ def _clamp_tuning_log_max(value: object) -> int:
     except (TypeError, ValueError):
         return DEFAULT_TUNING_LOG_MAX
     return max(TUNING_LOG_MIN, min(TUNING_LOG_MAX_CAP, n))
+
+
+def _clamp_hw_number(key: str, value: object) -> int:
+    lo, hi = HW_SCALE_BOUNDS[key]
+    step = HW_SCALE_STEP.get(key, 1)
+    default = HW_SCALE_DEFAULTS[key]
+    try:
+        n = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        n = float(default)
+    stepped = round(n / step) * step
+    return int(max(lo, min(hi, stepped)))
+
+
+def _normalize_hw_scales(value: object) -> dict:
+    src = value if isinstance(value, dict) else {}
+    out = {k: _clamp_hw_number(k, src.get(k, default)) for k, default in HW_SCALE_DEFAULTS.items()}
+    if out["cpu_temp_min_c"] > out["cpu_temp_max_c"] - 10:
+        out["cpu_temp_min_c"] = max(
+            HW_SCALE_BOUNDS["cpu_temp_min_c"][0],
+            out["cpu_temp_max_c"] - 10,
+        )
+    return out
 
 
 def _normalize_theme_mode(value: object) -> str:
@@ -117,6 +163,7 @@ def _default_config() -> dict:
         "rule_pack_paths": [],
         "suppressed_insights": [],
         "resolved_insights": [],
+        "hw_scales": dict(HW_SCALE_DEFAULTS),
     }
 
 
@@ -150,6 +197,7 @@ def load_config() -> dict:
                 "rule_pack_paths": _normalize_str_list(data.get("rule_pack_paths", [])),
                 "suppressed_insights": _normalize_insight_ids(data.get("suppressed_insights", [])),
                 "resolved_insights": _normalize_insight_ids(data.get("resolved_insights", [])),
+                "hw_scales": _normalize_hw_scales(data.get("hw_scales", HW_SCALE_DEFAULTS)),
             }
         except (json.JSONDecodeError, OSError, ValueError, TypeError):
             cfg = _default_config()
@@ -171,6 +219,10 @@ def get_tuning_log_max() -> int:
 
 def get_theme_mode() -> str:
     return load_config()["theme_mode"]
+
+
+def get_hw_scales() -> dict:
+    return dict(load_config()["hw_scales"])
 
 
 def get_disabled_packs() -> list[str]:
@@ -213,6 +265,12 @@ def save_config(**updates: object) -> dict:
         cfg["suppressed_insights"] = _normalize_insight_ids(updates["suppressed_insights"])
     if "resolved_insights" in updates:
         cfg["resolved_insights"] = _normalize_insight_ids(updates["resolved_insights"])
+    if "hw_scales" in updates:
+        merged = dict(cfg.get("hw_scales") or HW_SCALE_DEFAULTS)
+        incoming = updates["hw_scales"]
+        if isinstance(incoming, dict):
+            merged.update(incoming)
+        cfg["hw_scales"] = _normalize_hw_scales(merged)
     try:
         CONFIG_PATH.write_text(json.dumps(cfg, indent=2) + "\n")
         global _config_cache

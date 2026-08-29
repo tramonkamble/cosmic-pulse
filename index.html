@@ -6199,7 +6199,7 @@
       <div class="options-layout section-target" id="optionsSection">
         <header class="options-page-head">
           <h2>Options</h2>
-          <p class="sub">Appearance, data, Guidance prefs, rule packs</p>
+          <p class="sub">Appearance, hardware scales, data, Guidance prefs, rule packs</p>
         </header>
         <p class="options-msg" id="optionsMsg" aria-live="polite"></p>
 
@@ -6273,6 +6273,64 @@
                 </div>
               </div>
               <p class="theme-preview-caption" id="themePreviewCaption">Preview updates as you change the mode.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="options-section" id="optionsHardware">
+          <h2>Hardware scales</h2>
+          <p class="section-lead">
+            Graph and dial ceilings for this machine. Does not change sensors — only how full the plot looks.
+            Release a slider to save.
+          </p>
+          <div class="options-subgrid">
+            <div class="options-subblock">
+              <h3>Temperatures</h3>
+              <div class="options-row">
+                <span class="options-label">CPU graph min</span>
+                <div class="options-scale-wrap">
+                  <input type="range" id="hwCpuTempMin" min="0" max="50" step="1" value="30"
+                    data-hw-scale="cpu_temp_min_c" aria-label="CPU graph temperature minimum" />
+                  <span class="options-scale-val" id="hwCpuTempMinVal">30°C</span>
+                </div>
+              </div>
+              <div class="options-row">
+                <span class="options-label">CPU graph max</span>
+                <div class="options-scale-wrap">
+                  <input type="range" id="hwCpuTempMax" min="60" max="120" step="1" value="105"
+                    data-hw-scale="cpu_temp_max_c" aria-label="CPU graph temperature maximum" />
+                  <span class="options-scale-val" id="hwCpuTempMaxVal">105°C</span>
+                </div>
+              </div>
+              <div class="options-row">
+                <span class="options-label">GPU graph max</span>
+                <div class="options-scale-wrap">
+                  <input type="range" id="hwGpuTempMax" min="70" max="120" step="1" value="105"
+                    data-hw-scale="gpu_temp_max_c" aria-label="GPU graph temperature maximum" />
+                  <span class="options-scale-val" id="hwGpuTempMaxVal">105°C</span>
+                </div>
+              </div>
+              <p class="options-scale-hint">Live lab °C axis uses CPU min and the higher of CPU/GPU max. Dial fill uses each part’s max.</p>
+            </div>
+            <div class="options-subblock">
+              <h3>Power dials</h3>
+              <div class="options-row">
+                <span class="options-label">CPU watt full</span>
+                <div class="options-scale-wrap">
+                  <input type="range" id="hwCpuPowerMax" min="45" max="400" step="5" value="170"
+                    data-hw-scale="cpu_power_max_w" aria-label="CPU power dial maximum watts" />
+                  <span class="options-scale-val" id="hwCpuPowerMaxVal">170 W</span>
+                </div>
+              </div>
+              <div class="options-row">
+                <span class="options-label">GPU watt full</span>
+                <div class="options-scale-wrap">
+                  <input type="range" id="hwGpuPowerMax" min="50" max="600" step="5" value="355"
+                    data-hw-scale="gpu_power_max_w" aria-label="GPU power dial maximum watts" />
+                  <span class="options-scale-val" id="hwGpuPowerMaxVal">355 W</span>
+                </div>
+              </div>
+              <p class="options-scale-hint">7900X package is often ~142–170 W PPT; 7900 XTX board power ~355 W.</p>
             </div>
           </div>
         </section>
@@ -6385,6 +6443,15 @@
      * Families stay grouped by function (CPU blues, GPU violets, …).
      */
     /* Single source of truth — live overview bars, dials, and chart all use these. */
+    const HW_SCALE_DEFAULTS = {
+      cpu_temp_min_c: 30,
+      cpu_temp_max_c: 105,
+      gpu_temp_max_c: 105,
+      cpu_power_max_w: 170,
+      gpu_power_max_w: 355,
+    };
+    let hwScales = { ...HW_SCALE_DEFAULTS };
+
     const METRIC = {
       cpu: '#38bdf8',       /* sky — CPU load + CPU °C */
       cpuDeep: '#0ea5e9',
@@ -7635,7 +7702,7 @@
         : isInsightSuppressed(h?.insight_id) ? 'ignored' : 'outstanding');
     }
     function gpuTempPct(junc) {
-      const throttle = gpuThermalProf().throttle_c ?? 110;
+      const throttle = hwScales.gpu_temp_max_c || gpuThermalProf().throttle_c ?? 110;
       return junc == null ? 0 : Math.min(100, (junc / throttle) * 100);
     }
     const pct = (v, max) => Math.min(100, Math.round((v / max) * 100));
@@ -9406,7 +9473,10 @@
       subEl.textContent = subText == null ? '' : String(subText);
     }
 
-    function tempPct(v) { return v == null ? 0 : Math.min(100, (v / 105) * 100); }
+    function tempPct(v, maxC) {
+      const max = maxC || hwScales.cpu_temp_max_c || 105;
+      return v == null ? 0 : Math.min(100, (v / max) * 100);
+    }
     function tempValCls(v) {
       if (v == null) return '';
       if (v >= 90) return 'temp hot';
@@ -9439,8 +9509,10 @@
     /** Keep a full hour in the ring so 60m view has data; X-axis window is chartViewSec. */
     const SPARK_RING_KEEP_SEC = 3600;
     const SPARK_DISK_REF_MBPS = 100; // 100 MB/s → 100% (NVMe can do more; gaming-relevant scale)
-    const SPARK_TEMP_MIN = 30;  // right-axis °C floor
-    const SPARK_TEMP_MAX = 105; // right-axis °C ceiling (matches temp bar scale)
+    function sparkTempMin() { return hwScales.cpu_temp_min_c ?? 30; }
+    function sparkTempMax() {
+      return Math.max(hwScales.cpu_temp_max_c || 105, hwScales.gpu_temp_max_c || 105);
+    }
     const sparkRing = {
       ts: [],
       labels: [],
@@ -9806,7 +9878,7 @@
       let active = candidates.filter(s => sparkEnabled[s.key] !== false);
       if (!active.length) active = candidates.slice(0, 1);
 
-      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${Object.values(sparkEnabled).join('')}|${n}|${chartViewSec}|${chartsPaused}|${chartZoomed}`;
+      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${Object.values(sparkEnabled).join('')}|${n}|${chartViewSec}|${sparkTempMin()}|${sparkTempMax()}|${chartsPaused}|${chartZoomed}`;
 
       const newDatasets = active.map((d, idx) => {
         const isDisk = !!d.isDisk;
@@ -9856,8 +9928,8 @@
         if (!sparkChart.options.scales.y1) {
           sparkChart.options.scales.y1 = {
             position: 'right',
-            min: SPARK_TEMP_MIN,
-            max: SPARK_TEMP_MAX,
+            min: sparkTempMin(),
+            max: sparkTempMax(),
             grid: { drawOnChartArea: false },
             border: { display: false },
             ticks: {
@@ -9876,8 +9948,8 @@
           };
         } else {
           sparkChart.options.scales.y1.display = true;
-          sparkChart.options.scales.y1.min = SPARK_TEMP_MIN;
-          sparkChart.options.scales.y1.max = SPARK_TEMP_MAX;
+          sparkChart.options.scales.y1.min = sparkTempMin();
+          sparkChart.options.scales.y1.max = sparkTempMax();
           if (sparkChart.options.scales.y1.title) {
             sparkChart.options.scales.y1.title.display = true;
             sparkChart.options.scales.y1.title.text = '°C';
@@ -10722,8 +10794,8 @@
       const fan = g.fan_rpm != null ? Math.round(g.fan_rpm) : null;
       const mhz = g.gfx_mhz != null ? Math.round(g.gfx_mhz) : null;
       // GPU PPT scale ~ TGP; CPU package scale ~ desktop Ryzen envelope
-      const gpuCap = 355;
-      const cpuCap = 170;
+      const gpuCap = hwScales.gpu_power_max_w || 355;
+      const cpuCap = hwScales.cpu_power_max_w || 170;
       const gpuPct = Math.min(100, ((gpuPower || 0) / gpuCap) * 100);
       const cpuPct = Math.min(100, ((cpuPower || 0) / cpuCap) * 100);
       const fanPct = Math.min(100, ((fan || 0) / 2800) * 100);
@@ -11038,14 +11110,19 @@
       const cpuT = temps.package;
       const gpuT = g.junction_c;
       const vramT = g.mem_temp_c;
-      setPulseDial('tempMeters', 'cpu-pkg', tempPct(cpuT), cpuT != null ? `${Math.round(cpuT)}°` : '—', {
-        hot: cpuT != null && cpuT >= 90, warn: cpuT != null && cpuT >= 75 && cpuT < 90,
+      const cpuTMax = hwScales.cpu_temp_max_c || 105;
+      const gpuTMax = hwScales.gpu_temp_max_c || 105;
+      setPulseDial('tempMeters', 'cpu-pkg', tempPct(cpuT, cpuTMax), cpuT != null ? `${Math.round(cpuT)}°` : '—', {
+        hot: cpuT != null && cpuT >= cpuTMax * 0.86,
+        warn: cpuT != null && cpuT >= cpuTMax * 0.71 && cpuT < cpuTMax * 0.86,
       });
       setPulseDial('tempMeters', 'gpu-junc', gpuTempPct(gpuT), gpuT != null ? `${Math.round(gpuT)}°` : '—', {
-        hot: gpuT != null && gpuT >= 95, warn: gpuT != null && gpuT >= 80 && gpuT < 95,
+        hot: gpuT != null && gpuT >= gpuTMax * 0.90,
+        warn: gpuT != null && gpuT >= gpuTMax * 0.76 && gpuT < gpuTMax * 0.90,
       });
-      setPulseDial('tempMeters', 'gpu-mem', tempPct(vramT), vramT != null ? `${Math.round(vramT)}°` : '—', {
-        hot: vramT != null && vramT >= 95, warn: vramT != null && vramT >= 85 && vramT < 95,
+      setPulseDial('tempMeters', 'gpu-mem', tempPct(vramT, gpuTMax), vramT != null ? `${Math.round(vramT)}°` : '—', {
+        hot: vramT != null && vramT >= gpuTMax * 0.90,
+        warn: vramT != null && vramT >= gpuTMax * 0.81 && vramT < gpuTMax * 0.90,
       });
 
       const vramPeak = bw.gpu?.vram_peak_gbps || 1;
@@ -13720,6 +13797,63 @@
       }, 4000);
     }
 
+    const HW_SCALE_LABEL = {
+      cpu_temp_min_c: v => `${v}°C`,
+      cpu_temp_max_c: v => `${v}°C`,
+      gpu_temp_max_c: v => `${v}°C`,
+      cpu_power_max_w: v => `${v} W`,
+      gpu_power_max_w: v => `${v} W`,
+    };
+
+    function applyHwScalesFromStore(s) {
+      const incoming = s?.hw_scales || s?.pulse_config?.hw_scales;
+      if (incoming && typeof incoming === 'object') {
+        hwScales = { ...HW_SCALE_DEFAULTS, ...incoming };
+      }
+      const bounds = s?.hw_scale_bounds || {};
+      const steps = s?.hw_scale_step || {};
+      document.querySelectorAll('[data-hw-scale]').forEach(el => {
+        const key = el.dataset.hwScale;
+        const b = bounds[key];
+        if (Array.isArray(b) && b.length === 2) {
+          el.min = String(b[0]);
+          el.max = String(b[1]);
+        }
+        if (steps[key] != null) el.step = String(steps[key]);
+        const v = hwScales[key];
+        if (v != null && document.activeElement !== el) el.value = String(v);
+        const lab = document.getElementById(el.id + 'Val');
+        if (lab && v != null) lab.textContent = (HW_SCALE_LABEL[key] || (x => String(x)))(v);
+      });
+    }
+
+    let hwScaleBusy = false;
+    async function applyHwScaleSetting(key, value) {
+      const n = Number(value);
+      if (!key || !Number.isFinite(n)) return;
+      hwScales = { ...hwScales, [key]: n };
+      try { if (typeof renderSparkChart === 'function') renderSparkChart(); } catch (_) { /* */ }
+      if (hwScaleBusy) return;
+      hwScaleBusy = true;
+      try {
+        const res = await fetch('/api/store', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hw_scales: { [key]: n } }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'failed');
+        storeCache = data;
+        applyHwScalesFromStore(data);
+        const pretty = (HW_SCALE_LABEL[key] || (x => String(x)))(data.hw_scales?.[key] ?? n);
+        showOptionsMsg(`Saved ${pretty} hardware scale`, true);
+      } catch (e) {
+        showOptionsMsg('Could not save hardware scale', false);
+      } finally {
+        hwScaleBusy = false;
+      }
+    }
+
     function renderUiScaleControls(s) {
       const scale = s?.ui_scale ?? s?.pulse_config?.ui_scale ?? UI_SCALE_DEFAULT;
       const min = s?.ui_scale_min ?? 1;
@@ -13927,6 +14061,7 @@
         });
       }
       renderUiScaleControls(s);
+      applyHwScalesFromStore(s);
       renderTuningLogControls(s);
       renderResetStats(s);
       renderGuidancePrefs(s);
@@ -14279,6 +14414,18 @@
       });
     });
     syncResetButtons();
+
+    document.querySelectorAll('[data-hw-scale]').forEach(el => {
+      el.addEventListener('input', () => {
+        const key = el.dataset.hwScale;
+        const lab = document.getElementById(el.id + 'Val');
+        const n = Number(el.value);
+        if (lab && Number.isFinite(n)) lab.textContent = (HW_SCALE_LABEL[key] || (x => String(x)))(n);
+      });
+      el.addEventListener('change', () => {
+        applyHwScaleSetting(el.dataset.hwScale, el.value);
+      });
+    });
 
     const uiScaleRange = document.getElementById('uiScaleRange');
     if (uiScaleRange) {

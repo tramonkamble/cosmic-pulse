@@ -17,6 +17,9 @@ from pulse_config import (
     DEFAULT_THEME_MODE,
     DEFAULT_TUNING_LOG_MAX,
     DEFAULT_UI_SCALE,
+    HW_SCALE_BOUNDS,
+    HW_SCALE_DEFAULTS,
+    HW_SCALE_STEP,
     RETENTION_MAX_DAYS,
     RETENTION_MIN_DAYS,
     RETENTION_PRESETS,
@@ -34,6 +37,7 @@ from pulse_config import (
     get_theme_mode,
     get_tuning_log_max,
     get_ui_scale,
+    get_hw_scales,
     load_config,
     resolve_insight,
     save_config,
@@ -693,6 +697,10 @@ def stats() -> dict:
         "resolved_count": len(resolved),
         "metrics": METRICS,
         "pulse_config": load_config(),
+        "hw_scales": get_hw_scales(),
+        "hw_scale_defaults": dict(HW_SCALE_DEFAULTS),
+        "hw_scale_bounds": {k: list(v) for k, v in HW_SCALE_BOUNDS.items()},
+        "hw_scale_step": dict(HW_SCALE_STEP),
     }
 
 
@@ -721,6 +729,8 @@ def update_settings(body: dict) -> dict:
         updates["tuning_log_max"] = body["tuning_log_max"]
     if "theme_mode" in body:
         updates["theme_mode"] = body["theme_mode"]
+    if "hw_scales" in body:
+        updates["hw_scales"] = body["hw_scales"]
     if "suppressed_insights" in body:
         updates["suppressed_insights"] = body["suppressed_insights"]
     if "suppress_insight" in body and isinstance(body["suppress_insight"], str):

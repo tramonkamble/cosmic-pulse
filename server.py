@@ -3198,6 +3198,12 @@ class Handler(BaseHTTPRequestHandler):
                         status=400,
                     )
                     return
+            if "hw_scales" in body and not isinstance(body["hw_scales"], dict):
+                self._json(
+                    {"ok": False, "error": "hw_scales must be an object"},
+                    status=400,
+                )
+                return
 
             action = body.get("action") if isinstance(body.get("action"), str) else None
             # Confirm gate for destructive actions (store also enforces).

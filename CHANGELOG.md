@@ -8,6 +8,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **Hardware scales** — Options sliders for CPU/GPU graph °C and watt-dial ceilings, persisted in `.pulse_config.json`.
 - **Product harness** — `python3 tests/harness.py` smokes sampler, metrics shape, Guidance pack (incl. RAPL), dashboard HTML, game-sessions, store, and read-only APIs.
 - **Guidance: RAPL udev** — builtin pack rule `cpu-rapl-unreadable` when package `energy_uj` is present but root-only; Data tools lists it as a source with the install command.
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
