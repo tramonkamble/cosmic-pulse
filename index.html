@@ -3593,7 +3593,18 @@
       Drill accordion cards — collapsed = compact “settings row”
       (icon · title+preview stack · chevron), not a tall empty slab.
     */
-    .drill-stack { display: flex; flex-direction: column; gap: .4rem; }
+    /* Dock of lab tools (COSMIC panel / Apple Control Center): compact tiles,
+       one sheet expands full-width above the grid so Live lab stays the hero. */
+    .drill-stack {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(10.75rem, 1fr));
+      gap: 0.45rem;
+      align-items: stretch;
+    }
+    details.drill[open] {
+      grid-column: 1 / -1;
+      order: -1;
+    }
     details.drill {
       border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
       border-radius: 12px;
@@ -3640,6 +3651,15 @@
     body.cosmic-frosted details.drill { background: color-mix(in srgb, var(--panel) 90%, transparent); }
     body.cosmic-frosted details.drill[open] { background: var(--panel); }
 
+    details.drill:not([open]) > summary {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      gap: 0.45rem;
+      min-height: 5.5rem;
+      padding: 0.7rem 0.75rem 0.75rem;
+    }
+    details.drill:not([open]) .drill-chevron { display: none; }
     details.drill > summary {
       list-style: none;
       cursor: pointer;
@@ -5872,7 +5892,7 @@
     </section>
 
     <!-- Expandable data cards — reference / details, not the main analysis stage -->
-    <div class="drill-stack">
+    <div class="drill-stack" role="navigation" aria-label="Lab tools">
       <details class="drill drill-primary section-target" id="warningsSection" data-open-key="warnings" data-hw-keep>
         <summary class="drill-summary">
           <span class="drill-icon checks" data-glyph="temp"></span>
@@ -8256,8 +8276,22 @@
     document.addEventListener('toggle', e => {
       const d = e.target;
       if (d.tagName !== 'DETAILS' || !d.dataset.openKey) return;
-      if (d.open) openPanels.add(d.dataset.openKey);
-      else openPanels.delete(d.dataset.openKey);
+      if (d.open) {
+        document.querySelectorAll('.drill-stack details.drill[open]').forEach(other => {
+          if (other !== d) other.open = false;
+        });
+        openPanels.clear();
+        openPanels.add(d.dataset.openKey);
+        requestAnimationFrame(() => {
+          try {
+            utilChart?.resize();
+            bwChart?.resize();
+            ioChart?.resize();
+          } catch (_) { /* */ }
+        });
+      } else {
+        openPanels.delete(d.dataset.openKey);
+      }
     }, true);
 
     function captureOpenPanels() {
@@ -8269,8 +8303,9 @@
     }
 
     function restoreOpenPanels() {
+      const keep = [...openPanels].at(-1);
       document.querySelectorAll('details[data-open-key]').forEach(d => {
-        d.open = openPanels.has(d.dataset.openKey);
+        d.open = !!(keep && d.dataset.openKey === keep);
       });
     }
 
@@ -8411,8 +8446,21 @@
       const el = document.getElementById(id);
       if (!el) return false;
       if (el.tagName === 'DETAILS') {
+        document.querySelectorAll('.drill-stack details.drill[open]').forEach(d => {
+          if (d !== el) d.open = false;
+        });
         el.open = true;
-        if (el.dataset.openKey) openPanels.add(el.dataset.openKey);
+        if (el.dataset.openKey) {
+          openPanels.clear();
+          openPanels.add(el.dataset.openKey);
+        }
+        requestAnimationFrame(() => {
+          try {
+            utilChart?.resize();
+            bwChart?.resize();
+            ioChart?.resize();
+          } catch (_) { /* */ }
+        });
         return true;
       }
       return false;
