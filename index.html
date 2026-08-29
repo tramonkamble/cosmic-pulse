@@ -7702,7 +7702,7 @@
         : isInsightSuppressed(h?.insight_id) ? 'ignored' : 'outstanding');
     }
     function gpuTempPct(junc) {
-      const throttle = hwScales.gpu_temp_max_c || gpuThermalProf().throttle_c ?? 110;
+      const throttle = hwScales.gpu_temp_max_c ?? gpuThermalProf().throttle_c ?? 110;
       return junc == null ? 0 : Math.min(100, (junc / throttle) * 100);
     }
     const pct = (v, max) => Math.min(100, Math.round((v / max) * 100));
