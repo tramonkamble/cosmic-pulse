@@ -214,16 +214,8 @@ def slim_history_point(snap: dict) -> dict:
         },
         "memory": {
             "dram_est_gbps": bw_mem.get("dram_est_gbps"),
-            "psi_avg10": bw_mem.get("psi_avg10"),
-            "io_wait_pct": bw_mem.get("io_wait_pct"),
         },
     }
-    mhz_vals = [
-        c.get("mhz")
-        for c in (cpu.get("per_core") or [])
-        if isinstance(c, dict) and c.get("mhz")
-    ]
-    mhz_avg = round(sum(mhz_vals) / len(mhz_vals)) if mhz_vals else None
     st = snap.get("stutter") or {}
     sess = st.get("session") or {}
     slim_stutter = {
@@ -260,8 +252,6 @@ def slim_history_point(snap: dict) -> dict:
             "temps": {
                 "package": package_c,
             },
-            "power_w": cpu.get("power_w"),
-            "mhz_avg": mhz_avg,
         },
         "memory": {"pct": mem.get("pct"), "swap_pct": mem.get("swap_pct")},
         "gpu": {
@@ -270,12 +260,6 @@ def slim_history_point(snap: dict) -> dict:
                 "junction_c": dgpu.get("junction_c"),
                 "edge_c": dgpu.get("edge_c"),
                 "mem_temp_c": dgpu.get("mem_temp_c"),
-                "gfx_mhz": dgpu.get("gfx_mhz"),
-                "fan_rpm": dgpu.get("fan_rpm"),
-                "power_w": dgpu.get("power_w"),
-                "vram_pct": dgpu.get("vram_pct"),
-                "vram_used_mb": dgpu.get("vram_used_mb"),
-                "vram_total_mb": dgpu.get("vram_total_mb"),
             }
         },
         "disk": slim_disk,

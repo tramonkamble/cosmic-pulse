@@ -4805,30 +4805,6 @@
       place-items: center;
       padding: 0.22rem;
       overflow: hidden;
-      cursor: pointer;
-    }
-    .pulse-dial:hover {
-      background: rgba(255, 255, 255, .05);
-    }
-    .pulse-dial.is-charted {
-      box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--dial-color) 75%, transparent);
-      background: color-mix(in srgb, var(--dial-color) 12%, rgba(0, 0, 0, .22));
-    }
-    .sum-cell.sum-chip.mem.is-charted {
-      box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-mem) 55%, transparent),
-        inset 0 0 0 1px color-mix(in srgb, var(--m-mem) 40%, transparent);
-    }
-    .sum-cell.sum-chip.gpu.is-charted {
-      box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-gpu) 55%, transparent),
-        inset 0 0 0 1px color-mix(in srgb, var(--m-gpu) 40%, transparent);
-    }
-    .sum-cell.sum-chip.vram.is-charted {
-      box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-gpu-vram) 60%, transparent),
-        inset 0 0 0 1px color-mix(in srgb, var(--m-gpu-vram) 45%, transparent);
-    }
-    .sum-cell.sum-chip.cpu.is-charted {
-      box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-cpu) 55%, transparent),
-        inset 0 0 0 1px color-mix(in srgb, var(--m-cpu) 40%, transparent);
     }
     /* Family colors: same hue family, distinct shade per dial */
     .pulse-dial[data-dial="cpu-clk"] { --dial-color: var(--m-cpu); }
@@ -5445,8 +5421,7 @@
         </button>
         <!-- Scoreboard: CPU · Mem · GPU · VRAM — spark fills leftover card height -->
         <button type="button" class="sum-cell cpu sum-chip" id="sumCpuCell" data-drill="drill-compute" data-hw="cpu"
-          data-chart-key="cpu"
-          title="Click to show or hide CPU load on the Live lab graph">
+          title="CPU utilization — open Compute">
           <div class="sum-chip-top">
             <span class="sum-label">CPU</span>
             <span class="sum-chip-val" id="sumCpuVal">—</span>
@@ -5468,8 +5443,7 @@
           </svg>
         </button>
         <button type="button" class="sum-cell mem sum-chip" id="sumMemCell" data-drill="drill-bandwidth" data-hw="memory"
-          data-chart-key="ram"
-          title="Click to show or hide RAM on the Live lab graph">
+          title="System memory — open Bandwidth">
           <div class="sum-chip-top">
             <span class="sum-label">Mem</span>
             <span class="sum-chip-val" id="sumMemVal">—</span>
@@ -5491,8 +5465,7 @@
           </svg>
         </button>
         <button type="button" class="sum-cell gpu sum-chip" id="sumGpuCell" data-drill="drill-compute" data-hw="gpu"
-          data-chart-key="gpu"
-          title="Click to show or hide GPU load on the Live lab graph">
+          title="GPU shader load — open Compute">
           <div class="sum-chip-top">
             <span class="sum-label">GPU</span>
             <span class="sum-chip-val" id="sumGpuVal">—</span>
@@ -5515,8 +5488,7 @@
           <span class="dash-secondary" id="sumGpuMemBus" hidden>—</span>
         </button>
         <button type="button" class="sum-cell vram sum-chip" id="sumVramCell" data-drill="drill-compute" data-hw="gpu"
-          data-chart-key="vram"
-          title="Click to show or hide VRAM on the Live lab graph">
+          title="Video memory fill — open Compute">
           <div class="sum-chip-top">
             <span class="sum-label">VRAM</span>
             <span class="sum-chip-val" id="sumVramVal">—</span>
@@ -5706,21 +5678,21 @@
                   <div class="rig-vitals-section">
                     <div class="stutter-side-label">Clocks</div>
                     <div class="pulse-dials" id="clockMeters" role="group" aria-label="Clocks and VRAM">
-                      <div class="pulse-dial" data-dial="cpu-clk" data-chart-key="cpuClk" data-hw="cpu" title="Click to graph CPU clock">
+                      <div class="pulse-dial" data-dial="cpu-clk" data-hw="cpu" title="Average CPU clock vs boost">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">CPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="gpu-clk" data-chart-key="gpuClk" data-hw="gpu" title="Click to graph GPU clock">
+                      <div class="pulse-dial" data-dial="gpu-clk" data-hw="gpu" title="GPU shader clock vs boost">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">GPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="vram-fill" data-chart-key="vram" data-hw="gpu" title="Click to graph VRAM fill">
+                      <div class="pulse-dial" data-dial="vram-fill" data-hw="gpu" title="Video memory fill">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">VRAM</span>
@@ -5732,21 +5704,21 @@
                   <div class="rig-vitals-section">
                     <div class="stutter-side-label">Thermals</div>
                     <div class="pulse-dials" id="tempMeters" role="group" aria-label="Temperatures and fan">
-                      <div class="pulse-dial" data-dial="cpu-pkg" data-chart-key="cpuTemp" data-hw="cpu" title="Click to graph CPU temp">
+                      <div class="pulse-dial" data-dial="cpu-pkg" data-hw="cpu" title="CPU package">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">CPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="gpu-junc" data-chart-key="gpuTemp" data-hw="gpu" title="Click to graph GPU hotspot">
+                      <div class="pulse-dial" data-dial="gpu-junc" data-hw="gpu" title="GPU hotspot">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">GPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="fan" data-chart-key="fan" data-hw="gpu" title="Click to graph GPU fan">
+                      <div class="pulse-dial" data-dial="fan" data-hw="gpu" title="GPU fan">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">Fan</span>
@@ -5758,21 +5730,21 @@
                   <div class="rig-vitals-section rig-vitals-power">
                     <div class="stutter-side-label">Power · hitch</div>
                     <div class="pulse-dials" id="glanceGrid" role="group" aria-label="Power and hitch">
-                      <div class="pulse-dial" data-dial="cpu-power" data-chart-key="cpuPower" data-hw="cpu" title="Click to graph CPU power">
+                      <div class="pulse-dial" data-dial="cpu-power" data-hw="cpu" title="CPU package power (RAPL / sensors)">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">CPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="gpu-power" data-chart-key="gpuPower" data-hw="gpu" title="Click to graph GPU power">
+                      <div class="pulse-dial" data-dial="gpu-power" data-hw="gpu" title="GPU board power (PPT)">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">GPU</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="hitch" data-chart-key="hitch" data-hw-keep title="Click to graph hitch score">
+                      <div class="pulse-dial" data-dial="hitch" data-hw-keep title="Stutter proxy score (0 = smooth)">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">Hitch</span>
@@ -5784,21 +5756,21 @@
                   <div class="rig-vitals-section" data-hw="memory storage">
                     <div class="stutter-side-label">Pressure</div>
                     <div class="pulse-dials" id="pressureMeters" role="group" aria-label="Wait, swap, disk">
-                      <div class="pulse-dial" data-dial="dram-psi" data-chart-key="wait" data-hw="memory" title="Click to graph wait">
+                      <div class="pulse-dial" data-dial="dram-psi" data-hw="memory" title="Memory stall / I/O wait">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">Wait</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="swap" data-chart-key="swap" data-hw="memory" title="Click to graph swap">
+                      <div class="pulse-dial" data-dial="swap" data-hw="memory" title="Swap fill">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">Swap</span>
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="busy" data-chart-key="diskBusy" data-hw="storage" title="Click to graph disk busy">
+                      <div class="pulse-dial" data-dial="busy" data-hw="storage" title="Disk busy">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">Disk</span>
@@ -8598,20 +8570,8 @@
     document.querySelectorAll('.sum-cell[data-drill], .sum-game-main[data-drill], .sum-game-index[data-drill]').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
-        if (btn.dataset.chartKey) {
-          e.preventDefault();
-          toggleSparkSeries(btn.dataset.chartKey);
-          return;
-        }
         jumpTo(btn.dataset.drill);
       };
-    });
-    document.getElementById('pageDashboard')?.addEventListener('click', (e) => {
-      const dial = e.target.closest?.('.pulse-dial[data-chart-key]');
-      if (!dial) return;
-      e.preventDefault();
-      e.stopPropagation();
-      toggleSparkSeries(dial.dataset.chartKey);
     });
     // Pulse Index tab is the analysis view; full comparison table stays in drill-league
     setTab(activeTab);
@@ -9511,7 +9471,7 @@
       const bPct = Number(diskBusy) || 0;
       const tip = `${fmtDiskRate(diskRead || 0)} R · ${fmtDiskRate(diskWrite || 0)} W`;
       const el = document.querySelector('#pressureMeters [data-dial="busy"]');
-      if (el) el.title = chartPickHint('diskBusy', `Disk busy · ${tip}`);
+      if (el) el.title = `Disk busy · ${tip}`;
       setPulseDial('pressureMeters', 'busy', bPct, `${Math.round(bPct)}%`, { hot: bPct >= 85 });
     }
     const NET_SPECS = [
@@ -9657,69 +9617,29 @@
     function sparkTempMax() {
       return Math.max(hwScales.cpu_temp_max_c || 105, hwScales.gpu_temp_max_c || 105);
     }
-    const SPARK_RING_FIELDS = [
-      'cpu', 'gpu', 'ram', 'disk', 'diskR', 'diskW', 'cpuTemp', 'gpuTemp',
-      'vram', 'cpuClk', 'gpuClk', 'fan', 'cpuPower', 'gpuPower', 'hitch', 'wait', 'swap', 'diskBusy',
-    ];
     const sparkRing = {
       ts: [],
       labels: [],
+      cpu: [],
+      gpu: [],
+      ram: [],
+      disk: [],
+      diskR: [],
+      diskW: [],
+      cpuTemp: [],
+      gpuTemp: [],
       lastTs: 0,
-      ema: Object.fromEntries(SPARK_RING_FIELDS.map(k => [k, null])),
+      ema: {
+        cpu: null, gpu: null, ram: null, disk: null,
+        diskR: null, diskW: null, cpuTemp: null, gpuTemp: null,
+      },
       seeded: false,
     };
-    SPARK_RING_FIELDS.forEach(k => { sparkRing[k] = []; });
-
-    function sparkVramPct(h) {
-      const g = h?.gpu?.discrete || {};
-      if (g.vram_pct != null && Number.isFinite(Number(g.vram_pct))) return Number(g.vram_pct);
-      if (g.vram_used_mb != null && g.vram_total_mb) {
-        return 100 * Number(g.vram_used_mb) / Number(g.vram_total_mb);
-      }
-      return 0;
-    }
-    function sparkCpuClkPct(h) {
-      const clk = cpuClockStats(h?.cpu?.per_core);
-      if (clk.avg != null) {
-        const boost = Math.max(5500, clk.peak || 0);
-        return clampPct((clk.avg / boost) * 100);
-      }
-      const avg = Number(h?.cpu?.mhz_avg);
-      return Number.isFinite(avg) ? clampPct((avg / 5500) * 100) : 0;
-    }
-    function sparkGpuClkPct(h) {
-      const g = h?.gpu?.discrete || {};
-      const mhz = g.gfx_mhz != null ? Number(g.gfx_mhz) : null;
-      if (mhz == null || !Number.isFinite(mhz)) return 0;
-      const boost = Number(g.thermal_profile?.boost_mhz) || 2500;
-      return clampPct((mhz / boost) * 100);
-    }
-    function sparkFanPct(h) {
-      const rpm = Number(h?.gpu?.discrete?.fan_rpm);
-      return Number.isFinite(rpm) ? clampPct((rpm / 2800) * 100) : 0;
-    }
-    function sparkCpuPowerPct(h) {
-      const w = Number(h?.cpu?.power_w);
-      if (!Number.isFinite(w)) return 0;
-      return clampPct((w / (hwScales.cpu_power_max_w || 170)) * 100);
-    }
-    function sparkGpuPowerPct(h) {
-      const w = Number(h?.gpu?.discrete?.power_w);
-      if (!Number.isFinite(w)) return 0;
-      return clampPct((w / (hwScales.gpu_power_max_w || 355)) * 100);
-    }
-    function sparkWaitPct(h) {
-      const bw = h?.bandwidth?.memory || {};
-      const wait = Math.max(Number(bw.psi_avg10) || 0, Number(bw.io_wait_pct) || 0);
-      return clampPct(wait * 5);
-    }
 
     const SPARK_TOGGLE_DEFAULTS = {
       cpu: true, gpu: true, ram: true,
       diskR: true, diskW: true,
       cpuTemp: true, gpuTemp: true,
-      vram: false, cpuClk: false, gpuClk: false, fan: false,
-      cpuPower: false, gpuPower: false, hitch: false, wait: false, swap: false, diskBusy: false,
     };
     function loadSparkEnabled() {
       try {
@@ -9742,29 +9662,24 @@
       if (!Object.values(sparkEnabled).some(Boolean)) sparkEnabled[key] = true;
       persistSparkEnabled();
       try { renderSparkChart(); } catch (_) { /* ignore */ }
-      syncChartPickUi();
-    }
-
-    function chartPickHint(key, detail) {
-      const on = !!sparkEnabled[key];
-      return `${detail} · Click to ${on ? 'remove from' : 'add to'} graph`;
-    }
-
-    function syncChartPickUi() {
-      document.querySelectorAll('[data-chart-key]').forEach(el => {
-        const key = el.dataset.chartKey;
-        const on = !!sparkEnabled[key];
-        el.classList.toggle('is-charted', on);
-        el.setAttribute('aria-pressed', on ? 'true' : 'false');
-      });
     }
 
     function resetSparkRing() {
       sparkRing.ts = [];
       sparkRing.labels = [];
-      SPARK_RING_FIELDS.forEach(k => { sparkRing[k] = []; });
+      sparkRing.cpu = [];
+      sparkRing.gpu = [];
+      sparkRing.ram = [];
+      sparkRing.disk = [];
+      sparkRing.diskR = [];
+      sparkRing.diskW = [];
+      sparkRing.cpuTemp = [];
+      sparkRing.gpuTemp = [];
       sparkRing.lastTs = 0;
-      sparkRing.ema = Object.fromEntries(SPARK_RING_FIELDS.map(k => [k, null]));
+      sparkRing.ema = {
+        cpu: null, gpu: null, ram: null, disk: null,
+        diskR: null, diskW: null, cpuTemp: null, gpuTemp: null,
+      };
       sparkRing.seeded = false;
       if (typeof sparkChart !== 'undefined' && sparkChart) {
         sparkChart._pulseStructKey = '';
@@ -9815,19 +9730,35 @@
       return +s.toFixed(1);
     }
 
-    function sparkRingShiftOne() {
-      sparkRing.ts.shift();
-      sparkRing.labels.shift();
-      SPARK_RING_FIELDS.forEach(k => sparkRing[k].shift());
-    }
-
     function sparkRingTrim() {
       // Prefer time window so a burst of faster samples can't shrink visible history.
       const oldest = (sparkRing.ts.at(-1) ?? 0) - SPARK_RING_KEEP_SEC;
-      while (sparkRing.ts.length > 2 && sparkRing.ts[0] < oldest) sparkRingShiftOne();
+      while (sparkRing.ts.length > 2 && sparkRing.ts[0] < oldest) {
+        sparkRing.ts.shift();
+        sparkRing.labels.shift();
+        sparkRing.cpu.shift();
+        sparkRing.gpu.shift();
+        sparkRing.ram.shift();
+        sparkRing.disk.shift();
+        sparkRing.diskR.shift();
+        sparkRing.diskW.shift();
+        sparkRing.cpuTemp.shift();
+        sparkRing.gpuTemp.shift();
+      }
       // Hard cap against runaway growth if timestamps stall/repeat.
       const maxPts = SPARK_RING_KEEP_SEC + 30;
-      while (sparkRing.ts.length > maxPts) sparkRingShiftOne();
+      while (sparkRing.ts.length > maxPts) {
+        sparkRing.ts.shift();
+        sparkRing.labels.shift();
+        sparkRing.cpu.shift();
+        sparkRing.gpu.shift();
+        sparkRing.ram.shift();
+        sparkRing.disk.shift();
+        sparkRing.diskR.shift();
+        sparkRing.diskW.shift();
+        sparkRing.cpuTemp.shift();
+        sparkRing.gpuTemp.shift();
+      }
     }
 
     function sparkRingPushSample(h, alphas) {
@@ -9841,16 +9772,6 @@
       sparkRing.diskW.push(sparkEmaPush('diskW', sparkDiskWritePct(h.disk), alphas.pct * 0.85));
       sparkRing.cpuTemp.push(sparkEmaPush('cpuTemp', sparkCpuTempC(h), alphas.temp, { clamp01: false }));
       sparkRing.gpuTemp.push(sparkEmaPush('gpuTemp', sparkGpuTempC(h), alphas.temp, { clamp01: false }));
-      sparkRing.vram.push(sparkEmaPush('vram', sparkVramPct(h), alphas.pct));
-      sparkRing.cpuClk.push(sparkEmaPush('cpuClk', sparkCpuClkPct(h), alphas.pct));
-      sparkRing.gpuClk.push(sparkEmaPush('gpuClk', sparkGpuClkPct(h), alphas.pct));
-      sparkRing.fan.push(sparkEmaPush('fan', sparkFanPct(h), alphas.pct * 0.85));
-      sparkRing.cpuPower.push(sparkEmaPush('cpuPower', sparkCpuPowerPct(h), alphas.pct));
-      sparkRing.gpuPower.push(sparkEmaPush('gpuPower', sparkGpuPowerPct(h), alphas.pct));
-      sparkRing.hitch.push(sparkEmaPush('hitch', Number(h.stutter?.score) || 0, alphas.pct * 0.85));
-      sparkRing.wait.push(sparkEmaPush('wait', sparkWaitPct(h), alphas.pct * 0.85));
-      sparkRing.swap.push(sparkEmaPush('swap', h.memory?.swap_pct ?? 0, alphas.pct * 0.9));
-      sparkRing.diskBusy.push(sparkEmaPush('diskBusy', h.disk?.busy_pct ?? 0, alphas.pct * 0.85));
     }
 
     /** One-shot seed from rawHistory so the chart isn't empty after reload. */
@@ -10018,109 +9939,69 @@
 
       const n = sparkRing.ts.length;
 
-      // Default load/temps stay on; extras appear when clicked on a chip or dial.
+      // All toggleable series — Disk R/W are separate (scaled % of SPARK_DISK_REF_MBPS).
       const allSparkSeries = [
         {
-          key: 'cpu', label: 'CPU', color: METRIC.cpu, focus: ['cpu'], base: true,
+          key: 'cpu', label: 'CPU', color: METRIC.cpu, focus: ['cpu'],
           data: sparkRing.cpu, fillTop: 0.22, fillBot: 0.02, primary: true, axis: 'y',
         },
         {
-          key: 'gpu', label: 'GPU', color: METRIC.gpu, focus: ['gpu'], base: true,
+          key: 'gpu', label: 'GPU', color: METRIC.gpu, focus: ['gpu'],
           data: sparkRing.gpu, fillTop: 0.18, fillBot: 0.015, axis: 'y',
         },
         {
-          key: 'ram', label: 'RAM', color: METRIC.mem, focus: ['memory'], base: true,
+          key: 'ram', label: 'RAM', color: METRIC.mem, focus: ['memory'],
           data: sparkRing.ram, fillTop: 0.14, fillBot: 0.01, axis: 'y',
         },
         {
-          key: 'diskR', label: 'Disk R', color: METRIC.disk, focus: ['storage'], base: true,
+          key: 'diskR', label: 'Disk R', color: METRIC.disk, focus: ['storage'],
           data: sparkRing.diskR, fillTop: 0.1, fillBot: 0.01, isDisk: true, axis: 'y',
         },
         {
-          key: 'diskW', label: 'Disk W', color: METRIC.diskWrite, focus: ['storage'], base: true,
+          key: 'diskW', label: 'Disk W', color: METRIC.diskWrite, focus: ['storage'],
           data: sparkRing.diskW, fillTop: 0.1, fillBot: 0.01, isDisk: true, axis: 'y',
         },
         {
-          key: 'cpuTemp', label: 'CPU °C', color: METRIC.cpu, focus: ['cpu'], base: true,
+          key: 'cpuTemp', label: 'CPU °C', color: METRIC.cpu, focus: ['cpu'],
           data: sparkRing.cpuTemp, axis: 'y1', isTemp: true,
         },
         {
-          key: 'gpuTemp', label: 'GPU °C', color: METRIC.gpu, focus: ['gpu'], base: true,
+          key: 'gpuTemp', label: 'GPU °C', color: METRIC.gpu, focus: ['gpu'],
           data: sparkRing.gpuTemp, axis: 'y1', isTemp: true,
-        },
-        {
-          key: 'vram', label: 'VRAM', color: METRIC.gpuVram, focus: ['gpu'],
-          data: sparkRing.vram, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'cpuClk', label: 'CPU clk', color: METRIC.cpuDeep, focus: ['cpu'],
-          data: sparkRing.cpuClk, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'gpuClk', label: 'GPU clk', color: METRIC.gpuDeep, focus: ['gpu'],
-          data: sparkRing.gpuClk, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'fan', label: 'Fan', color: '#ddd6fe', focus: ['gpu'],
-          data: sparkRing.fan, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'cpuPower', label: 'CPU W', color: '#1d4ed8', focus: ['cpu'],
-          data: sparkRing.cpuPower, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'gpuPower', label: 'GPU W', color: '#7e22ce', focus: ['gpu'],
-          data: sparkRing.gpuPower, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'hitch', label: 'Hitch', color: METRIC.stutter, focus: ['cpu', 'gpu', 'memory'],
-          data: sparkRing.hitch, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'wait', label: 'Wait', color: METRIC.mem, focus: ['memory'],
-          data: sparkRing.wait, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'swap', label: 'Swap', color: METRIC.swap, focus: ['memory'],
-          data: sparkRing.swap, axis: 'y', isOverlay: true,
-        },
-        {
-          key: 'diskBusy', label: 'Disk', color: METRIC.diskDeep, focus: ['storage'],
-          data: sparkRing.diskBusy, axis: 'y', isOverlay: true,
         },
       ];
 
       // HW focus filters the *available* set; sparkEnabled toggles what is drawn.
-      let candidates = allSparkSeries.filter(s => s.base || sparkEnabled[s.key]);
+      let candidates = allSparkSeries;
       if (anyHwFocus()) {
-        const focused = candidates.filter(s => s.focus.some(f => hwFocusHas(f)));
-        if (focused.length) candidates = focused;
+        candidates = allSparkSeries.filter(s => s.focus.some(f => hwFocusHas(f)));
+        if (!candidates.length) candidates = allSparkSeries;
       }
+      // Always show swatches for the candidate set (including off ones).
       updateSparkSwatches(candidates);
       let active = candidates.filter(s => sparkEnabled[s.key] !== false);
-      if (!active.length) active = candidates.filter(s => s.base).slice(0, 1);
+      if (!active.length) active = candidates.slice(0, 1);
 
       const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${Object.values(sparkEnabled).join('')}|${n}|${chartViewSec}|${sparkTempMin()}|${sparkTempMax()}|${chartsPaused}|${chartZoomed}`;
 
       const newDatasets = active.map((d, idx) => {
         const isDisk = !!d.isDisk;
         const isTemp = !!d.isTemp;
-        const isOverlay = !!d.isOverlay;
         const primary = idx === 0;
         const pts = xySeries(sparkRing.ts, d.data);
         return {
           label: d.label,
           data: pts,
           borderColor: d.color,
-          backgroundColor: isTemp || isDisk || isOverlay
+          backgroundColor: isTemp || isDisk
             ? 'transparent'
             : sparkAreaFill(d.color, (d.fillTop ?? 0.18) * 1.15, d.fillBot ?? 0.02),
-          fill: !isTemp && !isDisk && !isOverlay,
+          fill: !isTemp && !isDisk,
           tension: isTemp ? 0.12 : 0.28,
-          borderWidth: isTemp ? 1.75 : (primary ? 2.5 : (isDisk || isOverlay ? 2 : 2.15)),
+          borderWidth: isTemp ? 1.75 : (primary ? 2.5 : (isDisk ? 2 : 2.15)),
           borderJoinStyle: 'round',
           borderCapStyle: isTemp ? 'round' : 'round',
-          borderDash: isTemp ? [1.5, 3.5] : (isOverlay ? [4, 3] : undefined),
+          borderDash: isTemp ? [1.5, 3.5] : undefined,
           pointRadius: pts.length ? Array.from({ length: pts.length }, (_, i) => (i === pts.length - 1 ? (isTemp ? 2.4 : (primary ? 2.5 : 2)) : 0)) : [],
           pointHoverRadius: 4,
           pointBackgroundColor: d.color,
@@ -10210,7 +10091,6 @@
         const viewLbl = CHART_VIEW_LABELS[chartViewSec] || `${Math.round(chartViewSec / 60)} min`;
         const mode = chartZoomed ? 'zoomed' : (chartsPaused ? 'paused' : viewLbl);
         const diskOn = sparkEnabled.diskR || sparkEnabled.diskW;
-        const extraOn = active.some(s => s.isOverlay);
         if (!anyHwFocus()) {
           chartLabel.textContent = diskOn
             ? `Load · disk (${SPARK_DISK_REF_MBPS} MB/s=100%) · ${mode}`
@@ -10220,11 +10100,9 @@
         } else {
           chartLabel.textContent = `${hwFocusLabelText()} · ${mode}`;
         }
-        if (extraOn) chartLabel.textContent += ' · +pick';
       }
       if (!chartInteractActive) sparkChart.update('none');
       paintChipSparks();
-      syncChartPickUi();
     }
 
     function renderRigInsight(l) {
@@ -11032,7 +10910,7 @@
       const cpuPowerEl = document.querySelector('#glanceGrid [data-dial="cpu-power"]');
       if (cpuPowerEl) {
         cpuPowerEl.title = cpuPower != null
-          ? chartPickHint('cpuPower', 'CPU package power (RAPL)')
+          ? 'CPU package power (RAPL)'
           : 'CPU watts need RAPL udev — energy_uj is root-only. sudo cp deploy/99-rapl-readable.rules /etc/udev/rules.d/ && sudo udevadm control --reload && sudo udevadm trigger -s powercap';
         const kEl = cpuPowerEl.querySelector('.pulse-dial-k');
         if (kEl) kEl.textContent = cpuPower != null ? 'CPU' : 'CPU udev';
@@ -11355,11 +11233,11 @@
       const gpuClk = g.gfx_mhz != null ? Number(g.gfx_mhz) : null;
       const cpuClkEl = document.querySelector('#clockMeters [data-dial="cpu-clk"]');
       if (cpuClkEl && clk.peak != null) {
-        cpuClkEl.title = chartPickHint('cpuClk', `CPU clocks · avg ${fmtClockMhz(clk.avg)} · peak ${fmtClockMhz(clk.peak)}`);
+        cpuClkEl.title = `CPU clocks · avg ${fmtClockMhz(clk.avg)} · peak ${fmtClockMhz(clk.peak)}`;
       }
       const gpuClkEl = document.querySelector('#clockMeters [data-dial="gpu-clk"]');
       if (gpuClkEl && gpuClk != null) {
-        gpuClkEl.title = chartPickHint('gpuClk', `GPU shader clock ${Math.round(gpuClk)} MHz · boost ${gpuBoost} MHz`);
+        gpuClkEl.title = `GPU shader clock ${Math.round(gpuClk)} MHz · boost ${gpuBoost} MHz`;
       }
       setPulseDial('clockMeters', 'cpu-clk', clk.avg != null ? (clk.avg / cpuBoost) * 100 : 0,
         fmtClockMhz(clk.avg), { hot: clk.avg != null && clk.avg >= cpuBoost * 0.98 });
@@ -11368,7 +11246,7 @@
       const vramPct = g.vram_pct != null ? Number(g.vram_pct) : null;
       const vramFillEl = document.querySelector('#clockMeters [data-dial="vram-fill"]');
       if (vramFillEl && g.vram_used_mb != null) {
-        vramFillEl.title = chartPickHint('vram', `VRAM ${g.vram_used_mb} / ${g.vram_total_mb} MB`);
+        vramFillEl.title = `VRAM ${g.vram_used_mb} / ${g.vram_total_mb} MB`;
       }
       setPulseDial('clockMeters', 'vram-fill', vramPct ?? 0,
         vramPct != null ? `${Math.round(vramPct)}%` : '—',

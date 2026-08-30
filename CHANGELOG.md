@@ -8,7 +8,6 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
-- **Click-to-graph (test)** — click a CPU/Mem/GPU/VRAM chip or a Live lab dial to overlay that metric on the load graph. Defaults stay the current load + disk + temps set.
 - **Hardware scales** — Options sliders for CPU/GPU graph °C and watt-dial ceilings, persisted in `.pulse_config.json`.
 - **Product harness** — `python3 tests/harness.py` smokes sampler, metrics shape, Guidance pack (incl. RAPL), dashboard HTML, game-sessions, store, and read-only APIs.
 - **Guidance: RAPL udev** — builtin pack rule `cpu-rapl-unreadable` when package `energy_uj` is present but root-only; Data tools lists it as a source with the install command.
