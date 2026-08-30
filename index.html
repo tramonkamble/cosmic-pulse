@@ -446,7 +446,7 @@
       width: 8px; height: 8px; border-radius: 50%; background: var(--m-mem);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--m-mem) 22%, transparent);
     }
-    main { padding: 0.85rem 1.15rem 1.25rem; max-width: 1920px; margin: 0 auto; position: relative; z-index: 1; }
+    main { padding: 0.85rem 1.15rem 1.25rem; max-width: 2400px; margin: 0 auto; position: relative; z-index: 1; }
     .page { display: none; flex-direction: column; gap: 0.85rem; }
     .page.active { display: flex; }
     /* Guidance / Options: claim remaining viewport under sticky header */
@@ -5213,8 +5213,13 @@
     body.dash-dedupe .rig-load-dup,
     body.dash-dedupe .rig-col-load { display: none !important; }
     body.dash-dedupe .stutter-layout.rig-layout {
-      grid-template-columns: minmax(20rem, 1.7fr) minmax(17.5rem, 1.15fr);
+      grid-template-columns: minmax(22rem, 2.1fr) minmax(16rem, 1fr);
       height: 100%;
+    }
+    @media (min-width: 1680px) {
+      body.dash-dedupe .stutter-layout.rig-layout {
+        grid-template-columns: minmax(26rem, 2.35fr) minmax(16.5rem, 0.95fr);
+      }
     }
     body.dash-dedupe .rig-layout .stutter-chart-box { min-height: 18rem; }
     body.dash-dedupe .rig-col-vitals,
@@ -5226,11 +5231,11 @@
     /* One glance row: Guidance · chips · game */
     body.dash-dedupe .sum-grid,
     body.dash-dedupe .sum-grid.game-prominent {
-      grid-template-columns: minmax(10.5rem, 1.15fr) repeat(4, minmax(5.4rem, 0.7fr)) minmax(13rem, 1.55fr);
+      grid-template-columns: minmax(11rem, 1.15fr) repeat(4, minmax(7.4rem, 12.5rem)) minmax(13.5rem, 1.55fr);
       grid-template-rows: auto;
       grid-template-areas: "health cpu mem gpu vram game";
       min-height: 0;
-      gap: 0.3rem;
+      gap: 0.35rem;
     }
     body.dash-dedupe #sumHealthCell .sum-detail,
     body.dash-dedupe #sumHealthCell .health-list,
@@ -5314,13 +5319,13 @@
       overflow: visible;
     }
     body.dash-dedupe .sum-chip-spark-fill {
-      fill: color-mix(in srgb, var(--chip-bar, var(--m-cpu)) 22%, transparent);
+      fill: color-mix(in srgb, var(--chip-bar, var(--m-cpu)) 16%, transparent);
       stroke: none;
     }
     body.dash-dedupe .sum-chip-spark-line {
       fill: none;
       stroke: var(--chip-bar, var(--m-cpu));
-      stroke-width: 1.6;
+      stroke-width: 1.35;
       stroke-linejoin: round;
       stroke-linecap: round;
       vector-effect: non-scaling-stroke;
@@ -9881,12 +9886,13 @@
       const n = values.length;
       if (n < 2) return '';
       const nums = values.map(v => Math.max(0, Math.min(100, Number(v) || 0)));
-      const dataMax = Math.max(...nums);
-      // Autoscale so idle 8% still fills the card; keep 100% as the ceiling.
-      const yMax = Math.max(20, Math.min(100, Math.ceil((dataMax + 4) / 5) * 5));
+      // Always 0–100% so chips stay comparable; autoscale turned a steady 40%
+      // RAM line into a solid painted slab when the card went wide.
+      const yMax = 100;
+      const pad = 1.2;
       const pts = nums.map((v, i) => {
         const x = (i / (n - 1)) * w;
-        const y = (1 - v / yMax) * (h - 1.2) + 0.4;
+        const y = (1 - v / yMax) * (h - pad * 2) + pad;
         return [x, y];
       });
       let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
@@ -9909,7 +9915,7 @@
     function paintChipSpark(svgId, values) {
       const svg = document.getElementById(svgId);
       if (!svg) return;
-      const series = downsampleSpark(values, 48);
+      const series = downsampleSpark(values, 80);
       const line = chipSparkPath(series, 120, 36);
       const fill = line ? `${line} L120 36 L0 36 Z` : '';
       const lineEl = svg.querySelector('.sum-chip-spark-line');
