@@ -7150,6 +7150,41 @@
       return out;
     }
 
+    function downsampleXy(pts, maxPts) {
+      if (!pts || pts.length <= maxPts) return pts;
+      const out = new Array(maxPts);
+      const last = pts.length - 1;
+      const step = last / (maxPts - 1);
+      for (let i = 0; i < maxPts; i++) out[i] = pts[Math.round(i * step)];
+      return out;
+    }
+
+    /** Slice to the visible time window, then cap point count for canvas draw. */
+    function xySeriesView(tsArr, valArr, viewSec, maxPts) {
+      const n = Math.min(tsArr?.length || 0, valArr?.length || 0);
+      if (!n) return [];
+      const tCut = (tsArr[n - 1] || 0) - (Number(viewSec) || 600) - 2;
+      let i0 = 0;
+      while (i0 < n && tsArr[i0] < tCut) i0 += 1;
+      i0 = Math.max(0, i0 - 1);
+      const pts = xySeries(
+        i0 ? tsArr.slice(i0) : tsArr,
+        i0 ? valArr.slice(i0) : valArr,
+      );
+      const cap = Math.max(120, maxPts || 480);
+      return downsampleXy(pts, cap);
+    }
+
+    function canvasVisible(chart) {
+      const el = chart?.canvas;
+      return !!(el && el.offsetParent);
+    }
+
+    function isDrillOpen(id) {
+      const el = document.getElementById(id);
+      return !!(el && el.open);
+    }
+
     /** Epoch-aligned visual buckets so a sliding window does not crawl the line. */
     function epochBucketSeries(tsArr, valArr, bucketSec, agg = 'avg') {
       const n = Math.min(tsArr?.length || 0, valArr?.length || 0);
@@ -7561,6 +7596,10 @@
     const ALL_PULSE_CHARTS = [
       utilChart, bwChart, ioChart, sparkChart, stutterChart, indexChart, gamePerfChart, gamePerfSessionsChart,
     ];
+    const CHART_DPR = Math.min(window.devicePixelRatio || 1, 1.4);
+    ALL_PULSE_CHARTS.forEach(c => {
+      if (c) c.options.devicePixelRatio = CHART_DPR;
+    });
 
     function syncChartControlUI() {
       const paused = chartsPaused || chartZoomed;
@@ -7849,10 +7888,11 @@
         chart._pulseStructKey = structKey;
         chart.data.datasets = newDatasets;
       }
-      if (!chartInteractActive) chart.update('none');
+      if (!chartInteractActive && canvasVisible(chart)) chart.update('none');
     }
 
     function renderCharts() {
+      if (!isDrillOpen('drill-charts')) return;
       try {
         renderOneChart(utilChart, utilDefs, 'util', document.getElementById('utilMeta'), chartRollup.util ?? globalRollup);
       } catch (e) { console.warn('util chart render failed', e); }
@@ -7898,6 +7938,7 @@
 
     function renderComparison(c, mem, pulseRoot = '') {
       if (!c) return;
+      if (!isDrillOpen('drill-league')) return;
       const sessionIdx = smoothDisplayPct('session-index', c.session_index);
       document.getElementById('sessionIndex').textContent = `${sessionIdx}/100`;
       setTierBadge(document.getElementById('compositeRank'), c.composite_rank);
@@ -8076,6 +8117,7 @@
     }
 
     function renderBandwidth(l) {
+      if (!isDrillOpen('drill-bandwidth')) return;
       const g = l.bandwidth?.gpu || {}, m = l.bandwidth?.memory || {};
       const vramPct = g.vram_busy_pct ?? 0;
       const dramPct = m.dram_util_pct ?? 0;
@@ -8320,6 +8362,28 @@
       else if (tabQ === 'dashboard' || tabQ === 'options') activeTab = tabQ;
     } catch (_) { /* ignore */ }
 
+    function onDrillOpened(d) {
+      const key = d?.dataset?.openKey || d?.id || '';
+      requestAnimationFrame(() => {
+        try {
+          if (key === 'drill-charts' || d.id === 'drill-charts') {
+            renderCharts();
+            utilChart?.resize();
+            bwChart?.resize();
+            ioChart?.resize();
+          } else if (key === 'drill-compute' || d.id === 'drill-compute') {
+            if (lastLatest) renderCores(lastLatest.cpu?.per_core || []);
+          } else if (key === 'drill-sensors' || d.id === 'drill-sensors') {
+            if (lastLatest) renderSensorGroups(lastLatest.sensors || []);
+          } else if (key === 'drill-bandwidth' || d.id === 'drill-bandwidth') {
+            if (lastLatest) renderBandwidth(lastLatest);
+          } else if (key === 'drill-league' || d.id === 'drill-league') {
+            if (lastLatest) renderComparison(lastLatest.comparison, lastStatic?.memory || {}, lastStatic?.pulse_root);
+          }
+        } catch (_) { /* ignore */ }
+      });
+    }
+
     document.addEventListener('toggle', e => {
       const d = e.target;
       if (d.tagName !== 'DETAILS' || !d.dataset.openKey) return;
@@ -8329,13 +8393,7 @@
         });
         openPanels.clear();
         openPanels.add(d.dataset.openKey);
-        requestAnimationFrame(() => {
-          try {
-            utilChart?.resize();
-            bwChart?.resize();
-            ioChart?.resize();
-          } catch (_) { /* */ }
-        });
+        onDrillOpened(d);
       } else {
         openPanels.delete(d.dataset.openKey);
       }
@@ -8510,13 +8568,7 @@
           openPanels.clear();
           openPanels.add(el.dataset.openKey);
         }
-        requestAnimationFrame(() => {
-          try {
-            utilChart?.resize();
-            bwChart?.resize();
-            ioChart?.resize();
-          } catch (_) { /* */ }
-        });
+        onDrillOpened(el);
         return true;
       }
       return false;
@@ -8560,6 +8612,14 @@
       document.getElementById('pageOptions')?.classList.toggle('active', name === 'options');
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       syncDiagAutoRefresh();
+      if (name === 'dashboard' && lastLatest) {
+        requestAnimationFrame(() => {
+          try {
+            renderVisualDashboard(lastLatest, lastComparison);
+            sparkChart?.resize();
+          } catch (_) { /* ignore */ }
+        });
+      }
       if (scrollTo) {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
@@ -9952,6 +10012,8 @@
       } else if (!sparkRing.seeded) {
         sparkRingSeedFromHistory();
       }
+      paintChipSparks();
+      if (!canvasVisible(sparkChart)) return;
 
       const n = sparkRing.ts.length;
 
@@ -10004,7 +10066,8 @@
         const isDisk = !!d.isDisk;
         const isTemp = !!d.isTemp;
         const primary = idx === 0;
-        const pts = xySeries(sparkRing.ts, d.data);
+        const cap = Math.max(160, Math.min(560, Math.round((sparkChart.width || 640) * 0.65)));
+        const pts = xySeriesView(sparkRing.ts, d.data, chartViewSec, cap);
         return {
           label: d.label,
           data: pts,
@@ -10018,7 +10081,7 @@
           borderJoinStyle: 'round',
           borderCapStyle: isTemp ? 'round' : 'round',
           borderDash: isTemp ? [1.5, 3.5] : undefined,
-          pointRadius: pts.length ? Array.from({ length: pts.length }, (_, i) => (i === pts.length - 1 ? (isTemp ? 2.4 : (primary ? 2.5 : 2)) : 0)) : [],
+          pointRadius: 0,
           pointHoverRadius: 4,
           pointBackgroundColor: d.color,
           pointBorderColor: rgbaFromHex(d.color, 0.4),
@@ -10118,7 +10181,6 @@
         }
       }
       if (!chartInteractActive) sparkChart.update('none');
-      paintChipSparks();
     }
 
     function renderRigInsight(l) {
@@ -10214,6 +10276,7 @@
     }
 
     function renderStutterChart() {
+      if (!canvasVisible(stutterChart)) return;
       const win = chartRange || (() => {
         const last = rawHistory.at(-1)?.ts ?? 0;
         return { min: last - chartViewSec, max: last };
@@ -10265,7 +10328,7 @@
         stutterChart._pulseStructKey = structKey;
         stutterChart.data.datasets = newDatasets;
       }
-      if (!chartInteractActive) stutterChart.update('none');
+      if (!chartInteractActive && canvasVisible(stutterChart)) stutterChart.update('none');
       const stLabel = document.getElementById('stutterChartLabel');
       if (stLabel) stLabel.textContent = `Score · ${CHART_VIEW_LABELS[chartViewSec] || 'window'}`;
     }
@@ -10475,6 +10538,7 @@
 
     function renderCoreStrip(cores) {
       const el = document.getElementById('coreStrip');
+      if (!el || !el.offsetParent) return;
       if (!el.dataset.init) {
         el.innerHTML = cores.map(c => `
           <div class="core-strip-cell" data-core="${c.id}" title="Core ${c.id}">
@@ -10505,7 +10569,7 @@
 
     function renderGpuEngineStrip(engines) {
       const el = document.getElementById('gpuEngineStrip');
-      if (!el) return;
+      if (!el || !el.offsetParent) return;
       if (!el.dataset.init) {
         el.innerHTML = engines.map(e => `
           <div class="gpu-engine-cell" data-engine="${e.id}">
@@ -10587,6 +10651,7 @@
     }
 
     function renderIndexChart() {
+      if (!canvasVisible(indexChart)) return;
       const win = chartRange || (() => {
         const last = rawHistory.at(-1)?.ts ?? 0;
         return { min: last - chartViewSec, max: last };
@@ -11149,6 +11214,8 @@
     }
 
     function renderSensorStrip(sensors, l) {
+      const wrap = document.querySelector('.sensor-strip-wrap');
+      if (wrap && !wrap.offsetParent) return;
       const groups = buildHwStatusGroups(sensors);
       const io = buildIoStatusGroup(l);
       const network = buildNetStatusGroup(l);
@@ -13288,6 +13355,7 @@
     }
 
     function renderSensorGroups(sensors) {
+      if (!isDrillOpen('drill-sensors')) return;
       const sensorKey = JSON.stringify((sensors || []).map(s => [s.id, s.value]));
       if (sensorKey === lastSensorKey) return;
       lastSensorKey = sensorKey;
@@ -13312,6 +13380,7 @@
 
     function renderCores(cores) {
       const el = document.getElementById('coreBars');
+      if (!el || (!el.offsetParent && !isDrillOpen('drill-compute'))) return;
       if (!el.dataset.init) {
         el.innerHTML = cores.map(c => `<div><div class="core-bar" data-core="${c.id}"><div class="core-fill"></div></div><div class="core-label">${c.id}</div></div>`).join('');
         el.dataset.init = '1';
@@ -13426,7 +13495,7 @@
           gamePerfChart.options.scales.x.min = tMin - pad * 0.05;
           gamePerfChart.options.scales.x.max = Math.max(tMax, tMin + pad);
         }
-        gamePerfChart.update('none');
+        if (canvasVisible(gamePerfChart)) gamePerfChart.update('none');
       }
       if (lead) lead.textContent = title;
     }
@@ -13719,7 +13788,7 @@
         borderRadius: 6,
         sessionMeta: ordered,
       }];
-      gamePerfSessionsChart.update('none');
+      if (canvasVisible(gamePerfSessionsChart)) gamePerfSessionsChart.update('none');
 
       const markersEl = document.getElementById('gamePerfMarkers');
       const fixMarkers = (markers || []).filter(m => m.kind === 'fix').slice(0, 8);
@@ -13805,13 +13874,16 @@
         gameSessionsKey = '';
       }
       renderGamePerfKpis(gp, gt, l.stutter);
-      renderGamePerfLiveTrend(rawHistory, gp, gt);
-      const gid = gp.active ? gp.game_id
-        : (gt?.running ? gt.game_id : (gp.last_session?.game_id || lastActiveGameId));
-      if (gid !== gameSessionsKey || ++gameSessionsTick % 30 === 0) fetchGameSessions(gid);
-      else if (gameSessionsCache) {
-        renderGamePerfSessionChart(gameSessionsCache.sessions, gameSessionsCache.markers);
-        renderGamePerfHistory(gameSessionsCache.sessions);
+      const heroLive = !document.getElementById('gamePerformanceHero')?.classList.contains('is-minimized');
+      if (heroLive || isDrillOpen('drill-game')) {
+        renderGamePerfLiveTrend(rawHistory, gp, gt);
+        const gid = gp.active ? gp.game_id
+          : (gt?.running ? gt.game_id : (gp.last_session?.game_id || lastActiveGameId));
+        if (gid !== gameSessionsKey || ++gameSessionsTick % 30 === 0) fetchGameSessions(gid);
+        else if (gameSessionsCache) {
+          renderGamePerfSessionChart(gameSessionsCache.sessions, gameSessionsCache.markers);
+          renderGamePerfHistory(gameSessionsCache.sessions);
+        }
       }
     }
 
@@ -14738,6 +14810,12 @@
         const issuesByGame = patchIssuesRunning(cachedIssuesByGame, l.games);
         lastLatest = l;
         lastComparison = l.comparison;
+        try {
+          if (!chartsPaused && !chartZoomed) sparkRingIngest(l);
+        } catch (_) { /* ignore */ }
+        if (document.visibilityState === 'hidden') {
+          return;
+        }
         // Chrome theme: Cosmic mode tracks desktop light/dark live via mtime; other modes ignore.
         let themeChanged = false;
         const themeTokens = liveTheme || s?.cosmic_theme;
@@ -14772,8 +14850,10 @@
         renderComparison(l.comparison, mem, s.pulse_root);
         renderWarnings(l.tuning);
         syncHwFocusDOM();
-        renderFixes(l.tuning);
-        renderGameIssues(issuesByGame);
+        if (activeTab === 'fixes') {
+          renderFixes(l.tuning);
+          renderGameIssues(issuesByGame);
+        }
         renderBacklog(s.backlog);
         renderTools(s.tools);
         const sh = l.sensor_health;
@@ -14783,17 +14863,21 @@
           el.className = 'sensor-status' + (sh.missing?.length ? '' : ' ok');
           if (sh.missing?.length) el.textContent += ` · missing: ${sh.missing.join(', ')}`;
         }
-        renderCores(l.cpu.per_core);
-        document.getElementById('vramStat').innerHTML = `${l.gpu.discrete.vram_used_mb ?? '—'}<small> / ${l.gpu.discrete.vram_total_mb ?? '—'} MB</small>`;
-        setMeterWidth(document.getElementById('vramMeter'), l.gpu.discrete.vram_pct ?? 0);
-        const g = l.gpu.discrete;
-        document.getElementById('gpuDetail').textContent =
-          `${g.gfx_mhz ?? '—'} MHz · Fan ${g.fan_rpm ?? '—'} rpm · VRAM ${g.mem_temp_c ?? '—'}°C · PCIe ${g.pcie_active || g.pcie_link || '—'}`;
+        if (isDrillOpen('drill-compute')) {
+          renderCores(l.cpu.per_core);
+          const vs = document.getElementById('vramStat');
+          if (vs) vs.innerHTML = `${l.gpu.discrete.vram_used_mb ?? '—'}<small> / ${l.gpu.discrete.vram_total_mb ?? '—'} MB</small>`;
+          setMeterWidth(document.getElementById('vramMeter'), l.gpu.discrete.vram_pct ?? 0);
+          const g = l.gpu.discrete;
+          const gd = document.getElementById('gpuDetail');
+          if (gd) gd.textContent =
+            `${g.gfx_mhz ?? '—'} MHz · Fan ${g.fan_rpm ?? '—'} rpm · VRAM ${g.mem_temp_c ?? '—'}°C · PCIe ${g.pcie_active || g.pcie_link || '—'}`;
+        }
         renderSensorGroups(l.sensors || []);
         renderCharts();
         if (themeChanged) renderSparkChart();
         renderGamePerformance(l, s);
-        renderProcs(l.game_procs, l.game_totals);
+        if (isDrillOpen('drill-game')) renderProcs(l.game_procs, l.game_totals);
         if (++storeTick % 30 === 0) fetchStore();
         if (storeTick % 90 === 0) fetchDiagnostics();
         if (clientStale) {
@@ -14841,12 +14925,18 @@
       // Chart.js needs a resize after display:none → visible
       requestAnimationFrame(() => {
         try {
-          if (tab === 'rig') sparkChart?.resize();
-          if (tab === 'index') indexChart?.resize();
-          if (tab === 'stutter') stutterChart?.resize();
-          // Hero charts stay mounted — resize in case layout shifted
-          gamePerfChart?.resize();
-          gamePerfSessionsChart?.resize();
+          if (tab === 'rig') {
+            sparkChart?.resize();
+            renderSparkChart();
+          }
+          if (tab === 'index') {
+            indexChart?.resize();
+            renderIndexChart();
+          }
+          if (tab === 'stutter') {
+            stutterChart?.resize();
+            renderStutterChart();
+          }
         } catch (_) { /* charts may not exist yet */ }
       });
     }
