@@ -20,6 +20,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Dashboard density** — one glance row, chip sparklines, compact header/rig tiles; idle game strip and duplicate load/sensor chrome stay off the main screen.
 
 ### Fixed
+- **Dial contrast** — CPU power, GPU power, and GPU hotspot use lighter family blues/violets so they read on the dark background.
 - **Live lab wheel** — scrolling the page works with the pointer over the right-side meters (those tiles no longer trap the wheel).
 - **Memory probe** — DMI `Manufacturer: Unknown` no longer wins over a known part number. This kit is G.Skill Flare X5 (F5-6000J3038F16G); live speed stays 4800 with the 6000 rating on the label. Duplicate `DIMM 1` locators are split by bank.
 - **Live lab sensors** — CCD die temps no longer copy package (Tctl); GPU shader/bus bars use gpu_metrics when sysfs `mem_busy`/`gfx` is 0; RAM bus estimate no longer treats minor page faults as DRAM traffic; Wait dial uses memory PSI or I/O wait, whichever is higher. CPU power dial shows `n/a` when RAPL is unreadable instead of a blank sensor.
