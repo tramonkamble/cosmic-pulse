@@ -530,6 +530,14 @@ def invalidate_nvme_smart_cache() -> None:
 
 def enrich_memory_spec(spec: dict) -> dict:
     """Add brand/kit/label from dmidecode sticks when PART_DB is not used."""
+    try:
+        from probe_memory import apply_part_db
+
+        spec = apply_part_db(spec)
+    except Exception:
+        pass
+    if spec.get("kit") and spec.get("manufacturer") and spec.get("label"):
+        return spec
     sticks = spec.get("sticks") or []
     if not sticks:
         return spec

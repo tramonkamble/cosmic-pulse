@@ -384,6 +384,7 @@ def main() -> int:
     print("\n== unit (no pytest) ==")
     run_unit_file("tests/test_live_sensors.py")
     run_unit_file("tests/test_hw_scales.py")
+    run_unit_file("tests/test_probe_memory.py")
     if full:
         run_unit_file("tests/test_sample_supervisor.py")
     else:

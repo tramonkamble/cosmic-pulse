@@ -19,6 +19,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Dashboard density** — one glance row, chip sparklines, compact header/rig tiles; idle game strip and duplicate load/sensor chrome stay off the main screen.
 
 ### Fixed
+- **Memory probe** — DMI `Manufacturer: Unknown` no longer wins over a known part number. This kit is G.Skill Flare X5 (F5-6000J3038F16G); live speed stays 4800 with the 6000 rating on the label. Duplicate `DIMM 1` locators are split by bank.
 - **Live lab sensors** — CCD die temps no longer copy package (Tctl); GPU shader/bus bars use gpu_metrics when sysfs `mem_busy`/`gfx` is 0; RAM bus estimate no longer treats minor page faults as DRAM traffic; Wait dial uses memory PSI or I/O wait, whichever is higher. CPU power dial shows `n/a` when RAPL is unreadable instead of a blank sensor.
 - **Sampler apply vs watchdog** — apply (publish + DB enqueue) and worker kill/respawn now run on separate threads. A wedged publish can no longer freeze stall detection. Per-tick `load_tuning_log()` removed from the apply path. `/api/metrics` `sampler` now includes `state` (`healthy`/`degraded`/`stale`/`starting`), `last_apply_age_sec`, and `watchdog_age_sec`. Emergency chips cannot keep `ok` true while apply is dead.
 
