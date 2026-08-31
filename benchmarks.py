@@ -131,30 +131,178 @@ _S76_PRODUCTS = (
     "serval",
     "addax",
     "kudu",
-    "slimbook",
+)
+
+# DMI placeholders — DIY boards and unfinished firmware dump these.
+_DMI_JUNK = frozenset(
+    {
+        "",
+        "unknown",
+        "none",
+        "n/a",
+        "na",
+        "null",
+        "not specified",
+        "not available",
+        "default string",
+        "to be filled by o.e.m.",
+        "to be filled by o.e.m",
+        "system product name",
+        "system version",
+        "system manufacturer",
+        "chassis manufacturer",
+        "o.e.m.",
+        "oem",
+        "undefined",
+        "empty",
+    }
+)
+
+# Chassis OEMs (laptops / prebuilts). Motherboard houses are not these.
+_CHASSIS_OEMS: tuple[tuple[str, str], ...] = (
+    ("system76", "System76"),
+    ("alienware", "Alienware"),
+    ("dell", "Dell"),
+    ("framework", "Framework"),
+    ("lenovo", "Lenovo"),
+    ("hewlett-packard", "HP"),
+    ("hp inc", "HP"),
+    ("microsoft", "Microsoft"),
+    ("razer", "Razer"),
+    ("acer", "Acer"),
+    ("starlabs", "Star Labs"),
+    ("star labs", "Star Labs"),
+    ("tuxedo", "Tuxedo"),
+    ("slimbook", "Slimbook"),
+)
+
+_BOARD_VENDOR_RE = re.compile(
+    r"asustek|\basus\b|micro-star|\bmsi\b|gigabyte|asrock|biostar|supermicro",
+    re.I,
+)
+
+# Chipset / board SKUs — personal builds, not a factory chassis.
+_BOARD_SKU_RE = re.compile(
+    r"\b([abxzwh]\d{3}e?\b|aorus|tomahawk|proart|crosshair|"
+    r"strix [abxz]\d|tuf gaming [abxz]|gaming (x|wifi|plus|pro)\b|"
+    r"mpg |mag |meg )",
+    re.I,
+)
+
+_LAPTOP_RE = re.compile(
+    r"zephyrus|zenbook|vivobook|expertbook|\bflow\b|katana|raider|"
+    r"stealth|vector|titan|\bsword\b|prestige|modern|summit|"
+    r"tuf gaming [af]\d|rog strix g\d",
+    re.I,
+)
+
+_BOARD_VENDOR_BRAND = (
+    ("asustek", "ASUS"),
+    ("asus", "ASUS"),
+    ("micro-star", "MSI"),
+    ("msi", "MSI"),
+    ("gigabyte", "Gigabyte"),
+    ("asrock", "ASRock"),
 )
 
 
-def chassis_identity(machine: str, hostname: str = "", board_vendor: str = "") -> dict:
-    raw = (machine or hostname or "").strip()
-    brand = None
-    model = raw
-    low = raw.lower()
-    vendor = (board_vendor or "").strip()
+def _dmi_text(value: str) -> str:
+    """Strip firmware placeholders and trailing parenthetical junk."""
+    text = (value or "").strip()
+    if not text:
+        return ""
+    text = re.sub(r"\s*\([^)]*\)\s*", " ", text).strip(" -")
+    if text.lower() in _DMI_JUNK:
+        return ""
+    return text
 
-    if vendor.lower() == "system76" or "system76" in low:
-        brand = "System76"
+
+def _looks_system76(hay: str) -> bool:
+    low = hay.lower()
+    if "system76" in low:
+        return True
     for name in _S76_PRODUCTS:
-        if low.startswith(name) or f" {name}" in low or name in low:
-            brand = "System76"
-            model = raw.split("(")[0].strip()
-            break
+        if low.startswith(name) or f" {name}" in low or f"{name}-" in low:
+            return True
+    return False
 
-    if brand == "System76" and not model:
-        model = raw or "System76"
 
-    label = f"{brand} · {model}" if brand else raw
-    return {"brand": brand, "model": model, "label": label, "raw": raw, "vendor": vendor or None}
+def _oem_brand(hay: str) -> str | None:
+    low = f" {hay.lower()} "
+    if re.search(r"\bapple\b", hay, re.I):
+        return "Apple"
+    for needle, brand in _CHASSIS_OEMS:
+        if needle in low:
+            return brand
+    return None
+
+
+def _board_house_brand(vendor: str) -> str | None:
+    low = vendor.lower()
+    for needle, brand in _BOARD_VENDOR_BRAND:
+        if needle in low:
+            return brand
+    return None
+
+
+def chassis_identity(
+    machine: str,
+    hostname: str = "",
+    board_vendor: str = "",
+    board_name: str = "",
+) -> dict:
+    """Name the box: System76 / Dell-class OEM / desktop (DIY or unknown).
+
+    ``kind`` is ``system76``, ``oem``, or ``desktop``. Motherboard makers
+    (ASUS/MSI/…) with a board SKU are desktops, not a chassis brand.
+    """
+    vendor = _dmi_text(board_vendor)
+    board = _dmi_text(board_name)
+    raw_in = (machine or "").strip()
+    host = _dmi_text(hostname)
+    product = _dmi_text(raw_in) or host
+    hay = " ".join(p for p in (vendor, product, board, host) if p)
+
+    brand: str | None = None
+    model = product or board or host
+    kind = "desktop"
+
+    if _looks_system76(hay):
+        brand = "System76"
+        kind = "system76"
+        model = product or board or host or "System76"
+    elif oem := _oem_brand(hay):
+        brand = oem
+        kind = "oem"
+        model = product or board or host or oem
+    elif _LAPTOP_RE.search(hay) and (house := _board_house_brand(vendor)):
+        brand = house
+        kind = "oem"
+        model = product or board or host or house
+    else:
+        kind = "desktop"
+        brand = None
+        if _BOARD_SKU_RE.search(product) or _BOARD_SKU_RE.search(board) or _BOARD_VENDOR_RE.search(
+            vendor
+        ):
+            model = board or product or host or "Custom PC"
+        else:
+            model = product or board or host or "Desktop"
+
+    if brand == "System76" and model:
+        # "thelio-major-b4-n2" stays; drop a redundant System76 prefix.
+        if model.lower().startswith("system76 "):
+            model = model[9:].strip()
+
+    label = f"{brand} · {model}" if brand and model else (model or raw_in or host)
+    return {
+        "brand": brand,
+        "model": model,
+        "label": label,
+        "raw": raw_in or host,
+        "vendor": vendor or None,
+        "kind": kind,
+    }
 
 
 def rank_label(score: int) -> str:
@@ -184,12 +332,16 @@ def hardware_comparison(
     gpu_info: dict | None = None,
     machine: str = "",
     hostname: str = "",
+    board_vendor: str = "",
+    board_name: str = "",
 ) -> dict:
     cpu_t = _match_tier(cpu_model, CPU_TIERS, CPU_ALIASES)
     gpu_t = _match_tier(gpu_model, GPU_TIERS, GPU_ALIASES)
     cpu_id = cpu_identity(cpu_model)
     mem_id = memory_identity(mem_spec)
-    chassis_id = chassis_identity(machine, hostname)
+    chassis_id = chassis_identity(
+        machine, hostname, board_vendor=board_vendor, board_name=board_name
+    )
     gi = gpu_info or {}
     gpu_maker = gi.get("maker") or gi.get("partner")
     gpu_board = gi.get("board")

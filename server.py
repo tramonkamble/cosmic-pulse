@@ -2407,6 +2407,12 @@ def collect_metrics() -> dict:
         gpu_info=_static.get("gpu") or _gpu_spec,
         machine=_static.get("machine", ""),
         hostname=_static.get("hostname", ""),
+        board_vendor=(
+            ((_static.get("platform") or {}).get("vendor") or {}).get("name")
+            or _static.get("board_vendor")
+            or ""
+        ),
+        board_name=_static.get("board_name", ""),
     )
     snap["game_performance"] = tick_game_performance(snap, save_session=save_game_session)
     return snap
@@ -2717,7 +2723,9 @@ def init_probe_state(*, for_child: bool = False) -> float:
         "memory": _mem_spec or {},
         "platform": host_platform,
         "rig": {
-            "chassis": chassis_identity(machine, os.uname().nodename, s76_vendor),
+            "chassis": chassis_identity(
+                machine, os.uname().nodename, s76_vendor, board_name
+            ),
             "cpu": cpu_identity(cpu_model),
             "gpu": _gpu_spec,
             "memory": memory_identity(_mem_spec or {}),

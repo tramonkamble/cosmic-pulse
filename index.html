@@ -4482,10 +4482,10 @@
       border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
     }
     .summary-bar.compact-rig .rig-panel { padding-bottom: .45rem; }
-    .summary-bar.compact-rig .rig-tile { min-height: 2.75rem; padding: 0.28rem 0.4rem; }
-    .summary-bar.compact-rig .rig-tile-art { width: 2.6rem; }
-    .summary-bar.compact-rig .rig-tile-name { font-size: .8rem; }
-    .summary-bar.compact-rig .rig-tile-art .hw-glyph svg { width: 1.7rem; height: 1.7rem; }
+    .summary-bar.compact-rig .rig-tile { min-height: 3.2rem; padding: 0.36rem 0.45rem; }
+    .summary-bar.compact-rig .rig-tile-art { width: 2.9rem; }
+    .summary-bar.compact-rig .rig-tile-name { font-size: .82rem; }
+    .summary-bar.compact-rig .rig-tile-art .hw-glyph svg { width: 1.85rem; height: 1.85rem; }
     .summary-bar.compact-rig .rig-panel { padding-bottom: 0.25rem; }
     .rig-strip-scroll {
       overflow-x: auto;
@@ -5267,11 +5267,11 @@
       gap: 0.28rem;
     }
     body.dash-dedupe .summary-bar.compact-rig .rig-tile {
-      min-height: 2.05rem;
+      min-height: 2.55rem;
     }
     body.dash-dedupe .summary-bar.compact-rig .rig-tile-body {
-      padding: 0.22rem 0.45rem 0.22rem 0.5rem;
-      gap: 0.08rem;
+      padding: 0.38rem 0.5rem 0.38rem 0.55rem;
+      gap: 0.12rem;
     }
     body.dash-dedupe .summary-bar.compact-rig .rig-tile-meta { gap: 0.32rem; }
     body.dash-dedupe .summary-bar.compact-rig .rig-tile-type {
@@ -5280,17 +5280,17 @@
     }
     body.dash-dedupe .summary-bar.compact-rig .rig-tile-brand { font-size: 0.58rem; padding-left: 0.32rem; }
     body.dash-dedupe .summary-bar.compact-rig .rig-tile-name {
-      font-size: 0.74rem;
-      line-height: 1.15;
+      font-size: 0.8rem;
+      line-height: 1.18;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       display: block;
       -webkit-line-clamp: unset;
     }
-    body.dash-dedupe .summary-bar.compact-rig .rig-tile-art { width: 1.7rem; }
+    body.dash-dedupe .summary-bar.compact-rig .rig-tile-art { width: 2.1rem; }
     body.dash-dedupe .summary-bar.compact-rig .rig-tile-art .hw-glyph svg {
-      width: 1.05rem; height: 1.05rem;
+      width: 1.32rem; height: 1.32rem;
     }
     body.dash-dedupe .summary-bar.compact-rig .rig-tile-art .rig-brand-logo {
       width: 0.72rem; height: 0.72rem; right: 0.12rem; bottom: 0.12rem;
@@ -11545,6 +11545,10 @@
       const n = String(name).toLowerCase();
       if (n.includes('g.skill') || n.includes('gskill')) return 'gskill';
       if (n.includes('system76')) return 'system76';
+      if (n.includes('dell') || n.includes('alienware')) return 'dell';
+      if (n.includes('lenovo')) return 'lenovo';
+      if (n.includes('framework')) return 'framework';
+      if (/\bhp\b/.test(n) || n.includes('hewlett')) return 'hp';
       if (n.includes('nvidia') || n.includes('geforce')) return 'nvidia';
       if (n.includes('sapphire')) return 'sapphire';
       if (n.includes('corsair')) return 'corsair';
@@ -12120,11 +12124,14 @@
     function buildRigTiles(s) {
       const r = s.rig || {};
       const tiles = [];
-      if (r.chassis?.label) {
+      if (r.chassis?.label || r.chassis?.model) {
         const plat = s.platform || {};
-        const s76 = plat.is_system76 || r.chassis.brand === 'System76';
+        const kind = r.chassis.kind || '';
+        const s76 = plat.is_system76 || r.chassis.brand === 'System76' || kind === 'system76';
         const chassisName = r.chassis.model || r.chassis.label;
-        const chassisType = s76 ? 'System76' : 'Chassis';
+        let chassisType = 'Desktop';
+        if (s76) chassisType = 'System76';
+        else if (r.chassis.brand) chassisType = r.chassis.brand;
         const thelioLove = s76
           ? ` · ${chassisName} — built for Linux${plat.is_pop ? ' · Pop!_OS' : ''}`
           : '';
@@ -12187,7 +12194,7 @@
       const el = document.getElementById('rigStrip');
       const tiles = buildRigTiles(s);
       // v2 = filled type icons; force rebuild once after upgrade
-      const structKey = 'icons-v2|' + tiles.map(t => `${t.id}:${t.name}`).join('|');
+      const structKey = 'icons-v3|' + tiles.map(t => `${t.id}:${t.type}:${t.name}`).join('|');
       if (el.dataset.structKey !== structKey) {
         el.dataset.structKey = structKey;
         el.innerHTML = tiles.map(rigTileHtml).join('');
