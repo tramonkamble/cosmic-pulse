@@ -58,7 +58,7 @@ Ensure `~/.local/bin` is on your `PATH` so the `cosmic-pulse` command works.
 | Recommended | Notes |
 |-------------|--------|
 | AMD discrete GPU | Best sysfs metrics; NVIDIA/multi-GPU still partial |
-| `lm-sensors` | Extra temperature tiles (`sudo apt install lm-sensors`) |
+| `/sys/class/hwmon` | CPU/GPU/NVMe temps and fans (no `sensors` binary) |
 | Steam | Game-aware Guidance and log scans |
 | Second monitor or LAN device | Dashboard is meant to run beside your game |
 

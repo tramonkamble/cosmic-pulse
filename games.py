@@ -1103,27 +1103,16 @@ def _name_warrants_cmdline(name: str, *, main_exes: set[str] | None = None) -> b
     return False
 
 
-def _read_cmdline(pid: int) -> str:
-    """Fetch cmdline for one PID only after the name fast-path allows it."""
-    try:
-        p = psutil.Process(pid)
-        cmdline = p.cmdline() or []
-        return " ".join(cmdline) if cmdline else ""
-    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-        return ""
-
-
 def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dict]]:
     """Discover Steam AppIDs and (only if any) enrich game-like proc rows.
 
     Performance (auditor-aligned):
-    1. ``process_iter(['pid', 'name'])`` only — no bulk cmdline.
+    1. One ``process_iter(['pid', 'name'])`` — keep the ``proc`` handle.
     2. Open cmdline only when the **name** looks like a gaming runtime / binary /
        pack ``main_exe`` (see ``_name_warrants_cmdline``).
-    3. If AppIDs appear, a second name pass opens cmdline for remaining candidates
-       that may be native titles under steamapps (e.g. factorio) without a
-       runtime-shaped name.
-    4. memory_info / cpu_percent only for ``_worth_enriching`` rows.
+    3. If AppIDs appear, a second pass over the *same* list opens cmdline for
+       remaining native titles under steamapps (e.g. factorio).
+    4. memory_info / cpu_percent on the retained ``proc`` (no second ``Process(pid)``).
     5. Empty snapshots reuse ``CACHE_TTL_SEC`` cache.
 
     AppID extractors (``_extract_appids_from_cmd``, overlay -gameid, etc.) unchanged.
@@ -1137,29 +1126,30 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
 
     active_appids: set[str] = set()
     overlay_map: dict[str, set[int]] = {}
-    light: list[tuple[int, str, str]] = []
-    # pid -> (name, cmd) for rows we already opened cmdline on
-    opened: dict[int, tuple[str, str]] = {}
+    # (proc, pid, name, cmd) — cmd empty until we open it
+    pending: list[tuple[object, int, str]] = []
+    opened: dict[int, tuple[object, str, str]] = {}
+    light: list[tuple[object, int, str, str]] = []
     main_exes = _main_exe_name_set()
 
-    # --- Pass 1: name-only walk; cmdline only for gaming-shaped names ----------
     for proc in psutil.process_iter(["pid", "name"]):
         try:
             pid = proc.info["pid"]
             name = proc.info["name"] or ""
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
+        pending.append((proc, pid, name))
 
-        if not _name_warrants_cmdline(name, main_exes=main_exes):
-            continue
+    def _open_cmd(proc, pid: int, name: str) -> str:
+        try:
+            cmdline = proc.cmdline() or []
+            return " ".join(cmdline) if cmdline else ""
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            return ""
 
-        cmd = _read_cmdline(pid)
-        if not cmd:
-            continue
-        opened[pid] = (name, cmd)
-
+    def _ingest(proc, pid: int, name: str, cmd: str) -> None:
+        opened[pid] = (proc, name, cmd)
         _extract_appids_from_cmd(cmd, active_appids)
-
         if _is_overlay_proc(name):
             gid_m = GAMEID_RE.search(cmd)
             pid_m = OVERLAY_PID_RE.search(cmd)
@@ -1168,24 +1158,24 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
                     overlay_map.setdefault(gid_m.group(1), set()).add(int(pid_m.group(1)))
                 except ValueError:
                     pass
-            continue
-
+            return
         if _worth_enriching(name, cmd):
-            light.append((pid, name, cmd))
+            light.append((proc, pid, name, cmd))
+
+    for proc, pid, name in pending:
+        if not _name_warrants_cmdline(name, main_exes=main_exes):
+            continue
+        cmd = _open_cmd(proc, pid, name)
+        if not cmd:
+            continue
+        _ingest(proc, pid, name, cmd)
 
     for appid in overlay_map:
         active_appids.add(appid)
 
-    # --- Pass 2: native Steam titles with plain names (factorio, …) ------------
-    # Only when an AppID is already live. Still avoids bulk cmdline: skip dotted
-    # system/helper names unless they look like game binaries.
+    # Native Steam titles with plain names — only when an AppID is already live.
     if active_appids:
-        for proc in psutil.process_iter(["pid", "name"]):
-            try:
-                pid = proc.info["pid"]
-                name = proc.info["name"] or ""
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                continue
+        for proc, pid, name in pending:
             if pid in opened:
                 continue
             nl = (name or "").lower()
@@ -1195,17 +1185,13 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
                 continue
             if "." in nl and not _is_game_binary(nl):
                 continue
-            cmd = _read_cmdline(pid)
+            cmd = _open_cmd(proc, pid, name)
             if not cmd:
                 continue
-            # Only keep if Steam/Proton paths prove it is game-related.
             cl = cmd.lower().replace("\\", "/")
             if "steamapps/" not in cl and "compatdata/" not in cl:
                 continue
-            opened[pid] = (name, cmd)
-            _extract_appids_from_cmd(cmd, active_appids)
-            if _worth_enriching(name, cmd):
-                light.append((pid, name, cmd))
+            _ingest(proc, pid, name, cmd)
 
     if not active_appids:
         empty: tuple[set[str], dict[str, set[int]], list] = (set(), {}, [])
@@ -1214,12 +1200,11 @@ def _collect_process_snapshot() -> tuple[set[str], dict[str, set[int]], list[dic
 
     _empty_snapshot_cache = None
     rows: list[dict] = []
-    for pid, name, cmd in light:
+    for proc, pid, name, cmd in light:
         try:
-            p = psutil.Process(pid)
-            with p.oneshot():
-                mi = p.memory_info()
-                raw_cpu = p.cpu_percent(interval=None)
+            with proc.oneshot():
+                mi = proc.memory_info()
+                raw_cpu = proc.cpu_percent(interval=None)
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
         rows.append(

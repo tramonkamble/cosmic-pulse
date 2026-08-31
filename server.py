@@ -47,6 +47,7 @@ from hardware_probe import (
     igpu_label,
     igpu_sensor_prefix,
     nvme_sensor_tiles,
+    pci_to_sensor_suffix,
     platform_identity,
     probe_nvme_smart,
     probe_storage,
@@ -295,6 +296,13 @@ _prev_cpu_stat: tuple[int, int, float] | None = None
 _prev_cpu_rapl: tuple[int, float] | None = None
 _cpu_power_cache: tuple[float, float | None] = (0.0, None)
 _sensors_cache: tuple[float, dict] = (0.0, {})
+# hwmon dirs change rarely (suspend / new nvme) — refresh every 30s
+_hwmon_chips_cache: tuple[float, list[tuple[Path, str]]] = (0.0, [])
+# RAPL package domain path; None = probed and missing
+_rapl_domain_cache: tuple[float, Path | None] = (0.0, None)
+_HWMON_CHIPS_TTL = 30.0
+_RAPL_DOMAIN_TTL = 60.0
+_PCI_BDF_RE = re.compile(r"([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f])", re.I)
 _rate_smooth: dict[str, float] = {}
 _proc_stats_cache: tuple[float, int, int] = (0.0, 0, 0)
 _psi_cache: dict[str, tuple[float, dict | None]] = {}
@@ -521,6 +529,146 @@ def cpu_rapl_probe() -> dict:
     return {"present": present, "readable": readable}
 
 
+def _hwmon_chip_id(hw: Path, name: str) -> str:
+    """lm-sensors-style chip id: ``k10temp-pci-00c3``, ``amdgpu-pci-0300``."""
+    try:
+        resolved = str((hw / "device").resolve())
+    except OSError:
+        return name
+    matches = _PCI_BDF_RE.findall(resolved)
+    if not matches:
+        return name
+    suf = pci_to_sensor_suffix(matches[-1])
+    return f"{name}-pci-{suf}" if suf else name
+
+
+def _hwmon_chips(hwmon_root: Path | None = None) -> list[tuple[Path, str]]:
+    """Cached list of (hwmon dir, chip_id)."""
+    global _hwmon_chips_cache
+    now = time.time()
+    if hwmon_root is None and now - _hwmon_chips_cache[0] < _HWMON_CHIPS_TTL and _hwmon_chips_cache[1]:
+        return _hwmon_chips_cache[1]
+    root = hwmon_root if hwmon_root is not None else Path("/sys/class/hwmon")
+    chips: list[tuple[Path, str]] = []
+    if root.is_dir():
+        for hw in sorted(root.glob("hwmon*")):
+            try:
+                name = (hw / "name").read_text().strip()
+            except OSError:
+                continue
+            if not name:
+                continue
+            chips.append((hw, _hwmon_chip_id(hw, name)))
+    if hwmon_root is None:
+        _hwmon_chips_cache = (now, chips)
+    return chips
+
+
+def _parse_hwmon_tree(hwmon_root: Path | None = None) -> dict[str, float | int | None]:
+    """Read temps/fans/power from sysfs hwmon — no ``sensors`` subprocess."""
+    out: dict[str, float | int | None] = {}
+    for hw, chip in _hwmon_chips(hwmon_root):
+        for path in hw.glob("temp*_input"):
+            stem = path.name[: -len("_input")]  # temp1
+            label_f = hw / f"{stem}_label"
+            try:
+                label = label_f.read_text().strip() if label_f.is_file() else stem
+            except OSError:
+                label = stem
+            raw = read_float(path)
+            if raw is None:
+                continue
+            celsius = raw / 1000.0 if abs(raw) > 200 else raw
+            out[f"{chip}:{label}"] = round(celsius, 1)
+        for path in hw.glob("fan*_input"):
+            stem = path.name[: -len("_input")]
+            label_f = hw / f"{stem}_label"
+            try:
+                label = label_f.read_text().strip() if label_f.is_file() else stem
+            except OSError:
+                label = stem
+            raw = read_float(path)
+            if raw is None:
+                continue
+            out[f"{chip}:{label}:{path.name}"] = int(raw)
+        for path in list(hw.glob("power*_average")) + list(hw.glob("power*_input")):
+            raw = read_float(path)
+            if raw is None or raw <= 0:
+                continue
+            watts = raw / 1_000_000.0 if raw > 50_000 else raw
+            label_f = hw / path.name.replace("_average", "_label").replace("_input", "_label")
+            try:
+                plabel = label_f.read_text().strip() if label_f.is_file() else "PPT"
+            except OSError:
+                plabel = "PPT"
+            out[f"{chip}:{plabel}:{path.name}"] = round(watts, 1)
+    return out
+
+
+def _rapl_package_dir() -> Path | None:
+    global _rapl_domain_cache
+    now = time.time()
+    if now - _rapl_domain_cache[0] < _RAPL_DOMAIN_TTL:
+        return _rapl_domain_cache[1]
+    powercap = Path("/sys/class/powercap")
+    found: Path | None = None
+    if powercap.is_dir():
+        package_paths: list[Path] = []
+        for domain in sorted(powercap.glob("intel-rapl:*")):
+            rest = domain.name[len("intel-rapl:") :]
+            if ":" in rest:
+                continue
+            energy_f = domain / "energy_uj"
+            if not energy_f.is_file():
+                continue
+            name_f = domain / "name"
+            try:
+                dname = name_f.read_text().strip() if name_f.is_file() else ""
+            except OSError:
+                dname = ""
+            if dname and not dname.startswith("package") and "package" not in dname.lower():
+                continue
+            package_paths.append(domain)
+        if not package_paths:
+            for domain in sorted(powercap.glob("intel-rapl:*")):
+                rest = domain.name[len("intel-rapl:") :]
+                if ":" in rest:
+                    continue
+                if (domain / "energy_uj").is_file():
+                    package_paths.append(domain)
+                    break
+        found = package_paths[0] if package_paths else None
+    _rapl_domain_cache = (now, found)
+    return found
+
+
+def _cpu_power_from_hwmon() -> float | None:
+    """Zenpower / package hwmon watts — uses cached chip list, not a fresh glob."""
+    try:
+        for hw, chip in _hwmon_chips():
+            name = chip.split("-pci-", 1)[0].lower()
+            if name.startswith(("amdgpu", "nvme", "iwlwifi", "enp")) or name in (
+                "amdgpu",
+                "system76_io",
+            ):
+                continue
+            if not any(x in name for x in ("zen", "fam15", "power", "cpu", "core", "k10", "energy")):
+                continue
+            for fname in ("power1_average", "power1_input", "power2_average", "power2_input"):
+                p = hw / fname
+                if not p.is_file():
+                    continue
+                raw = read_float(p)
+                if raw is None or raw <= 0:
+                    continue
+                w = raw / 1_000_000 if raw > 500 else raw
+                if 0.5 <= w < 500:
+                    return round(w, 1)
+    except OSError:
+        return None
+    return None
+
+
 def read_cpu_power_w() -> float | None:
     """CPU package power in watts.
 
@@ -536,92 +684,36 @@ def read_cpu_power_w() -> float | None:
         return _cpu_power_cache[1]
 
     result: float | None = None
-    powercap = Path("/sys/class/powercap")
-    package_paths: list[Path] = []
-    if powercap.is_dir():
-        for domain in sorted(powercap.glob("intel-rapl:*")):
-            # Skip core subdomains (intel-rapl:0:0)
-            rest = domain.name[len("intel-rapl:") :]
-            if ":" in rest:
-                continue
-            name_f = domain / "name"
-            energy_f = domain / "energy_uj"
-            if not energy_f.is_file():
-                continue
-            try:
-                dname = name_f.read_text().strip() if name_f.is_file() else ""
-            except OSError:
-                dname = ""
-            # Prefer package-* domains
-            if dname and not dname.startswith("package") and "package" not in dname.lower():
-                continue
-            package_paths.append(domain)
-        if not package_paths:
-            for domain in sorted(powercap.glob("intel-rapl:*")):
-                rest = domain.name[len("intel-rapl:") :]
-                if ":" in rest:
-                    continue
-                if (domain / "energy_uj").is_file():
-                    package_paths.append(domain)
-                    break
-    for domain in package_paths:
+    domain = _rapl_package_dir()
+    if domain is not None:
         energy_f = domain / "energy_uj"
         try:
             uj = int(energy_f.read_text().strip())
         except (OSError, ValueError):
-            continue
-        prev = _prev_cpu_rapl
-        _prev_cpu_rapl = (uj, now)
-        if prev:
-            duj = uj - prev[0]
-            dt = now - prev[1]
-            if duj >= 0 and dt >= 0.25:
-                watts = (duj / 1_000_000.0) / dt
-                if 0.5 <= watts < 500:
-                    result = round(watts, 1)
-        break
+            uj = None
+        if uj is not None:
+            prev = _prev_cpu_rapl
+            _prev_cpu_rapl = (uj, now)
+            if prev:
+                duj = uj - prev[0]
+                dt = now - prev[1]
+                if duj >= 0 and dt >= 0.25:
+                    watts = (duj / 1_000_000.0) / dt
+                    if 0.5 <= watts < 500:
+                        result = round(watts, 1)
 
     if result is None:
-        try:
-            for hw in sorted(Path("/sys/class/hwmon").glob("hwmon*")):
-                try:
-                    name = (hw / "name").read_text().strip().lower()
-                except OSError:
-                    continue
-                if name.startswith(("amdgpu", "nvme", "iwlwifi", "enp")) or name in (
-                    "amdgpu",
-                    "system76_io",
-                ):
-                    continue
-                if not any(
-                    x in name for x in ("zen", "fam15", "power", "cpu", "core", "k10", "energy")
-                ):
-                    continue
-                for fname in ("power1_average", "power1_input", "power2_average", "power2_input"):
-                    p = hw / fname
-                    if not p.is_file():
-                        continue
-                    raw = read_float(p)
-                    if raw is None or raw <= 0:
-                        continue
-                    w = raw / 1_000_000 if raw > 500 else raw
-                    if 0.5 <= w < 500:
-                        result = round(w, 1)
-                        break
-                if result is not None:
-                    break
-        except OSError:
-            pass
+        result = _cpu_power_from_hwmon()
 
     _cpu_power_cache = (now, result)
     return result
 
 
 def parse_sensors() -> dict:
-    """lm-sensors JSON dump — cached, single-flight, stderr silenced.
+    """Read hwmon sysfs (no ``sensors -j`` fork). Cached ~2s, single-flight.
 
-    Virtual chips often print ``temp1_input: Can't read`` on stderr every call;
-    that used to spam the Pulse log and drown real stall messages.
+    Keys stay lm-sensors-shaped (``k10temp-pci-00c3:Tctl``, ``amdgpu-pci-0300:edge``)
+    so cpu_temps / sensor_wall / nvme tiles keep matching.
     """
     global _sensors_cache
     now = time.time()
@@ -631,54 +723,12 @@ def parse_sensors() -> dict:
         now = time.time()
         if now - _sensors_cache[0] < 2.0:
             return _sensors_cache[1]
-        out: dict[str, float | int | None] = {}
         try:
-            raw = subprocess.check_output(
-                ["sensors", "-j"],
-                text=True,
-                timeout=1.5,
-                stderr=subprocess.DEVNULL,
-            )
-            data = json.loads(raw)
-            amdgpu_names = {"edge": "temp1_input", "junction": "temp2_input", "mem": "temp3_input"}
-            for chip, vals in data.items():
-                for key, v in vals.items():
-                    if not isinstance(v, dict):
-                        continue
-                    label = f"{chip}:{key}"
-                    if chip.startswith("amdgpu") and key in amdgpu_names:
-                        tval = v.get(amdgpu_names[key])
-                        if tval is not None:
-                            out[f"{chip}:{key}"] = round(tval, 1)
-                    for field, suffix in (
-                        ("temp1_input", "c"),
-                        ("temp2_input", "c"),
-                        ("temp3_input", "c"),
-                        ("temp4_input", "c"),
-                        ("temp5_input", "c"),
-                        ("fan1_input", "rpm"),
-                        ("fan2_input", "rpm"),
-                        ("fan1", "rpm"),
-                        ("power1_average", "w"),
-                        ("power1_input", "w"),
-                        ("in0_input", "v"),
-                    ):
-                        val = v.get(field)
-                        if val is None:
-                            continue
-                        k = label if field.startswith("temp") else f"{label}:{field}"
-                        if suffix == "w" and isinstance(val, (int, float)):
-                            # sensors-json: watts; sysfs-style dumps: microwatts
-                            out[k] = round(val / 1_000_000, 1) if val > 50_000 else round(val, 1)
-                        elif suffix == "v":
-                            out[k] = round(val, 3)
-                        else:
-                            out[k] = round(val, 1) if isinstance(val, float) else val
-        except (subprocess.SubprocessError, json.JSONDecodeError, OSError):
-            # Keep last good parse if any — better than blanking temps on a blip.
-            if _sensors_cache[1]:
-                _sensors_cache = (now, _sensors_cache[1])
-                return _sensors_cache[1]
+            out = _parse_hwmon_tree()
+        except OSError:
+            out = dict(_sensors_cache[1]) if _sensors_cache[1] else {}
+        if not out and _sensors_cache[1]:
+            out = dict(_sensors_cache[1])
         _sensors_cache = (now, out)
         return out
 
@@ -1525,7 +1575,8 @@ def tools_status() -> dict:
         return _tools_status_cache[1]
 
     smart = probe_nvme_smart()
-    sensors_ok = bool(shutil.which("sensors"))
+    hwmon_root = Path("/sys/class/hwmon")
+    hwmon_ok = hwmon_root.is_dir() and any(hwmon_root.glob("hwmon*"))
     dmidecode_ok = bool(shutil.which("dmidecode"))
     corectrl_ok = bool(shutil.which("corectrl"))
     rapl = cpu_rapl_probe()
@@ -1543,13 +1594,13 @@ def tools_status() -> dict:
     data_sources = [
         {
             "id": "sensors",
-            "bin": "sensors",
-            "pkg": "lm-sensors",
+            "bin": "hwmon",
+            "pkg": "",
             "role": "data",
-            "note": "CPU/GPU/NVMe temperatures, fans, PPT — primary sensor feed",
-            "installed": sensors_ok,
-            "feeding": sensors_ok,
-            "detail": "live · sensors -j every sample" if sensors_ok else "install to unlock sensor strip temps",
+            "note": "CPU/GPU/NVMe temperatures, fans, PPT — sysfs hwmon (no subprocess)",
+            "installed": hwmon_ok,
+            "feeding": hwmon_ok,
+            "detail": "live · /sys/class/hwmon every ~2s" if hwmon_ok else "no /sys/class/hwmon nodes",
         },
         {
             "id": "smartctl",
@@ -1637,7 +1688,7 @@ def tools_status() -> dict:
             }
         )
     out = {
-        "sensors": sensors_ok,
+        "sensors": hwmon_ok,
         "dmidecode": dmidecode_ok,
         "smartctl": bool(smart.get("installed")),
         "smartctl_feeding": bool(smart.get("readable")),
@@ -2376,6 +2427,7 @@ def reprime_rate_baselines() -> None:
     """Drop delta baselines so post-resume rates are not averaged over hours of sleep."""
     global _prev_net, _prev_disk, _prev_swap, _prev_ctx, _prev_gtt
     global _prev_vmstat, _prev_disk_busy, _prev_cpu_stat, _prev_cpu_rapl, _sensors_cache
+    global _hwmon_chips_cache, _rapl_domain_cache
     _prev_net = {}
     _prev_disk = None
     _prev_swap = None
@@ -2386,6 +2438,8 @@ def reprime_rate_baselines() -> None:
     _prev_cpu_stat = None
     _prev_cpu_rapl = None
     _sensors_cache = (0.0, {})
+    _hwmon_chips_cache = (0.0, [])
+    _rapl_domain_cache = (0.0, None)
 
 
 def _prime_rate_counters() -> None:

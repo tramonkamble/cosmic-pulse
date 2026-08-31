@@ -16,7 +16,7 @@ sudo apt install python3-psutil python3-yaml
 # optional, for venv-based install:
 sudo apt install python3-venv python3-pip
 ```
-- Optional: `lm-sensors`, Steam (for game-aware features)
+- Optional: Steam (for game-aware features). Temps/fans come from `/sys/class/hwmon` — `lm-sensors` is not required.
 
 ## Option 1 — Install script (recommended)
 

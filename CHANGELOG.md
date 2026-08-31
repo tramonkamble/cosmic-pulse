@@ -14,6 +14,8 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
+- **Sampler: no `sensors -j` fork** — temps/fans/PPT come from `/sys/class/hwmon` in-process (lm-sensors-shaped keys). Chip dirs and RAPL package path are cached; 1 Hz loop no longer `fork`/`exec`s `sensors`.
+- **Sampler: one process walk** — game snapshot keeps the `psutil` handle from a single `process_iter`; no second table walk and no `Process(pid)` re-parse of `/proc/[pid]/stat`.
 - **UI draw cost** — Chart.js only redraws canvases that are on screen; closed Charts/Sensors/Compute drills skip their 1 Hz work. Live spark draws the visible window (not the full hour ring). Opening a tile no longer resizes every hidden chart. Background tabs keep sampling without painting.
 - **Wide layout** — dashboard max width 2400px; CPU/Mem/GPU/VRAM chips cap instead of stretching into slabs; chip sparks stay 0–100% (steady RAM no longer paints the whole card). Load bar sits under the spark, not through it. Live lab gives more of the extra width to the graph.
 - **Lab tools grid** — Warnings / Sensors / Charts / etc. sit as a COSMIC-style tile dock; opening one expands a sheet above the grid (not a stacked accordion). Tile titles wrap (no ellipsis clip); Sessions / Drives labels fit a normal dock width.
