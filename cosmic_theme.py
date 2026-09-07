@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 from pathlib import Path
 
 COSMIC_ROOT = Path.home() / ".config/cosmic"
@@ -13,6 +14,7 @@ COSMIC_ROOT = Path.home() / ".config/cosmic"
 # mtime-based cache: re-parse only when COSMIC theme files change (light/dark flip, accent, …)
 _LAST_MTIME: float = 0.0
 _THEME_CACHE: dict = {}
+_THEME_LOCK = threading.RLock()
 
 # Hardcoded fallback when not on Pop/COSMIC (or config missing).
 _FALLBACK_THEME: dict = {
@@ -293,18 +295,19 @@ def get_cosmic_theme(ttl_sec: float = 8.0) -> dict:
     except OSError:
         mtime = 0.0
 
-    if _THEME_CACHE and mtime == _LAST_MTIME and mtime > 0:
-        return _THEME_CACHE
+    with _THEME_LOCK:
+        if _THEME_CACHE and mtime == _LAST_MTIME and mtime > 0:
+            return _THEME_CACHE
 
-    try:
-        theme = load_cosmic_theme()
-    except OSError:
-        theme = dict(_FALLBACK_THEME)
-        theme["mtime"] = mtime
+        try:
+            theme = load_cosmic_theme()
+        except OSError:
+            theme = dict(_FALLBACK_THEME)
+            theme["mtime"] = mtime
 
-    # Ensure mtime stamp on every payload (including fallback)
-    if "mtime" not in theme or theme.get("mtime") is None:
-        theme["mtime"] = mtime
-    _LAST_MTIME = float(theme.get("mtime") or mtime or 0.0)
-    _THEME_CACHE = theme
-    return theme
+        # Ensure mtime stamp on every payload (including fallback)
+        if "mtime" not in theme or theme.get("mtime") is None:
+            theme["mtime"] = mtime
+        _LAST_MTIME = float(theme.get("mtime") or mtime or 0.0)
+        _THEME_CACHE = theme
+        return theme

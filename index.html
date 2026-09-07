@@ -446,7 +446,7 @@
       width: 8px; height: 8px; border-radius: 50%; background: var(--m-mem);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--m-mem) 22%, transparent);
     }
-    main { padding: 0.85rem 1.15rem 1.25rem; max-width: 2400px; margin: 0 auto; position: relative; z-index: 1; }
+    main { padding: 0.85rem 1.15rem 1.25rem; min-width: 320px; max-width: 2400px; margin: 0 auto; position: relative; z-index: 1; }
     .page { display: none; flex-direction: column; gap: 0.85rem; }
     .page.active { display: flex; }
     /* Guidance / Options: claim remaining viewport under sticky header */
@@ -5411,7 +5411,7 @@
       </div>
       <div class="sum-grid-scroll">
       <div class="sum-grid">
-        <button type="button" class="sum-cell tall ok" id="sumHealthCell" data-drill="warningsSection" data-hw-keep
+        <button type="button" class="sum-cell tall ok" id="sumHealthCell" data-drill="insightsSection" data-hw-keep
           title="Open Guidance issues for this rig">
           <div class="sum-head">
             <span class="hw-icon-box health" data-glyph="health"></span>
@@ -8134,7 +8134,7 @@
       document.getElementById('gpuBwGtt').textContent =
         `${g.gtt_used_mb ?? '—'} MB · ${g.gtt_rate_mbps ?? 0} MB/s churn`;
       document.getElementById('gpuBwVramFill').textContent =
-        `${l.gpu.discrete.vram_used_mb ?? '—'} / ${l.gpu.discrete.vram_total_mb ?? '—'} MB`;
+        `${l.gpu?.discrete?.vram_used_mb ?? '—'} / ${l.gpu?.discrete?.vram_total_mb ?? '—'} MB`;
 
       document.getElementById('memBwBig').innerHTML =
         `${m.dram_est_gbps ?? '—'} <small style="font-size:1.15rem;color:var(--muted)">GB/s demand</small>`;
@@ -8811,8 +8811,8 @@
     fetchDiagnostics();
 
     function jumpTo(id) {
-      if (id === 'insightsSection') {
-        setTab('fixes', id);
+      if (id === 'insightsSection' || id === 'guidanceSection' || id === 'guidanceHero') {
+        setTab('fixes', id === 'guidanceSection' ? 'insightsSection' : id);
         return;
       }
       if (activeTab !== 'dashboard') setTab('dashboard');
@@ -9273,7 +9273,7 @@
     }
 
     function renderSummaryBar(l, hints, comparison) {
-      const c = l.cpu, m = l.memory, g = l.gpu.discrete, bw = l.bandwidth || {};
+      const c = l.cpu || {}, m = l.memory || {}, g = l.gpu?.discrete || {}, bw = l.bandwidth || {};
       const gt = l.game_totals;
       const active = guidanceOutstanding(hints).filter(h => !isInsightSuppressed(h.insight_id));
       const healthHints = anyHwFocus() ? active.filter(h => hintVisibleForFocus(h)) : active;
@@ -9306,10 +9306,14 @@
         healthSub = `No open cards for ${hwFocusLabelText()}`;
         healthCls = 'ok';
       }
-      healthCell.classList.remove('hot', 'warn', 'info', 'ok');
-      healthCell.classList.add('sum-cell', 'tall', healthCls);
-      document.getElementById('sumHealthVal').textContent = healthVal;
-      document.getElementById('sumHealthSub').textContent = healthSub;
+      if (healthCell) {
+        healthCell.classList.remove('hot', 'warn', 'info', 'ok');
+        healthCell.classList.add('sum-cell', 'tall', healthCls);
+      }
+      const healthValEl = document.getElementById('sumHealthVal');
+      const healthSubEl = document.getElementById('sumHealthSub');
+      if (healthValEl) healthValEl.textContent = healthVal;
+      if (healthSubEl) healthSubEl.textContent = healthSub;
 
       // Severity tiles — fill width of tall column (counts, not a fake score meter)
       const sevEl = document.getElementById('sumHealthSev');
@@ -11282,7 +11286,7 @@
       ensureMetricList('netMeters', NET_SPECS);
       syncMetricHwTags('netMeters', NET_SPECS);
 
-      const c = l.cpu, m = l.memory, g = l.gpu.discrete, gt = l.game_totals;
+      const c = l.cpu || {}, m = l.memory || {}, g = l.gpu?.discrete || {}, gt = l.game_totals;
       const bw = l.bandwidth || {};
       const disk = l.disk || {};
       const net = l.network || {};
@@ -12647,11 +12651,15 @@
       if (issues) lastGuidanceSummaryHints = issues;
       issues = lastGuidanceSummaryHints || [];
       const outstanding = issues.filter(h => hintUserStatus(h) === 'outstanding');
-      const hot = outstanding.filter(h => h.level === 'hot').length;
-      const warn = outstanding.filter(h => h.level === 'warn').length;
-      const info = outstanding.filter(h => h.level === 'info' || !h.level).length;
+      const scan = lastGuidanceScanFindings || [];
+      const scanHot = scan.filter(f => f.severity === 'hot').length;
+      const scanWarn = scan.filter(f => f.severity === 'warn').length;
+      const scanInfo = scan.filter(f => (f.severity === 'info' || !f.severity)).length;
+      const hot = outstanding.filter(h => h.level === 'hot').length + scanHot;
+      const warn = outstanding.filter(h => h.level === 'warn').length + scanWarn;
+      const info = outstanding.filter(h => h.level === 'info' || !h.level).length + scanInfo;
       const liveN = outstanding.filter(h => h.condition_live).length;
-      const scanN = lastGuidanceScanFindings.length;
+      const scanN = scan.length;
       const total = outstanding.length + scanN;
 
       const hero = document.getElementById('guidanceHero');
@@ -14773,7 +14781,7 @@
         } else if (wasBootstrap && data.static?.cosmic_theme && lastStatic) {
           lastStatic.cosmic_theme = data.static.cosmic_theme;
         }
-        const l = data.latest, s = lastStatic;
+        const l = data.latest, s = lastStatic || {};
         if (!l || l.ts == null) throw new Error('metrics missing latest');
 
         // Stale detection: frozen ts after suspend/resume (HTTP still 200 with old sample).
@@ -14823,6 +14831,7 @@
         if (document.visibilityState === 'hidden') {
           return;
         }
+        try {
         // Chrome theme: Cosmic mode tracks desktop light/dark live via mtime; other modes ignore.
         let themeChanged = false;
         const themeTokens = liveTheme || s?.cosmic_theme;
@@ -14866,16 +14875,18 @@
         const sh = l.sensor_health;
         if (sh) {
           const el = document.getElementById('sensorStatus');
-          el.textContent = `${sh.ok}/${sh.total} sensors reporting`;
-          el.className = 'sensor-status' + (sh.missing?.length ? '' : ' ok');
-          if (sh.missing?.length) el.textContent += ` · missing: ${sh.missing.join(', ')}`;
+          if (el) {
+            el.textContent = `${sh.ok}/${sh.total} sensors reporting`;
+            el.className = 'sensor-status' + (sh.missing?.length ? '' : ' ok');
+            if (sh.missing?.length) el.textContent += ` · missing: ${sh.missing.join(', ')}`;
+          }
         }
         if (isDrillOpen('drill-compute')) {
-          renderCores(l.cpu.per_core);
+          renderCores(l.cpu?.per_core);
           const vs = document.getElementById('vramStat');
-          if (vs) vs.innerHTML = `${l.gpu.discrete.vram_used_mb ?? '—'}<small> / ${l.gpu.discrete.vram_total_mb ?? '—'} MB</small>`;
-          setMeterWidth(document.getElementById('vramMeter'), l.gpu.discrete.vram_pct ?? 0);
-          const g = l.gpu.discrete;
+          const g = l.gpu?.discrete || {};
+          if (vs) vs.innerHTML = `${g.vram_used_mb ?? '—'}<small> / ${g.vram_total_mb ?? '—'} MB</small>`;
+          setMeterWidth(document.getElementById('vramMeter'), g.vram_pct ?? 0);
           const gd = document.getElementById('gpuDetail');
           if (gd) gd.textContent =
             `${g.gfx_mhz ?? '—'} MHz · Fan ${g.fan_rpm ?? '—'} rpm · VRAM ${g.mem_temp_c ?? '—'}°C · PCIe ${g.pcie_active || g.pcie_link || '—'}`;
@@ -14896,6 +14907,9 @@
         } else {
           document.getElementById('liveDot').style.background = 'var(--lime)';
           document.getElementById('liveLabel').textContent = 'Online';
+        }
+        } catch (renderErr) {
+          console.warn('Cosmic Pulse: tick render failed', renderErr);
         }
       } catch (err) {
         metricsBootstrapped = false;

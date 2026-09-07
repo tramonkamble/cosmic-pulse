@@ -175,6 +175,7 @@ def check_dashboard_html() -> None:
         'data-view="600"',
         'data-view="3600"',
         'data-dial="cpu-power"',
+        'id="sumHealthCell" data-drill="insightsSection"',
         "pulse-default",
     ):
         # pulse-default lives in YAML; HTML need not mention it
