@@ -14,6 +14,7 @@ and the worker is respawned.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import signal
@@ -32,6 +33,10 @@ APPLY_POLL_SEC = 0.25
 # Wall advanced much more than monotonic → suspend/resume (or large NTP step).
 WALL_JUMP_SEC = 2.5
 EMERGENCY_JOIN_SEC = 1.5
+
+# Set from atexit so the daemon watchdog cannot spawn a new orphan after we reap.
+_supervisor_shutdown = False
+_spawn_lock = threading.Lock()
 
 
 def _read_live(path: Path) -> dict | None:
@@ -60,6 +65,113 @@ def _kill_pid(pid: int) -> None:
         os.waitpid(pid, os.WNOHANG)
     except Exception:
         pass
+
+
+def _cmdline_is_sample_worker(cmdline: list | None) -> bool:
+    """Match a Pulse sample worker, not an editor with the path in argv."""
+    if not cmdline:
+        return False
+    names = [os.path.basename(str(part)) for part in cmdline]
+    if "sample_worker.py" not in names:
+        return False
+    exe = names[0].lower()
+    if exe == "sample_worker.py":
+        return True
+    return "python" in exe or exe.startswith("pypy")
+
+
+def _data_dir_matches(got: str | None, want: str | None) -> bool:
+    """True if this worker belongs to ``want``.
+
+    Missing env matches so leftovers from before ``PULSE_DATA_DIR`` still reap.
+    A non-empty mismatch is left alone (harness Pulse on another tmp dir).
+    """
+    if not want:
+        return True
+    got = (got or "").strip()
+    if not got:
+        return True
+    return os.path.abspath(got) == os.path.abspath(want)
+
+
+def _proc_environ_map(entry: Path) -> dict[str, str]:
+    try:
+        env_raw = (entry / "environ").read_bytes()
+    except OSError:
+        return {}
+    env: dict[str, str] = {}
+    for item in env_raw.split(b"\0"):
+        if b"=" in item:
+            k, _, v = item.partition(b"=")
+            env[k.decode("utf-8", "replace")] = v.decode("utf-8", "replace")
+    return env
+
+
+def _set_supervisor_shutdown() -> None:
+    global _supervisor_shutdown
+    with _spawn_lock:
+        _supervisor_shutdown = True
+
+
+def reap_stray_workers(*, keep_pid: int = 0, data_dir: Path | str | None = None) -> int:
+    """SIGKILL leftover sample_worker processes (survive parent exit / failed killpg).
+
+    Workers use ``start_new_session=True``, so a dead Pulse server does not take
+    them with it. They then race on ``.sample_live.json`` and resume looks dead.
+
+    When ``data_dir`` is set, only workers with matching ``PULSE_DATA_DIR`` are
+    killed so a harness Pulse on another port/tmp dir is left alone.
+    """
+    killed = 0
+    me = os.getpid()
+    want = os.path.abspath(str(data_dir)) if data_dir else None
+    try:
+        import psutil
+    except ImportError:
+        psutil = None  # type: ignore[assignment]
+    if psutil is not None:
+        for proc in psutil.process_iter(["pid", "cmdline"]):
+            try:
+                pid = int(proc.info["pid"] or 0)
+                if pid in (0, me, keep_pid):
+                    continue
+                if not _cmdline_is_sample_worker(proc.info.get("cmdline")):
+                    continue
+                if want:
+                    env = proc.environ()
+                    got = env.get("PULSE_DATA_DIR") or ""
+                    if not _data_dir_matches(got, want):
+                        continue
+                proc.kill()
+                killed += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+            except Exception:
+                continue
+        return killed
+    proc_root = Path("/proc")
+    if not proc_root.is_dir():
+        return 0
+    for entry in proc_root.iterdir():
+        if not entry.name.isdigit():
+            continue
+        pid = int(entry.name)
+        if pid in (0, me, keep_pid):
+            continue
+        try:
+            raw = (entry / "cmdline").read_bytes()
+        except OSError:
+            continue
+        parts = [p.decode("utf-8", "replace") for p in raw.split(b"\0") if p]
+        if not _cmdline_is_sample_worker(parts):
+            continue
+        if want:
+            got = _proc_environ_map(entry).get("PULSE_DATA_DIR") or ""
+            if not _data_dir_matches(got, want):
+                continue
+        _kill_pid(pid)
+        killed += 1
+    return killed
 
 
 def _resolve_server_module():
@@ -197,6 +309,13 @@ def _supervisor_loop(srv=None) -> None:
     if not hasattr(srv, "_sampler_resume_epoch"):
         srv._sampler_resume_epoch = 0
 
+    stray0 = reap_stray_workers(data_dir=ddir)
+    if stray0:
+        print(
+            f"Cosmic Pulse sampler: reaped {stray0} leftover sample_worker(s) at start",
+            flush=True,
+        )
+
     # Drop a leftover live file before apply starts so we don't publish a
     # previous-run sample as "fresh".
     try:
@@ -212,6 +331,15 @@ def _supervisor_loop(srv=None) -> None:
 
     while True:
         _hb_watchdog(srv)
+        with _spawn_lock:
+            if _supervisor_shutdown:
+                return
+        stray = reap_stray_workers(data_dir=ddir)
+        if stray:
+            print(
+                f"Cosmic Pulse sampler: reaped {stray} leftover sample_worker(s) before spawn",
+                flush=True,
+            )
         try:
             if live_path.exists():
                 live_path.unlink()
@@ -224,15 +352,33 @@ def _supervisor_loop(srv=None) -> None:
             pass
 
         worker_log = ddir / "sample-worker.log"
-        log_f = open(worker_log, "a", buffering=1)
-        proc = subprocess.Popen(
-            [py, "-u", str(worker_script)],
-            cwd=str(root),
-            env=env,
-            stdout=log_f,
-            stderr=log_f,
-            start_new_session=True,  # own process group — kill group on stall
-        )
+        try:
+            log_f = open(worker_log, "a", buffering=1)
+        except FileNotFoundError:
+            print(
+                f"Cosmic Pulse sampler: data dir gone ({worker_log}) — supervisor stopping",
+                flush=True,
+            )
+            return
+        except OSError as exc:
+            print(f"Cosmic Pulse sampler: cannot open {worker_log}: {exc}", flush=True)
+            time.sleep(RESPAWN_PAUSE_SEC)
+            continue
+        with _spawn_lock:
+            if _supervisor_shutdown:
+                try:
+                    log_f.close()
+                except Exception:
+                    pass
+                return
+            proc = subprocess.Popen(
+                [py, "-u", str(worker_script)],
+                cwd=str(root),
+                env=env,
+                stdout=log_f,
+                stderr=log_f,
+                start_new_session=True,  # own process group — kill group on stall
+            )
         child_pid = proc.pid
         srv._sampler_gen += 1
         print(
@@ -281,6 +427,12 @@ def _supervisor_loop(srv=None) -> None:
                 proc.wait(timeout=2)
             except Exception:
                 pass
+            stray = reap_stray_workers(keep_pid=0, data_dir=ddir)
+            if stray:
+                print(
+                    f"Cosmic Pulse sampler: reaped {stray} leftover sample_worker(s) after {reason}",
+                    flush=True,
+                )
             # Never block the watchdog on sysfs/psutil: join with a deadline.
             t = threading.Thread(
                 target=_emergency_publish,
@@ -299,6 +451,12 @@ def _supervisor_loop(srv=None) -> None:
         try:
             while True:
                 _hb_watchdog(srv)
+                if _supervisor_shutdown:
+                    try:
+                        os.killpg(child_pid, signal.SIGKILL)
+                    except Exception:
+                        _kill_pid(child_pid)
+                    return
                 rc = proc.poll()
                 if rc is not None:
                     print(
@@ -372,6 +530,16 @@ def _supervisor_loop(srv=None) -> None:
 
 def start_sample_supervisor(srv=None) -> None:
     """Start supervisor. Pass ``srv=sys.modules[__name__]`` from server.main()."""
+    from paths import data_dir as _data_dir
+
+    ddir = _data_dir()
+
+    def _on_exit() -> None:
+        # Flag first so the daemon loop cannot Popen a replacement after we reap.
+        _set_supervisor_shutdown()
+        reap_stray_workers(data_dir=ddir)
+
+    atexit.register(_on_exit)
     t = threading.Thread(
         target=_supervisor_loop,
         kwargs={"srv": srv},

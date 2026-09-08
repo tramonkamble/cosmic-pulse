@@ -21,10 +21,19 @@ from pathlib import Path
 
 
 def _atomic_write_json(path: Path, payload: dict) -> None:
-    tmp = path.with_suffix(path.suffix + ".tmp")
+    """Atomic replace. Pid-suffixed tmp so leftover workers cannot steal the file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     data = json.dumps(payload, separators=(",", ":"), default=str).encode()
-    tmp.write_bytes(data)
-    os.replace(tmp, path)
+    try:
+        tmp.write_bytes(data)
+        os.replace(tmp, path)
+    finally:
+        # replace() consumed tmp on success; still drop it if replace/write failed.
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def main() -> int:

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import tempfile
 import threading
@@ -183,7 +184,111 @@ def test_wedged_apply_does_not_prevent_worker_respawn():
             _cleanup_worker(tmp)
 
 
+def test_cmdline_is_sample_worker() -> None:
+    assert ss._cmdline_is_sample_worker(["python3", "-u", "/home/tkep/perf-dashboard/sample_worker.py"])
+    assert ss._cmdline_is_sample_worker(["/usr/bin/python3", "sample_worker.py"])
+    assert ss._cmdline_is_sample_worker(["python3.12", "-u", "sample_worker.py"])
+    assert ss._cmdline_is_sample_worker(["/usr/bin/pypy3", "sample_worker.py"])
+    assert ss._cmdline_is_sample_worker(["sample_worker.py"])
+    assert not ss._cmdline_is_sample_worker(["python3", "server.py"])
+    assert not ss._cmdline_is_sample_worker(["python3", "not_sample_worker.py"])
+    assert not ss._cmdline_is_sample_worker(["vim", "sample_worker.py"])
+    assert not ss._cmdline_is_sample_worker(["less", "/home/tkep/perf-dashboard/sample_worker.py"])
+    assert not ss._cmdline_is_sample_worker([])
+    assert not ss._cmdline_is_sample_worker(None)
+
+
+def test_data_dir_matches() -> None:
+    assert ss._data_dir_matches("", None)
+    assert ss._data_dir_matches("/tmp/a", "/tmp/a")
+    assert ss._data_dir_matches("", "/tmp/a")
+    assert ss._data_dir_matches(None, "/tmp/a")
+    assert not ss._data_dir_matches("/tmp/b", "/tmp/a")
+
+
+def test_atomic_write_uses_pid_tmp_and_cleans_up() -> None:
+    import json
+
+    from sample_worker import _atomic_write_json
+
+    with tempfile.TemporaryDirectory() as raw:
+        dest = Path(raw) / ".sample_live.json"
+        _atomic_write_json(dest, {"kind": "ready", "pid": os.getpid()})
+        payload = json.loads(dest.read_text())
+        assert payload["kind"] == "ready"
+        assert list(Path(raw).glob("*.tmp")) == []
+        _atomic_write_json(dest, {"kind": "sample", "pid": os.getpid()})
+        payload = json.loads(dest.read_text())
+        assert payload["kind"] == "sample"
+        assert list(Path(raw).glob("*.tmp")) == []
+
+
+def _spawn_named_worker(script: Path, data_dir: Path) -> subprocess.Popen:
+    env = os.environ.copy()
+    env["PULSE_DATA_DIR"] = str(data_dir)
+    return subprocess.Popen(
+        [sys.executable, "-u", str(script)],
+        env=env,
+        start_new_session=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def _stop_proc(proc: subprocess.Popen | None) -> None:
+    if proc is None:
+        return
+    if proc.poll() is None:
+        try:
+            os.killpg(proc.pid, 9)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    try:
+        proc.wait(timeout=2)
+    except Exception:
+        pass
+
+
+def test_reap_stray_workers_filters_data_dir() -> None:
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw)
+        script = tmp / "sample_worker.py"
+        script.write_text("import time\ntime.sleep(60)\n")
+        dir_a = tmp / "a"
+        dir_b = tmp / "b"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        pa = pb = None
+        try:
+            pa = _spawn_named_worker(script, dir_a)
+            pb = _spawn_named_worker(script, dir_b)
+            deadline = time.time() + 2
+            while time.time() < deadline and (pa.poll() is not None or pb.poll() is not None):
+                time.sleep(0.05)
+            assert pa.poll() is None and pb.poll() is None, "sleeper workers exited early"
+            n = ss.reap_stray_workers(data_dir=dir_a)
+            assert n >= 1
+            deadline = time.time() + 2
+            while time.time() < deadline and pa.poll() is None:
+                time.sleep(0.05)
+            assert pa.poll() is not None, "matching data_dir worker was not reaped"
+            assert pb.poll() is None, "mismatched data_dir worker was killed"
+            n_keep = ss.reap_stray_workers(keep_pid=pb.pid, data_dir=dir_b)
+            assert n_keep == 0
+            assert pb.poll() is None, "keep_pid worker was killed"
+        finally:
+            _stop_proc(pa)
+            _stop_proc(pb)
+
+
 def run_all() -> None:
+    test_cmdline_is_sample_worker()
+    test_data_dir_matches()
+    test_atomic_write_uses_pid_tmp_and_cleans_up()
+    test_reap_stray_workers_filters_data_dir()
     test_apply_does_not_reload_tuning_log()
     test_wedged_apply_does_not_prevent_worker_respawn()
     print("test_sample_supervisor: ok")
