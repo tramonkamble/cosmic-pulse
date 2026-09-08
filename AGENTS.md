@@ -40,23 +40,14 @@ Do not merge beta UI into `main` until explicitly promoted. Backend/Python work 
 
 #### A — Rules: small scaffold, community owns the smarts
 
-**Do not ship the first public build until builtin Guidance is cut to ~5–10 simple rules.**
+**Builtin Guidance is cut** (backlog `rules-minimal-for-0.1`, done). Do not grow it for 0.1.
 
 - Cosmic Pulse **0.1 ships the engine**: live metrics, UI, rule-pack loader, Guidance steps, history.
 - Builtin pack is a **scaffold** of obvious, high-confidence tips — not a full coach.
-- **Community** (people smarter about specific games/distros/GPUs) owns richer rulesets that improve games.
-- Today `rules/builtin/pulse-default/` is large (~30+ insights) — **dev dogfood**, not release shape.
-- Backlog: `rules-minimal-for-0.1` (`priority: ship-blocker`).
-
-**Scaffold shape (illustrative — finalize at cleanup time):**
-
-| Kind | Examples (existing ids where we already have them) |
-|------|-----------------------------------------------------|
-| System / kernel | powersave governor, swappiness too high |
-| Memory pressure | swap thrash (if kept simple) |
-| GPU while gaming | GPU-bound → frame/FPS limit to display (e.g. `gpu-fps-cap`) |
-| Thermal (optional) | critical GPU hot only — no essay cards |
-| One free Valve demo | **CS2 (730)** preferred, or **TF2 (440)** — one game-scoped example as a community pack template, not a full title guide |
+- **Community** (people smarter about specific games/distros/GPUs) owns richer rulesets.
+- **`pulse-core`** (always): governor, swappiness, stutter-proxy, gpu-fps-cap, proton-wayland.
+- **`popos-core`** (`platform.is_pop`): HDR off, RAPL udev, Proton libs, MangoHud, GPU hot.
+- CS2 / Cities II `game_overrides` on `pulse-core` are process detection only, not extra cards.
 
 **Not in 0.1 builtin:** audio rule walls, tools shopping lists, deep Steam health encyclopedia, multi-title pro tips. **Later:** Heroic / Lutris / other launchers (`launcher-heroic-etc`, post-0.1) — Steam-first for ship.
 
@@ -77,7 +68,7 @@ Do not merge beta UI into `main` until explicitly promoted. Backend/Python work 
 
 **When adding features:** prefer Pop/System76/Steam/Proton/Mesa-AMD paths that work on this class of rig. Detect other stacks only when cheap; don’t block Pop UX on multi-distro perfection. Community packs (`~/.config/pulse/rules/`, rule-store later) own everything else.
 
-**When adding rules:** default answer for 0.1 is **no** — put it in a community pack design, not `pulse-default`.
+**When adding rules:** default answer for 0.1 is **no** — keep `pulse-core` / `popos-core` at five insights each; richer sets belong in community packs.
 
 ## Review workflow (bash only)
 ```bash

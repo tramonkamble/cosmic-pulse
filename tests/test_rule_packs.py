@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 import sys
+from contextlib import contextmanager
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -21,6 +23,15 @@ from rule_packs import (
     reload_packs,
     render_template,
 )
+
+import rule_packs as rule_packs_mod
+
+
+@contextmanager
+def _force_pop(is_pop=True):
+    flags = {"is_pop": is_pop, "is_cosmic": is_pop, "is_system76": is_pop}
+    with patch.object(rule_packs_mod, "_platform_flags", lambda: flags):
+        yield
 
 
 def _snap(**overrides) -> dict:
@@ -60,9 +71,16 @@ def test_list_packs_loads_builtin_default():
     reload_packs()
     packs = list_packs()
     ids = {p["id"] for p in packs}
-    assert "pulse-default" in ids
-    default = next(p for p in packs if p["id"] == "pulse-default")
-    assert default["rule_count"] >= 24
+    assert ids >= {"pulse-core", "popos-core"}
+    assert "pulse-default" not in ids
+    assert "cs2-core" not in ids
+    assert "linux-core" not in ids
+    core = next(p for p in packs if p["id"] == "pulse-core")
+    pop = next(p for p in packs if p["id"] == "popos-core")
+    assert core["rule_count"] == 5
+    assert pop["rule_count"] == 5
+    assert core["builtin"] is True
+    assert pop["builtin"] is True
 
 
 def test_nested_level_when_resolves_severe_hot():
@@ -114,7 +132,8 @@ def test_gpu_junction_critical_alert_even_without_fan_curve():
         },
     )
     ctx = {"governor": "performance", "swappiness": 10, "gpu_model": "RX 7900 XTX"}
-    hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+    with _force_pop():
+        hints, emitted = evaluate_rule_packs(snap, {}, ctx)
     assert "gpu-thermal-ceiling" in emitted
     assert "gpu-thermal-by-design" not in emitted
     hit = next(h for h in hints if h["insight_id"] == "gpu-thermal-ceiling")
@@ -122,18 +141,23 @@ def test_gpu_junction_critical_alert_even_without_fan_curve():
     assert "Alert" in hit["title"] or "critical" in hit["title"].lower()
 
 
-def test_swap_thrash_is_hot_when_actively_swapping():
+def test_stutter_proxy_fires_from_instrumentation():
     reload_packs()
     snap = _snap(
-        memory={"swap_pct": 12},
-        bandwidth={"memory": {"pgmajfault_per_s": 0, "psi_avg10": 0, "swap_out_kbps": 120}},
+        game_totals={"running": True, "game_id": "730", "game_name": "Counter-Strike 2"},
+        stutter={"score": 55, "event": True, "est_ms": 32, "severity": "moderate", "session": {"events": 4, "hitch_ms_1pct": 28}},
     )
     ctx = {"governor": "performance", "swappiness": 10}
     hints, emitted = evaluate_rule_packs(snap, {}, ctx)
-    assert "memory-swap-thrash" in emitted
-    hit = next(h for h in hints if h["insight_id"] == "memory-swap-thrash")
-    assert hit["level"] == "hot"
-    assert "Alert" in hit["title"] or "swap" in hit["title"].lower()
+    assert "stutter-proxy" in emitted
+    hit = next(h for h in hints if h["insight_id"] == "stutter-proxy")
+    assert hit["pack_id"] == "pulse-core"
+    assert hit["level"] == "warn"
+    assert "hitch" in hit["title"].lower() or "stutter" in hit["title"].lower()
+    blob = " ".join(
+        f"{a.get('label','')} {a.get('cmd','')}" for a in (hit.get("actions") or [])
+    ).lower()
+    assert "brave" not in blob
 
 
 def test_governor_rule_fires_from_pack():
@@ -142,7 +166,7 @@ def test_governor_rule_fires_from_pack():
     hints, emitted = evaluate_rule_packs(snap, {}, ctx)
     assert "cpu-governor-powersave" in emitted
     hit = next(h for h in hints if h["insight_id"] == "cpu-governor-powersave")
-    assert hit["pack_id"] == "pulse-default"
+    assert hit["pack_id"] == "pulse-core"
     assert hit["level"] == "warn"
     assert "powersave" in hit["text"]
 
@@ -159,15 +183,14 @@ def test_swappiness_rule_fires():
     assert "has_fix_script" not in hit
 
 
-def test_resolution_swap_stutter_requires_game_running():
+def test_stutter_proxy_skips_when_idle():
     snap = _snap(
-        game_totals={"running": True, "game_id": "949230"},
-        memory={"swap_pct": 15},
-        stutter={"score": 30, "session": {"events": 2}},
+        game_totals={"running": False, "game_id": None},
+        stutter={"score": 80, "event": True, "session": {"events": 9}},
     )
     ctx = {"governor": "performance", "swappiness": 10}
-    hints, emitted = evaluate_rule_packs(snap, {}, ctx)
-    assert "resolution-swap-stutter" in emitted
+    _, emitted = evaluate_rule_packs(snap, {}, ctx)
+    assert "stutter-proxy" not in emitted
 
 
 def test_resolve_games_string_all_not_char_split():
@@ -203,34 +226,29 @@ def test_unresolved_template_regex_ignores_json_like_braces():
     assert not _has_unresolved_template("PATH=$HOME/bin")
 
 
-def test_display_hdr_off_rule_fires_when_capable_and_sdr(monkeypatch):
+def test_display_hdr_off_rule_fires_when_capable_and_sdr():
     import hardware_probe
     import rule_packs
 
-    monkeypatch.setattr(
-        hardware_probe,
-        "primary_display_hdr",
-        lambda max_age_sec=30.0: {
-            "capable": True,
-            "active": False,
-            "connector": "DP-1",
-            "colorspace_name": "Default",
-            "max_nits": 566.0,
-            "max_fall_nits": 566.0,
-            "desktop": "COSMIC",
-            "desktop_toggle": False,
-            "summary": "off",
-        },
-    )
-    # rule_packs imports the function by name — patch the bound reference too
-    monkeypatch.setattr(
-        rule_packs,
-        "primary_display_hdr",
-        hardware_probe.primary_display_hdr,
-    )
+    hdr = {
+        "capable": True,
+        "active": False,
+        "connector": "DP-1",
+        "colorspace_name": "Default",
+        "max_nits": 566.0,
+        "max_fall_nits": 566.0,
+        "desktop": "COSMIC",
+        "desktop_toggle": False,
+        "summary": "off",
+    }
     snap = _snap()
     ctx = {"governor": "performance", "swappiness": 10}
-    hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+    with (
+        _force_pop(),
+        patch.object(hardware_probe, "primary_display_hdr", lambda max_age_sec=30.0: hdr),
+        patch.object(rule_packs, "primary_display_hdr", lambda max_age_sec=30.0: hdr),
+    ):
+        hints, emitted = evaluate_rule_packs(snap, {}, ctx)
     assert "display-hdr-off" in emitted
     hit = next(h for h in hints if h["insight_id"] == "display-hdr-off")
     assert hit["level"] == "info"
@@ -239,28 +257,28 @@ def test_display_hdr_off_rule_fires_when_capable_and_sdr(monkeypatch):
     assert "HDR" in hit["title"] or "HDR" in hit["text"]
 
 
-def test_display_hdr_off_rule_skips_when_active(monkeypatch):
+def test_display_hdr_off_rule_skips_when_active():
     import hardware_probe
     import rule_packs
 
-    monkeypatch.setattr(
-        hardware_probe,
-        "primary_display_hdr",
-        lambda max_age_sec=30.0: {
-            "capable": True,
-            "active": True,
-            "connector": "DP-1",
-            "colorspace_name": "BT2020_RGB",
-            "max_nits": 566.0,
-            "desktop": "COSMIC",
-            "desktop_toggle": False,
-            "summary": "on",
-        },
-    )
-    monkeypatch.setattr(rule_packs, "primary_display_hdr", hardware_probe.primary_display_hdr)
+    hdr = {
+        "capable": True,
+        "active": True,
+        "connector": "DP-1",
+        "colorspace_name": "BT2020_RGB",
+        "max_nits": 566.0,
+        "desktop": "COSMIC",
+        "desktop_toggle": False,
+        "summary": "on",
+    }
     snap = _snap()
     ctx = {"governor": "performance", "swappiness": 10}
-    _hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+    with (
+        _force_pop(),
+        patch.object(hardware_probe, "primary_display_hdr", lambda max_age_sec=30.0: hdr),
+        patch.object(rule_packs, "primary_display_hdr", lambda max_age_sec=30.0: hdr),
+    ):
+        _hints, emitted = evaluate_rule_packs(snap, {}, ctx)
     assert "display-hdr-off" not in emitted
 
 
@@ -348,10 +366,11 @@ def test_cpu_rapl_unreadable_rule_fires():
         reload_packs()
         snap = _snap()
         ctx = {"governor": "performance", "swappiness": 10}
-        hints, emitted = evaluate_rule_packs(snap, {}, ctx)
+        with _force_pop():
+            hints, emitted = evaluate_rule_packs(snap, {}, ctx)
         assert "cpu-rapl-unreadable" in emitted
         hit = next(h for h in hints if h["insight_id"] == "cpu-rapl-unreadable")
-        assert hit["pack_id"] == "pulse-default"
+        assert hit["pack_id"] == "popos-core"
         assert hit["level"] == "info"
         assert hit.get("actions")
         assert "udev" in hit["title"].lower() or "udev" in hit["text"].lower()
@@ -373,6 +392,23 @@ def test_cpu_rapl_rule_skips_when_readable():
         rule_packs._cpu_rapl_tools = orig
 
 
+def test_popos_pack_skips_when_not_pop():
+    reload_packs()
+    snap = _snap(
+        gpu={
+            "discrete": {
+                "busy_pct": 90,
+                "junction_c": 105,
+                "thermal_profile": {"hot_c": 100, "label": "RDNA3"},
+            }
+        }
+    )
+    with _force_pop(is_pop=False):
+        _, emitted = evaluate_rule_packs(snap, {}, {"governor": "performance", "swappiness": 10})
+    assert "gpu-thermal-ceiling" not in emitted
+    assert "cpu-rapl-unreadable" not in emitted
+
+
 def test_cpu_rapl_rule_skips_when_absent():
     import rule_packs
 
@@ -384,3 +420,74 @@ def test_cpu_rapl_rule_skips_when_absent():
         assert "cpu-rapl-unreadable" not in emitted
     finally:
         rule_packs._cpu_rapl_tools = orig
+
+
+def _busy_game_snap() -> dict:
+    return _snap(
+        game_totals={"running": True, "game_id": "730", "game_name": "Counter-Strike 2"},
+        gpu={
+            "discrete": {
+                "busy_pct": 92,
+                "vram_pct": 40,
+                "mem_busy_pct": 20,
+                "junction_c": 70,
+                "gtt": {"rate_mbps": 0, "pct": 0, "sustained_high": False},
+                "thermal_profile": {"model": "RX 7900 GRE"},
+            }
+        },
+    )
+
+
+def test_gpu_fps_cap_fires_on_60hz():
+    import rule_packs
+
+    with patch.object(rule_packs, "primary_display_refresh_hz", lambda max_age_sec=120.0: 60.0):
+        hints, emitted = evaluate_rule_packs(
+            _busy_game_snap(), {}, {"governor": "performance", "swappiness": 10}
+        )
+    assert "gpu-fps-cap" in emitted
+    hit = next(h for h in hints if h["insight_id"] == "gpu-fps-cap")
+    assert hit["pack_id"] == "pulse-core"
+    assert "60" in hit["text"]
+
+
+def test_gpu_fps_cap_skips_high_refresh():
+    import rule_packs
+
+    with patch.object(rule_packs, "primary_display_refresh_hz", lambda max_age_sec=120.0: 144.0):
+        _, emitted = evaluate_rule_packs(
+            _busy_game_snap(), {}, {"governor": "performance", "swappiness": 10}
+        )
+    assert "gpu-fps-cap" not in emitted
+
+
+def run_all() -> None:
+    test_list_packs_loads_builtin_default()
+    test_nested_level_when_resolves_severe_hot()
+    test_gpu_junction_critical_alert_even_without_fan_curve()
+    test_stutter_proxy_fires_from_instrumentation()
+    test_governor_rule_fires_from_pack()
+    test_swappiness_rule_fires()
+    test_stutter_proxy_skips_when_idle()
+    test_resolve_games_string_all_not_char_split()
+    test_eval_condition_all_and_any()
+    test_unresolved_template_regex_ignores_json_like_braces()
+    test_display_hdr_off_rule_fires_when_capable_and_sdr()
+    test_display_hdr_off_rule_skips_when_active()
+    test_edid_hdr_static_parse()
+    test_get_path_traverses_list_indices()
+    test_render_template_leaves_missing_paths()
+    test_render_template_bad_format_falls_back_to_str()
+    test_render_actions_drops_unresolved_keeps_json_literals()
+    test_render_template_formats_numbers()
+    test_cpu_rapl_unreadable_rule_fires()
+    test_cpu_rapl_rule_skips_when_readable()
+    test_popos_pack_skips_when_not_pop()
+    test_cpu_rapl_rule_skips_when_absent()
+    test_gpu_fps_cap_fires_on_60hz()
+    test_gpu_fps_cap_skips_high_refresh()
+    print("test_rule_packs: ok")
+
+
+if __name__ == "__main__":
+    run_all()

@@ -96,7 +96,7 @@ def test_proton_wayland_rule_fires_when_gated(monkeypatch):
     monkeypatch.setattr(
         rule_packs,
         "game_session_launch_metrics",
-        lambda appid, primary_pid=None: {
+        lambda appid, primary_pid=None, primary_name=None: {
             "proton": True,
             "wayland_fix_missing": True,
             "launch_options": "",
@@ -127,7 +127,7 @@ def test_proton_wayland_rule_skips_when_fix_present(monkeypatch):
     monkeypatch.setattr(
         rule_packs,
         "game_session_launch_metrics",
-        lambda appid, primary_pid=None: {
+        lambda appid, primary_pid=None, primary_name=None: {
             "proton": True,
             "wayland_fix_missing": False,
             "launch_options": "SDL_VIDEODRIVER=x11 %command%",

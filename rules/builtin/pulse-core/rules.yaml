@@ -1,0 +1,150 @@
+# Five core insights: Linux kernel, Steam/Proton, live gaming (Pulse-sampled).
+rules:
+  - id: cpu-governor-powersave
+    detect:
+      metric: ctx.governor
+      eq: powersave
+    emit:
+      insight_id: cpu-governor-powersave
+      level: warn
+      title: CPU stuck in power-save mode
+      text: >-
+        Governor is '{ctx.governor}' — cores may not boost fast enough while gaming.
+        Switch to performance for game sessions.
+    actions:
+      - label: Set performance governor (until reboot)
+        kind: cmd
+        cmd: echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+      - label: Check available governors
+        kind: cmd
+        cmd: cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+
+  - id: vm-swappiness-high
+    detect:
+      all:
+        - metric: ctx.swappiness
+          exists: true
+        - metric: ctx.swappiness
+          gt: 60
+    emit:
+      insight_id: vm-swappiness-high
+      level: warn
+      title: Swappiness too high for gaming
+      text: >-
+        vm.swappiness={ctx.swappiness} — the kernel swaps aggressively when RAM fills up,
+        which causes hitches in any game.
+    actions:
+      - label: Lower swappiness for this boot
+        kind: cmd
+        cmd: sudo sysctl vm.swappiness=10
+      - label: Persist lower swappiness
+        kind: cmd
+        cmd: echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-gaming.conf && sudo sysctl --system
+      - label: Check current value
+        kind: cmd
+        cmd: cat /proc/sys/vm/swappiness
+
+  - id: stutter-proxy
+    detect:
+      all:
+        - metric: game.running
+          eq: true
+        - any:
+            - metric: stutter.event
+              eq: true
+            - metric: stutter.score
+              gte: 42
+            - metric: stutter.session_events
+              gte: 3
+    emit:
+      insight_id: stutter-proxy
+      level_when:
+        detect:
+          metric: stutter_detail.severity
+          eq: severe
+        then: hot
+        else:
+          detect:
+            metric: stutter_detail.severity
+            eq: moderate
+          then: warn
+          else: info
+      title: Hitching detected (stutter proxy)
+      text: >-
+        ~{stutter_detail.est_ms}ms est. hitch · score {stutter.score:.0f}/100 ·
+        {stutter.session_events} events in 5m · 1% low proxy ~{stutter_detail.hitch_ms_1pct}ms.
+        Likely: {stutter_detail.cause_text}.
+      games: active
+      condition_live: true
+    actions:
+      - label: List memory hogs
+        kind: cmd
+        cmd: ps aux --sort=-%mem | head -20
+      - label: Close extra browsers
+        kind: note
+        cmd: Quit unused browsers and Electron apps — they steal RAM and cause hitches
+        note: You run this; Pulse never does
+      - label: Lower swappiness — copy & run
+        kind: cmd
+        cmd: sudo sysctl vm.swappiness=10
+        note: Needs sudo; Pulse never does
+
+  - id: gpu-fps-cap
+    detect:
+      all:
+        - metric: game.running
+          eq: true
+        - metric: gpu.busy_pct
+          gte: 85
+        - metric: display.refresh_hz
+          exists: true
+        - metric: display.refresh_hz
+          lte: 75
+    emit:
+      insight_id: gpu-fps-cap
+      level: info
+      title: Cap FPS to your display refresh
+      text: >-
+        GPU is {gpu.busy_pct:.0f}% busy on a {display.cap_hz} Hz display while {game.name} runs.
+        Frames above {display.cap_hz} FPS will not appear on screen but still burn GPU time.
+      games: active
+      bucket: resolutions
+    actions:
+      - label: "In-game: cap at {display.cap_hz} FPS"
+        kind: game
+        cmd: "{game.name} → Options → Graphics → Frame rate limit → {display.cap_hz}"
+      - label: "Optional: cap slightly above refresh"
+        kind: game
+        cmd: Use {display.cap_hz} only if thermals stay cool; avoid uncapped rendering
+
+  - id: proton-wayland-launch-fix
+    detect:
+      all:
+        - metric: session.wayland
+          eq: true
+        - metric: game.running
+          eq: true
+        - metric: game.proton
+          eq: true
+        - metric: game.wayland_fix_missing
+          eq: true
+    emit:
+      insight_id: proton-wayland-launch-fix
+      level: warn
+      title: "{game.name}: running on Wayland without X11 launch override"
+      text: >-
+        {game.name} is on Proton + Wayland ({session.desktop}) with no X11 launch
+        options in Steam (and the running process does not have the override).
+        Copy the launch options from Guidance steps, or set them in Steam — then restart.
+      games: active
+      bucket: steam
+      condition_live: true
+    actions:
+      - label: Steam launch option (copy)
+        kind: steam
+        cmd: PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+        note: Steam → {game.name} → Properties → Launch Options — restart required
+      - label: With GameMode (optional)
+        kind: steam
+        cmd: gamemoderun PROTON_ENABLE_WAYLAND=0 PROTON_USE_WAYLAND=0 SDL_VIDEODRIVER=x11 %command%
+        note: Only if you already use gamemoderun for this title

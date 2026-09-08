@@ -281,6 +281,21 @@ def _flatten_steam(active_appid: str | None, running: bool) -> dict:
     }
 
 
+def _platform_flags() -> dict:
+    """Host identity for pack match_when (Pop pack stays off on other distros)."""
+    try:
+        from hardware_probe import platform_identity
+
+        ident = platform_identity() or {}
+    except Exception:
+        ident = {}
+    return {
+        "is_pop": bool(ident.get("is_pop")),
+        "is_cosmic": bool(ident.get("is_cosmic")),
+        "is_system76": bool(ident.get("is_system76")),
+    }
+
+
 def flatten_metrics(snap: dict, mem_spec: dict | None, ctx: dict) -> dict:
     """Namespace for pack detect conditions and emit templates."""
     mem_spec = mem_spec if isinstance(mem_spec, dict) else {}
@@ -346,6 +361,7 @@ def flatten_metrics(snap: dict, mem_spec: dict | None, ctx: dict) -> dict:
             "swappiness": ctx.get("swappiness"),
             "gpu_model": ctx.get("gpu_model") or thermal_profile.get("model") or "",
         },
+        "platform": _platform_flags(),
         "session": {
             "wayland": session_is_wayland(),
             "desktop": os.environ.get("XDG_CURRENT_DESKTOP") or "",

@@ -1,0 +1,19 @@
+id: pulse-core
+name: Pulse core
+version: "0.1.0"
+requires_pulse: "0.1"
+priority: 10
+# Process names for Steam AppIDs — not extra Guidance cards.
+legacy_game_ids:
+  cities2: "949230"
+game_overrides:
+  "730":
+    main_exe:
+      - cs2.exe
+      - cs2
+    short: CS2
+  "949230":
+    main_exe:
+      - Cities2.exe
+rules:
+  - rules.yaml

@@ -1,0 +1,10 @@
+id: popos-core
+name: Pop!_OS
+version: "0.1.0"
+requires_pulse: "0.1"
+priority: 100
+match_when:
+  metric: platform.is_pop
+  eq: true
+rules:
+  - rules.yaml

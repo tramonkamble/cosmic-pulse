@@ -14,6 +14,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
+- **Builtin Guidance** — two packs of five: `pulse-core` (Linux / Steam / hitch / FPS cap / Proton Wayland) and `popos-core` (Pop-only HDR, RAPL udev, Proton libs, MangoHud, GPU hot). Fat `pulse-default` removed; community packs stay `~/.config/pulse/rules/`.
 - **Rig identity tiles** — a bit taller on the glance row. Chassis reads the OEM when DMI is Dell/Lenovo/…; a DIY board (ASUS/MSI SKU or placeholder DMI) shows as Desktop, not System76.
 - **Sampler: no `sensors -j` fork** — temps/fans/PPT come from `/sys/class/hwmon` in-process (lm-sensors-shaped keys). Chip dirs and RAPL package path are cached; 1 Hz loop no longer `fork`/`exec`s `sensors`.
 - **Sampler: one process walk** — game snapshot keeps the `psutil` handle from a single `process_iter`; no second table walk and no `Process(pid)` re-parse of `/proc/[pid]/stat`.

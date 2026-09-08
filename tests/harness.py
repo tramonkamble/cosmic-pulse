@@ -176,10 +176,10 @@ def check_dashboard_html() -> None:
         'data-view="3600"',
         'data-dial="cpu-power"',
         'id="sumHealthCell" data-drill="insightsSection"',
-        "pulse-default",
+        "pulse-core",
     ):
-        # pulse-default lives in YAML; HTML need not mention it
-        if needle == "pulse-default":
+        # pack ids live in YAML; HTML need not mention them
+        if needle == "pulse-core":
             continue
         check(f"html has {needle}", needle in html, "missing from index.html")
 
@@ -256,17 +256,22 @@ def check_guidance(boot: dict, live: dict) -> None:
     if check("GET /api/rule-packs", status == 200 and isinstance(packs, dict), str(status)):
         plist = packs.get("packs") or []
         ids = {p.get("id") for p in plist if isinstance(p, dict)}
-        check("pack pulse-default", "pulse-default" in ids, str(ids))
-        default = next((p for p in plist if p.get("id") == "pulse-default"), {})
-        check("pulse-default builtin", default.get("builtin") is True, str(default))
+        check("pack pulse-core", "pulse-core" in ids, str(ids))
+        check("pack popos-core", "popos-core" in ids, str(ids))
+        builtin_ids = {p.get("id") for p in plist if isinstance(p, dict) and p.get("builtin")}
         check(
-            "pulse-default has rules",
-            (default.get("rule_count") or 0) >= 24,
-            str(default.get("rule_count")),
+            "only two builtin packs",
+            builtin_ids == {"pulse-core", "popos-core"},
+            str(builtin_ids),
         )
-        if default.get("enabled") is False:
-            print("  skip pulse-default enabled (disabled in this machine's config)")
-    status, rules = _get("/api/rule-packs?view=rules&pack=pulse-default")
+        core = next((p for p in plist if p.get("id") == "pulse-core"), {})
+        pop = next((p for p in plist if p.get("id") == "popos-core"), {})
+        check("pulse-core builtin", core.get("builtin") is True, str(core))
+        check("pulse-core has 5 rules", (core.get("rule_count") or 0) == 5, str(core.get("rule_count")))
+        check("popos-core has 5 rules", (pop.get("rule_count") or 0) == 5, str(pop.get("rule_count")))
+        if core.get("enabled") is False:
+            print("  skip pulse-core enabled (disabled in this machine's config)")
+    status, rules = _get("/api/rule-packs?view=rules&pack=pulse-core")
     if check("rule list 200", status == 200 and isinstance(rules, dict)):
         rids = {
             r.get("insight_id") or r.get("rule_id")
@@ -274,9 +279,21 @@ def check_guidance(boot: dict, live: dict) -> None:
             if isinstance(r, dict)
         }
         check(
-            "cpu-rapl-unreadable in pack",
-            "cpu-rapl-unreadable" in rids,
+            "stutter-proxy in core pack",
+            "stutter-proxy" in rids,
             str(sorted(x for x in rids if x)[:12]),
+        )
+    status, pop_rules = _get("/api/rule-packs?view=rules&pack=popos-core")
+    if check("pop rule list 200", status == 200 and isinstance(pop_rules, dict)):
+        prids = {
+            r.get("insight_id") or r.get("rule_id")
+            for r in (pop_rules.get("rules") or [])
+            if isinstance(r, dict)
+        }
+        check(
+            "cpu-rapl-unreadable in pop pack",
+            "cpu-rapl-unreadable" in prids,
+            str(sorted(x for x in prids if x)[:12]),
         )
 
     energy = Path("/sys/class/powercap/intel-rapl:0/energy_uj")

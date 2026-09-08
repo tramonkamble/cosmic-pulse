@@ -49,11 +49,11 @@ Persisted to `.tuning_log.json` (debounced, gitignored).
 
 ### Rule packs
 
-`rules/builtin/pulse-default/*.yaml` define insights. Game overrides and legacy AppIDs live in `pack.yaml`. Packs are data, not code — extend without editing Python when possible.
+`rules/builtin/pulse-core/` and `rules/builtin/popos-core/` define insights (five each). Game overrides and legacy AppIDs live on `pulse-core/pack.yaml`. Packs are data, not code — extend without editing Python when possible.
 
 **Product intent (0.1+):** Pulse owns the **engine** that evaluates packs; it does **not** own a large encyclopedia of game-tuning advice.
 
-**Builtin for 0.1:** about **5–10** obvious rules only — e.g. powersave governor, high swappiness, GPU-bound → FPS/frame limit to refresh, optional critical thermal / swap thrash, plus **one free Valve large-audience demo** (CS2 AppID `730` preferred, or TF2 `440`) as a template for game-scoped packs. Everything richer is **community packs** (user config dir; pack store later). Fat `pulse-default` during development is dogfood — **cut to scaffold before first public build** (ship gate `rules-minimal-for-0.1`).
+**Builtin for 0.1:** two packs, **five insights each** — `pulse-core` (Linux / Steam / hitch proxy / GPU-busy FPS cap) and `popos-core` (Pop-only: HDR, RAPL udev, Proton libs, MangoHud, GPU hot). Everything richer is **community packs** (`~/.config/pulse/rules/`).
 
 **Launchers:** 0.1 is Steam-first. Heroic / Lutris / etc. are planned post-0.1 integrations (`launcher-heroic-etc`), designed so packs can key off launcher + game id rather than Steam-only hardcoding forever.
 
