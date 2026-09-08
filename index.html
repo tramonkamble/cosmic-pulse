@@ -1631,12 +1631,14 @@
     /* Game + Pulse Index share one strip */
     #sumGameCell {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) minmax(7.8rem, 9.75rem);
       grid-template-areas: "game-main game-index";
       align-items: stretch;
-      column-gap: 0.55rem;
+      column-gap: 0.45rem;
       padding: 0.4rem 0.5rem;
       cursor: default;
+      min-width: 0;
+      overflow: hidden;
     }
     #sumGameCell:not(.tall) .sum-game-art { display: none !important; }
     #sumGameCell .sum-game-main {
@@ -1662,6 +1664,8 @@
     #sumGameCell:not(.tall) .sum-game-stats { display: none !important; }
     #sumGameCell .sum-game-index {
       grid-area: game-index;
+      min-width: 0;
+      overflow: hidden;
     }
     .sum-grid.game-prominent #sumGameCell {
       display: grid;
@@ -2108,6 +2112,23 @@
       color: var(--m-stutter);
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-stutter) 28%, transparent);
     }
+    .viz-tab-val {
+      display: inline-block;
+      min-width: 1.15em;
+      margin-left: .28rem;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      font-size: .92em;
+      letter-spacing: .01em;
+      opacity: .9;
+    }
+    .viz-tab-val:empty { display: none; }
+    .viz-tab.is-warn:not(.active) { color: var(--sev-warn, #f5c882); }
+    .viz-tab.is-hot:not(.active) { color: var(--m-stutter); }
+    .viz-tab[data-viz-tab="stutter"].is-hot.active {
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-stutter) 55%, transparent);
+    }
+    .viz-tab[data-viz-tab="index"].is-warn:not(.active) { color: var(--m-league); }
     .viz-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -2117,11 +2138,17 @@
     .viz-area-rig,
     .viz-area-index,
     .viz-area-stutter { min-width: 0; }
+    .viz-grid .viz-area-rig,
     .viz-grid .viz-area-index,
     .viz-grid .viz-area-stutter { display: none; }
-    .viz-grid.viz-focus-rig .viz-area-rig { display: block; }
-    .viz-grid.viz-focus-index .viz-area-index { display: block; }
-    .viz-grid.viz-focus-stutter .viz-area-stutter { display: block; }
+    .viz-grid.viz-focus-rig .viz-area-rig,
+    .viz-grid.viz-focus-index .viz-area-index,
+    .viz-grid.viz-focus-stutter .viz-area-stutter {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      height: 100%;
+    }
     .viz-area-rig .viz-block,
     .viz-area-index .viz-block,
     .viz-area-stutter .viz-block { min-height: 0; }
@@ -2296,9 +2323,10 @@
     .live-ov-kpi-dup[hidden] { display: none !important; }
     .rig-chart-title-row {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: .55rem;
+      gap: .35rem .55rem;
       min-width: 0;
       padding: 0 0.1rem 0.15rem;
       border-bottom: 1px solid var(--line-soft);
@@ -2306,7 +2334,7 @@
     }
     .rig-chart-title-row .stutter-side-label {
       margin: 0;
-      flex: 0 1 auto;
+      flex: 1 1 8rem;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -2314,11 +2342,12 @@
     }
     .rig-chart-swatches {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       gap: .4rem;
+      flex: 1 1 12rem;
       flex-shrink: 1;
       justify-content: flex-end;
-      max-width: 70%;
+      max-width: 100%;
       overflow: hidden;
       margin-left: auto;
     }
@@ -2588,7 +2617,7 @@
     /* Soften icon noise in compact meters */
     .rig-layout .hw-metric-glyph { opacity: .55; width: .85em; height: .85em; }
     .rig-layout .rig-chart-swatches {
-      max-width: 62%;
+      max-width: 100%;
       gap: .45rem;
     }
     .rig-layout .rig-chart-swatch {
@@ -2826,7 +2855,7 @@
     .index-tick.sev-warn { background: rgba(98,160,234,.55); }
     .index-tick.sev-ok { background: rgba(106,201,141,.45); }
     .stutter-layout.index-layout {
-      grid-template-columns: minmax(12rem, 1.05fr) minmax(15rem, 1.85fr) minmax(11rem, 1.05fr);
+      grid-template-columns: minmax(12.5rem, 0.95fr) minmax(16rem, 2.05fr) minmax(15rem, 1.2fr);
     }
     .index-layout .stutter-drivers {
       gap: 0;
@@ -2838,6 +2867,7 @@
       overscroll-behavior: contain;
       gap: 0.45rem;
     }
+    .index-layout .index-rank-list { flex: 1 1 auto; }
     .index-layout .stutter-side-label {
       margin: .05rem 0 .15rem;
       flex-shrink: 0;
@@ -3043,31 +3073,33 @@
       grid-template-columns: minmax(10.5rem, 1fr) minmax(13rem, 1.4fr) minmax(11rem, 1fr);
       gap: 0.65rem; flex: 1; min-height: 0; align-items: stretch;
     }
-    /* Index + Stutter: pack to content — no 52vh empty wells */
+    /* Index + Stutter: fill Live lab like Snapshot (chart is the stage) */
     .stutter-layout.viz-tri {
-      grid-template-columns: minmax(10rem, 0.9fr) minmax(14rem, 1.85fr) minmax(11rem, 1.05fr);
+      grid-template-columns: minmax(12.5rem, 0.9fr) minmax(16rem, 2.05fr) minmax(15rem, 1.2fr);
       min-height: 0;
-      height: auto;
-      align-items: start;
+      height: 100%;
+      align-items: stretch;
       gap: 0.55rem;
     }
     .stutter-layout.viz-tri .stutter-col {
-      height: auto;
+      min-height: 0;
+      height: 100%;
       gap: 0.35rem;
     }
     .stutter-layout.viz-tri .rig-panel {
-      flex: 0 1 auto;
+      flex: 1 1 auto;
       min-height: 0;
-      height: auto;
+      height: 100%;
     }
     .stutter-layout.viz-tri .rig-panel-chart {
-      height: auto;
+      height: 100%;
+      min-height: 0;
     }
     .stutter-layout.viz-tri .stutter-chart-box {
-      flex: 0 0 auto;
-      min-height: 11.5rem;
-      height: 12.5rem;
-      max-height: 14rem;
+      flex: 1 1 auto;
+      min-height: 16rem;
+      height: auto;
+      max-height: none;
       border: none;
       background: rgba(0, 0, 0, .28);
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03);
@@ -3359,6 +3391,7 @@
       .stutter-layout.viz-tri {
         grid-template-columns: 1fr 1.4fr;
         min-height: 0;
+        height: auto;
       }
       .stutter-drivers { grid-area: drivers; }
       .stutter-chart-col { grid-area: chart; }
@@ -3368,8 +3401,8 @@
     @media (max-width: 700px) {
       .stutter-layout { grid-template-columns: 1fr; grid-template-areas: "drivers" "chart" "summary"; }
       .stutter-layout.viz-tri .stutter-chart-box {
-        min-height: 11rem;
-        height: 12rem;
+        min-height: 14rem;
+        height: min(42vh, 22rem);
       }
     }
     .stutter-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: .55rem; }
@@ -3998,7 +4031,7 @@
         gap: 0.75rem 0.85rem;
       }
       .options-layout > .options-page-head,
-      .options-layout > .options-msg,
+      .options-layout > #optionsGeneral,
       .options-layout > #optionsGuidance,
       .options-layout > #optionsRulePacks,
       .options-layout > #optionsReset {
@@ -4010,9 +4043,9 @@
       flex-wrap: wrap;
       align-items: baseline;
       justify-content: space-between;
-      gap: .25rem 1rem;
+      gap: .35rem 1rem;
       margin: 0;
-      padding: 0.15rem 0.15rem 0;
+      padding: 0.15rem 0.15rem 0.1rem;
     }
     .options-page-head h2 {
       margin: 0;
@@ -4020,9 +4053,22 @@
       font-weight: 600;
     }
     .options-page-head .sub {
-      margin: 0;
+      margin: .15rem 0 0;
       font-size: .88rem;
       color: var(--muted);
+      max-width: 42rem;
+      line-height: 1.4;
+    }
+    .options-page-head .options-msg {
+      margin-left: auto;
+      text-align: right;
+      min-width: 8rem;
+    }
+    .options-page-head > div {
+      display: flex;
+      flex-direction: column;
+      gap: 0.12rem;
+      min-width: 0;
     }
     .options-section {
       display: grid;
@@ -4055,12 +4101,36 @@
     @media (max-width: 720px) {
       .options-subgrid { grid-template-columns: 1fr; }
     }
-    /* Appearance: scale + theme share one row denser on wide */
+    /* When Hardware / Data share a row they are ~half viewport — stack their inner cards */
+    @media (max-width: 1600px) {
+      #optionsHardware .options-subgrid,
+      #optionsData .options-subgrid { grid-template-columns: 1fr; }
+    }
+    /* Appearance is full-width: compact scale column, theme takes the rest */
     #optionsGeneral .options-subgrid {
-      grid-template-columns: minmax(12rem, 0.85fr) minmax(0, 1.35fr);
+      grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
+      align-items: start;
     }
     @media (max-width: 900px) {
       #optionsGeneral .options-subgrid { grid-template-columns: 1fr; }
+    }
+    #optionsHardware .options-row,
+    #optionsData .options-row {
+      display: grid;
+      grid-template-columns: 7.6rem minmax(0, 1fr);
+      align-items: center;
+      gap: 0.3rem 0.7rem;
+    }
+    #optionsHardware .options-scale-wrap {
+      flex-wrap: nowrap;
+      min-width: 0;
+    }
+    #optionsHardware .options-scale-wrap input[type="range"] {
+      max-width: none;
+    }
+    #optionsHardware .options-scale-val {
+      min-width: 4.4rem;
+      white-space: nowrap;
     }
     .options-subblock {
       display: grid;
@@ -4096,17 +4166,17 @@
       .theme-mode-list { grid-template-columns: 1fr; }
     }
     .theme-mode-opt {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: .1rem .4rem;
-      align-items: start;
-      padding: .42rem .5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .12rem;
+      padding: .5rem .6rem .55rem;
       border-radius: 8px;
       border: 1px solid var(--line);
       background: color-mix(in srgb, var(--panel-elevated) 70%, transparent);
       cursor: pointer;
       transition: border-color .15s, background .15s, box-shadow .15s;
       min-width: 0;
+      position: relative;
     }
     .theme-mode-opt:hover {
       border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
@@ -4117,19 +4187,18 @@
       background: color-mix(in srgb, var(--accent) 10%, var(--panel-elevated));
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
     }
+    .theme-mode-opt:focus-within {
+      outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+      outline-offset: 1px;
+    }
     .theme-mode-opt input {
-      margin: .2rem 0 0; accent-color: var(--accent); cursor: pointer;
+      position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none;
     }
     .theme-mode-opt .theme-mode-title {
       font-size: .88rem; font-weight: 600; color: var(--text); line-height: 1.3;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .theme-mode-opt .theme-mode-desc {
-      grid-column: 2; font-size: .7rem; color: var(--muted); line-height: 1.3; margin: 0;
-      display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
-    }
-    @media (min-width: 1100px) {
-      .theme-mode-opt .theme-mode-desc { display: none; } /* 4-up chips: title is enough */
+      font-size: .72rem; color: var(--muted); line-height: 1.35; margin: 0;
     }
     .theme-status {
       margin: 0; font-size: .82rem; color: var(--muted); line-height: 1.35;
@@ -4142,7 +4211,6 @@
       color: var(--tp-text, var(--text));
       overflow: hidden;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
-      max-height: 11rem;
     }
     .theme-preview-bar {
       display: flex; align-items: center; justify-content: space-between; gap: .5rem;
@@ -4269,7 +4337,7 @@
       .rule-catalog { max-height: min(36vh, 22rem); }
     }
     .rule-row {
-      display: grid; grid-template-columns: auto 1fr auto; gap: .35rem .55rem;
+      display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .35rem .55rem;
       align-items: start;
       padding: .45rem .55rem;
       border-radius: 8px;
@@ -4311,9 +4379,14 @@
       color: var(--text); min-width: 3rem;
     }
     .options-scale-hint { font-size: .78rem; color: var(--muted); flex: 1 1 100%; margin: 0; line-height: 1.35; }
-    .options-msg { font-size: .86rem; min-height: 1.1em; margin: 0; padding: 0 0.1rem; }
+    .options-msg { font-size: .86rem; min-height: 0; margin: 0; padding: 0 0.1rem; }
+    .options-msg:empty { display: none; }
     .options-msg.ok { color: var(--green); }
     .options-msg.err { color: var(--hot); }
+    .options-toolbar {
+      display: flex; flex-wrap: wrap; gap: .45rem .75rem;
+      align-items: center; justify-content: space-between;
+    }
     .options-stats {
       display: flex; flex-wrap: wrap; gap: .35rem .9rem;
       font-size: .85rem; color: var(--muted);
@@ -4329,9 +4402,13 @@
       display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
     }
     .options-confirm-row input[type="text"] {
-      font-family: inherit; font-size: .95rem; min-width: 9rem; max-width: 100%;
+      font-family: inherit; font-size: .95rem; min-width: 11rem; max-width: 100%;
       padding: .5rem .65rem; border-radius: 10px; border: 1px solid var(--line);
       background: var(--panel-elevated); color: var(--text);
+    }
+    .options-confirm-row.is-ready input[type="text"] {
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
     }
     /* Guidance prefs lists */
     .pref-list {
@@ -4363,6 +4440,14 @@
       font-size: .82rem;
       font-weight: 500;
       color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .pref-row-meta {
+      display: block;
+      font-size: .72rem;
+      color: var(--muted);
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -4822,6 +4907,16 @@
     .pulse-dial[data-dial="dram-bw"],
     .pulse-dial[data-dial="dram-psi"] { --dial-color: var(--m-mem); }
     .pulse-dial[data-dial="hitch"] { --dial-color: var(--m-stutter); }
+    .pulse-dial.pulse-dial-link {
+      cursor: pointer;
+    }
+    .pulse-dial.pulse-dial-link:hover {
+      background: color-mix(in srgb, var(--dial-color) 12%, rgba(0, 0, 0, .22));
+    }
+    .pulse-dial.pulse-dial-link:focus-visible {
+      outline: 2px solid var(--dial-color);
+      outline-offset: 2px;
+    }
     .pulse-dial[data-dial="swap"] { --dial-color: var(--m-swap); }
     .pulse-dial[data-dial="read"],
     .pulse-dial[data-dial="busy"] { --dial-color: var(--m-disk); }
@@ -5192,7 +5287,7 @@
       flex: 1 1 auto;
       display: flex;
       flex-direction: column;
-      min-height: 22rem;
+      min-height: min(22rem, calc(100dvh - 14rem));
       padding: 0.7rem 0.85rem 0.85rem;
     }
     body.dash-dedupe #pageDashboard #vizPanel .viz-panel-head { margin-bottom: 0.4rem; }
@@ -5228,10 +5323,11 @@
       min-height: 0;
       overflow: visible;
     }
-    /* One glance row: Guidance · chips · game */
+    /* One glance row: Guidance · chips · game.
+       Extra width goes to load chips (sparks), not an empty Game slab. */
     body.dash-dedupe .sum-grid,
     body.dash-dedupe .sum-grid.game-prominent {
-      grid-template-columns: minmax(11rem, 1.15fr) repeat(4, minmax(7.4rem, 12.5rem)) minmax(13.5rem, 1.55fr);
+      grid-template-columns: minmax(10.5rem, 13.5rem) repeat(4, minmax(7.6rem, 1fr)) minmax(15.5rem, 18rem);
       grid-template-rows: auto;
       grid-template-areas: "health cpu mem gpu vram game";
       min-height: 0;
@@ -5348,7 +5444,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    @media (max-width: 1100px) {
+    @media (max-width: 1200px) {
       body.dash-dedupe .sum-grid,
       body.dash-dedupe .sum-grid.game-prominent {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5358,13 +5454,31 @@
           "gpu vram"
           "game game";
       }
+      body.dash-dedupe #sumHealthCell .health-sev-row { max-width: 24rem; }
+    }
+    @media (max-width: 1100px) {
       body.dash-dedupe .stutter-layout.rig-layout {
         grid-template-columns: 1fr;
         height: auto;
       }
-      body.dash-dedupe #pageDashboard #vizPanel { min-height: 18rem; }
+      body.dash-dedupe #pageDashboard #vizPanel { min-height: 16rem; }
       body.dash-dedupe .summary-bar.compact-rig .rig-strip {
         grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
+      }
+      body.dash-dedupe .summary-bar.compact-rig .rig-tile-name {
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+    }
+    @media (max-height: 780px) {
+      body.dash-dedupe #pageDashboard #vizPanel { min-height: 12rem; }
+      body.dash-dedupe .rig-layout .stutter-chart-box { min-height: 10rem; }
+      body.dash-dedupe .pulse-dial-ring {
+        width: min(6.4rem, 88cqmin);
+        height: min(6.4rem, 88cqmin);
       }
     }
 
@@ -5602,8 +5716,8 @@
         <h2>Live lab</h2>
         <div class="viz-tabs" role="tablist" aria-label="Live analysis views">
           <button type="button" class="viz-tab active" role="tab" data-viz-tab="rig" aria-selected="true">Snapshot</button>
-          <button type="button" class="viz-tab" role="tab" data-viz-tab="index" aria-selected="false">Pulse Index</button>
-          <button type="button" class="viz-tab" role="tab" data-viz-tab="stutter" aria-selected="false">Stutter</button>
+          <button type="button" class="viz-tab" role="tab" data-viz-tab="index" aria-selected="false">Pulse Index <span class="viz-tab-val" id="vizTabIndexVal"></span></button>
+          <button type="button" class="viz-tab" role="tab" data-viz-tab="stutter" aria-selected="false">Stutter <span class="viz-tab-val" id="vizTabStutterVal"></span></button>
         </div>
         <div class="chart-live-controls" id="chartLiveControls" title="Pause freezes chart follow. Drag on a chart to zoom a time range. Ctrl+scroll zooms; Shift+drag pans. View is how much time the X-axis shows; samples stay 1 Hz.">
           <span class="ctrl-label" title="How much time the graphs show. Collector still samples at 1 Hz.">View</span>
@@ -5750,7 +5864,9 @@
                           <span class="pulse-dial-v" data-val>—</span>
                         </div>
                       </div>
-                      <div class="pulse-dial" data-dial="hitch" data-hw-keep title="Stutter proxy score (0 = smooth)">
+                      <div class="pulse-dial pulse-dial-link" data-dial="hitch" data-hw-keep data-drill="viz-stutter"
+                        role="button" tabindex="0"
+                        title="Open Stutter — hitch score over time (0 = smooth)">
                         <div class="pulse-dial-ring" aria-hidden="true"></div>
                         <div class="pulse-dial-core">
                           <span class="pulse-dial-k">Hitch</span>
@@ -6267,11 +6383,13 @@
 
     <div id="pageOptions" class="page">
       <div class="options-layout section-target" id="optionsSection">
-        <header class="options-page-head">
-          <h2>Options</h2>
-          <p class="sub">Appearance, hardware scales, data, Guidance prefs, rule packs</p>
-        </header>
-        <p class="options-msg" id="optionsMsg" aria-live="polite"></p>
+        <div class="options-page-head">
+          <div>
+            <h2>Options</h2>
+            <p class="sub">Settings for this machine — appearance, hardware scales, data, and Guidance.</p>
+          </div>
+          <p class="options-msg" id="optionsMsg" aria-live="polite"></p>
+        </div>
 
         <section class="options-section" id="optionsGeneral">
           <h2>Appearance</h2>
@@ -6285,8 +6403,7 @@
                     aria-label="UI scale" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1.5" />
                   <span class="options-scale-val" id="uiScaleVal">150%</span>
                   <p class="options-scale-hint">
-                    Scales type and spacing for the whole UI (release to apply).
-                    100% ≈ normal desktop, 150% default for a second monitor, 200% largest.
+                    Drag, then release to save. 100% desktop, 150% second-monitor default, 200% largest.
                   </p>
                 </div>
               </div>
@@ -6330,7 +6447,7 @@
                 </div>
                 <div class="theme-preview-body">
                   <div class="theme-preview-card">
-                    <p class="theme-preview-card-title">Live overview</p>
+                    <p class="theme-preview-card-title">Live lab</p>
                     <div class="theme-preview-card-line"></div>
                     <div class="theme-preview-card-line short"></div>
                     <div class="theme-preview-row" style="margin-top:.45rem">
@@ -6380,7 +6497,7 @@
                   <span class="options-scale-val" id="hwGpuTempMaxVal">105°C</span>
                 </div>
               </div>
-              <p class="options-scale-hint">Live lab °C axis uses CPU min and the higher of CPU/GPU max. Dial fill uses each part’s max.</p>
+              <p class="options-scale-hint" id="hwTempHint">Live lab °C axis uses CPU min and the higher of CPU/GPU max. Dial fill uses each part’s max.</p>
             </div>
             <div class="options-subblock">
               <h3>Power dials</h3>
@@ -6400,7 +6517,7 @@
                   <span class="options-scale-val" id="hwGpuPowerMaxVal">355 W</span>
                 </div>
               </div>
-              <p class="options-scale-hint">7900X package is often ~142–170 W PPT; 7900 XTX board power ~355 W.</p>
+              <p class="options-scale-hint" id="hwPowerHint">Dial 100% is the watt ceiling you set. Raise it if the ring pegs; lower it if it never fills.</p>
             </div>
           </div>
         </section>
@@ -6471,8 +6588,8 @@
           <p class="section-lead">
             Guidance rules ship as YAML packs. Disable packs you do not want; browse installed rules below.
           </p>
-          <div class="options-stats" id="rulePackStats">—</div>
-          <div class="options-actions">
+          <div class="options-toolbar">
+            <div class="options-stats" id="rulePackStats">—</div>
             <button class="btn" type="button" id="rulePacksReload">Reload packs</button>
           </div>
           <div class="pack-list" id="rulePackList"></div>
@@ -6487,10 +6604,10 @@
             Only Pulse local state (SQLite, Guidance log, ignored/fixed). Steam and Proton files are never modified.
           </p>
           <div class="options-stats" id="optResetStats">—</div>
-          <div class="options-confirm-row">
+          <div class="options-confirm-row" id="resetConfirmRow">
             <span class="options-label">Confirm</span>
             <input type="text" id="resetConfirmInput" placeholder="Type RESET" autocomplete="off" spellcheck="false" aria-label="Type RESET to enable destructive actions" />
-            <span class="sub" style="margin:0">Required for clear / reset</span>
+            <span class="sub" id="resetConfirmHint" style="margin:0">Required to unlock clear / reset</span>
           </div>
           <div class="options-actions">
             <button class="btn danger" type="button" id="btnClearSamples" disabled title="Delete all samples and game sessions">Clear sample history</button>
@@ -7150,29 +7267,37 @@
       return out;
     }
 
-    function downsampleXy(pts, maxPts) {
-      if (!pts || pts.length <= maxPts) return pts;
-      const out = new Array(maxPts);
-      const last = pts.length - 1;
-      const step = last / (maxPts - 1);
-      for (let i = 0; i < maxPts; i++) out[i] = pts[Math.round(i * step)];
-      return out;
-    }
-
-    /** Slice to the visible time window, then cap point count for canvas draw. */
-    function xySeriesView(tsArr, valArr, viewSec, maxPts) {
+    /** Slice to the visible time window, then cap point count for canvas draw.
+     *  Buckets are epoch-aligned so a sliding 1 Hz window does not pick a new
+     *  subset of peaks every tick (index-stride downsample did). */
+    function xySeriesView(tsArr, valArr, viewSec, maxPts, agg = 'avg') {
       const n = Math.min(tsArr?.length || 0, valArr?.length || 0);
       if (!n) return [];
-      const tCut = (tsArr[n - 1] || 0) - (Number(viewSec) || 600) - 2;
+      let t0;
+      let t1;
+      if (chartRange && (chartsPaused || chartZoomed)
+          && Number.isFinite(chartRange.min) && Number.isFinite(chartRange.max)) {
+        t0 = chartRange.min;
+        t1 = chartRange.max;
+      } else {
+        t1 = tsArr[n - 1] || 0;
+        t0 = t1 - (Number(viewSec) || 600);
+      }
+      const span = Math.max(30, t1 - t0);
       let i0 = 0;
-      while (i0 < n && tsArr[i0] < tCut) i0 += 1;
+      while (i0 < n && tsArr[i0] < t0 - 2) i0 += 1;
       i0 = Math.max(0, i0 - 1);
-      const pts = xySeries(
-        i0 ? tsArr.slice(i0) : tsArr,
-        i0 ? valArr.slice(i0) : valArr,
-      );
+      let i1 = n;
+      while (i1 > i0 && tsArr[i1 - 1] > t1 + 2) i1 -= 1;
+      const ts = tsArr.slice(i0, i1);
+      const vs = valArr.slice(i0, i1);
       const cap = Math.max(120, maxPts || 480);
-      return downsampleXy(pts, cap);
+      // 1 Hz AMD GPU busy (and session index derived from it) square-waves.
+      // Sub-2s buckets + cubic tension drew a hashed comb that reshaped every tick.
+      let bucketSec = Math.max(1, Math.round(span / cap));
+      if (span >= 120) bucketSec = Math.max(3, bucketSec);
+      if (bucketSec <= 1 && ts.length <= cap + 40) return xySeries(ts, vs);
+      return epochBucketSeries(ts, vs, bucketSec, agg);
     }
 
     function canvasVisible(chart) {
@@ -7474,7 +7599,10 @@
       plugins: {
         legend: {
           display: true, position: 'bottom',
-          labels: { color: tickColor, font: { family: 'Inter', size: 10 }, boxWidth: 10, padding: 10 },
+          labels: {
+            color: tickColor, font: { family: 'Inter', size: 10 }, boxWidth: 10, padding: 10,
+            filter: (item) => item.text !== 'Hitch event',
+          },
         },
         tooltip: {
           backgroundColor: '#404349',
@@ -8612,11 +8740,28 @@
       document.getElementById('pageOptions')?.classList.toggle('active', name === 'options');
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       syncDiagAutoRefresh();
+      if (name === 'options') {
+        try { fetchStore(); } catch (_) { /* ignore */ }
+        try {
+          fetchRuleCatalog(document.getElementById('ruleCatalogSearch')?.value?.trim());
+        } catch (_) { /* ignore */ }
+        try { fillHwScaleHints(); } catch (_) { /* ignore */ }
+      }
       if (name === 'dashboard' && lastLatest) {
         requestAnimationFrame(() => {
           try {
             renderVisualDashboard(lastLatest, lastComparison);
-            sparkChart?.resize();
+            // Page was display:none — resize the visible Live lab chart, not only Snapshot.
+            if (vizFocus === 'index') {
+              indexChart?.resize();
+              renderIndexChart();
+            } else if (vizFocus === 'stutter') {
+              stutterChart?.resize();
+              renderStutterChart();
+            } else {
+              sparkChart?.resize();
+              renderSparkChart();
+            }
           } catch (_) { /* ignore */ }
         });
       }
@@ -9696,6 +9841,10 @@
     function sparkTempMax() {
       return Math.max(hwScales.cpu_temp_max_c || 105, hwScales.gpu_temp_max_c || 105);
     }
+    const SPARK_RING_KEYS = [
+      'cpu', 'gpu', 'ram', 'disk', 'diskR', 'diskW', 'cpuTemp', 'gpuTemp',
+      'hitch', 'hitchEvent', 'index',
+    ];
     const sparkRing = {
       ts: [],
       labels: [],
@@ -9707,10 +9856,13 @@
       diskW: [],
       cpuTemp: [],
       gpuTemp: [],
+      hitch: [],
+      hitchEvent: [],
+      index: [],
       lastTs: 0,
       ema: {
         cpu: null, gpu: null, ram: null, disk: null,
-        diskR: null, diskW: null, cpuTemp: null, gpuTemp: null,
+        diskR: null, diskW: null, cpuTemp: null, gpuTemp: null, hitch: null, index: null,
       },
       seeded: false,
     };
@@ -9719,6 +9871,7 @@
       cpu: true, gpu: true, ram: true,
       diskR: true, diskW: true,
       cpuTemp: true, gpuTemp: true,
+      hitch: true,
     };
     function loadSparkEnabled() {
       try {
@@ -9746,23 +9899,22 @@
     function resetSparkRing() {
       sparkRing.ts = [];
       sparkRing.labels = [];
-      sparkRing.cpu = [];
-      sparkRing.gpu = [];
-      sparkRing.ram = [];
-      sparkRing.disk = [];
-      sparkRing.diskR = [];
-      sparkRing.diskW = [];
-      sparkRing.cpuTemp = [];
-      sparkRing.gpuTemp = [];
+      SPARK_RING_KEYS.forEach(k => { sparkRing[k] = []; });
       sparkRing.lastTs = 0;
       sparkRing.ema = {
         cpu: null, gpu: null, ram: null, disk: null,
-        diskR: null, diskW: null, cpuTemp: null, gpuTemp: null,
+        diskR: null, diskW: null, cpuTemp: null, gpuTemp: null, hitch: null, index: null,
       };
       sparkRing.seeded = false;
       if (typeof sparkChart !== 'undefined' && sparkChart) {
         sparkChart._pulseStructKey = '';
       }
+    }
+
+    function sparkRingShiftFront() {
+      sparkRing.ts.shift();
+      sparkRing.labels.shift();
+      SPARK_RING_KEYS.forEach(k => sparkRing[k].shift());
     }
 
     function sparkDiskActivity(disk) {
@@ -9813,44 +9965,32 @@
       // Prefer time window so a burst of faster samples can't shrink visible history.
       const oldest = (sparkRing.ts.at(-1) ?? 0) - SPARK_RING_KEEP_SEC;
       while (sparkRing.ts.length > 2 && sparkRing.ts[0] < oldest) {
-        sparkRing.ts.shift();
-        sparkRing.labels.shift();
-        sparkRing.cpu.shift();
-        sparkRing.gpu.shift();
-        sparkRing.ram.shift();
-        sparkRing.disk.shift();
-        sparkRing.diskR.shift();
-        sparkRing.diskW.shift();
-        sparkRing.cpuTemp.shift();
-        sparkRing.gpuTemp.shift();
+        sparkRingShiftFront();
       }
       // Hard cap against runaway growth if timestamps stall/repeat.
       const maxPts = SPARK_RING_KEEP_SEC + 30;
       while (sparkRing.ts.length > maxPts) {
-        sparkRing.ts.shift();
-        sparkRing.labels.shift();
-        sparkRing.cpu.shift();
-        sparkRing.gpu.shift();
-        sparkRing.ram.shift();
-        sparkRing.disk.shift();
-        sparkRing.diskR.shift();
-        sparkRing.diskW.shift();
-        sparkRing.cpuTemp.shift();
-        sparkRing.gpuTemp.shift();
+        sparkRingShiftFront();
       }
     }
 
     function sparkRingPushSample(h, alphas) {
       sparkRing.ts.push(h.ts);
       sparkRing.labels.push(fmtTime(h.ts));
-      sparkRing.cpu.push(sparkEmaPush('cpu', h.cpu?.overall_pct ?? 0, alphas.pct));
-      sparkRing.gpu.push(sparkEmaPush('gpu', h.gpu?.discrete?.busy_pct ?? 0, alphas.pct));
-      sparkRing.ram.push(sparkEmaPush('ram', h.memory?.pct ?? 0, alphas.pct * 0.9));
+      sparkRing.cpu.push(sparkEmaPush('cpu', h.cpu?.overall_pct, alphas.pct, { clamp01: false }));
+      sparkRing.gpu.push(sparkEmaPush('gpu', h.gpu?.discrete?.busy_pct, Math.min(0.14, (alphas.pct || 0.32) * 0.4), { clamp01: false }));
+      sparkRing.ram.push(sparkEmaPush('ram', h.memory?.pct, alphas.pct * 0.9, { clamp01: false }));
       sparkRing.disk.push(sparkEmaPush('disk', sparkDiskActivity(h.disk), alphas.pct * 0.85));
       sparkRing.diskR.push(sparkEmaPush('diskR', sparkDiskReadPct(h.disk), alphas.pct * 0.85));
       sparkRing.diskW.push(sparkEmaPush('diskW', sparkDiskWritePct(h.disk), alphas.pct * 0.85));
       sparkRing.cpuTemp.push(sparkEmaPush('cpuTemp', sparkCpuTempC(h), alphas.temp, { clamp01: false }));
       sparkRing.gpuTemp.push(sparkEmaPush('gpuTemp', sparkGpuTempC(h), alphas.temp, { clamp01: false }));
+      // Hitch is snappier than load, but not raw — cubic tension on a 0/80 square
+      // wave filled the plot. Missing GPU/index samples carry forward, not 0.
+      const hitchAlpha = Math.min(1, (alphas.pct || 0.32) * 1.35);
+      sparkRing.hitch.push(sparkEmaPush('hitch', h.stutter?.score, hitchAlpha, { clamp01: false }));
+      sparkRing.hitchEvent.push(h.stutter?.event ? 1 : 0);
+      sparkRing.index.push(sparkEmaPush('index', h.comparison?.session_index, alphas.pct * 0.55, { clamp01: false }));
     }
 
     /** One-shot seed from rawHistory so the chart isn't empty after reload. */
@@ -9884,6 +10024,15 @@
       sparkRing.lastTs = ts;
       sparkRingPushSample(latest, { pct: 0.32, temp: 0.28 });
       sparkRingTrim();
+    }
+
+    function sparkRingEnsure() {
+      if (!chartsPaused && !chartZoomed) {
+        if (lastLatest) sparkRingIngest(lastLatest);
+        else if (rawHistory.length) sparkRingIngest(rawHistory.at(-1));
+      } else if (!sparkRing.seeded) {
+        sparkRingSeedFromHistory();
+      }
     }
 
     /** Parse #rgb / #rrggbb into [r,g,b]. */
@@ -10010,16 +10159,9 @@
     function renderSparkChart() {
       // Ingest newest sample into append-only ring (unless charts are paused/zoomed —
       // history still grows via rawHistory; ring freezes for a stable inspect view).
-      if (!chartsPaused && !chartZoomed) {
-        if (lastLatest) sparkRingIngest(lastLatest);
-        else if (rawHistory.length) sparkRingIngest(rawHistory.at(-1));
-      } else if (!sparkRing.seeded) {
-        sparkRingSeedFromHistory();
-      }
+      sparkRingEnsure();
       paintChipSparks();
       if (!canvasVisible(sparkChart)) return;
-
-      const n = sparkRing.ts.length;
 
       // All toggleable series — Disk R/W are separate (scaled % of SPARK_DISK_REF_MBPS).
       const allSparkSeries = [
@@ -10051,12 +10193,17 @@
           key: 'gpuTemp', label: 'GPU °C', color: METRIC.gpu, focus: ['gpu'],
           data: sparkRing.gpuTemp, axis: 'y1', isTemp: true,
         },
+        {
+          key: 'hitch', label: 'Hitch', color: METRIC.stutter, keep: true,
+          data: sparkRing.hitch, fillTop: 0, fillBot: 0, axis: 'y', isHitch: true,
+        },
       ];
 
       // HW focus filters the *available* set; sparkEnabled toggles what is drawn.
+      // Hitch stays as a correlate overlay under any hardware focus.
       let candidates = allSparkSeries;
       if (anyHwFocus()) {
-        candidates = allSparkSeries.filter(s => s.focus.some(f => hwFocusHas(f)));
+        candidates = allSparkSeries.filter(s => s.keep || s.focus?.some(f => hwFocusHas(f)));
         if (!candidates.length) candidates = allSparkSeries;
       }
       // Always show swatches for the candidate set (including off ones).
@@ -10064,24 +10211,25 @@
       let active = candidates.filter(s => sparkEnabled[s.key] !== false);
       if (!active.length) active = candidates.slice(0, 1);
 
-      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${Object.values(sparkEnabled).join('')}|${n}|${chartViewSec}|${sparkTempMin()}|${sparkTempMax()}|${chartsPaused}|${chartZoomed}`;
+      const structKey = `spark|${hwFocusKey()}|${active.map(s => s.key).join(',')}|${Object.values(sparkEnabled).join('')}|${chartViewSec}|${sparkTempMin()}|${sparkTempMax()}|${chartsPaused}|${chartZoomed}`;
 
       const newDatasets = active.map((d, idx) => {
         const isDisk = !!d.isDisk;
         const isTemp = !!d.isTemp;
-        const primary = idx === 0;
+        const isHitch = !!d.isHitch;
+        const primary = idx === 0 && !isHitch;
         const cap = Math.max(160, Math.min(560, Math.round((sparkChart.width || 640) * 0.65)));
-        const pts = xySeriesView(sparkRing.ts, d.data, chartViewSec, cap);
+        const pts = xySeriesView(sparkRing.ts, d.data, chartViewSec, cap, isHitch ? 'max' : 'avg');
         return {
           label: d.label,
           data: pts,
           borderColor: d.color,
-          backgroundColor: isTemp || isDisk
+          backgroundColor: isTemp || isDisk || isHitch
             ? 'transparent'
             : sparkAreaFill(d.color, (d.fillTop ?? 0.18) * 1.15, d.fillBot ?? 0.02),
-          fill: !isTemp && !isDisk,
-          tension: isTemp ? 0.12 : 0.28,
-          borderWidth: isTemp ? 1.75 : (primary ? 2.5 : (isDisk ? 2 : 2.15)),
+          fill: !isTemp && !isDisk && !isHitch,
+          tension: isHitch ? 0 : (d.key === 'gpu' ? 0.08 : (isTemp ? 0.12 : 0.22)),
+          borderWidth: isHitch ? 1.7 : (isTemp ? 1.75 : (primary ? 2.5 : (isDisk ? 2 : 2.15))),
           borderJoinStyle: 'round',
           borderCapStyle: isTemp ? 'round' : 'round',
           borderDash: isTemp ? [1.5, 3.5] : undefined,
@@ -10092,10 +10240,36 @@
           pointBorderWidth: 1.5,
           pointHitRadius: 8,
           yAxisID: d.axis || 'y',
-          order: isTemp ? 5 : (isDisk ? 4 : idx),
+          order: isHitch ? 0 : (isTemp ? 5 : (isDisk ? 4 : idx + 1)),
           spanGaps: true,
         };
       });
+      if (active.some(s => s.key === 'hitch')) {
+        const tCut = (sparkRing.ts.at(-1) || 0) - chartViewSec - 2;
+        const eventPts = [];
+        const nEv = Math.min(sparkRing.ts.length, sparkRing.hitch.length, sparkRing.hitchEvent.length);
+        for (let i = 0; i < nEv; i++) {
+          if (sparkRing.hitchEvent[i] && sparkRing.ts[i] >= tCut) {
+            eventPts.push({ x: sparkRing.ts[i], y: sparkRing.hitch[i] ?? 0 });
+          }
+        }
+        newDatasets.push({
+          type: 'scatter',
+          label: 'Hitch event',
+          data: eventPts,
+          borderColor: METRIC.thermal,
+          backgroundColor: METRIC.thermal,
+          pointRadius: 3.5,
+          pointHoverRadius: 5,
+          pointStyle: 'triangle',
+          pointBackgroundColor: METRIC.thermal,
+          pointBorderColor: rgbaFromHex(METRIC.thermal, 0.45),
+          pointBorderWidth: 1,
+          showLine: false,
+          yAxisID: 'y',
+          order: -1,
+        });
+      }
 
       if (!chartInteractActive) applyLiveTimeAxis(sparkChart, chartViewSec);
 
@@ -10174,14 +10348,20 @@
         const viewLbl = CHART_VIEW_LABELS[chartViewSec] || `${Math.round(chartViewSec / 60)} min`;
         const mode = chartZoomed ? 'zoomed' : (chartsPaused ? 'paused' : viewLbl);
         const diskOn = sparkEnabled.diskR || sparkEnabled.diskW;
+        const hitchOn = active.some(s => s.key === 'hitch');
         if (!anyHwFocus()) {
-          chartLabel.textContent = diskOn
-            ? `Load · disk (${SPARK_DISK_REF_MBPS} MB/s=100%) · ${mode}`
-            : (showTempAxis ? `Load & temps · ${mode}` : `Load · ${mode}`);
+          const bits = [showTempAxis ? 'Load & temps' : 'Load'];
+          if (hitchOn) bits.push('hitch');
+          if (diskOn) bits.push(`disk (${SPARK_DISK_REF_MBPS} MB/s=100%)`);
+          chartLabel.textContent = `${bits.join(' · ')} · ${mode}`;
         } else if (hwFocusSet.size === 1 && hwFocusHas('storage')) {
-          chartLabel.textContent = `Disk R/W · ${mode} · ${SPARK_DISK_REF_MBPS} MB/s = 100%`;
+          chartLabel.textContent = hitchOn
+            ? `Disk R/W · hitch · ${mode} · ${SPARK_DISK_REF_MBPS} MB/s = 100%`
+            : `Disk R/W · ${mode} · ${SPARK_DISK_REF_MBPS} MB/s = 100%`;
         } else {
-          chartLabel.textContent = `${hwFocusLabelText()} · ${mode}`;
+          chartLabel.textContent = hitchOn
+            ? `${hwFocusLabelText()} · hitch · ${mode}`
+            : `${hwFocusLabelText()} · ${mode}`;
         }
       }
       if (!chartInteractActive) sparkChart.update('none');
@@ -10281,38 +10461,54 @@
 
     function renderStutterChart() {
       if (!canvasVisible(stutterChart)) return;
-      const win = chartRange || (() => {
-        const last = rawHistory.at(-1)?.ts ?? 0;
-        return { min: last - chartViewSec, max: last };
-      })();
-      const cut = rawHistory.filter(h => h.ts >= win.min && h.ts <= win.max + 0.05);
-      const { tsMids, slices: points } = epochBucketsFromHistory(cut, 1);
-      const structKey = `stutter|${chartViewSec}|${tsMids.length}|${chartsPaused}|${chartZoomed}`;
-      const scoreRaw = points.map(p => avg(p, h => h.stutter?.score ?? 0));
-      const scoreLine = smoothChartSeries('stutter:score', scoreRaw, 0.22);
-      const estRaw = points.map(p => avg(p, h => h.stutter?.est_ms ?? 0));
-      const estLine = smoothChartSeries('stutter:est', estRaw, CHART_SMOOTH_ALPHA_SPIKY);
+      sparkRingEnsure();
+      const cap = Math.max(160, Math.min(560, Math.round((stutterChart.width || 640) * 0.65)));
+      const structKey = `stutter|load|${chartViewSec}|${chartsPaused}|${chartZoomed}`;
+      const scorePts = xySeriesView(sparkRing.ts, sparkRing.hitch, chartViewSec, cap, 'max');
+      const cpuPts = xySeriesView(sparkRing.ts, sparkRing.cpu, chartViewSec, cap);
+      const gpuPts = xySeriesView(sparkRing.ts, sparkRing.gpu, chartViewSec, cap);
+      const estTs = [];
+      const estVals = [];
+      const tCut = (sparkRing.ts.at(-1) ?? rawHistory.at(-1)?.ts ?? 0) - chartViewSec - 2;
+      for (const h of rawHistory) {
+        if (h?.ts == null || h.ts < tCut) continue;
+        estTs.push(h.ts);
+        estVals.push(h.stutter?.est_ms ?? 0);
+      }
+      const estPts = xySeriesView(estTs, estVals, chartViewSec, cap, 'max');
+      const hitchByTs = new Map(scorePts.map(p => [p.x, p.y]));
       const eventPoints = [];
-      points.forEach((p, i) => {
-        if (p.some(h => h.stutter?.event)) {
-          eventPoints.push({ x: tsMids[i], y: scoreLine[i] });
-        }
-      });
+      const nEv = Math.min(sparkRing.ts.length, sparkRing.hitch.length, sparkRing.hitchEvent.length);
+      const evCut = (sparkRing.ts.at(-1) || 0) - chartViewSec - 2;
+      for (let i = 0; i < nEv; i++) {
+        if (!sparkRing.hitchEvent[i] || sparkRing.ts[i] < evCut) continue;
+        eventPoints.push({ x: sparkRing.ts[i], y: sparkRing.hitch[i] ?? hitchByTs.get(sparkRing.ts[i]) ?? 0 });
+      }
       const newDatasets = [
         {
-          label: 'Hitch score', data: xySeries(tsMids, scoreLine), borderColor: CHART.stutter || METRIC.stutter,
-          backgroundColor: sparkAreaFill(CHART.stutter || METRIC.stutter, 0.18, 0.02), fill: true, tension: .35,
-          pointRadius: 0, borderWidth: 2.5, yAxisID: 'y',
+          label: 'Hitch score', data: scorePts, borderColor: CHART.stutter || METRIC.stutter,
+          backgroundColor: sparkAreaFill(CHART.stutter || METRIC.stutter, 0.18, 0.02), fill: true, tension: 0,
+          pointRadius: 0, borderWidth: 2.5, yAxisID: 'y', order: 1, spanGaps: true,
         },
         {
-          label: 'Est. ms', data: xySeries(tsMids, estLine), borderColor: METRIC.thermal,
-          backgroundColor: 'transparent', fill: false, tension: .35,
-          pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y1',
+          label: 'CPU', data: cpuPts, borderColor: rgbaFromHex(METRIC.cpu, 0.58),
+          backgroundColor: 'transparent', fill: false, tension: .22,
+          pointRadius: 0, borderWidth: 1.4, yAxisID: 'y', order: 4, spanGaps: true,
+        },
+        {
+          label: 'GPU', data: gpuPts, borderColor: rgbaFromHex(METRIC.gpu, 0.62),
+          backgroundColor: 'transparent', fill: false, tension: .22,
+          pointRadius: 0, borderWidth: 1.4, yAxisID: 'y', order: 3, spanGaps: true,
+        },
+        {
+          label: 'Est. ms', data: estPts, borderColor: METRIC.thermal,
+          backgroundColor: 'transparent', fill: false, tension: 0,
+          pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y1', order: 5,
         },
         {
           type: 'scatter', label: 'Hitch event', data: eventPoints,
           borderColor: METRIC.thermal, backgroundColor: METRIC.thermal,
-          pointRadius: 5, pointStyle: 'triangle', yAxisID: 'y', showLine: false,
+          pointRadius: 5, pointStyle: 'triangle', yAxisID: 'y', showLine: false, order: 0,
         },
       ];
       if (!stutterChart.options.scales.y1) {
@@ -10322,7 +10518,7 @@
           grid: { drawOnChartArea: false },
         };
       }
-      const peakEst = Math.max(0, ...estLine.filter(v => v > 0), 0);
+      const peakEst = Math.max(0, ...estPts.map(p => p.y).filter(v => v > 0), 0);
       stableAxisMax(stutterChart, 'y1', Math.max(40, peakEst), 40);
       lockPctAxis(stutterChart, 'y');
       if (!chartInteractActive) applyLiveTimeAxis(stutterChart, chartViewSec);
@@ -10334,7 +10530,7 @@
       }
       if (!chartInteractActive && canvasVisible(stutterChart)) stutterChart.update('none');
       const stLabel = document.getElementById('stutterChartLabel');
-      if (stLabel) stLabel.textContent = `Score · ${CHART_VIEW_LABELS[chartViewSec] || 'window'}`;
+      if (stLabel) stLabel.textContent = `Score · CPU/GPU · ${CHART_VIEW_LABELS[chartViewSec] || 'window'}`;
     }
 
     const STUTTER_SEV_WORD = { severe: 'Severe', moderate: 'Moderate', mild: 'Mild', none: 'Smooth' };
@@ -10638,11 +10834,11 @@
 
     function indexHistoryPick(h) {
       const c = h.comparison;
-      if (!c) return 0;
+      if (!c) return null;
       const sole = soleHwFocus();
-      if (sole === 'cpu') return c.cpu?.live_pct ?? 0;
-      if (sole === 'gpu') return c.gpu?.live_pct ?? 0;
-      if (sole === 'memory') return c.memory?.live_pressure_pct ?? 0;
+      if (sole === 'cpu') return c.cpu?.live_pct ?? null;
+      if (sole === 'gpu') return c.gpu?.live_pct ?? null;
+      if (sole === 'memory') return c.memory?.live_pressure_pct ?? null;
       // Multi-select: average live loads of selected parts when possible
       if (anyHwFocus()) {
         const vals = [];
@@ -10651,23 +10847,34 @@
         if (hwFocusHas('memory') && c.memory?.live_pressure_pct != null) vals.push(c.memory.live_pressure_pct);
         if (vals.length) return vals.reduce((a, b) => a + b, 0) / vals.length;
       }
-      return c.session_index ?? 0;
+      return c.session_index ?? null;
     }
 
     function renderIndexChart() {
       if (!canvasVisible(indexChart)) return;
-      const win = chartRange || (() => {
-        const last = rawHistory.at(-1)?.ts ?? 0;
-        return { min: last - chartViewSec, max: last };
-      })();
-      const cut = rawHistory.filter(h => h.ts >= win.min && h.ts <= win.max + 0.05);
-      const { tsMids, slices: points } = epochBucketsFromHistory(cut, 1);
+      sparkRingEnsure();
       const focusKey = hwFocusKey();
-      const structKey = `index|${focusKey}|${chartViewSec}|${tsMids.length}|${chartsPaused}|${chartZoomed}`;
-      const indexRaw = points.map(p => avg(p, indexHistoryPick));
-      const indexLine = smoothChartSeries(`index:${focusKey}:idx`, indexRaw, 0.22);
-      const headRaw = indexLine.map(v => Math.max(0, 100 - (v || 0)));
-      const headLine = smoothChartSeries(`index:${focusKey}:head`, headRaw, 0.22);
+      const structKey = `index|hitch|${focusKey}|${chartViewSec}|${chartsPaused}|${chartZoomed}`;
+      const cap = Math.max(160, Math.min(560, Math.round((indexChart.width || 640) * 0.65)));
+      // Default: append-only sparkRing. HW focus picks live load from history
+      // through the same epoch buckets as Snapshot (not 1 Hz index-stride).
+      const indexSrc = anyHwFocus()
+        ? (() => {
+            const ts = [];
+            const vs = [];
+            for (const h of rawHistory) {
+              if (h?.ts == null || !Number.isFinite(+h.ts)) continue;
+              ts.push(+h.ts);
+              vs.push(indexHistoryPick(h));
+            }
+            return xySeriesView(ts, vs, chartViewSec, cap);
+          })()
+        : xySeriesView(sparkRing.ts, sparkRing.index, chartViewSec, cap);
+      const headPts = indexSrc.map(p => ({
+        x: p.x,
+        y: p.y == null || !Number.isFinite(+p.y) ? null : Math.max(0, 100 - p.y),
+      }));
+      const hitchPts = xySeriesView(sparkRing.ts, sparkRing.hitch, chartViewSec, cap, 'max');
       const sole = soleHwFocus();
       const mainLabel = anyHwFocus()
         ? `${hwFocusLabelText()} load`
@@ -10679,14 +10886,19 @@
         : METRIC.league;
       const newDatasets = [
         {
-          label: mainLabel, data: xySeries(tsMids, indexLine), borderColor: mainColor,
-          backgroundColor: sparkAreaFill(mainColor, 0.2, 0.02), fill: true, tension: .35,
-          pointRadius: 0, borderWidth: 2.5, yAxisID: 'y',
+          label: mainLabel, data: indexSrc, borderColor: mainColor,
+          backgroundColor: sparkAreaFill(mainColor, 0.2, 0.02), fill: true, tension: 0.08,
+          pointRadius: 0, borderWidth: 2.5, yAxisID: 'y', order: 2, spanGaps: true,
         },
         {
-          label: 'Headroom', data: xySeries(tsMids, headLine), borderColor: CHART.headroom || METRIC.cpu,
-          backgroundColor: 'transparent', fill: false, tension: .35,
-          pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y',
+          label: 'Headroom', data: headPts, borderColor: CHART.headroom || METRIC.cpu,
+          backgroundColor: 'transparent', fill: false, tension: 0.08,
+          pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y', order: 3, spanGaps: true,
+        },
+        {
+          label: 'Hitch', data: hitchPts, borderColor: METRIC.stutter,
+          backgroundColor: 'transparent', fill: false, tension: 0,
+          pointRadius: 0, borderWidth: 1.65, yAxisID: 'y', order: 1, spanGaps: true,
         },
       ];
       lockPctAxis(indexChart, 'y');
@@ -10703,6 +10915,13 @@
         indexChart.data.datasets = newDatasets;
       }
       if (!chartInteractActive) indexChart.update('none');
+      const idxLabel = document.getElementById('indexChartLabel');
+      if (idxLabel) {
+        const viewLbl = CHART_VIEW_LABELS[chartViewSec] || 'window';
+        idxLabel.textContent = anyHwFocus()
+          ? `${hwFocusLabelText()} · hitch · ${viewLbl}`
+          : `Index · hitch · ${viewLbl}`;
+      }
     }
 
     function indexPartShortName(spec, part) {
@@ -10930,8 +11149,8 @@
       if (chartLabel) {
         const viewLbl = CHART_VIEW_LABELS[chartViewSec] || 'window';
         chartLabel.textContent = anyHwFocus()
-          ? `${hwFocusLabelText()} load · ${viewLbl}`
-          : `Index · ${viewLbl}`;
+          ? `${hwFocusLabelText()} · hitch · ${viewLbl}`
+          : `Index · hitch · ${viewLbl}`;
       }
 
       const statusEl = document.getElementById('indexStatus');
@@ -11381,6 +11600,7 @@
       renderSensorStrip(l.sensors || [], l);
       renderStutterViz(l);
       renderSparkChart();
+      syncVizTabBadges(l, comparison);
     }
 
     const SEV_LABEL = { hot: 'Critical', warn: 'Important', info: 'Moderate', ok: 'Healthy' };
@@ -14045,6 +14265,26 @@
         const lab = document.getElementById(el.id + 'Val');
         if (lab && v != null) lab.textContent = (HW_SCALE_LABEL[key] || (x => String(x)))(v);
       });
+      fillHwScaleHints();
+    }
+
+    function fillHwScaleHints() {
+      const cpu = (lastLatest?.comparison?.cpu?.name
+        || lastStatic?.cpu_model
+        || '').replace(/^AMD\s+/i, '').trim();
+      const gpu = (lastLatest?.comparison?.gpu?.name
+        || lastLatest?.gpu?.discrete?.name
+        || lastStatic?.gpu_model
+        || '').replace(/^AMD\s+/i, '').trim();
+      const pwr = document.getElementById('hwPowerHint');
+      if (pwr) {
+        const bits = [];
+        if (cpu) bits.push(`${cpu} package`);
+        if (gpu) bits.push(`${gpu} board`);
+        pwr.textContent = bits.length
+          ? `Dial 100% is full ${bits.join(' / ')} power. Raise if the ring pegs; lower if it never fills.`
+          : 'Dial 100% is the watt ceiling you set. Raise if the ring pegs; lower if it never fills.';
+      }
     }
 
     let hwScaleBusy = false;
@@ -14132,6 +14372,20 @@
       ].join('');
     }
 
+    function insightPrefLabel(id) {
+      const sid = String(id || '');
+      const rules = ruleCatalogCache || [];
+      const r = rules.find(x => x.insight_id === sid || x.rule_id === sid);
+      if (r?.title) return { title: r.title, meta: r.pack_id ? `${r.pack_id} · ${sid}` : sid };
+      const hints = []
+        .concat(lastWarningsHints || [])
+        .concat(lastGuidanceFixedHints || [])
+        .concat((lastGuidanceIndexGroups || []).flatMap(g => g.hints || []));
+      const h = hints.find(x => x.insight_id === sid);
+      if (h?.title) return { title: h.title, meta: sid };
+      return { title: sid.replace(/-/g, ' '), meta: sid };
+    }
+
     function renderPrefList(el, ids, actionKey, emptyText) {
       if (!el) return;
       const list = Array.isArray(ids) ? ids.filter(Boolean) : [];
@@ -14139,11 +14393,17 @@
         el.innerHTML = `<p class="pref-list-empty">${emptyText}</p>`;
         return;
       }
-      el.innerHTML = list.map(id => `
+      el.innerHTML = list.map(id => {
+        const meta = insightPrefLabel(id);
+        return `
         <div class="pref-row" data-pref-id="${esc(id)}">
-          <span class="pref-row-id" title="${esc(id)}">${esc(id)}</span>
+          <div>
+            <span class="pref-row-id" title="${esc(id)}">${esc(meta.title)}</span>
+            <span class="pref-row-meta">${esc(meta.meta)}</span>
+          </div>
           <button type="button" class="btn" data-pref-action="${actionKey}" data-pref-id="${esc(id)}">Restore</button>
-        </div>`).join('');
+        </div>`;
+      }).join('');
       el.querySelectorAll('[data-pref-action]').forEach(btn => {
         btn.addEventListener('click', () => restoreGuidancePref(btn.dataset.prefAction, btn.dataset.prefId, btn));
       });
@@ -14435,22 +14695,21 @@
       }
       host.innerHTML = ruleCatalogCache.slice(0, 80).map(r => {
         const lvl = (r.level || 'info').toLowerCase();
-        return `<div class="rule-row${r.pack_enabled ? '' : ' is-pack-off'}" title="${esc(r.detect_summary || '')}">
+        const tip = [r.title, r.insight_id || r.rule_id, r.detect_summary].filter(Boolean).join(' · ');
+        return `<div class="rule-row${r.pack_enabled ? '' : ' is-pack-off'}" title="${esc(tip)}">
           <span class="rule-level ${esc(lvl)}">${esc(lvl)}</span>
           <div>
             <div class="rule-row-title">${esc(r.title || r.insight_id || r.rule_id)}</div>
             <div class="rule-row-meta">
-              ${esc(r.pack_id)} · <code>${esc(r.insight_id || r.rule_id)}</code>
-              ${r.bucket ? ` · ${esc(r.bucket)}` : ''}
-              ${r.detect_summary ? `<br>${esc(r.detect_summary)}` : ''}
+              ${esc(r.pack_id || '')}${r.bucket ? ` · ${esc(r.bucket)}` : ''}
             </div>
           </div>
-          <span class="rule-row-meta">${r.actions || 0} act</span>
         </div>`;
       }).join('');
       if (ruleCatalogCache.length > 80) {
         host.innerHTML += `<p class="storage-note">Showing 80 of ${ruleCatalogCache.length} — refine the filter.</p>`;
       }
+      if (storeCache) renderGuidancePrefs(storeCache);
     }
 
     async function fetchRulePacks() {
@@ -14516,6 +14775,9 @@
         const el = document.getElementById(id);
         if (el) el.disabled = !ok;
       });
+      document.getElementById('resetConfirmRow')?.classList.toggle('is-ready', ok);
+      const hint = document.getElementById('resetConfirmHint');
+      if (hint) hint.textContent = ok ? 'Unlocked' : 'Required to unlock clear / reset';
     }
 
     function clearClientHistoryBuffers() {
@@ -14672,21 +14934,37 @@
 
     let tickInFlight = false;
     let tickAbort = null;
+    let tickGen = 0;
     let wakeRecoverAt = 0;
     const FETCH_TIMEOUT_MS = 5000;
 
-    async function fetchJson(url, timeoutMs = FETCH_TIMEOUT_MS) {
-      if (tickAbort) {
-        try { tickAbort.abort(); } catch (_) { /* ignore */ }
+    function clientWallJumped() {
+      const wall = Date.now() / 1000;
+      const perf = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
+      const wallDt = wall - lastWallSec;
+      const perfDt = Math.max(0, perf - lastPerfSec);
+      return (wallDt - perfDt) > CLIENT_WALL_JUMP_SEC || wallDt > 30;
+    }
+
+    async function fetchJson(url, timeoutMs = FETCH_TIMEOUT_MS, signal = null) {
+      const ctrl = new AbortController();
+      const onParent = () => { try { ctrl.abort(); } catch (_) { /* ignore */ } };
+      if (signal) {
+        if (signal.aborted) {
+          const err = new Error('Aborted');
+          err.name = 'AbortError';
+          throw err;
+        }
+        signal.addEventListener('abort', onParent, { once: true });
       }
-      tickAbort = new AbortController();
-      const timer = setTimeout(() => tickAbort.abort(), timeoutMs);
+      const timer = setTimeout(() => { try { ctrl.abort(); } catch (_) { /* ignore */ } }, timeoutMs);
       try {
-        const res = await fetch(url, { cache: 'no-store', signal: tickAbort.signal });
+        const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
       } finally {
         clearTimeout(timer);
+        if (signal) signal.removeEventListener('abort', onParent);
       }
     }
 
@@ -14703,42 +14981,41 @@
       sameTsStreak = 0;
       lastSampleTs = null;
       try { resetSparkRing(); } catch (_) { /* ignore */ }
-      // Abort any hung pre-suspend fetch so the next tick can run.
-      if (tickAbort) {
-        try { tickAbort.abort(); } catch (_) { /* ignore */ }
-      }
-      tickInFlight = false;
       console.info('Cosmic Pulse: wake recover —', reason || 'resume');
-      // Don't wait for the 1 Hz interval — pull immediately (unless already inside tick).
+      // Abort hung pre-suspend fetch and pull immediately — but not when the
+      // current tick asked us only to reset chart state (kickTick: false).
       if (kickTick) {
+        tickGen += 1;
+        if (tickAbort) {
+          try { tickAbort.abort(); } catch (_) { /* ignore */ }
+        }
+        tickInFlight = false;
         try { tick(); } catch (_) { /* ignore */ }
       }
     }
 
-    // Tab becomes visible again after sleep / laptop lid — recover UI immediately.
+    // Tab visible after sleep — recover only if the wall clock jumped.
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') forceWakeRecover('visibility');
+      if (document.visibilityState === 'visible' && clientWallJumped()) {
+        forceWakeRecover('visibility');
+      }
     });
     window.addEventListener('pageshow', (ev) => {
       if (ev.persisted) forceWakeRecover('pageshow');
     });
     window.addEventListener('focus', () => {
-      // Cheap: only recover if wall jumped while we were unfocused
-      const wall = Date.now() / 1000;
-      const perf = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
-      const wallDt = wall - lastWallSec;
-      const perfDt = Math.max(0, perf - lastPerfSec);
-      if ((wallDt - perfDt) > CLIENT_WALL_JUMP_SEC || wallDt > 30) {
-        forceWakeRecover('focus-wall-jump');
-      }
-      lastWallSec = wall;
-      lastPerfSec = perf;
+      if (clientWallJumped()) forceWakeRecover('focus-wall-jump');
+      lastWallSec = Date.now() / 1000;
+      lastPerfSec = (typeof performance !== 'undefined' ? performance.now() : 0) / 1000;
     });
 
     /** 1 Hz poll: bootstrap once, then slim history points. Render helpers diff via layout keys. */
     async function tick() {
       if (tickInFlight) return;
+      const myGen = ++tickGen;
       tickInFlight = true;
+      const controller = new AbortController();
+      tickAbort = controller;
       try {
         // Client-side suspend/resume: wall jumps while performance.now barely moves.
         const wallNow = Date.now() / 1000;
@@ -14759,7 +15036,8 @@
         lastPerfSec = perfNow;
 
         const url = metricsBootstrapped ? '/api/metrics' : '/api/metrics?bootstrap=1';
-        const data = await fetchJson(url);
+        const data = await fetchJson(url, FETCH_TIMEOUT_MS, controller.signal);
+        if (myGen !== tickGen) return;
         const wasBootstrap = !metricsBootstrapped;
         if (wasBootstrap) {
           rawHistory = data.history || [];
@@ -14912,13 +15190,23 @@
           console.warn('Cosmic Pulse: tick render failed', renderErr);
         }
       } catch (err) {
+        if (myGen !== tickGen) return;
+        const aborted = err && (err.name === 'AbortError' || /abort/i.test(String(err.message || err)));
+        if (aborted) {
+          const dot = document.getElementById('liveDot');
+          const lab = document.getElementById('liveLabel');
+          if (dot) dot.style.background = 'var(--amber, #e6a817)';
+          if (lab) lab.textContent = 'Reconnecting…';
+          return;
+        }
         metricsBootstrapped = false;
         try { if (typeof resumeChartsLive === 'function') resumeChartsLive(); } catch (_) { /* ignore */ }
-        const aborted = err && (err.name === 'AbortError' || /abort/i.test(String(err.message || err)));
-        document.getElementById('liveDot').style.background = aborted ? 'var(--amber, #e6a817)' : 'var(--hot)';
-        document.getElementById('liveLabel').textContent = aborted ? 'Reconnecting…' : 'Offline';
+        const dot = document.getElementById('liveDot');
+        const lab = document.getElementById('liveLabel');
+        if (dot) dot.style.background = 'var(--hot)';
+        if (lab) lab.textContent = 'Offline';
       } finally {
-        tickInFlight = false;
+        if (myGen === tickGen) tickInFlight = false;
       }
     }
 
@@ -14975,9 +15263,41 @@
         : 'CPU, GPU, VRAM, and disk temps always show. Expand for I/O and network rates.';
     }
 
+    function syncVizTabBadges(l, comparison) {
+      const idxEl = document.getElementById('vizTabIndexVal');
+      const stEl = document.getElementById('vizTabStutterVal');
+      const idx = Number(comparison?.session_index);
+      const hitch = Number(l?.stutter?.score);
+      if (idxEl) idxEl.textContent = Number.isFinite(idx) ? String(Math.round(idx)) : '';
+      if (stEl) stEl.textContent = Number.isFinite(hitch) ? String(Math.round(hitch)) : '';
+      const stTab = document.querySelector('.viz-tab[data-viz-tab="stutter"]');
+      if (stTab) {
+        const hot = Number.isFinite(hitch) && hitch >= 50;
+        const warn = Number.isFinite(hitch) && hitch >= 30 && hitch < 50;
+        stTab.classList.toggle('is-hot', hot);
+        stTab.classList.toggle('is-warn', warn);
+      }
+      const idxTab = document.querySelector('.viz-tab[data-viz-tab="index"]');
+      if (idxTab) {
+        const pushed = Number.isFinite(idx) && idx >= 71;
+        idxTab.classList.toggle('is-warn', pushed);
+        idxTab.classList.toggle('is-hot', false);
+      }
+    }
+
     document.querySelectorAll('.viz-tab').forEach(btn => {
       btn.addEventListener('click', () => setVizFocus(btn.dataset.vizTab));
     });
+    const hitchDial = document.querySelector('#glanceGrid [data-dial="hitch"]');
+    if (hitchDial) {
+      hitchDial.addEventListener('click', () => jumpTo('viz-stutter'));
+      hitchDial.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          jumpTo('viz-stutter');
+        }
+      });
+    }
     document.getElementById('sensorStripToggle')?.addEventListener('click', () => {
       sensorStripExpanded = !sensorStripExpanded;
       sessionStorage.setItem('pulse-sensors-expanded', sensorStripExpanded ? '1' : '0');
