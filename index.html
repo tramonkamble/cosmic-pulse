@@ -463,7 +463,8 @@
     .g-mid { grid-template-columns: 1.4fr 1fr; }
     .g-charts { grid-template-columns: 1fr 1fr; }
     .g-charts-3 { grid-template-columns: 1fr 1fr 1fr; }
-    @media (max-width: 1200px) { .g-bw, .g-mid, .g-charts, .g-charts-3 { grid-template-columns: 1fr; } }
+    body.ui-wrap-wide .g-bw, body.ui-wrap-wide .g-mid,
+    body.ui-wrap-wide .g-charts, body.ui-wrap-wide .g-charts-3 { grid-template-columns: 1fr; }
     .card {
       background: var(--panel-solid);
       border: 1px solid var(--line); border-radius: var(--radius-lg);
@@ -2742,27 +2743,24 @@
     .rig-status.hot { color: #ff8a7a; }
     .rig-status.warn { color: #f5c882; }
     .rig-status.ok { color: var(--sev-ok); }
-    @media (max-width: 1200px) {
-      .stutter-layout.rig-layout {
-        grid-template-columns: minmax(10rem, 0.9fr) minmax(14rem, 1.7fr) minmax(11rem, 1fr);
-        min-height: 0;
-      }
-      .rig-layout .glance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .rig-strips-row { grid-template-columns: 1fr; }
+    /* Viewport wrap is JS classed (ui-wrap-*) — rem in @media ignores --ui-scale. */
+    body.ui-wrap-wide .stutter-layout.rig-layout {
+      grid-template-columns: minmax(10rem, 0.9fr) minmax(14rem, 1.7fr) minmax(11rem, 1fr);
+      min-height: 0;
     }
-    @media (max-width: 1100px) {
-      /* Keep area names drivers/chart/summary so shared stutter-layout rules still apply */
-      .stutter-layout.rig-layout {
-        grid-template-columns: 1fr 1.4fr;
-        grid-template-areas:
-          "drivers chart"
-          "summary summary";
-        min-height: 0;
-      }
-      .rig-layout .stutter-chart-box { min-height: 11rem; max-height: none; }
-      .rig-vitals-flat .rig-vitals-section { min-height: 8.75rem; }
-      .pulse-dial { min-height: 7.6rem; }
+    body.ui-wrap-wide .rig-layout .glance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    body.ui-wrap-wide .rig-strips-row { grid-template-columns: 1fr; }
+    /* Keep area names drivers/chart/summary so shared stutter-layout rules still apply */
+    body.ui-wrap-tight .stutter-layout.rig-layout {
+      grid-template-columns: 1fr 1.4fr;
+      grid-template-areas:
+        "drivers chart"
+        "summary summary";
+      min-height: 0;
     }
+    body.ui-wrap-tight .rig-layout .stutter-chart-box { min-height: 11rem; max-height: none; }
+    body.ui-wrap-tight .rig-vitals-flat .rig-vitals-section { min-height: 8.75rem; }
+    body.ui-wrap-tight .pulse-dial { min-height: 7.6rem; }
     @media (max-width: 700px) {
       .stutter-layout.rig-layout {
         grid-template-columns: 1fr;
@@ -3379,25 +3377,23 @@
       .game-perf-hero-charts { grid-template-columns: 1fr; }
       .game-perf-hero-name { text-align: left; }
     }
-    @media (max-width: 1100px) {
-      .stutter-layout { min-height: 0; }
-      .stutter-kpis { grid-template-columns: repeat(2, 1fr); }
-      .stutter-layout {
-        grid-template-columns: 1fr 1fr;
-        grid-template-areas:
-          "drivers chart"
-          "summary summary";
-      }
-      .stutter-layout.viz-tri {
-        grid-template-columns: 1fr 1.4fr;
-        min-height: 0;
-        height: auto;
-      }
-      .stutter-drivers { grid-area: drivers; }
-      .stutter-chart-col { grid-area: chart; }
-      .stutter-summary { grid-area: summary; }
-      .game-viz-charts { grid-template-columns: 1fr; }
+    body.ui-wrap-tight .stutter-layout { min-height: 0; }
+    body.ui-wrap-tight .stutter-kpis { grid-template-columns: repeat(2, 1fr); }
+    body.ui-wrap-tight .stutter-layout {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "drivers chart"
+        "summary summary";
     }
+    body.ui-wrap-tight .stutter-layout.viz-tri {
+      grid-template-columns: 1fr 1.4fr;
+      min-height: 0;
+      height: auto;
+    }
+    body.ui-wrap-tight .stutter-drivers { grid-area: drivers; }
+    body.ui-wrap-tight .stutter-chart-col { grid-area: chart; }
+    body.ui-wrap-tight .stutter-summary { grid-area: summary; }
+    body.ui-wrap-tight .game-viz-charts { grid-template-columns: 1fr; }
     @media (max-width: 700px) {
       .stutter-layout { grid-template-columns: 1fr; grid-template-areas: "drivers" "chart" "summary"; }
       .stutter-layout.viz-tri .stutter-chart-box {
@@ -4159,9 +4155,7 @@
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: .35rem;
     }
-    @media (max-width: 1100px) {
-      .theme-mode-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
+    body.ui-wrap-tight .theme-mode-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     @media (max-width: 520px) {
       .theme-mode-list { grid-template-columns: 1fr; }
     }
@@ -5311,10 +5305,8 @@
       grid-template-columns: minmax(22rem, 2.1fr) minmax(16rem, 1fr);
       height: 100%;
     }
-    @media (min-width: 1680px) {
-      body.dash-dedupe .stutter-layout.rig-layout {
-        grid-template-columns: minmax(26rem, 2.35fr) minmax(16.5rem, 0.95fr);
-      }
+    body.dash-dedupe.ui-wrap-roomy .stutter-layout.rig-layout {
+      grid-template-columns: minmax(26rem, 2.35fr) minmax(16.5rem, 0.95fr);
     }
     body.dash-dedupe .rig-layout .stutter-chart-box { min-height: 18rem; }
     body.dash-dedupe .rig-col-vitals,
@@ -5444,34 +5436,32 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    @media (max-width: 1200px) {
-      body.dash-dedupe .sum-grid,
-      body.dash-dedupe .sum-grid.game-prominent {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-template-areas:
-          "health health"
-          "cpu mem"
-          "gpu vram"
-          "game game";
-      }
-      body.dash-dedupe #sumHealthCell .health-sev-row { max-width: 24rem; }
+    /* Scale-aware wrap: body.ui-wrap-* is set from --ui-scale × viewport.
+       rem in @media is stuck at the 16px initial font, so 150% would never wrap. */
+    body.dash-dedupe.ui-wrap-wide .sum-grid,
+    body.dash-dedupe.ui-wrap-wide .sum-grid.game-prominent {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-areas:
+        "health health"
+        "cpu mem"
+        "gpu vram"
+        "game game";
     }
-    @media (max-width: 1100px) {
-      body.dash-dedupe .stutter-layout.rig-layout {
-        grid-template-columns: 1fr;
-        height: auto;
-      }
-      body.dash-dedupe #pageDashboard #vizPanel { min-height: 16rem; }
-      body.dash-dedupe .summary-bar.compact-rig .rig-strip {
-        grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
-      }
-      body.dash-dedupe .summary-bar.compact-rig .rig-tile-name {
-        white-space: normal;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
+    body.dash-dedupe.ui-wrap-wide #sumHealthCell .health-sev-row { max-width: 24rem; }
+    body.dash-dedupe.ui-wrap-tight .stutter-layout.rig-layout {
+      grid-template-columns: 1fr;
+      height: auto;
+    }
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 16rem; }
+    body.dash-dedupe.ui-wrap-tight .summary-bar.compact-rig .rig-strip {
+      grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
+    }
+    body.dash-dedupe.ui-wrap-tight .summary-bar.compact-rig .rig-tile-name {
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     @media (max-height: 780px) {
       body.dash-dedupe #pageDashboard #vizPanel { min-height: 12rem; }
@@ -6624,6 +6614,21 @@
   </main>
 
   <script>
+    /** Viewport wrap vs UI scale. rem in @media ignores html font-size / --ui-scale. */
+    function syncUiWrap() {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--ui-scale');
+      const scale = Math.max(1, Math.min(2, parseFloat(String(raw).trim()) || 1.5));
+      const w = window.innerWidth;
+      const wide = 75 * 16 * scale;      // 1200px @100%, 1800px @150%
+      const tight = 68.75 * 16 * scale;  // 1100px @100%, 1650px @150%
+      const roomy = 105 * 16 * scale;    // 1680px @100%, 2520px @150%
+      document.body.classList.toggle('ui-wrap-wide', w <= wide);
+      document.body.classList.toggle('ui-wrap-tight', w <= tight);
+      document.body.classList.toggle('ui-wrap-roomy', w >= roomy);
+    }
+    syncUiWrap();
+    window.addEventListener('resize', syncUiWrap);
+
     /**
      * Canonical metric palette — mirrors CSS --m-* tokens.
      * Same metric key → same color on every chart, bar, and KPI.
@@ -6802,6 +6807,8 @@
     let themeMode = THEME_MODE_DEFAULT;
     let lastChromeKey = '';
     let themeSaveBusy = false;
+    let themeSavePending = null; // last { mode, silent } while a POST is in flight
+    let storeWriteGen = 0; // bump on Options POST so an older GET cannot paint over it
     let themePreviewMode = null; // hover preview without commit
 
     function softHex(c, aHex) {
@@ -7012,22 +7019,40 @@
       themePreviewMode = null;
       syncThemeModeUi();
       applyThemeFromSettings({ force: true });
+      themeSavePending = { mode, silent };
+      flushThemeSave();
+    }
+
+    async function flushThemeSave() {
       if (themeSaveBusy) return;
       themeSaveBusy = true;
       try {
-        const res = await fetch('/api/store', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ theme_mode: mode }),
-        });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'failed');
-        storeCache = data;
-        if (!silent) showOptionsMsg(`Theme: ${THEME_MODE_LABELS[mode] || mode}`, true);
-      } catch (e) {
-        if (!silent) showOptionsMsg(e.message || 'Could not save theme', false);
+        while (themeSavePending) {
+          const job = themeSavePending;
+          themeSavePending = null;
+          storeWriteGen += 1;
+          try {
+            const res = await fetch('/api/store', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ theme_mode: job.mode }),
+            });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || 'failed');
+            storeCache = data;
+            storeWriteGen += 1; // drop GETs that raced this POST
+            if (!themeSavePending && !job.silent) {
+              showOptionsMsg(`Theme: ${THEME_MODE_LABELS[job.mode] || job.mode}`, true);
+            }
+          } catch (e) {
+            if (!themeSavePending && !job.silent) {
+              showOptionsMsg(e.message || 'Could not save theme', false);
+            }
+          }
+        }
       } finally {
         themeSaveBusy = false;
+        if (themeSavePending) flushThemeSave();
       }
     }
 
@@ -7087,7 +7112,7 @@
         const n = +sessionStorage.getItem('pulse-chart-view');
         if (CHART_VIEW_OPTS.includes(n)) return n;
       } catch (_) { /* ignore */ }
-      return 600;
+      return 300;
     }
     let chartViewSec = loadChartView();
     let spanSec = chartViewSec;
@@ -7234,6 +7259,8 @@
     let chartsPaused = false;
     /** Fixed unix-sec window when paused or zoomed; null = follow live spanSec tail. */
     let chartRange = null;
+    /** Window captured when the user clicks Pause (not when zoom auto-pauses). */
+    let chartPauseSnapshot = null;
     let chartZoomed = false;
     let _chartZoomSyncing = false;
     /** True while user is mid drag-zoom / pan — skip scale rewrites that abort the gesture. */
@@ -7754,6 +7781,7 @@
 
     function pauseCharts() {
       if (!chartRange) chartRange = getLiveChartWindow();
+      chartPauseSnapshot = { min: chartRange.min, max: chartRange.max };
       chartsPaused = true;
       syncChartControlUI();
       applyChartRangeToAll(chartRange);
@@ -7763,6 +7791,7 @@
       chartsPaused = false;
       chartZoomed = false;
       chartRange = null;
+      chartPauseSnapshot = null;
       clearChartRangeLimits();
       syncChartControlUI();
       refreshAllCharts();
@@ -7770,8 +7799,15 @@
 
     function resetChartsZoom() {
       chartZoomed = false;
-      if (!chartsPaused) chartRange = null;
-      else chartRange = getLiveChartWindow();
+      if (chartPauseSnapshot) {
+        // Explicit Pause then zoom: unzoom but keep the frozen window.
+        chartsPaused = true;
+        chartRange = { min: chartPauseSnapshot.min, max: chartPauseSnapshot.max };
+      } else {
+        // Zoom from live: Reset zoom returns to follow, does not leave a fake pause.
+        chartsPaused = false;
+        chartRange = null;
+      }
       clearChartRangeLimits();
       if (chartsPaused && chartRange) applyChartRangeToAll(chartRange);
       syncChartControlUI();
@@ -7819,7 +7855,7 @@
         el.addEventListener('click', () => resumeChartsLive());
       });
       document.querySelectorAll('#btnChartsResetZoom, [data-charts-reset-zoom]').forEach(el => {
-        el.addEventListener('click', () => resumeChartsLive());
+        el.addEventListener('click', () => resetChartsZoom());
       });
       syncChartControlUI();
     }
@@ -7831,7 +7867,7 @@
 
     const utilDefs = [
       { key: 'cpu', label: 'CPU %', color: CHART.cpu, pick: h => h.cpu?.overall_pct ?? 0 },
-      { key: 'gpu', label: 'GPU %', color: CHART.gpu, pick: h => h.gpu?.discrete?.busy_pct ?? 0 },
+      { key: 'gpu', label: 'GPU %', color: CHART.gpu, pick: h => histGpuPct(h) ?? 0 },
       { key: 'ram', label: 'RAM %', color: CHART.ram, pick: h => h.memory?.pct ?? 0 },
       { key: 'swap', label: 'Swap %', color: CHART.swap, pick: h => h.memory?.swap_pct ?? 0 },
       { key: 'gameCpu', label: 'Game process', color: CHART.gameCpu, pick: h => h.game_totals?.cpu_pct ?? 0 },
@@ -8747,6 +8783,11 @@
         } catch (_) { /* ignore */ }
         try { fillHwScaleHints(); } catch (_) { /* ignore */ }
       }
+      if (name === 'fixes') {
+        try {
+          renderFixes(lastLatest?.tuning || lastWarningsHints);
+        } catch (_) { /* ignore */ }
+      }
       if (name === 'dashboard' && lastLatest) {
         requestAnimationFrame(() => {
           try {
@@ -9420,31 +9461,31 @@
     function renderSummaryBar(l, hints, comparison) {
       const c = l.cpu || {}, m = l.memory || {}, g = l.gpu?.discrete || {}, bw = l.bandwidth || {};
       const gt = l.game_totals;
+      const open = guidanceOpenCounts(hints);
       const active = guidanceOutstanding(hints).filter(h => !isInsightSuppressed(h.insight_id));
       const healthHints = anyHwFocus() ? active.filter(h => hintVisibleForFocus(h)) : active;
-      const counts = { hot: 0, warn: 0, info: 0 };
-      healthHints.forEach(h => { if (counts[h.level] !== undefined) counts[h.level]++; });
+      const counts = { hot: open.hot, warn: open.warn, info: open.info };
       const focusTag = anyHwFocus() ? ` · ${hwFocusLabelText()} focus` : '';
 
       const healthCell = document.getElementById('sumHealthCell');
-      // This cell is open Guidance cards — not a system “health score”.
+      // Same outstanding set as the Guidance hero (live cards + scan findings).
       let healthVal = 'Clear';
       let healthSub = anyHwFocus()
         ? `No open cards for ${hwFocusLabelText()}`
         : 'No open Guidance cards';
       let healthCls = 'ok';
-      const totalOpen = healthHints.length;
+      const totalOpen = open.total;
       if (counts.hot) {
         healthVal = counts.hot === 1 ? '1 critical' : `${counts.hot} critical`;
-        healthSub = `${totalOpen} open card${totalOpen === 1 ? '' : 's'}${focusTag}`;
+        healthSub = `${totalOpen} open${focusTag}`;
         healthCls = 'hot';
       } else if (counts.warn) {
         healthVal = counts.warn === 1 ? '1 warning' : `${counts.warn} warnings`;
-        healthSub = `${totalOpen} open card${totalOpen === 1 ? '' : 's'}${focusTag}`;
+        healthSub = `${totalOpen} open${focusTag}`;
         healthCls = 'warn';
       } else if (counts.info) {
         healthVal = counts.info === 1 ? '1 info' : `${counts.info} info`;
-        healthSub = `${totalOpen} open card${totalOpen === 1 ? '' : 's'}${focusTag}`;
+        healthSub = `${totalOpen} open${focusTag}`;
         healthCls = 'info';
       } else if (anyHwFocus() && active.length) {
         healthVal = 'Clear';
@@ -9842,15 +9883,18 @@
       return Math.max(hwScales.cpu_temp_max_c || 105, hwScales.gpu_temp_max_c || 105);
     }
     const SPARK_RING_KEYS = [
-      'cpu', 'gpu', 'ram', 'disk', 'diskR', 'diskW', 'cpuTemp', 'gpuTemp',
+      'cpu', 'gpu', 'ram', 'vram', 'disk', 'diskR', 'diskW', 'cpuTemp', 'gpuTemp',
       'hitch', 'hitchEvent', 'index',
     ];
+    /** Scoreboard chips: ~1 minute so they roll, not scribble 10 minutes into 120px. */
+    const CHIP_SPARK_SEC = 48;
     const sparkRing = {
       ts: [],
       labels: [],
       cpu: [],
       gpu: [],
       ram: [],
+      vram: [],
       disk: [],
       diskR: [],
       diskW: [],
@@ -9861,7 +9905,7 @@
       index: [],
       lastTs: 0,
       ema: {
-        cpu: null, gpu: null, ram: null, disk: null,
+        cpu: null, gpu: null, ram: null, vram: null, disk: null,
         diskR: null, diskW: null, cpuTemp: null, gpuTemp: null, hitch: null, index: null,
       },
       seeded: false,
@@ -9902,7 +9946,7 @@
       SPARK_RING_KEYS.forEach(k => { sparkRing[k] = []; });
       sparkRing.lastTs = 0;
       sparkRing.ema = {
-        cpu: null, gpu: null, ram: null, disk: null,
+        cpu: null, gpu: null, ram: null, vram: null, disk: null,
         diskR: null, diskW: null, cpuTemp: null, gpuTemp: null, hitch: null, index: null,
       };
       sparkRing.seeded = false;
@@ -9945,6 +9989,27 @@
       return null;
     }
 
+    /** Same GPU % the scoreboard chip shows (shader/GFX, not the AMD busy square-wave). */
+    function histGpuPct(h) {
+      const g = h?.gpu?.discrete || {};
+      if (g.gfx_pct != null && Number.isFinite(Number(g.gfx_pct))) return Number(g.gfx_pct);
+      const engines = Array.isArray(g.engines) ? g.engines : [];
+      const gfx = engines.find(e => e && e.id === 'gfx');
+      if (gfx && gfx.pct != null && Number.isFinite(Number(gfx.pct))) return Number(gfx.pct);
+      if (g.busy_pct != null && Number.isFinite(Number(g.busy_pct))) return Number(g.busy_pct);
+      return null;
+    }
+
+    function histVramPct(h) {
+      const g = h?.gpu?.discrete || {};
+      if (g.vram_pct != null && Number.isFinite(Number(g.vram_pct))) return Number(g.vram_pct);
+      if (g.vram_used_mb != null && g.vram_total_mb) {
+        const t = Number(g.vram_total_mb);
+        if (t > 0) return 100 * Number(g.vram_used_mb) / t;
+      }
+      return null;
+    }
+
     function sparkEmaPush(key, raw, alpha, { clamp01 = true } = {}) {
       let v = Number(raw);
       if (raw == null || isNaN(v)) v = clamp01 ? 0 : null;
@@ -9978,8 +10043,9 @@
       sparkRing.ts.push(h.ts);
       sparkRing.labels.push(fmtTime(h.ts));
       sparkRing.cpu.push(sparkEmaPush('cpu', h.cpu?.overall_pct, alphas.pct, { clamp01: false }));
-      sparkRing.gpu.push(sparkEmaPush('gpu', h.gpu?.discrete?.busy_pct, Math.min(0.14, (alphas.pct || 0.32) * 0.4), { clamp01: false }));
-      sparkRing.ram.push(sparkEmaPush('ram', h.memory?.pct, alphas.pct * 0.9, { clamp01: false }));
+      sparkRing.gpu.push(sparkEmaPush('gpu', histGpuPct(h), alphas.pct, { clamp01: false }));
+      sparkRing.ram.push(sparkEmaPush('ram', h.memory?.pct, alphas.pct, { clamp01: false }));
+      sparkRing.vram.push(sparkEmaPush('vram', histVramPct(h), Math.min(0.55, (alphas.pct || 0.4) * 1.2), { clamp01: false }));
       sparkRing.disk.push(sparkEmaPush('disk', sparkDiskActivity(h.disk), alphas.pct * 0.85));
       sparkRing.diskR.push(sparkEmaPush('diskR', sparkDiskReadPct(h.disk), alphas.pct * 0.85));
       sparkRing.diskW.push(sparkEmaPush('diskW', sparkDiskWritePct(h.disk), alphas.pct * 0.85));
@@ -10008,7 +10074,7 @@
         // Allow denser seed when history is sparse; skip only true duplicates
         if (last && h.ts - last < 0.45) continue;
         last = h.ts;
-        sparkRingPushSample(h, { pct: 0.45, temp: 0.4 });
+        sparkRingPushSample(h, { pct: 0.5, temp: 0.4 });
       }
       sparkRingTrim();
       if (sparkRing.ts.length) sparkRing.lastTs = sparkRing.ts.at(-1);
@@ -10022,17 +10088,15 @@
       // Same timestamp as seed tip — don't double-push
       if (sparkRing.lastTs && Math.abs(ts - sparkRing.lastTs) < 0.45) return;
       sparkRing.lastTs = ts;
-      sparkRingPushSample(latest, { pct: 0.32, temp: 0.28 });
+      sparkRingPushSample(latest, { pct: 0.42, temp: 0.32 });
       sparkRingTrim();
     }
 
     function sparkRingEnsure() {
-      if (!chartsPaused && !chartZoomed) {
-        if (lastLatest) sparkRingIngest(lastLatest);
-        else if (rawHistory.length) sparkRingIngest(rawHistory.at(-1));
-      } else if (!sparkRing.seeded) {
-        sparkRingSeedFromHistory();
-      }
+      // Keep ingesting while paused/zoomed so resume has a continuous ring (no hole).
+      if (lastLatest) sparkRingIngest(lastLatest);
+      else if (rawHistory.length) sparkRingIngest(rawHistory.at(-1));
+      else if (!sparkRing.seeded) sparkRingSeedFromHistory();
     }
 
     /** Parse #rgb / #rrggbb into [r,g,b]. */
@@ -10088,9 +10152,33 @@
     function downsampleSpark(arr, maxPts) {
       if (!arr || !arr.length) return [];
       if (arr.length <= maxPts) return arr;
+      // Time-even buckets, not index stride — stride crawled the line every tick.
       const out = [];
-      const step = (arr.length - 1) / (maxPts - 1);
-      for (let i = 0; i < maxPts; i++) out.push(arr[Math.round(i * step)]);
+      const n = arr.length;
+      const bucket = n / maxPts;
+      for (let i = 0; i < maxPts; i++) {
+        const a = Math.floor(i * bucket);
+        const b = Math.max(a + 1, Math.floor((i + 1) * bucket));
+        let sum = 0;
+        let c = 0;
+        for (let j = a; j < b && j < n; j++) {
+          const v = Number(arr[j]);
+          if (Number.isFinite(v)) { sum += v; c += 1; }
+        }
+        out.push(c ? sum / c : 0);
+      }
+      return out;
+    }
+
+    /** Last ~CHIP_SPARK_SEC of the 1 Hz ring — short window so chips roll. */
+    function chipSparkWindow(tsArr, valArr) {
+      const n = Math.min(tsArr?.length || 0, valArr?.length || 0);
+      if (!n) return [];
+      const tCut = (tsArr[n - 1] || 0) - CHIP_SPARK_SEC;
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        if (tsArr[i] >= tCut) out.push(valArr[i]);
+      }
       return out;
     }
 
@@ -10127,7 +10215,7 @@
     function paintChipSpark(svgId, values) {
       const svg = document.getElementById(svgId);
       if (!svg) return;
-      const series = downsampleSpark(values, 80);
+      const series = values.length > 96 ? downsampleSpark(values, 72) : values;
       const line = chipSparkPath(series, 120, 36);
       const fill = line ? `${line} L120 36 L0 36 Z` : '';
       const lineEl = svg.querySelector('.sum-chip-spark-line');
@@ -10148,17 +10236,14 @@
     }
 
     function paintChipSparks() {
-      paintChipSpark('sumCpuSpark', sliceSeriesToView(sparkRing.ts, sparkRing.cpu));
-      paintChipSpark('sumGpuSpark', sliceSeriesToView(sparkRing.ts, sparkRing.gpu));
-      paintChipSpark('sumMemSpark', sliceSeriesToView(sparkRing.ts, sparkRing.ram));
-      const vram = vramHistoryPcts();
-      const vramTs = Array.isArray(rawHistory) ? rawHistory.map(h => h.ts) : [];
-      paintChipSpark('sumVramSpark', sliceSeriesToView(vramTs, vram));
+      paintChipSpark('sumCpuSpark', chipSparkWindow(sparkRing.ts, sparkRing.cpu));
+      paintChipSpark('sumGpuSpark', chipSparkWindow(sparkRing.ts, sparkRing.gpu));
+      paintChipSpark('sumMemSpark', chipSparkWindow(sparkRing.ts, sparkRing.ram));
+      paintChipSpark('sumVramSpark', chipSparkWindow(sparkRing.ts, sparkRing.vram));
     }
 
     function renderSparkChart() {
-      // Ingest newest sample into append-only ring (unless charts are paused/zoomed —
-      // history still grows via rawHistory; ring freezes for a stable inspect view).
+      // Always ingest: pause/zoom freeze the X window, not the ring.
       sparkRingEnsure();
       paintChipSparks();
       if (!canvasVisible(sparkChart)) return;
@@ -10228,7 +10313,7 @@
             ? 'transparent'
             : sparkAreaFill(d.color, (d.fillTop ?? 0.18) * 1.15, d.fillBot ?? 0.02),
           fill: !isTemp && !isDisk && !isHitch,
-          tension: isHitch ? 0 : (d.key === 'gpu' ? 0.08 : (isTemp ? 0.12 : 0.22)),
+          tension: isHitch ? 0 : (isTemp ? 0.1 : 0),
           borderWidth: isHitch ? 1.7 : (isTemp ? 1.75 : (primary ? 2.5 : (isDisk ? 2 : 2.15))),
           borderJoinStyle: 'round',
           borderCapStyle: isTemp ? 'round' : 'round',
@@ -12869,17 +12954,12 @@
     function renderGuidanceHero(issues) {
       if (issues) lastGuidanceSummaryHints = issues;
       issues = lastGuidanceSummaryHints || [];
-      const outstanding = issues.filter(h => hintUserStatus(h) === 'outstanding');
-      const scan = lastGuidanceScanFindings || [];
-      const scanHot = scan.filter(f => f.severity === 'hot').length;
-      const scanWarn = scan.filter(f => f.severity === 'warn').length;
-      const scanInfo = scan.filter(f => (f.severity === 'info' || !f.severity)).length;
-      const hot = outstanding.filter(h => h.level === 'hot').length + scanHot;
-      const warn = outstanding.filter(h => h.level === 'warn').length + scanWarn;
-      const info = outstanding.filter(h => h.level === 'info' || !h.level).length + scanInfo;
-      const liveN = outstanding.filter(h => h.condition_live).length;
-      const scanN = scan.length;
-      const total = outstanding.length + scanN;
+      const open = guidanceOpenCounts(issues);
+      const hot = open.hot;
+      const warn = open.warn;
+      const info = open.info;
+      const liveN = open.live;
+      const total = open.total;
 
       const hero = document.getElementById('guidanceHero');
       const titleEl = document.getElementById('guidanceHeroTitle');
@@ -12945,6 +13025,26 @@
 
     function guidanceOutstanding(hints) {
       return (hints || []).filter(h => hintUserStatus(h) === 'outstanding');
+    }
+
+    function guidanceOpenCounts(hints) {
+      const outstanding = guidanceOutstanding(hints);
+      const scan = lastGuidanceScanFindings || [];
+      const hot = outstanding.filter(h => h.level === 'hot').length
+        + scan.filter(f => f.severity === 'hot').length;
+      const warn = outstanding.filter(h => h.level === 'warn').length
+        + scan.filter(f => f.severity === 'warn').length;
+      const info = outstanding.filter(h => h.level === 'info' || !h.level).length
+        + scan.filter(f => f.severity === 'info' || !f.severity).length;
+      return {
+        hot,
+        warn,
+        info,
+        live: outstanding.filter(h => h.condition_live).length,
+        cards: outstanding.length,
+        scan: scan.length,
+        total: outstanding.length + scan.length,
+      };
     }
 
     function guidanceLiveOutstanding(hints) {
@@ -14151,6 +14251,19 @@
     let storeTick = 0;
     let optionsMsgTimer = null;
     let uiScaleBusy = false;
+    let uiScalePending = null; // last { scale, silent }
+
+    function optionsThemeLocked() {
+      return !!(themeSaveBusy || themeSavePending);
+    }
+    function optionsUiScaleLocked() {
+      if (uiScaleBusy || uiScalePending) return true;
+      return document.activeElement?.id === 'uiScaleRange';
+    }
+    function optionsHwScaleLocked() {
+      if (hwScaleBusy || hwScalePending) return true;
+      return !!document.activeElement?.dataset?.hwScale;
+    }
 
     const UI_SCALE_DEFAULT = 1.5;
 
@@ -14220,6 +14333,7 @@
       document.documentElement.style.setProperty('--ui-scale', String(clamped));
       updateUiScaleLabel(clamped);
       applyChartFontScale();
+      try { syncUiWrap(); } catch (_) { /* ignore */ }
       return clamped;
     }
 
@@ -14287,29 +14401,52 @@
     }
 
     let hwScaleBusy = false;
+    let hwScalePending = null; // last { key: n, ... } merged while a POST is in flight
     async function applyHwScaleSetting(key, value) {
       const n = Number(value);
       if (!key || !Number.isFinite(n)) return;
       hwScales = { ...hwScales, [key]: n };
       try { if (typeof renderSparkChart === 'function') renderSparkChart(); } catch (_) { /* */ }
+      hwScalePending = { ...(hwScalePending || {}), [key]: n };
+      flushHwScaleSave();
+    }
+
+    async function flushHwScaleSave() {
       if (hwScaleBusy) return;
       hwScaleBusy = true;
       try {
-        const res = await fetch('/api/store', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hw_scales: { [key]: n } }),
-        });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'failed');
-        storeCache = data;
-        applyHwScalesFromStore(data);
-        const pretty = (HW_SCALE_LABEL[key] || (x => String(x)))(data.hw_scales?.[key] ?? n);
-        showOptionsMsg(`Saved ${pretty} hardware scale`, true);
-      } catch (e) {
-        showOptionsMsg('Could not save hardware scale', false);
+        while (hwScalePending) {
+          const job = hwScalePending;
+          hwScalePending = null;
+          storeWriteGen += 1;
+          try {
+            const res = await fetch('/api/store', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ hw_scales: job }),
+            });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || 'failed');
+            storeCache = data;
+            storeWriteGen += 1;
+            if (!hwScalePending) {
+              applyHwScalesFromStore(data);
+              const keys = Object.keys(job);
+              const lastKey = keys[keys.length - 1];
+              const pretty = (HW_SCALE_LABEL[lastKey] || (x => String(x)))(
+                data.hw_scales?.[lastKey] ?? job[lastKey],
+              );
+              showOptionsMsg(`Saved ${pretty} hardware scale`, true);
+            } else {
+              hwScales = { ...hwScales, ...hwScalePending };
+            }
+          } catch (e) {
+            if (!hwScalePending) showOptionsMsg('Could not save hardware scale', false);
+          }
+        }
       } finally {
         hwScaleBusy = false;
+        if (hwScalePending) flushHwScaleSave();
       }
     }
 
@@ -14469,18 +14606,20 @@
     function renderStorage(s) {
       if (!s) return;
       storeCache = s;
-      if (s.theme_mode && s.theme_mode !== themeMode) {
-        themeMode = s.theme_mode;
-        syncThemeModeUi();
-        applyThemeFromSettings({ force: true });
-      } else if (s.theme_mode) {
-        // Keep status / preview current when store refreshes
-        updateThemeStatus(lastStatic?.cosmic_theme);
-        if (!themePreviewMode) {
-          paintThemePreview(
-            resolveChromeTokens(themeMode, lastStatic?.cosmic_theme),
-            themeMode,
-          );
+      if (!optionsThemeLocked()) {
+        if (s.theme_mode && s.theme_mode !== themeMode) {
+          themeMode = s.theme_mode;
+          syncThemeModeUi();
+          applyThemeFromSettings({ force: true });
+        } else if (s.theme_mode) {
+          // Keep status / preview current when store refreshes
+          updateThemeStatus(lastStatic?.cosmic_theme);
+          if (!themePreviewMode) {
+            paintThemePreview(
+              resolveChromeTokens(themeMode, lastStatic?.cosmic_theme),
+              themeMode,
+            );
+          }
         }
       }
       const days = s.retention_days ?? 10;
@@ -14539,8 +14678,9 @@
           btn.onclick = () => applyRetention(+btn.dataset.days, btn);
         });
       }
-      renderUiScaleControls(s);
-      applyHwScalesFromStore(s);
+      if (!optionsUiScaleLocked()) renderUiScaleControls(s);
+      if (!optionsHwScaleLocked()) applyHwScalesFromStore(s);
+      else fillHwScaleHints();
       renderTuningLogControls(s);
       renderResetStats(s);
       renderGuidancePrefs(s);
@@ -14584,29 +14724,50 @@
       s = Math.max(min, Math.min(max, Math.round(s / 0.05) * 0.05));
       s = Math.round(s * 100) / 100;
       applyUiScale(s);
+      uiScalePending = { scale: s, silent };
+      flushUiScaleSave();
+    }
+
+    async function flushUiScaleSave() {
       if (uiScaleBusy) return;
       uiScaleBusy = true;
       try {
-        const res = await fetch('/api/store', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ui_scale: s }),
-        });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'failed');
-        storeCache = data;
-        renderUiScaleControls(data);
-        if (!silent) showOptionsMsg(`UI scale set to ${Math.round(s * 100)}%`, true);
-      } catch (e) {
-        if (!silent) showOptionsMsg('Could not save UI scale', false);
+        while (uiScalePending) {
+          const job = uiScalePending;
+          uiScalePending = null;
+          storeWriteGen += 1;
+          try {
+            const res = await fetch('/api/store', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ui_scale: job.scale }),
+            });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || 'failed');
+            storeCache = data;
+            storeWriteGen += 1;
+            if (!uiScalePending && !optionsUiScaleLocked()) renderUiScaleControls(data);
+            if (!uiScalePending && !job.silent) {
+              showOptionsMsg(`UI scale set to ${Math.round(job.scale * 100)}%`, true);
+            }
+          } catch (e) {
+            if (!uiScalePending && !job.silent) {
+              showOptionsMsg('Could not save UI scale', false);
+            }
+          }
+        }
       } finally {
         uiScaleBusy = false;
+        if (uiScalePending) flushUiScaleSave();
       }
     }
 
     async function fetchStore() {
+      const gen = storeWriteGen;
       try {
-        renderStorage(await (await fetch('/api/store')).json());
+        const data = await (await fetch('/api/store')).json();
+        if (gen !== storeWriteGen) return;
+        renderStorage(data);
       } catch (_) {
         const statsEl = document.getElementById('storeStats');
         if (statsEl) statsEl.textContent = 'Storage stats unavailable';
@@ -15103,7 +15264,7 @@
         lastLatest = l;
         lastComparison = l.comparison;
         try {
-          if (!chartsPaused && !chartZoomed) sparkRingIngest(l);
+          sparkRingIngest(l);
         } catch (_) { /* ignore */ }
         if (document.visibilityState === 'hidden') {
           return;
