@@ -17,7 +17,7 @@ Disable a pack in Options or `disabled_packs` in `~/.config/pulse/pulse_config.j
 4. **gpu-fps-cap** — GPU busy vs display refresh while a game runs (instrumented)
 5. **proton-wayland-launch-fix** — Proton on Wayland without an X11 launch override
 
-CS2 / Cities II `game_overrides` live on this pack for process detection only — they are not extra cards.
+Builtin packs do not name titles. Process detection uses Steam AppIDs and generic Proton/Wine binaries.
 
 ## popos-core (5)
 

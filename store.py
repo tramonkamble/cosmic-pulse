@@ -104,6 +104,10 @@ _writer_thread: threading.Thread | None = None
 _writer_started = False
 _PRUNE_SENTINEL = object()
 _STOP_SENTINEL = object()
+_CLEAR_SENTINEL = object()
+_clear_event = threading.Event()
+_clear_result: dict = {}
+_clear_lock = threading.Lock()
 
 
 def _apply_connection_pragmas(conn: sqlite3.Connection) -> None:
@@ -207,7 +211,7 @@ def init_db() -> None:
 
 def _migrate_legacy_game_ids(c: sqlite3.Connection) -> None:
     """Normalize pre-dynamic-detection game_id values in samples."""
-    c.execute("UPDATE samples SET game_id = '949230' WHERE game_id = 'cities2'")
+    c.execute("UPDATE samples SET game_id = '949230' WHERE game_id = 'cities2'")  # old string alias → Steam AppID
 
 
 def prune_old() -> int:
@@ -221,8 +225,8 @@ def prune_old() -> int:
         return cur.rowcount
 
 
-def clear_history() -> dict:
-    """Wipe SQLite samples, game sessions, and session markers (schema kept)."""
+def _wipe_sample_tables() -> dict:
+    """DELETE samples/sessions on the writer thread. Skip VACUUM (can stall HTTP)."""
     with _lock:
         c = _get_conn()
         samples = c.execute("SELECT COUNT(*) FROM samples").fetchone()[0]
@@ -232,15 +236,38 @@ def clear_history() -> dict:
         c.execute("DELETE FROM game_sessions")
         c.execute("DELETE FROM session_markers")
         c.commit()
-        try:
-            c.execute("VACUUM")
-        except sqlite3.Error:
-            pass
     return {
         "cleared_samples": samples,
         "cleared_sessions": sessions,
         "cleared_markers": markers,
     }
+
+
+def clear_history() -> dict:
+    """Wipe SQLite samples after draining queued INSERTs (CLEAR sentinel)."""
+    if not _writer_started:
+        start_writer_worker()
+    with _clear_lock:
+        _clear_event.clear()
+        _clear_result.clear()
+        while True:
+            try:
+                _sample_queue.put_nowait(_CLEAR_SENTINEL)
+                break
+            except queue.Full:
+                try:
+                    _sample_queue.get_nowait()
+                    _sample_queue.task_done()
+                except (queue.Empty, ValueError):
+                    break
+        if not _clear_event.wait(15.0):
+            return {
+                "cleared_samples": 0,
+                "cleared_sessions": 0,
+                "cleared_markers": 0,
+                "error": "clear timed out",
+            }
+        return dict(_clear_result)
 
 
 def flatten_sample(snap: dict) -> dict:
@@ -316,6 +343,16 @@ def _writer_loop() -> None:
                     prune_old()
                 except Exception as exc:
                     print(f"Cosmic Pulse DB: background prune failed: {exc}", flush=True)
+                continue
+            if item is _CLEAR_SENTINEL:
+                try:
+                    _clear_result.clear()
+                    _clear_result.update(_wipe_sample_tables())
+                except Exception as exc:
+                    print(f"Cosmic Pulse DB: clear failed: {exc}", flush=True)
+                    _clear_result["error"] = str(exc)
+                finally:
+                    _clear_event.set()
                 continue
             if isinstance(item, dict):
                 try:
@@ -788,7 +825,13 @@ def update_settings(body: dict) -> dict:
         out["error"] = "no settings provided"
         return out
     if updates:
-        save_config(**updates)
+        try:
+            save_config(**updates)
+        except RuntimeError as exc:
+            out = stats()
+            out["ok"] = False
+            out["error"] = str(exc)
+            return out
     pruned = 0
     if "retention_days" in updates:
         pruned = prune_old()

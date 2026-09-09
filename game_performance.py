@@ -298,3 +298,19 @@ def seed_last_session(session: dict[str, Any] | None) -> None:
     """Restore last completed session after Pulse restart."""
     if session:
         _tracker._last_session = session
+
+
+def abandon_active_session() -> None:
+    """Drop in-memory session state without writing SQLite (Options clear)."""
+    _tracker._active = None
+    _tracker._pending = None
+    _tracker._last_session = None
+
+
+def finalize_open_session(*, save_session) -> dict[str, Any] | None:
+    """Persist the open session if it is long enough (parent shutdown)."""
+    finished = _tracker._clear_all()
+    if finished:
+        _tracker._store_finished(finished)
+        save_session(finished)
+    return finished

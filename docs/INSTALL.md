@@ -117,7 +117,15 @@ rm -rf ~/.local/share/cosmic-pulse   # optional — keeps your DB/history
 
 ## LAN access
 
-By default Pulse binds to `0.0.0.0:8765` so a phone or second machine on the same network can view the dashboard. There is no authentication — use only on trusted networks.
+By default Pulse binds to `127.0.0.1:8765`. For a phone or second machine on the same network:
+
+```bash
+cosmic-pulse --lan
+# or
+PULSE_LAN=1 cosmic-pulse
+```
+
+There is no authentication — use LAN bind only on trusted networks.
 
 Override port: `PULSE_PORT=9090 cosmic-pulse`
 

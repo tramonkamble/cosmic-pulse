@@ -23,3 +23,5 @@ reviews_*-ux-review.md
 .sample_live.json.tmp
 .sample_worker.pid
 sample-worker.log
+pulse-server.log
+.hermes/

@@ -5,11 +5,14 @@
 from __future__ import annotations
 
 import json
+import os
+import threading
 
 from paths import data_dir
 
 CONFIG_PATH = data_dir() / ".pulse_config.json"
 _config_cache: tuple[float, dict] | None = None
+_config_write_lock = threading.Lock()
 
 DEFAULT_RETENTION_DAYS = 10
 DEFAULT_UI_SCALE = 1.5
@@ -32,13 +35,13 @@ THEME_MODES = ("cosmic", "system", "dark", "light")
 BYTES_PER_SAMPLE_EST = 200
 SAMPLES_PER_DAY = 86400
 
-# Per-machine graph / dial ceilings (this rig's Options → Hardware scales).
+# Graph / dial ceilings until Options → Hardware scales is saved for this host.
 HW_SCALE_DEFAULTS = {
     "cpu_temp_min_c": 30,
     "cpu_temp_max_c": 105,
     "gpu_temp_max_c": 105,
-    "cpu_power_max_w": 170,
-    "gpu_power_max_w": 355,
+    "cpu_power_max_w": 125,
+    "gpu_power_max_w": 250,
 }
 HW_SCALE_BOUNDS = {
     "cpu_temp_min_c": (0, 50),
@@ -248,6 +251,11 @@ def get_insight_pref_sets() -> tuple[set[str], set[str]]:
 
 
 def save_config(**updates: object) -> dict:
+    with _config_write_lock:
+        return _save_config_locked(**updates)
+
+
+def _save_config_locked(**updates: object) -> dict:
     cfg = load_config()
     if "retention_days" in updates:
         cfg["retention_days"] = _clamp(int(updates["retention_days"]))  # type: ignore[arg-type]
@@ -271,12 +279,20 @@ def save_config(**updates: object) -> dict:
         if isinstance(incoming, dict):
             merged.update(incoming)
         cfg["hw_scales"] = _normalize_hw_scales(merged)
+    payload = json.dumps(cfg, indent=2) + "\n"
+    tmp = CONFIG_PATH.with_name(f"{CONFIG_PATH.name}.{os.getpid()}.tmp")
     try:
-        CONFIG_PATH.write_text(json.dumps(cfg, indent=2) + "\n")
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp.write_text(payload)
+        os.replace(tmp, CONFIG_PATH)
         global _config_cache
         _config_cache = (_config_mtime(), cfg)
-    except OSError:
-        pass
+    except OSError as exc:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise RuntimeError(f"could not save Pulse config: {exc}") from exc
     return cfg
 
 

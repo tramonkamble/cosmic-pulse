@@ -44,7 +44,7 @@ def test_ema_resets_on_game_change():
     assert s2 < s1
 
     reset_stutter_state()
-    other = _snap(pgmaj=2, game_id="949230", running=True)
+    other = _snap(pgmaj=2, game_id="440", running=True)
     fresh = compute_stutter(other)
     assert fresh["event"] is False
 

@@ -6504,17 +6504,17 @@
               <div class="options-row">
                 <span class="options-label">CPU watt full</span>
                 <div class="options-scale-wrap">
-                  <input type="range" id="hwCpuPowerMax" min="45" max="400" step="5" value="170"
+                  <input type="range" id="hwCpuPowerMax" min="45" max="400" step="5" value="125"
                     data-hw-scale="cpu_power_max_w" aria-label="CPU power dial maximum watts" />
-                  <span class="options-scale-val" id="hwCpuPowerMaxVal">170 W</span>
+                  <span class="options-scale-val" id="hwCpuPowerMaxVal">125 W</span>
                 </div>
               </div>
               <div class="options-row">
                 <span class="options-label">GPU watt full</span>
                 <div class="options-scale-wrap">
-                  <input type="range" id="hwGpuPowerMax" min="50" max="600" step="5" value="355"
+                  <input type="range" id="hwGpuPowerMax" min="50" max="600" step="5" value="250"
                     data-hw-scale="gpu_power_max_w" aria-label="GPU power dial maximum watts" />
-                  <span class="options-scale-val" id="hwGpuPowerMaxVal">355 W</span>
+                  <span class="options-scale-val" id="hwGpuPowerMaxVal">250 W</span>
                 </div>
               </div>
               <p class="options-scale-hint" id="hwPowerHint">Dial 100% is the watt ceiling you set. Raise it if the ring pegs; lower it if it never fills.</p>
@@ -6634,8 +6634,8 @@
       cpu_temp_min_c: 30,
       cpu_temp_max_c: 105,
       gpu_temp_max_c: 105,
-      cpu_power_max_w: 170,
-      gpu_power_max_w: 355,
+      cpu_power_max_w: 125,
+      gpu_power_max_w: 250,
     };
     let hwScales = { ...HW_SCALE_DEFAULTS };
 
@@ -11201,9 +11201,8 @@
       const cpuPower = cpu.power_w != null ? Math.round(cpu.power_w) : null;
       const fan = g.fan_rpm != null ? Math.round(g.fan_rpm) : null;
       const mhz = g.gfx_mhz != null ? Math.round(g.gfx_mhz) : null;
-      // GPU PPT scale ~ TGP; CPU package scale ~ desktop Ryzen envelope
-      const gpuCap = hwScales.gpu_power_max_w || 355;
-      const cpuCap = hwScales.cpu_power_max_w || 170;
+      const gpuCap = hwScales.gpu_power_max_w || 250;
+      const cpuCap = hwScales.cpu_power_max_w || 125;
       const gpuPct = Math.min(100, ((gpuPower || 0) / gpuCap) * 100);
       const cpuPct = Math.min(100, ((cpuPower || 0) / cpuCap) * 100);
       const fanPct = Math.min(100, ((fan || 0) / 2800) * 100);

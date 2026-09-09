@@ -185,7 +185,7 @@ def test_wedged_apply_does_not_prevent_worker_respawn():
 
 
 def test_cmdline_is_sample_worker() -> None:
-    assert ss._cmdline_is_sample_worker(["python3", "-u", "/home/tkep/perf-dashboard/sample_worker.py"])
+    assert ss._cmdline_is_sample_worker(["python3", "-u", "/opt/pulse/sample_worker.py"])
     assert ss._cmdline_is_sample_worker(["/usr/bin/python3", "sample_worker.py"])
     assert ss._cmdline_is_sample_worker(["python3.12", "-u", "sample_worker.py"])
     assert ss._cmdline_is_sample_worker(["/usr/bin/pypy3", "sample_worker.py"])
@@ -193,7 +193,7 @@ def test_cmdline_is_sample_worker() -> None:
     assert not ss._cmdline_is_sample_worker(["python3", "server.py"])
     assert not ss._cmdline_is_sample_worker(["python3", "not_sample_worker.py"])
     assert not ss._cmdline_is_sample_worker(["vim", "sample_worker.py"])
-    assert not ss._cmdline_is_sample_worker(["less", "/home/tkep/perf-dashboard/sample_worker.py"])
+    assert not ss._cmdline_is_sample_worker(["less", "/opt/pulse/sample_worker.py"])
     assert not ss._cmdline_is_sample_worker([])
     assert not ss._cmdline_is_sample_worker(None)
 

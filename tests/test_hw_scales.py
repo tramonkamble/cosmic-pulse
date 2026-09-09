@@ -31,7 +31,7 @@ def test_defaults_include_cpu_temp_max():
         cfg = pc.load_config()
         assert cfg["hw_scales"]["cpu_temp_max_c"] == 105
         assert cfg["hw_scales"]["cpu_temp_min_c"] == 30
-        assert pc.get_hw_scales()["gpu_power_max_w"] == 355
+        assert pc.get_hw_scales()["gpu_power_max_w"] == 250
     _with_tmp_config(inner)
 
 

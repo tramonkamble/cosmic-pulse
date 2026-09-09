@@ -144,7 +144,7 @@ def test_gpu_junction_critical_alert_even_without_fan_curve():
 def test_stutter_proxy_fires_from_instrumentation():
     reload_packs()
     snap = _snap(
-        game_totals={"running": True, "game_id": "730", "game_name": "Counter-Strike 2"},
+        game_totals={"running": True, "game_id": "570", "game_name": "Dota 2"},
         stutter={"score": 55, "event": True, "est_ms": 32, "severity": "moderate", "session": {"events": 4, "hitch_ms_1pct": 28}},
     )
     ctx = {"governor": "performance", "swappiness": 10}
@@ -311,8 +311,8 @@ def test_get_path_traverses_list_indices():
 
 
 def test_render_template_leaves_missing_paths():
-    metrics = {"game": {"name": "Windrose"}}
-    assert render_template("Hi {game.name}", metrics) == "Hi Windrose"
+    metrics = {"game": {"name": "Example"}}
+    assert render_template("Hi {game.name}", metrics) == "Hi Example"
     assert render_template("Hi {game.missing}", metrics) == "Hi {game.missing}"
     assert _get_path(metrics, "game.deep.path") is None
 
@@ -323,7 +323,7 @@ def test_render_template_bad_format_falls_back_to_str():
 
 
 def test_render_actions_drops_unresolved_keeps_json_literals():
-    metrics = {"game": {"name": "Windrose", "appid": "3041230"}}
+    metrics = {"game": {"name": "Example", "appid": "570"}}
     json_only = _render_actions(
         [{"label": "JSON", "cmd": "echo '{\"ok\": true}'", "note": "ok"}],
         metrics,
@@ -343,12 +343,12 @@ def test_render_actions_drops_unresolved_keeps_json_literals():
         metrics,
     )
     assert len(mixed) == 1
-    assert mixed[0]["cmd"] == "echo 3041230"
+    assert mixed[0]["cmd"] == "echo 570"
 
 
 def test_render_template_formats_numbers():
     metrics = flatten_metrics(
-        _snap(game_totals={"running": True, "game_id": "730"}, cpu={"overall_pct": 82.4}),
+        _snap(game_totals={"running": True, "game_id": "570"}, cpu={"overall_pct": 82.4}),
         {},
         {"governor": "powersave"},
     )
@@ -424,7 +424,7 @@ def test_cpu_rapl_rule_skips_when_absent():
 
 def _busy_game_snap() -> dict:
     return _snap(
-        game_totals={"running": True, "game_id": "730", "game_name": "Counter-Strike 2"},
+        game_totals={"running": True, "game_id": "570", "game_name": "Dota 2"},
         gpu={
             "discrete": {
                 "busy_pct": 92,

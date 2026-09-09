@@ -4,7 +4,7 @@ Thanks for reviewing Cosmic Pulse. This doc is written for a technical reviewer 
 
 ## What you're looking at
 
-Cosmic Pulse is a **single-user, local-only** Python HTTP server that samples system metrics at 1 Hz and serves a single-page dashboard. There is no auth layer — it binds to `0.0.0.0:8765` so a phone or second machine on the LAN can view it. That is intentional for a second-monitor setup but worth scrutinizing.
+Cosmic Pulse is a **single-user, local-only** Python HTTP server that samples system metrics at 1 Hz and serves a single-page dashboard. There is no auth layer. It binds to `127.0.0.1` by default; `--lan` / `PULSE_LAN=1` listens on all interfaces for a second monitor.
 
 **Stack:** Python 3 stdlib + `psutil` + one HTML file. Chart.js loaded from CDN. SQLite for optional history.
 
@@ -47,11 +47,11 @@ Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` →
 
 ### High priority
 
-1. **Security / exposure** — `ThreadingHTTPServer(("0.0.0.0", PORT), …)` exposes metrics on all interfaces. Should this default to `127.0.0.1` with an opt-in LAN flag?
+1. **Security / exposure** — default is `127.0.0.1`; `--lan` still has no auth. Confirm that is acceptable for a trusted home LAN.
 2. **Command injection** — Guidance `actions` embed shell command *suggestions*. Are any template inputs insufficiently sanitized?
 3. **Thread safety** — `_history` and caches updated under `_lock`; verify handler reads are safe.
 4. **GPU path assumptions** — `GPU_DISCRETE = card1`, hardcoded amdgpu paths in some step commands. Will break on NVIDIA-only or different DRM ordering.
-5. **Game paths** — Cities II compatdata path is Proton-specific; CS2/Cities app IDs are in `games.py`.
+5. **Game paths** — Proton compatdata is Steam-layout specific; AppIDs come from live processes and manifests, not hardcoded titles.
 
 ### Medium priority
 

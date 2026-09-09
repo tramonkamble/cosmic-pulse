@@ -47,7 +47,7 @@ def test_by_game_skips_idle_titles_without_issues():
             "level": "warn",
             "title": "CPU power-save",
             "text": "test",
-            "games_seen": {"949230": time.time()},
+            "games_seen": {"440": time.time()},
             "last_seen": time.time(),
             "condition_live": True,
         }
@@ -58,17 +58,17 @@ def test_by_game_skips_idle_titles_without_issues():
         views = build_issue_views(
             active,
             history,
-            ["730"],
-            {"730": {"name": "CS2", "short": "CS2", "running": True}},
+            ["570"],
+            {"570": {"name": "Example", "short": "Ex", "running": True}},
         )
-        assert "730" in views["by_game"]
-        assert "949230" in views["by_game"]
-        assert views["by_game"]["949230"]["issue_count"] >= 1
+        assert "570" in views["by_game"]
+        assert "440" in views["by_game"]
+        assert views["by_game"]["440"]["issue_count"] >= 1
 
         resolved_prefs = ({"cpu-governor-powersave"}, set())
         with mock.patch("issue_aggregate.get_insight_pref_sets", return_value=resolved_prefs):
             views_cleared = build_issue_views([], history, [], None)
-        assert "949230" not in views_cleared["by_game"]
+        assert "440" not in views_cleared["by_game"]
 
 
 def test_running_flag_uses_normalized_ids():
@@ -77,10 +77,10 @@ def test_running_flag_uses_normalized_ids():
         views = build_issue_views(
             [],
             [],
-            ["949230"],
-            {"949230": {"name": "Cities II", "short": "Cities", "running": True}},
+            ["440"],
+            {"440": {"name": "Example", "short": "Ex", "running": True}},
         )
-        assert views["by_game"]["949230"]["running"] is True
+        assert views["by_game"]["440"]["running"] is True
 
 
 if __name__ == "__main__":

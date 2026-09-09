@@ -47,7 +47,7 @@ Do not merge beta UI into `main` until explicitly promoted. Backend/Python work 
 - **Community** (people smarter about specific games/distros/GPUs) owns richer rulesets.
 - **`pulse-core`** (always): governor, swappiness, stutter-proxy, gpu-fps-cap, proton-wayland.
 - **`popos-core`** (`platform.is_pop`): HDR off, RAPL udev, Proton libs, MangoHud, GPU hot.
-- CS2 / Cities II `game_overrides` on `pulse-core` are process detection only, not extra cards.
+- No per-title `game_overrides` in builtin packs.
 
 **Not in 0.1 builtin:** audio rule walls, tools shopping lists, deep Steam health encyclopedia, multi-title pro tips. **Later:** Heroic / Lutris / other launchers (`launcher-heroic-etc`, post-0.1) — Steam-first for ship.
 

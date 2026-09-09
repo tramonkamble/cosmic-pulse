@@ -131,22 +131,22 @@ def test_tail_lines_reads_end_only():
 
 def test_candidate_appids_merges_cwd_when_cmd_matches_other():
     metas = {
-        "730": {"installdir": "Counter-Strike Global Offensive"},
-        "949230": {"installdir": "Cities Skylines II"},
+        "570": {"installdir": "dota 2 beta"},
+        "440": {"installdir": "Team Fortress 2"},
     }
     env_cache: dict[int, str | None] = {}
-    cwd_cache: dict[int, str | None] = {42: "/home/u/.steam/steamapps/common/Cities Skylines II"}
+    cwd_cache: dict[int, str | None] = {42: "/home/u/.steam/steamapps/common/Team Fortress 2"}
     cands = _candidate_appids_for_proc(
-        "compatdata/730",
+        "compatdata/570",
         42,
-        "cities2.exe",
-        {"730", "949230"},
+        "game.exe",
+        {"570", "440"},
         {},
         metas,
         env_cache,
         cwd_cache,
     )
-    assert cands == {"730", "949230"}
+    assert cands == {"570", "440"}
 
 
 def test_steam_health_cache_reuses_result():
@@ -216,7 +216,9 @@ def test_steam_caches_prune_stale_appids():
 
 def test_live_installed_games_not_false_positive():
     clear_steam_health_caches()
-    for appid in ("730", "949230", "453090", "252490", "4704690"):
+    from games import installed_appids
+
+    for appid in installed_appids()[:8]:
         health = steam_install_health(appid, cache=False)
         assert not health["files_corrupt"], appid
         assert not health["update_suspended_while_running"], appid

@@ -32,7 +32,7 @@ chmod +x install.sh
 ./install.sh --service
 ```
 
-Open **http://localhost:8765** (or `http://<your-lan-ip>:8765` from a phone on the same network).
+Open **http://localhost:8765**. For a second machine or phone on the LAN: `cosmic-pulse --lan` (or `PULSE_LAN=1`).
 
 Ensure `~/.local/bin` is on your `PATH` so the `cosmic-pulse` command works.
 
@@ -115,6 +115,7 @@ cp .pulse_config.example.json .pulse_config.json
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PULSE_PORT` | `8765` | HTTP port |
+| `PULSE_LAN` | unset | Set to `1` to bind `0.0.0.0` (LAN view, no auth) |
 | `PULSE_DATA_DIR` | install dir or `~/.local/share/cosmic-pulse` | Writable state (`.deb` installs) |
 | `STEAM_BASE` | auto-detect | Steam root if non-standard |
 
@@ -122,7 +123,7 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Security notice
 
-Cosmic Pulse binds to **`0.0.0.0`** (all interfaces) so phones and second machines on your LAN can view the dashboard. There is **no authentication**. Use only on networks you trust. Do not expose port 8765 to the internet without a reverse proxy and auth.
+Cosmic Pulse binds to **`127.0.0.1`** by default. Pass **`--lan`** (or `PULSE_LAN=1`) to listen on all interfaces for a second monitor or phone. There is **no authentication**. Use LAN bind only on networks you trust. Do not expose port 8765 to the internet without a reverse proxy and auth.
 
 One-click **Fix** actions are limited to safe, user-owned changes (e.g. open folders, Steam launch options). Root/sudo steps are scripts you run yourself.
 
@@ -130,7 +131,7 @@ One-click **Fix** actions are limited to safe, user-owned changes (e.g. open fol
 
 - Stutter score is a **kernel-signal proxy**, not real frametime.
 - AMD discrete GPU is the happy path; NVIDIA-only rigs may have sparse GPU tiles.
-- Chart.js loads from CDN on first visit (needs internet once).
+- Chart.js is vendored with the app (no CDN).
 - Some Guidance commands are machine-specific — review before running.
 
 See [docs/REVIEW.md](docs/REVIEW.md) for reviewer notes and future work.

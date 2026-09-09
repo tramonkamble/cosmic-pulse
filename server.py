@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Live performance dashboard for Pop!_OS gaming rigs."""
 
+import atexit
 import json
 import os
 import re
@@ -26,7 +27,12 @@ from diagnostics import (
     primary_finding,
     request_diagnostics_scan,
 )
-from game_performance import seed_last_session, tick_game_performance
+from game_performance import (
+    abandon_active_session,
+    finalize_open_session,
+    seed_last_session,
+    tick_game_performance,
+)
 from games import (
     LEGACY_GAME_IDS,
     build_games_catalog,
@@ -761,7 +767,7 @@ def psi_read(kind: str) -> dict | None:
 
 
 def _proc_stats() -> tuple[int, int]:
-    """Process + thread counts (cached — full walk is ~20ms on this rig)."""
+    """Process + thread counts (cached — full walk is tens of ms)."""
     global _proc_stats_cache
     now = time.time()
     if now - _proc_stats_cache[0] < _PROC_STATS_TTL:
@@ -1010,7 +1016,7 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
             "pct": _engine_pct(engine_raw.get("mm"), None),
         },
     ]
-    # Bus GB/s from the coalesced UMC % — sysfs mem_busy alone is often 0 on 7900 XTX.
+    # Bus GB/s from the coalesced UMC % — sysfs mem_busy is often 0 on AMD.
     vram_busy_for_bw = umc_pct if umc_pct is not None else mem_busy
     vram_est_gbps = (
         round((vram_busy_for_bw or 0) * peak / 100, 1) if vram_busy_for_bw is not None else None
@@ -2388,11 +2394,10 @@ def collect_metrics() -> dict:
                 if health:
                     drive["smart"] = health
     active_hints = tuning_hints(snap)
-    history = update_tuning_history(active_hints, running_ids, snap)
-    views = build_issue_views(active_hints, history, running_ids, games_state)
     snap["tuning_active"] = active_hints
-    snap["tuning"] = views["overall"]
-    snap["issues_by_game"] = views["by_game"]
+    # This-tick matches only. Parent accept_child_sample owns the Guidance log.
+    snap["tuning"] = active_hints
+    snap["issues_by_game"] = {}
     tiles = snap["sensors"]
     snap["sensor_health"] = {
         "total": len(tiles),
@@ -2414,7 +2419,8 @@ def collect_metrics() -> dict:
         ),
         board_name=_static.get("board_name", ""),
     )
-    snap["game_performance"] = tick_game_performance(snap, save_session=save_game_session)
+    # Game sessions persist on the parent apply path so a SIGKILL'd worker
+    # does not drop the in-progress session.
     return snap
 
 
@@ -2578,6 +2584,49 @@ def _publish_sample(
     if into_history:
         _apply_last_mono = time.monotonic()
     return True
+
+
+def accept_child_sample(snap: dict) -> bool:
+    """Parent apply: history ring, stutter session window, Guidance log, game session."""
+    if not _publish_sample(snap, my_gen=None, into_history=True):
+        return False
+    try:
+        with _lock:
+            hist = list(_history)
+        attach_stutter(snap, hist)
+        games_state = snap.get("games") or {}
+        running_ids = running_game_ids(games_state)
+        gt = snap.get("game_totals") or {}
+        gid = gt.get("game_id")
+        if gt.get("running") and gid and gid not in running_ids:
+            running_ids.append(gid)
+        active = snap.get("tuning_active") or []
+        history = update_tuning_history(active, running_ids, snap)
+        views = build_issue_views(active, history, running_ids, games_state)
+        snap["tuning"] = views["overall"]
+        snap["issues_by_game"] = views["by_game"]
+        snap["game_performance"] = tick_game_performance(snap, save_session=save_game_session)
+    except Exception as exc:
+        print(f"Cosmic Pulse sampler: parent enrich failed: {exc}", flush=True)
+    return True
+
+
+def clear_live_history_ring() -> None:
+    """Empty the in-memory chart ring (Options clear samples)."""
+    global _history
+    with _lock:
+        _history = []
+    abandon_active_session()
+
+
+def listen_host() -> str:
+    """Default loopback. ``--lan`` or ``PULSE_LAN=1`` binds all interfaces."""
+    if "--lan" in sys.argv:
+        return "0.0.0.0"
+    flag = os.environ.get("PULSE_LAN", "").strip().lower()
+    if flag in ("1", "true", "yes", "on"):
+        return "0.0.0.0"
+    return "127.0.0.1"
 
 
 def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
@@ -2899,7 +2948,8 @@ class Handler(BaseHTTPRequestHandler):
         data = json.dumps(payload).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        if self.command != "POST":
+            self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
@@ -3298,7 +3348,7 @@ class Handler(BaseHTTPRequestHandler):
                 invalidate_diagnostics_cache()
                 details["cleared_diag_cache"] = True
             if action in ("clear_samples", "reset_all_pulse_data"):
-                # Ask clients to drop in-memory chart buffers.
+                clear_live_history_ring()
                 details["client_clear_history"] = True
 
             out = enrich_store_stats(result)
@@ -3333,13 +3383,17 @@ def main():
 
     start_sample_supervisor(srv=sys.modules[__name__])
     time.sleep(1.2)
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"Cosmic Pulse: http://localhost:{PORT}")
-    try:
-        ip = subprocess.check_output(["hostname", "-I"], text=True).split()[0]
-        print(f"              http://{ip}:{PORT}")
-    except (subprocess.SubprocessError, IndexError):
-        pass
+    atexit.register(lambda: finalize_open_session(save_session=save_game_session))
+    host = listen_host()
+    server = ThreadingHTTPServer((host, PORT), Handler)
+    print(f"Cosmic Pulse: http://127.0.0.1:{PORT}")
+    if host == "0.0.0.0":
+        print("              LAN bind (--lan / PULSE_LAN=1) — no authentication")
+        try:
+            ip = subprocess.check_output(["hostname", "-I"], text=True).split()[0]
+            print(f"              http://{ip}:{PORT}")
+        except (subprocess.SubprocessError, IndexError):
+            pass
     print("Press Ctrl+C to stop.")
     server.serve_forever()
 

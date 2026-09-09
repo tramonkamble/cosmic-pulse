@@ -33,7 +33,7 @@ Both required. **No 0.1 tag until every box is checked.**
 - [x] `git remote add origin` && `git push -u origin main`
 - [x] README: clone URL points at GitHub
 - [ ] Optional: second screenshot (Fixes tab, league drill-down)
-- [ ] Optional: `127.0.0.1` bind default + `--lan` flag (if review suggests)
+- [x] Optional: `127.0.0.1` bind default + `--lan` flag (if review suggests)
 - [ ] Optional: GitHub Issues templates
 
 ## After publish (System76 / community)

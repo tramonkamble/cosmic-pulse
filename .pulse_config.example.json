@@ -11,7 +11,7 @@
     "cpu_temp_min_c": 30,
     "cpu_temp_max_c": 105,
     "gpu_temp_max_c": 105,
-    "cpu_power_max_w": 170,
-    "gpu_power_max_w": 355
+    "cpu_power_max_w": 125,
+    "gpu_power_max_w": 250
   }
 }

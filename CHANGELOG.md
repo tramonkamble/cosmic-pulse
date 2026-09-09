@@ -15,6 +15,11 @@ Dates use the machine local timezone (EDT unless noted).
 
 ### Changed
 - **Builtin Guidance** — two packs of five: `pulse-core` (Linux / Steam / hitch / FPS cap / Proton Wayland) and `popos-core` (Pop-only HDR, RAPL udev, Proton libs, MangoHud, GPU hot). Fat `pulse-default` removed; community packs stay `~/.config/pulse/rules/`.
+- **No title-specific builtin overrides** — CS2 / Cities II `game_overrides` and watt dials sized for one 7900X/XTX kit are out of the shipped defaults. Steam catalog is installed manifests only.
+- **Listen on localhost** — default bind is `127.0.0.1`. `--lan` / `PULSE_LAN=1` for a second machine. POST APIs no longer send `Access-Control-Allow-Origin: *`.
+- **Steam extra libraries** — `libraryfolders.vdf` is parsed so titles on another disk are named and metered.
+- **Guidance log + game sessions** — sample worker emits this tick’s matches only; the HTTP parent owns history, RESET, and session finalize so a worker SIGKILL cannot resurrect cards or drop a session.
+- **Clear samples** — a queue sentinel drains pending INSERTs, then DELETE; the in-memory chart ring is emptied.
 - **Rig identity tiles** — a bit taller on the glance row. Chassis reads the OEM when DMI is Dell/Lenovo/…; a DIY board (ASUS/MSI SKU or placeholder DMI) shows as Desktop, not System76.
 - **Sampler: no `sensors -j` fork** — temps/fans/PPT come from `/sys/class/hwmon` in-process (lm-sensors-shaped keys). Chip dirs and RAPL package path are cached; 1 Hz loop no longer `fork`/`exec`s `sensors`.
 - **Sampler: one process walk** — game snapshot keeps the `psutil` handle from a single `process_iter`; no second table walk and no `Process(pid)` re-parse of `/proc/[pid]/stat`.

@@ -45,32 +45,23 @@ def _snap(**overrides) -> dict:
     return base
 
 
-def test_game_overrides_loaded_from_default_pack():
+def test_builtin_pack_has_no_title_overrides():
     reload_game_pack_data()
-    overrides = get_game_overrides()
-    assert "730" in overrides
-    assert "cs2.exe" in overrides["730"]["main_exe"]
-    assert "949230" in overrides
-    assert "cities2.exe" in overrides["949230"][
-        "main_exe"
-    ].__str__().lower() or "Cities2.exe".lower() in {
-        x.lower() for x in overrides["949230"]["main_exe"]
-    }
+    assert get_game_overrides() == {}
+    assert list(LEGACY_GAME_IDS) == []
 
 
 def test_lazy_dict_invalidates_on_reload():
     from games import reload_game_pack_data
 
-    _ = GAME_OVERRIDES.get("730")
     GAME_OVERRIDES._cache = {"999": {"short": "STALE"}}
     reload_game_pack_data()
     assert "999" not in GAME_OVERRIDES
-    assert "730" in GAME_OVERRIDES
 
 
 def test_legacy_ids_from_pack():
     reload_game_pack_data()
-    assert LEGACY_GAME_IDS.get("cities2") == "949230"
+    assert list(LEGACY_GAME_IDS) == []
 
 
 def test_game_context_kwargs_from_metrics():
@@ -141,8 +132,8 @@ def test_no_game_metrics_context():
 def test_legacy_game_id_normalized():
     from games import normalize_game_id
 
-    assert normalize_game_id("cities2") == "949230"
-    assert normalize_game_id("949230") == "949230"
+    assert normalize_game_id("alias") == "alias"
+    assert normalize_game_id("570") == "570"
 
 
 def test_rule_pack_game_actions_get_appid():
@@ -170,7 +161,7 @@ def test_rule_pack_game_actions_get_appid():
 if __name__ == "__main__":
     test_unresolved_template_actions_filtered()
     test_lazy_dict_invalidates_on_reload()
-    test_game_overrides_loaded_from_default_pack()
+    test_builtin_pack_has_no_title_overrides()
     test_legacy_ids_from_pack()
     test_game_context_kwargs_from_metrics()
     test_lib_apt_install_built_from_findings()

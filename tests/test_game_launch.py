@@ -72,7 +72,7 @@ def test_steam_launch_options_reads_localconfig(monkeypatch, tmp_path):
             {
                 "Apps"
                 {
-                    "3041230"
+                    "570"
                     {
                         "LaunchOptions"		"PROTON_ENABLE_WAYLAND=0 %command%"
                     }
@@ -85,7 +85,7 @@ def test_steam_launch_options_reads_localconfig(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(games, "steam_root", lambda: tmp_path)
     games._LOCALCONFIG_CACHE = (0.0, "")
-    assert "PROTON_ENABLE_WAYLAND=0" in steam_launch_options("3041230")
+    assert "PROTON_ENABLE_WAYLAND=0" in steam_launch_options("570")
     assert steam_launch_options("999999") == ""
 
 
@@ -105,8 +105,8 @@ def test_proton_wayland_rule_fires_when_gated(monkeypatch):
     snap = _snap(
         game_totals={
             "running": True,
-            "game_id": "3041230",
-            "game_name": "Windrose",
+            "game_id": "570",
+            "game_name": "Example",
             "primary_pid": 999999,
         },
     )
@@ -115,7 +115,7 @@ def test_proton_wayland_rule_fires_when_gated(monkeypatch):
     hit = next(h for h in hints if h["insight_id"] == "proton-wayland-launch-fix")
     assert hit["level"] == "warn"
     assert hit["bucket"] == "steam"
-    assert "3041230" in hit["games"]
+    assert "570" in hit["games"]
     assert "fix_script" not in hit
     assert hit.get("actions")
 
@@ -136,7 +136,7 @@ def test_proton_wayland_rule_skips_when_fix_present(monkeypatch):
     snap = _snap(
         game_totals={
             "running": True,
-            "game_id": "3041230",
+            "game_id": "570",
             "primary_pid": 999999,
         },
     )
@@ -173,7 +173,7 @@ def test_most_recent_localconfig_account(monkeypatch, tmp_path):
         """
 "Apps"
 {
-    "3041230"
+    "570"
     {
         "LaunchOptions"		"PROTON_ENABLE_WAYLAND=0 %command%"
     }
@@ -183,7 +183,7 @@ def test_most_recent_localconfig_account(monkeypatch, tmp_path):
     monkeypatch.setattr(games, "steam_root", lambda: root)
     games._LOCALCONFIG_CACHE = (0.0, "")
     assert games._steam_localconfig_path() == cfg / "localconfig.vdf"
-    assert "PROTON_ENABLE_WAYLAND=0" in steam_launch_options("3041230")
+    assert "PROTON_ENABLE_WAYLAND=0" in steam_launch_options("570")
 
 
 def test_set_steam_launch_options_writes_localconfig(monkeypatch, tmp_path):
@@ -195,7 +195,7 @@ def test_set_steam_launch_options_writes_localconfig(monkeypatch, tmp_path):
         """
 "Apps"
 {
-    "3041230"
+    "570"
     {
         "Playtime"		"22"
     }
@@ -204,11 +204,11 @@ def test_set_steam_launch_options_writes_localconfig(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(games, "steam_root", lambda: tmp_path)
     games._LOCALCONFIG_CACHE = (0.0, "")
-    result = set_steam_launch_options("3041230", WAYLAND_X11_LAUNCH_OPTS)
+    result = set_steam_launch_options("570", WAYLAND_X11_LAUNCH_OPTS)
     assert result["ok"] is True
     saved = (cfg / "localconfig.vdf").read_text()
     assert "PROTON_ENABLE_WAYLAND=0" in saved
-    assert steam_launch_options("3041230") == WAYLAND_X11_LAUNCH_OPTS
+    assert steam_launch_options("570") == WAYLAND_X11_LAUNCH_OPTS
 
 
 def test_game_session_launch_metrics_checks_runtime_env(monkeypatch):
@@ -217,7 +217,7 @@ def test_game_session_launch_metrics_checks_runtime_env(monkeypatch):
     monkeypatch.setattr(games, "steam_launch_options", lambda _aid: "")
     monkeypatch.setattr(games, "game_uses_proton", lambda *_a, **_k: True)
     monkeypatch.setattr(games, "proc_has_wayland_fix", lambda _pid: True)
-    metrics = game_session_launch_metrics("3041230", 12345, primary_name="Windrose.exe")
+    metrics = game_session_launch_metrics("570", 12345, primary_name="game.exe")
     assert metrics["wayland_fix_missing"] is False
     assert metrics["wayland_fix_runtime"] is True
 
@@ -226,12 +226,12 @@ def test_game_uses_proton_compatdata_exe_fallback(monkeypatch, tmp_path):
     import games
 
     root = tmp_path / "steam"
-    compat = root / "steamapps" / "compatdata" / "3041230"
+    compat = root / "steamapps" / "compatdata" / "570"
     compat.mkdir(parents=True)
     monkeypatch.setattr(games, "steam_root", lambda: root)
     monkeypatch.setattr(games, "proc_uses_proton", lambda _pid: False)
-    assert game_uses_proton("3041230", 999, primary_name="Windrose.exe") is True
-    assert game_uses_proton("3041230", 999, primary_name="steamwebhelper") is False
+    assert game_uses_proton("570", 999, primary_name="game.exe") is True
+    assert game_uses_proton("570", 999, primary_name="steamwebhelper") is False
 
 
 def test_eval_condition_session_game_metrics():

@@ -219,6 +219,84 @@ def steam_root() -> Path:
     return HOME / ".local/share/Steam"
 
 
+_LIB_PATH_RE = re.compile(r'"path"\s+"([^"]+)"')
+_library_cache: tuple[float, tuple[Path, ...]] | None = None
+
+
+def _parse_libraryfolders_vdf(path: Path) -> list[Path]:
+    try:
+        text = path.read_text(errors="ignore")
+    except OSError:
+        return []
+    out: list[Path] = []
+    for match in _LIB_PATH_RE.finditer(text):
+        raw = match.group(1).replace("\\\\", "/").replace("\\", "/")
+        p = Path(raw)
+        if p.is_dir():
+            out.append(p)
+    return out
+
+
+def steam_library_roots() -> list[Path]:
+    """Steam install + extra libraries from libraryfolders.vdf."""
+    global _library_cache
+    root = steam_root()
+    vdfs = (
+        root / "steamapps" / "libraryfolders.vdf",
+        root / "config" / "libraryfolders.vdf",
+    )
+    mtime = 0.0
+    for vdf in vdfs:
+        try:
+            if vdf.is_file():
+                mtime = max(mtime, vdf.stat().st_mtime)
+        except OSError:
+            pass
+    if _library_cache and _library_cache[0] == mtime:
+        return list(_library_cache[1])
+    seen: set[str] = set()
+    roots: list[Path] = []
+
+    def _add(p: Path) -> None:
+        try:
+            key = str(p.resolve())
+        except OSError:
+            key = str(p)
+        if key in seen:
+            return
+        if not (p / "steamapps").is_dir() and not p.is_dir():
+            return
+        seen.add(key)
+        roots.append(p)
+
+    _add(root)
+    for vdf in vdfs:
+        if vdf.is_file():
+            for extra in _parse_libraryfolders_vdf(vdf):
+                _add(extra)
+    _library_cache = (mtime, tuple(roots))
+    return list(roots)
+
+
+def steamapps_dirs() -> list[Path]:
+    return [r / "steamapps" for r in steam_library_roots() if (r / "steamapps").is_dir()]
+
+
+def find_appmanifest(appid: str) -> Path | None:
+    name = f"appmanifest_{appid}.acf"
+    for sa in steamapps_dirs():
+        path = sa / name
+        if path.is_file():
+            return path
+    return None
+
+
+def clear_steam_library_cache() -> None:
+    global _library_cache
+    _library_cache = None
+    _read_manifest.cache_clear()
+
+
 _LOCALCONFIG_CACHE: tuple[float, str] = (0.0, "")
 _STEAM_ID64_BASE = 76561197960265728
 
@@ -505,8 +583,8 @@ def _short_name(name: str) -> str:
 
 @lru_cache(maxsize=256)
 def _read_manifest(appid: str) -> dict[str, str]:
-    path = steam_root() / "steamapps" / f"appmanifest_{appid}.acf"
-    if not path.is_file():
+    path = find_appmanifest(appid)
+    if not path or not path.is_file():
         return {}
     try:
         text = path.read_text(errors="ignore")
@@ -558,10 +636,11 @@ def steam_art_urls(appid: str) -> list[str]:
 
 def build_games_catalog() -> dict[str, dict]:
     catalog: dict[str, dict] = {}
-    steamapps = steam_root() / "steamapps"
-    if steamapps.is_dir():
+    for steamapps in steamapps_dirs():
         for path in steamapps.glob("appmanifest_*.acf"):
             appid = path.name.removeprefix("appmanifest_").removesuffix(".acf")
+            if appid in catalog:
+                continue
             meta = game_meta(appid)
             catalog[appid] = {
                 "name": meta["name"],
@@ -569,17 +648,6 @@ def build_games_catalog() -> dict[str, dict]:
                 "appid": appid,
                 "art_urls": steam_art_urls(appid),
             }
-    for appid in GAME_OVERRIDES:
-        meta = game_meta(appid)
-        catalog.setdefault(
-            appid,
-            {
-                "name": meta["name"],
-                "short": meta["short"],
-                "appid": appid,
-                "art_urls": steam_art_urls(appid),
-            },
-        )
     return catalog
 
 
@@ -620,6 +688,7 @@ def clear_steam_health_caches() -> None:
     _STEAM_HEALTH_CACHE.clear()
     _CONTENT_LOG_CACHE = (0.0, [])
     _SHADER_SIZE_CACHE.clear()
+    clear_steam_library_cache()
 
 
 def _tail_lines(path: Path, max_lines: int = 500, *, tail_bytes: int = 384 * 1024) -> list[str]:
@@ -681,6 +750,10 @@ def _shader_cache_bytes(appid: str) -> int:
 
 
 def shader_cache_dir(appid: str) -> Path:
+    for sa in steamapps_dirs():
+        path = sa / "shadercache" / str(appid)
+        if path.is_dir():
+            return path
     return steam_root() / "steamapps" / "shadercache" / str(appid)
 
 
@@ -836,9 +909,9 @@ def steam_install_health(appid: str, *, cache: bool = True) -> dict:
         if hit and now - hit[0] < _STEAM_HEALTH_TTL:
             return hit[1]
 
-    manifest_path = steam_root() / "steamapps" / f"appmanifest_{appid}.acf"
+    manifest_path = find_appmanifest(appid)
     ints: dict[str, int] = {}
-    if manifest_path.is_file():
+    if manifest_path and manifest_path.is_file():
         try:
             for key, val in _MANIFEST_INT.findall(manifest_path.read_text(errors="ignore")):
                 if key in {
@@ -893,12 +966,20 @@ def game_install_dir(appid: str) -> Path:
     meta = game_meta(appid)
     idir = (meta.get("installdir") or "").strip()
     if idir:
-        return steam_root() / "steamapps" / "common" / idir
+        for sa in steamapps_dirs():
+            path = sa / "common" / idir
+            if path.is_dir():
+                return path
+        return steamapps_dirs()[0] / "common" / idir if steamapps_dirs() else steam_root() / "steamapps" / "common" / idir
     return steam_root() / "steamapps" / "common"
 
 
 def game_compat_dir(appid: str) -> Path:
-    return steam_root() / "steamapps" / "compatdata" / appid
+    for sa in steamapps_dirs():
+        path = sa / "compatdata" / str(appid)
+        if path.is_dir():
+            return path
+    return steam_root() / "steamapps" / "compatdata" / str(appid)
 
 
 def game_proton_userdata_dirs(appid: str) -> list[Path]:
@@ -1068,7 +1149,7 @@ def _worth_enriching(name: str, cmd: str) -> bool:
 
 
 def _main_exe_name_set() -> set[str]:
-    """Lowercase main_exe basenames from pack overrides (e.g. cs2, cities2.exe)."""
+    """Lowercase main_exe basenames from enabled pack game_overrides."""
     names: set[str] = set()
     try:
         for ov in GAME_OVERRIDES.values():
@@ -1625,11 +1706,8 @@ def primary_active_game_with_linger(
 
 
 def installed_appids() -> list[str]:
-    steamapps = steam_root() / "steamapps"
-    if not steamapps.is_dir():
-        return list(GAME_OVERRIDES.keys())
-    ids = [
-        p.name.removeprefix("appmanifest_").removesuffix(".acf")
-        for p in steamapps.glob("appmanifest_*.acf")
-    ]
-    return sorted(set(ids) | set(GAME_OVERRIDES.keys()))
+    ids: set[str] = set()
+    for steamapps in steamapps_dirs():
+        for p in steamapps.glob("appmanifest_*.acf"):
+            ids.add(p.name.removeprefix("appmanifest_").removesuffix(".acf"))
+    return sorted(ids)

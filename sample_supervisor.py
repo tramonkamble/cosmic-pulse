@@ -238,7 +238,11 @@ def _apply_loop(srv, live_path: Path, my_gen: int) -> None:
                     last_seen_file_ts = file_ts
                     snap = payload["snap"]
                     try:
-                        srv._publish_sample(snap, my_gen=None, into_history=True)
+                        accept = getattr(srv, "accept_child_sample", None)
+                        if accept:
+                            accept(snap)
+                        else:
+                            srv._publish_sample(snap, my_gen=None, into_history=True)
                         samples_applied += 1
                         srv._apply_last_mono = time.monotonic()
                         if getattr(srv, "_sampler_last_reason", "") in (
@@ -353,7 +357,12 @@ def _supervisor_loop(srv=None) -> None:
 
         worker_log = ddir / "sample-worker.log"
         try:
-            log_f = open(worker_log, "a", buffering=1)
+            rotate = False
+            try:
+                rotate = worker_log.is_file() and worker_log.stat().st_size > 2_000_000
+            except OSError:
+                rotate = False
+            log_f = open(worker_log, "w" if rotate else "a", buffering=1)
         except FileNotFoundError:
             print(
                 f"Cosmic Pulse sampler: data dir gone ({worker_log}) — supervisor stopping",
