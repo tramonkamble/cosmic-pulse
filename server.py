@@ -1041,6 +1041,7 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
     return {
         "label": label,
         "busy_pct": busy,
+        "gfx_pct": gfx_pct,
         "mem_busy_pct": mem_busy,
         "engines": engines,
         "vram_used_mb": vram_used,
@@ -1990,6 +1991,7 @@ def _gpu_stats_sysfs_only(base: Path, label: str) -> dict:
     return {
         "label": label,
         "busy_pct": busy,
+        "gfx_pct": busy,
         "mem_busy_pct": mem_busy,
         "engines": engines,
         "vram_used_mb": vram_used,
