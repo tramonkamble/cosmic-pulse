@@ -10,7 +10,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from server import _engine_pct, _parse_hwmon_tree, memory_bandwidth
+from server import _engine_pct, _parse_hwmon_tree, memory_bandwidth, slim_history_point
 
 
 def test_engine_pct_prefers_any_live_counter():
@@ -73,10 +73,43 @@ def test_hwmon_parse_k10_and_amdgpu():
     assert any("PPT" in k and abs(float(v) - 23.0) < 0.2 for k, v in out.items())
 
 
+def test_slim_history_keeps_chip_series() -> None:
+    snap = {
+        "ts": 1_700_000_000.0,
+        "cpu": {"overall_pct": 22.0, "temps": {"package": 48.0}},
+        "memory": {"pct": 41.5, "swap_pct": 2.0},
+        "gpu": {
+            "discrete": {
+                "busy_pct": 4.0,
+                "vram_pct": 37.2,
+                "vram_used_mb": 9000,
+                "vram_total_mb": 24576,
+                "junction_c": 55.0,
+                "engines": [
+                    {"id": "gfx", "label": "Shaders", "pct": 61.0},
+                    {"id": "vram", "label": "Memory bus", "pct": 12.0},
+                ],
+            }
+        },
+        "disk": {},
+        "network": {},
+        "bandwidth": {},
+        "stutter": {},
+        "comparison": {},
+    }
+    slim = slim_history_point(snap)
+    g = slim["gpu"]["discrete"]
+    assert g["gfx_pct"] == 61.0
+    assert g["vram_pct"] == 37.2
+    assert g["vram_used_mb"] == 9000
+    assert g["busy_pct"] == 4.0
+
+
 def run_all() -> None:
     test_engine_pct_prefers_any_live_counter()
     test_dram_idle_not_inflated_by_minor_faults()
     test_hwmon_parse_k10_and_amdgpu()
+    test_slim_history_keeps_chip_series()
     print("test_live_sensors: ok")
 
 

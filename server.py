@@ -192,6 +192,19 @@ def slim_history_point(snap: dict) -> dict:
     cpu = snap.get("cpu") or {}
     mem = snap.get("memory") or {}
     dgpu = (snap.get("gpu") or {}).get("discrete") or {}
+    gfx_pct = None
+    for eng in dgpu.get("engines") or []:
+        if isinstance(eng, dict) and eng.get("id") == "gfx" and eng.get("pct") is not None:
+            try:
+                gfx_pct = float(eng["pct"])
+            except (TypeError, ValueError):
+                gfx_pct = None
+            break
+    if gfx_pct is None and dgpu.get("busy_pct") is not None:
+        try:
+            gfx_pct = float(dgpu.get("busy_pct"))
+        except (TypeError, ValueError):
+            gfx_pct = None
     gt = snap.get("game_totals") or {}
     slim_gt = {}
     if gt:
@@ -264,6 +277,10 @@ def slim_history_point(snap: dict) -> dict:
         "gpu": {
             "discrete": {
                 "busy_pct": dgpu.get("busy_pct"),
+                "gfx_pct": gfx_pct,
+                "vram_pct": dgpu.get("vram_pct"),
+                "vram_used_mb": dgpu.get("vram_used_mb"),
+                "vram_total_mb": dgpu.get("vram_total_mb"),
                 "junction_c": dgpu.get("junction_c"),
                 "edge_c": dgpu.get("edge_c"),
                 "mem_temp_c": dgpu.get("mem_temp_c"),
