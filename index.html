@@ -5278,6 +5278,10 @@
       gap: 0.4rem;
     }
     body.dash-dedupe #pageDashboard #vizPanel {
+      --lab-chart-h: 11.5rem;
+      --lab-stage-h: 17rem;
+      --lab-mid: minmax(16rem, 1.7fr);
+      --lab-side: minmax(13rem, 1.05fr);
       flex: 0 0 auto;
       display: flex;
       flex-direction: column;
@@ -5287,11 +5291,45 @@
     body.dash-dedupe #pageDashboard #vizPanel .viz-panel-head { margin-bottom: 0.35rem; }
     body.dash-dedupe #pageDashboard #vizPanel .viz-grid,
     body.dash-dedupe #pageDashboard #vizPanel .viz-block,
-    body.dash-dedupe #pageDashboard #vizPanel .viz-block-body,
-    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout {
+    body.dash-dedupe #pageDashboard #vizPanel .viz-block-body {
       flex: 0 1 auto;
       min-height: 0;
       height: auto;
+    }
+    /* Snapshot / Index / Stutter share one stage so tab switches don’t jump. rem follows --ui-scale. */
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.rig-layout,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.viz-tri,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.index-layout {
+      display: grid;
+      grid-template-columns: var(--lab-side) var(--lab-mid) var(--lab-side);
+      grid-template-areas: "drivers chart summary";
+      grid-template-rows: var(--lab-stage-h);
+      height: var(--lab-stage-h);
+      min-height: var(--lab-stage-h);
+      max-height: var(--lab-stage-h);
+      align-items: stretch;
+      gap: 0.55rem;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.rig-layout {
+      grid-template-columns: var(--lab-mid) var(--lab-side);
+      grid-template-areas: "chart summary";
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-drivers { grid-area: drivers; min-height: 0; overflow: auto; }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-chart-col { grid-area: chart; min-height: 0; overflow: hidden; }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-summary { grid-area: summary; min-height: 0; overflow: auto; }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-chart-box,
+    body.dash-dedupe #pageDashboard #vizPanel .rig-layout .stutter-chart-box,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.viz-tri .stutter-chart-box {
+      flex: 0 0 var(--lab-chart-h);
+      height: var(--lab-chart-h) !important;
+      min-height: var(--lab-chart-h) !important;
+      max-height: var(--lab-chart-h) !important;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .index-gauge,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-gauge {
+      width: 5.5rem;
+      height: 5.5rem;
     }
     /* Hardware sensors already live in Live lab temps/power + Sensors drill */
     body.dash-dedupe .sensor-strip-wrap { display: none !important; }
@@ -5301,23 +5339,9 @@
     /* Load bars duplicate chips; core maps stay in the Compute drill */
     body.dash-dedupe .rig-load-dup,
     body.dash-dedupe .rig-col-load { display: none !important; }
-    body.dash-dedupe .stutter-layout.rig-layout {
-      grid-template-columns: minmax(20rem, 2.1fr) minmax(14.5rem, 1fr);
-      height: auto;
-    }
-    body.dash-dedupe.ui-wrap-roomy .stutter-layout.rig-layout {
-      grid-template-columns: minmax(22rem, 2.2fr) minmax(15rem, 0.95fr);
-    }
-    body.dash-dedupe .rig-layout .stutter-chart-box {
-      flex: 0 0 auto;
-      min-height: 9.5rem;
-      height: min(28vh, 12.5rem);
-      max-height: 13rem;
-    }
-    body.dash-dedupe .stutter-layout.viz-tri .stutter-chart-box {
-      min-height: 9.5rem;
-      height: min(28vh, 12.5rem);
-      max-height: 13rem;
+    body.dash-dedupe.ui-wrap-roomy #pageDashboard #vizPanel {
+      --lab-mid: minmax(18rem, 1.75fr);
+      --lab-side: minmax(13.5rem, 1fr);
     }
     body.dash-dedupe .rig-col-vitals,
     body.dash-dedupe .rig-vitals {
@@ -5476,11 +5500,28 @@
         "game game";
     }
     body.dash-dedupe.ui-wrap-wide #sumHealthCell .health-sev-row { max-width: 24rem; }
-    body.dash-dedupe.ui-wrap-tight .stutter-layout.rig-layout {
-      grid-template-columns: 1fr;
-      height: auto;
-    }
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 0; }
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout,
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.rig-layout,
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.viz-tri,
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.index-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
+      grid-template-areas:
+        "drivers chart"
+        "summary summary";
+      grid-template-rows: var(--lab-stage-h) auto;
+      height: auto;
+      min-height: var(--lab-stage-h);
+      max-height: none;
+    }
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.rig-layout {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "chart"
+        "summary";
+      grid-template-rows: var(--lab-stage-h) auto;
+    }
+    body.dash-dedupe.ui-wrap-tight .pulse-dial { min-height: 4.6rem; }
     body.dash-dedupe.ui-wrap-tight .summary-bar.compact-rig .rig-strip {
       grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
     }
@@ -5492,12 +5533,10 @@
       overflow: hidden;
     }
     @media (max-height: 780px) {
-      body.dash-dedupe #pageDashboard #vizPanel { min-height: 0; }
-      body.dash-dedupe .rig-layout .stutter-chart-box,
-      body.dash-dedupe .stutter-layout.viz-tri .stutter-chart-box {
-        min-height: 8.5rem;
-        height: min(24vh, 10.5rem);
-        max-height: 11rem;
+      body.dash-dedupe #pageDashboard #vizPanel {
+        min-height: 0;
+        --lab-chart-h: 10rem;
+        --lab-stage-h: 15rem;
       }
       body.dash-dedupe .pulse-dial-ring {
         width: min(4.8rem, 82cqmin);
