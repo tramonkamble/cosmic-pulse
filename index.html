@@ -2389,57 +2389,60 @@
     .live-ov-kpi-dup[hidden] { display: none !important; }
     .rig-chart-title-row {
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: .35rem .55rem;
+      flex-direction: column;
+      align-items: stretch;
+      gap: .28rem;
       min-width: 0;
-      padding: 0 0.1rem 0.15rem;
+      padding: 0 0.1rem 0.2rem;
       border-bottom: 1px solid var(--line-soft);
       margin-bottom: 0.15rem;
     }
     .rig-chart-title-row .stutter-side-label {
       margin: 0;
-      flex: 1 1 8rem;
+      flex: 0 0 auto;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    .rig-chart-head { container-type: inline-size; }
     .rig-chart-swatches {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .4rem;
-      flex: 1 1 12rem;
-      flex-shrink: 1;
-      justify-content: flex-end;
-      max-width: 100%;
-      overflow: hidden;
-      margin-left: auto;
+      display: grid;
+      grid-template-columns: repeat(var(--spark-n, 8), minmax(0, 1fr));
+      gap: .18rem .3rem;
+      width: 100%;
+      margin: 0;
+      overflow: visible;
+      justify-content: stretch;
     }
     .rig-chart-swatch {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: .22rem;
       min-width: 0;
+      width: 100%;
       font-size: var(--fs-2xs);
       font-weight: 600;
       letter-spacing: .03em;
       text-transform: uppercase;
       color: var(--text-secondary);
-      max-width: 4.2rem;
+      max-width: none;
     }
     .rig-chart-swatch > i {
-      width: .55rem;
-      height: .55rem;
+      width: .45rem;
+      height: .45rem;
       border-radius: 99px;
       flex-shrink: 0;
       box-shadow: 0 0 8px currentColor;
     }
     .rig-chart-swatch > span {
       overflow: hidden;
-      text-overflow: ellipsis;
+      text-overflow: clip;
       white-space: nowrap;
+    }
+    @container (max-width: 40rem) {
+      .rig-chart-swatches { grid-template-columns: repeat(var(--spark-row, 4), minmax(0, 1fr)); }
     }
     .rig-kpis-inline {
       display: grid;
@@ -2684,7 +2687,6 @@
     .rig-layout .hw-metric-glyph { opacity: .55; width: .85em; height: .85em; }
     .rig-layout .rig-chart-swatches {
       max-width: 100%;
-      gap: .45rem;
     }
     .rig-layout .rig-chart-swatch {
       font-size: var(--fs-2xs);
@@ -5255,10 +5257,9 @@
     .chart-box, .stutter-chart-box { cursor: crosshair; }
     .charts-paused .chart-box,
     .charts-paused .stutter-chart-box { outline: 1px dashed color-mix(in srgb, var(--amber, #e6a817) 45%, transparent); outline-offset: 2px; }
-    .rig-chart-swatches { display: flex; flex-wrap: wrap; gap: .25rem .4rem; align-items: center; }
     .rig-chart-swatch {
       display: inline-flex; align-items: center; gap: .28rem;
-      padding: .15rem .4rem; border-radius: 999px; cursor: pointer;
+      padding: .15rem .35rem; border-radius: 999px; cursor: pointer;
       border: 1px solid var(--line-soft); background: transparent;
       font-size: .72rem; font-weight: 650; color: var(--text-secondary);
       line-height: 1.2; user-select: none;
@@ -5940,7 +5941,7 @@
                   <div class="rig-chart-head">
                     <div class="rig-chart-title-row">
                       <span class="stutter-side-label" id="sparkChartLabel">Load · 5 min</span>
-                      <div class="rig-chart-swatches" id="sparkChartSwatches" aria-hidden="true"></div>
+                      <div class="rig-chart-swatches" id="sparkChartSwatches" role="group" aria-label="Chart series"></div>
                     </div>
                     <!-- KPIs kept for JS updates; hidden — left bars + chart already show the same % -->
                     <div class="stutter-kpis rig-kpis-inline live-ov-kpi-dup" id="rigChartKpis" hidden>
@@ -10344,6 +10345,9 @@
       const key = allSeries.map(s => `${s.key}:${sparkEnabled[s.key] ? 1 : 0}:${s.color}`).join('|');
       if (el.dataset.key === key) return;
       el.dataset.key = key;
+      const n = allSeries.length || 8;
+      el.style.setProperty('--spark-n', String(n));
+      el.style.setProperty('--spark-row', String(n <= 4 ? n : Math.ceil(n / 2)));
       el.innerHTML = allSeries.map(s => {
         const on = sparkEnabled[s.key] !== false;
         return `<button type="button" class="rig-chart-swatch${on ? '' : ' is-off'}" data-spark-key="${esc(s.key)}" `
