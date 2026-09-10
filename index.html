@@ -4972,8 +4972,8 @@
     .pulse-dials {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      align-items: center;
-      justify-items: center;
+      align-items: stretch;
+      justify-items: stretch;
       gap: 0.28rem;
       min-width: 0;
       min-height: 0;
@@ -4986,20 +4986,26 @@
       min-width: 0;
       min-height: 0;
       height: 100%;
-      width: auto;
-      max-width: 100%;
-      aspect-ratio: 1 / 1;
-      justify-self: center;
-      align-self: center;
+      width: 100%;
       container-type: size;
-      border-radius: 14px;
-      background: rgba(0, 0, 0, .22);
+      border-radius: 0;
+      background: transparent;
       border: none;
       box-shadow: none;
       display: grid;
       place-items: center;
-      padding: 0.18rem;
-      overflow: hidden;
+      padding: 0;
+      overflow: visible;
+    }
+    /* Circular well the same size as the ring — not a wide tile around it. */
+    .pulse-dial::before {
+      content: "";
+      grid-area: 1 / 1;
+      width: 5.4rem;
+      height: 5.4rem;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, .22);
+      pointer-events: none;
     }
     /* Family colors: same hue family, distinct shade per dial */
     .pulse-dial[data-dial="cpu-clk"] { --dial-color: var(--m-cpu); }
@@ -5018,8 +5024,8 @@
     .pulse-dial.pulse-dial-link {
       cursor: pointer;
     }
-    .pulse-dial.pulse-dial-link:hover {
-      background: color-mix(in srgb, var(--dial-color) 12%, rgba(0, 0, 0, .22));
+    .pulse-dial.pulse-dial-link:hover::before {
+      background: color-mix(in srgb, var(--dial-color) 14%, rgba(0, 0, 0, .22));
     }
     .pulse-dial.pulse-dial-link:focus-visible {
       outline: 2px solid var(--dial-color);
@@ -5033,44 +5039,45 @@
       grid-area: 1 / 1;
       width: 5.4rem;
       height: 5.4rem;
-      min-width: 3.8rem;
-      min-height: 3.8rem;
+      min-width: 0;
+      min-height: 0;
       border-radius: 50%;
       background:
-        conic-gradient(var(--dial-color) calc(var(--dial-p) * 1%), rgba(255, 255, 255, .1) 0);
-      -webkit-mask: radial-gradient(circle, transparent 56%, #000 57%);
-      mask: radial-gradient(circle, transparent 56%, #000 57%);
+        conic-gradient(var(--dial-color) calc(var(--dial-p) * 1%), rgba(255, 255, 255, .18) 0);
+      -webkit-mask: radial-gradient(circle, transparent 60%, #000 61.5%);
+      mask: radial-gradient(circle, transparent 60%, #000 61.5%);
     }
     @supports (width: 1cqmin) {
+      .pulse-dial::before,
       .pulse-dial-ring {
-        width: min(100%, 86cqmin);
-        height: min(100%, 86cqmin);
+        width: 98cqmin;
+        height: 98cqmin;
       }
     }
     .pulse-dial-core {
       grid-area: 1 / 1;
       z-index: 1;
       min-width: 0;
-      width: 56%;
+      width: 58%;
       max-width: 6.2rem;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.08rem;
+      gap: 0.06rem;
       line-height: 1.05;
       text-align: center;
       pointer-events: none;
     }
     .pulse-dial-k {
-      font-size: clamp(0.58rem, 9cqmin, 0.72rem);
+      font-size: clamp(0.55rem, 11cqmin, 0.7rem);
       font-weight: 700;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       color: color-mix(in srgb, var(--dial-color) 62%, var(--muted));
     }
     .pulse-dial-v {
-      font-size: clamp(0.78rem, 16cqmin, 1.22rem);
+      font-size: clamp(0.7rem, 18cqmin, 1.15rem);
       font-weight: 700;
       font-variant-numeric: tabular-nums;
       color: var(--dial-color);
@@ -5518,25 +5525,46 @@
     body.dash-dedupe .rig-vitals {
       height: 100%;
       min-height: 0;
-      overflow: visible;
+      overflow: hidden;
     }
     body.dash-dedupe .rig-vitals-flat {
       flex: 1 1 auto;
       height: 100%;
+      min-height: 0;
+      gap: 0;
     }
+    /* Label beside the trio so each row’s height goes to the rings. */
     body.dash-dedupe .rig-vitals-flat .rig-vitals-section {
       flex: 1 1 0;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 4.4rem minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+      align-items: stretch;
+      gap: 0.15rem 0.35rem;
+      padding: 0.1rem 0.05rem;
+    }
+    body.dash-dedupe .rig-vitals-flat .rig-vitals-section .stutter-side-label {
+      align-self: center;
+      margin: 0;
+      line-height: 1.15;
+      white-space: normal;
+      font-size: 0.64rem;
+      letter-spacing: 0.06em;
     }
     body.dash-dedupe .pulse-dials {
-      align-items: center;
-      justify-items: center;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+      justify-items: stretch;
+      gap: 0.18rem;
+      min-height: 0;
+      height: 100%;
     }
     body.dash-dedupe .pulse-dial {
       height: 100%;
-      width: auto;
-      max-width: 100%;
+      width: 100%;
       min-height: 0;
-      aspect-ratio: 1 / 1;
     }
     body.dash-dedupe.ui-wrap-tight .pulse-dial { min-height: 0; }
     body.dash-dedupe.ui-wrap-tight .rig-vitals-flat .rig-vitals-section { min-height: 0; }
@@ -5709,9 +5737,10 @@
       body.dash-dedupe #pageDashboard #vizPanel {
         --lab-stage-h: 18rem;
       }
-      body.dash-dedupe .pulse-dial-ring {
-        width: min(100%, 86cqmin);
-        height: min(100%, 86cqmin);
+      body.dash-dedupe .pulse-dial-ring,
+      body.dash-dedupe .pulse-dial::before {
+        width: 98cqmin;
+        height: 98cqmin;
       }
     }
 
@@ -12292,7 +12321,7 @@
       if (file) {
         return {
           logo: true,
-          html: `<img src="/assets/brand/${file}" alt="" width="18" height="18" decoding="async" />`,
+          html: `<img src="/assets/brand/${file}?v=2" alt="" width="18" height="18" decoding="async" />`,
         };
       }
       return { logo: false, html: '·' };
@@ -12321,7 +12350,7 @@
         host.innerHTML = '';
         return;
       }
-      const key = 'logo-v1|' + badges.map(b => `${b.id}:${b.detail || ''}`).join('|');
+      const key = 'logo-v2|' + badges.map(b => `${b.id}:${b.detail || ''}`).join('|');
       if (host.dataset.key === key) {
         host.hidden = false;
         return;
