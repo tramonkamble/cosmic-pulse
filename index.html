@@ -3795,16 +3795,27 @@
     body.cosmic-frosted details.drill { background: color-mix(in srgb, var(--panel) 90%, transparent); }
     body.cosmic-frosted details.drill[open] { background: var(--panel); }
 
+    details.drill:not([open]) {
+      min-height: 7.5rem;
+    }
     details.drill:not([open]) > summary {
       flex-direction: column;
       align-items: flex-start;
       justify-content: flex-start;
       gap: 0.4rem;
-      min-height: 7.25rem;
-      height: auto;
+      min-height: 7.5rem;
+      height: 7.5rem;
+      overflow: hidden;
       padding: 0.72rem 0.8rem 0.78rem;
     }
     details.drill:not([open]) .drill-chevron { display: none; }
+    details.drill:not([open]) .drill-title {
+      white-space: nowrap;
+      display: block;
+      -webkit-line-clamp: unset;
+      line-clamp: unset;
+      text-overflow: ellipsis;
+    }
     details.drill > summary {
       list-style: none;
       cursor: pointer;
@@ -3857,11 +3868,9 @@
       text-align: left;
       min-width: 0;
       overflow: hidden;
-      white-space: normal;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      display: block;
       font-variant-numeric: tabular-nums;
     }
     details.drill[open] .drill-rollup {
@@ -4963,8 +4972,9 @@
     .pulse-dials {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      align-items: stretch;
-      gap: 0.4rem;
+      align-items: center;
+      justify-items: center;
+      gap: 0.28rem;
       min-width: 0;
       min-height: 0;
       flex: 1 1 auto;
@@ -4976,6 +4986,11 @@
       min-width: 0;
       min-height: 0;
       height: 100%;
+      width: auto;
+      max-width: 100%;
+      aspect-ratio: 1 / 1;
+      justify-self: center;
+      align-self: center;
       container-type: size;
       border-radius: 14px;
       background: rgba(0, 0, 0, .22);
@@ -4983,8 +4998,8 @@
       box-shadow: none;
       display: grid;
       place-items: center;
-      padding: 0.22rem;
-      overflow: visible;
+      padding: 0.18rem;
+      overflow: hidden;
     }
     /* Family colors: same hue family, distinct shade per dial */
     .pulse-dial[data-dial="cpu-clk"] { --dial-color: var(--m-cpu); }
@@ -5028,8 +5043,8 @@
     }
     @supports (width: 1cqmin) {
       .pulse-dial-ring {
-        width: min(9.2rem, 94cqmin);
-        height: min(9.2rem, 94cqmin);
+        width: min(100%, 86cqmin);
+        height: min(100%, 86cqmin);
       }
     }
     .pulse-dial-core {
@@ -5512,6 +5527,19 @@
     body.dash-dedupe .rig-vitals-flat .rig-vitals-section {
       flex: 1 1 0;
     }
+    body.dash-dedupe .pulse-dials {
+      align-items: center;
+      justify-items: center;
+    }
+    body.dash-dedupe .pulse-dial {
+      height: 100%;
+      width: auto;
+      max-width: 100%;
+      min-height: 0;
+      aspect-ratio: 1 / 1;
+    }
+    body.dash-dedupe.ui-wrap-tight .pulse-dial { min-height: 0; }
+    body.dash-dedupe.ui-wrap-tight .rig-vitals-flat .rig-vitals-section { min-height: 0; }
     body.dash-dedupe .index-rank-card { flex-shrink: 0; }
     /* One glance row: Guidance · chips · game.
        Extra width goes to load chips (sparks), not an empty Game slab. */
@@ -5682,8 +5710,8 @@
         --lab-stage-h: 18rem;
       }
       body.dash-dedupe .pulse-dial-ring {
-        width: min(6.4rem, 88cqmin);
-        height: min(6.4rem, 88cqmin);
+        width: min(100%, 86cqmin);
+        height: min(100%, 86cqmin);
       }
     }
 
@@ -9919,7 +9947,7 @@
         `CPU ${Math.round(c.overall_pct ?? 0)}% · GPU ${g.busy_pct != null ? Math.round(g.busy_pct) : '—'}% · hitch ${st.score ?? 0}${hitchMs != null ? ` · 1% ${hitchMs}ms` : ''}`;
 
       document.getElementById('drillBwSum').textContent =
-        `VRAM ${bw.gpu?.vram_est_gbps ?? '—'} · DRAM ${bw.memory?.dram_est_gbps ?? '—'} GB/s · stall ${bw.memory?.psi_avg10 ?? 0}%`;
+        `VRAM ${bw.gpu?.vram_est_gbps ?? '—'} · DRAM ${bw.memory?.dram_est_gbps ?? '—'} GB/s`;
 
       const vramU = g.vram_used_mb, vramT = g.vram_total_mb;
       const vramBit = (vramU != null && vramT != null)
