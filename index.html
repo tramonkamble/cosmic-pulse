@@ -2951,29 +2951,60 @@
     .index-build-strip .meta .vs-neg { font-weight: 600; }
     .index-build-strip .rank-badge { font-size: .8rem; padding: .28rem .55rem; flex-shrink: 0; }
     .index-rank-list {
-      display: flex; flex-direction: column; gap: .42rem;
+      display: flex; flex-direction: column; gap: .32rem;
       flex: 0 0 auto; min-height: 0;
     }
     .index-rank-card {
-      display: flex; flex-direction: column; gap: .28rem;
-      padding: .48rem .55rem; border-radius: var(--radius-md);
+      display: flex; flex-direction: column; gap: 0;
+      padding: .32rem .42rem;
+      border-radius: var(--radius-md);
       background: rgba(0,0,0,.22); border: none;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
       min-width: 0;
+      cursor: pointer;
+      text-align: left;
+      font: inherit; color: inherit;
+      width: 100%;
+    }
+    .index-rank-card:hover {
+      background: rgba(0,0,0,.3);
+    }
+    .index-rank-card:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
     }
     .index-rank-head {
-      display: flex; align-items: center; justify-content: space-between; gap: .45rem; min-width: 0;
+      display: flex; align-items: center; justify-content: space-between; gap: .4rem; min-width: 0;
     }
     .index-rank-head .part {
-      display: inline-flex; align-items: center; gap: .4rem;
-      font-size: .8rem; font-weight: 600; color: var(--text); min-width: 0;
+      display: inline-flex; align-items: center; gap: .35rem;
+      font-size: .8rem; font-weight: 600; color: var(--text); min-width: 0; flex: 1;
     }
-    .index-rank-head .part .hw-icon-box { width: 1.55rem; height: 1.55rem; border-radius: 7px; flex-shrink: 0; }
-    .index-rank-head .rank-badge { font-size: .78rem; padding: .26rem .52rem; flex-shrink: 0; }
+    .index-rank-head .part .hw-icon-box { width: 1.35rem; height: 1.35rem; border-radius: 6px; flex-shrink: 0; }
+    .index-rank-title {
+      display: flex; flex-direction: column; gap: .02rem; min-width: 0;
+    }
+    .index-rank-kind { line-height: 1.15; }
     .index-rank-name {
-      font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      font-size: var(--fs-2xs); font-weight: 500; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .index-rank-bars { display: flex; flex-direction: column; gap: .24rem; }
+    .index-rank-glance {
+      display: inline-flex; align-items: center; gap: .35rem; flex-shrink: 0;
+    }
+    .index-rank-live-mini {
+      font-size: .78rem; font-weight: 650; font-variant-numeric: tabular-nums;
+      color: var(--text-secondary);
+    }
+    .index-rank-head .rank-badge { font-size: .72rem; padding: .18rem .42rem; flex-shrink: 0; }
+    .index-rank-detail {
+      display: none;
+      flex-direction: column;
+      gap: .22rem;
+      padding: .28rem 0 .08rem;
+    }
+    .index-rank-card.is-open .index-rank-detail { display: flex; }
+    .index-rank-bars { display: flex; flex-direction: column; gap: .2rem; }
     .index-rank-bar-row {
       display: grid; grid-template-columns: 2.35rem 1fr 2rem; gap: .3rem; align-items: center;
     }
@@ -2990,7 +3021,7 @@
     .index-rank-bar-row .rank-bar.live.mem > span { background: linear-gradient(90deg, var(--m-mem-deep), var(--m-mem)); }
     .index-rank-foot {
       font-size: var(--fs-2xs); color: var(--text-secondary); line-height: 1.35;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      white-space: normal;
     }
     .index-rank-foot .vs-pos,
     .index-rank-foot .vs-neg { font-weight: 600; }
@@ -4858,7 +4889,8 @@
     #vizPanel .glance-cell[data-hw] { max-height: 5rem; }
     #vizPanel .core-strip[data-hw],
     #vizPanel .gpu-engine-strip[data-hw] { max-height: 5.5rem; }
-    #pulseIndexBlock .index-rank-card[data-hw] { max-height: 9rem; }
+    #pulseIndexBlock .index-rank-card[data-hw] { max-height: 3.2rem; }
+    #pulseIndexBlock .index-rank-card[data-hw].is-open { max-height: 11rem; }
     #summaryBar .hw-status-card[data-hw] { max-height: 3.75rem; }
     #warningList .warn-row[data-hw] { max-height: 20rem; }
     .hw-filtered-out {
@@ -11247,9 +11279,44 @@
       return [vs, gbps, peak].filter(Boolean).join(' · ') || '—';
     }
 
+    function toggleIndexRankCard(card) {
+      const list = card?.closest('.index-rank-list');
+      if (!list || !card) return;
+      const opening = !card.classList.contains('is-open');
+      list.querySelectorAll('.index-rank-card.is-open').forEach(el => {
+        el.classList.remove('is-open');
+        el.setAttribute('aria-expanded', 'false');
+      });
+      if (opening) {
+        card.classList.add('is-open');
+        card.setAttribute('aria-expanded', 'true');
+        list.dataset.openId = card.dataset.rankId || '';
+      } else {
+        delete list.dataset.openId;
+      }
+    }
+
+    function bindIndexRankList(listEl) {
+      if (!listEl || listEl.dataset.bound === '1') return;
+      listEl.dataset.bound = '1';
+      listEl.addEventListener('click', e => {
+        const card = e.target.closest('.index-rank-card');
+        if (!card || !listEl.contains(card)) return;
+        toggleIndexRankCard(card);
+      });
+      listEl.addEventListener('keydown', e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const card = e.target.closest('.index-rank-card');
+        if (!card || !listEl.contains(card)) return;
+        e.preventDefault();
+        toggleIndexRankCard(card);
+      });
+    }
+
     function renderIndexRankings(c) {
       const listEl = document.getElementById('indexRankList');
       if (!listEl || !c) return;
+      bindIndexRankList(listEl);
 
       const structKey = INDEX_RANK_SPECS.map(s => {
         const p = s.hw === 'memory' ? c.memory : c[s.hw];
@@ -11257,36 +11324,53 @@
       }).join('|');
 
       if (listEl.dataset.structKey !== structKey) {
+        const openId = listEl.dataset.openId || '';
         listEl.dataset.structKey = structKey;
         listEl.innerHTML = INDEX_RANK_SPECS.map(spec => `
-          <div class="index-rank-card" data-rank-id="${spec.id}" data-hw="${spec.hw}">
+          <div class="index-rank-card" data-rank-id="${spec.id}" data-hw="${spec.hw}"
+            role="button" tabindex="0" aria-expanded="false"
+            title="Show ${esc(spec.part)} ranking detail">
             <div class="index-rank-head">
               <span class="part">
                 <span class="hw-icon-box ${spec.cls === 'mem' ? 'mem' : spec.cls}" data-rank-icon></span>
-                <span>${spec.part}</span>
+                <span class="index-rank-title">
+                  <span class="index-rank-kind">${spec.part}</span>
+                  <span class="index-rank-name" data-rank-name>—</span>
+                </span>
               </span>
-              <span data-rank-badge></span>
+              <span class="index-rank-glance">
+                <span class="index-rank-live-mini" data-live-val>—</span>
+                <span data-rank-badge></span>
+              </span>
             </div>
-            <div class="index-rank-name" data-rank-name>—</div>
-            <div class="index-rank-bars">
-              <div class="index-rank-bar-row">
-                <span class="lbl">Class</span>
-                <div class="rank-bar tier"><span data-tier-fill style="width:0%"></span></div>
-                <span class="val" data-tier-val>—</span>
+            <div class="index-rank-detail">
+              <div class="index-rank-bars">
+                <div class="index-rank-bar-row">
+                  <span class="lbl">Class</span>
+                  <div class="rank-bar tier"><span data-tier-fill style="width:0%"></span></div>
+                  <span class="val" data-tier-val>—</span>
+                </div>
+                <div class="index-rank-bar-row">
+                  <span class="lbl">Live</span>
+                  <div class="rank-bar live ${spec.cls}"><span data-live-fill style="width:0%"></span></div>
+                  <span class="val" data-live-val>—</span>
+                </div>
               </div>
-              <div class="index-rank-bar-row">
-                <span class="lbl">Live</span>
-                <div class="rank-bar live ${spec.cls}"><span data-live-fill style="width:0%"></span></div>
-                <span class="val" data-live-val>—</span>
-              </div>
+              <div class="index-rank-foot" data-rank-foot>—</div>
             </div>
-            <div class="index-rank-foot" data-rank-foot>—</div>
           </div>`).join('');
         INDEX_RANK_SPECS.forEach(spec => {
           const card = listEl.querySelector(`[data-rank-id="${spec.id}"]`);
           const iconEl = card?.querySelector('[data-rank-icon]');
           if (iconEl) iconEl.innerHTML = hwIcon(spec.icon);
         });
+        if (openId) {
+          const keep = listEl.querySelector(`[data-rank-id="${openId}"]`);
+          if (keep) {
+            keep.classList.add('is-open');
+            keep.setAttribute('aria-expanded', 'true');
+          }
+        }
       }
 
       INDEX_RANK_SPECS.forEach(spec => {
@@ -11306,8 +11390,9 @@
         setMeterWidth(card.querySelector('[data-live-fill]'), livePct);
         const tierVal = card.querySelector('[data-tier-val]');
         if (tierVal) tierVal.textContent = Math.round(tierScore);
-        const liveVal = card.querySelector('[data-live-val]');
-        if (liveVal) liveVal.textContent = `${Math.round(livePct)}%`;
+        card.querySelectorAll('[data-live-val]').forEach(el => {
+          el.textContent = `${Math.round(livePct)}%`;
+        });
         const footEl = card.querySelector('[data-rank-foot]');
         if (footEl) footEl.innerHTML = indexRankFoot(spec, part);
       });
