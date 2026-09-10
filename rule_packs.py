@@ -289,10 +289,24 @@ def _platform_flags() -> dict:
         ident = platform_identity() or {}
     except Exception:
         ident = {}
+    gpu = ident.get("gpu") or {}
     return {
         "is_pop": bool(ident.get("is_pop")),
         "is_cosmic": bool(ident.get("is_cosmic")),
         "is_system76": bool(ident.get("is_system76")),
+        "is_kde": bool(ident.get("is_kde")),
+        "is_gnome": bool(ident.get("is_gnome")),
+        "is_xfce": bool(ident.get("is_xfce")),
+        "is_cinnamon": bool(ident.get("is_cinnamon")),
+        "is_hyprland": bool(ident.get("is_hyprland")),
+        "is_gamescope": bool(ident.get("is_gamescope")),
+        "is_nvidia": bool(ident.get("is_nvidia")),
+        "is_amd_gpu": bool(ident.get("is_amd_gpu")),
+        "is_intel_gpu": bool(ident.get("is_intel_gpu")),
+        "gpu_driver": gpu.get("driver") or ident.get("gpu_driver") or "",
+        "gpu_stack": gpu.get("stack") or ident.get("gpu_stack") or "",
+        "gpu_vendor": gpu.get("vendor") or "",
+        "desktop": (ident.get("desktop") or {}).get("id") or "",
     }
 
 
@@ -355,13 +369,14 @@ def flatten_metrics(snap: dict, mem_spec: dict | None, ctx: dict) -> dict:
     except Exception:
         findings = []
 
+    plat = _platform_flags()
     return {
         "ctx": {
             "governor": ctx.get("governor"),
             "swappiness": ctx.get("swappiness"),
             "gpu_model": ctx.get("gpu_model") or thermal_profile.get("model") or "",
         },
-        "platform": _platform_flags(),
+        "platform": plat,
         "session": {
             "wayland": session_is_wayland(),
             "desktop": os.environ.get("XDG_CURRENT_DESKTOP") or "",
@@ -394,6 +409,9 @@ def flatten_metrics(snap: dict, mem_spec: dict | None, ctx: dict) -> dict:
             "gtt_rate_mbps": float(gtt.get("rate_mbps") or 0),
             "gtt_pool_pct": gtt_pool_pct,
             "gtt_sustained_high": bool(gtt.get("sustained_high")),
+            "vendor": plat.get("gpu_vendor") or "",
+            "driver": plat.get("gpu_driver") or "",
+            "stack": plat.get("gpu_stack") or "",
         },
         "memory": {
             "swap_pct": swap_pct,

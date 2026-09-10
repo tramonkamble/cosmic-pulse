@@ -11,13 +11,23 @@ import shutil
 import subprocess
 from pathlib import Path
 
-# AMD Raphael / Phoenix integrated graphics PCI device IDs (uppercase hex).
+# AMD Raphael / Phoenix / Steam Deck integrated graphics PCI device IDs (uppercase hex).
 _IGPU_PCI_IDS = frozenset(
     {
         "1002:164E",  # Raphael iGPU
         "1002:15BF",  # Phoenix / Hawk Point
         "1002:1900",  # Van Gogh (Steam Deck class)
+        "1002:15C8",  # Strix Point iGPU
+        "1002:13C0",  # Hawk Point 2
     }
+)
+
+# Kernel DRM drivers we know how to meter (or at least identify).
+_DRM_DRIVERS = frozenset({"amdgpu", "nvidia", "nouveau", "i915", "xe"})
+
+# First-class gaming desktop ids — host badge + pack flags. Others use generic .de
+_FIRST_CLASS_DESKTOPS = frozenset(
+    {"cosmic", "kde", "gnome", "cinnamon", "xfce", "hyprland", "gamescope"}
 )
 
 # Known NVMe vendor strings embedded in model fields from sysfs/lsblk.
@@ -82,11 +92,16 @@ def _read_uevent(path: Path) -> dict[str, str]:
     return out
 
 
-def _is_igpu(pci_id: str) -> bool:
+def _is_igpu(pci_id: str, *, vram_bytes: int = 0, driver: str = "") -> bool:
     pid = (pci_id or "").upper()
     if pid in _IGPU_PCI_IDS:
         return True
-    return pid.endswith(":164E") or pid.endswith(":15BF")
+    if pid.endswith(":164E") or pid.endswith(":15BF") or pid.endswith(":1900"):
+        return True
+    # Intel iGPU (UHD/Iris) shares i915/xe with Arc; Arc has real VRAM.
+    if pid.startswith("8086:") and (driver in ("i915", "xe")) and vram_bytes < 512 * 1024 * 1024:
+        return True
+    return False
 
 
 def _vram_bytes(base: Path) -> int:
@@ -243,9 +258,10 @@ def discover_drm_cards() -> dict:
             driver = env.get("DRIVER", "")
             pci_id = env.get("PCI_ID", "")
             pci_bdf = env.get("PCI_SLOT_NAME", "")
-            if driver not in ("amdgpu", "nvidia", "i915", "xe"):
+            if driver not in _DRM_DRIVERS:
                 continue
             device_path = entry / "device"
+            vram_bytes = _vram_bytes(device_path)
             cards.append(
                 {
                     "card": entry.name,
@@ -254,8 +270,8 @@ def discover_drm_cards() -> dict:
                     "pci_id": pci_id,
                     "pci_bdf": pci_bdf,
                     "sensor_suffix": pci_to_sensor_suffix(pci_bdf) if pci_bdf else "",
-                    "vram_bytes": _vram_bytes(device_path),
-                    "igpu": _is_igpu(pci_id),
+                    "vram_bytes": vram_bytes,
+                    "igpu": _is_igpu(pci_id, vram_bytes=vram_bytes, driver=driver),
                 }
             )
 
@@ -264,33 +280,26 @@ def discover_drm_cards() -> dict:
     discrete = None
     if discrete_candidates:
         discrete = max(discrete_candidates, key=lambda c: c["vram_bytes"])
+    elif igpu:
+        # Laptop / Steam Deck: the iGPU is the GPU.
+        discrete = dict(igpu)
+        discrete["igpu"] = False
 
-    fallback_discrete = Path("/sys/class/drm/card1/device")
-    fallback_igpu = Path("/sys/class/drm/card0/device")
+    fallback = Path("/sys/class/drm/card0/device")
+    empty = {
+        "card": "",
+        "device_path": fallback,
+        "driver": "",
+        "pci_id": "",
+        "pci_bdf": "",
+        "sensor_suffix": "",
+        "vram_bytes": 0,
+        "igpu": False,
+    }
 
     result = {
-        "discrete": discrete
-        or {
-            "card": "card1",
-            "device_path": fallback_discrete,
-            "driver": "amdgpu",
-            "pci_id": "",
-            "pci_bdf": "",
-            "sensor_suffix": "0300",
-            "vram_bytes": 0,
-            "igpu": False,
-        },
-        "igpu": igpu
-        or {
-            "card": "card0",
-            "device_path": fallback_igpu,
-            "driver": "amdgpu",
-            "pci_id": "1002:164E",
-            "pci_bdf": "",
-            "sensor_suffix": "1a00",
-            "vram_bytes": 0,
-            "igpu": True,
-        },
+        "discrete": discrete or dict(empty),
+        "igpu": igpu or {**empty, "igpu": True},
         "cards": cards,
     }
     _drm_cache = result
@@ -561,7 +570,8 @@ def enrich_memory_spec(spec: dict) -> dict:
 
     if spec.get("confidence") == "exact" and mfr and mts and total:
         per = sticks[0].get("size_gb") if sticks else total // max(channels, 1)
-        spec["label"] = f"{mfr} {part or 'DDR5'} · DDR5-{mts} · {channels}×{per}GB"
+        ram_type = spec.get("type") or sticks[0].get("type") or "DDR"
+        spec["label"] = f"{mfr} {part or ram_type} · {ram_type}-{mts} · {channels}×{per}GB"
     elif mfr and not spec.get("label", "").startswith(mfr):
         spec["label"] = f"{mfr} · {spec.get('label', 'System RAM')}"
 
@@ -963,21 +973,27 @@ def _read_dmi(name: str) -> str:
 
 
 # Process names that identify a live graphical session (ordered by specificity).
+# gamescope-session = Steam Deck / Bazzite session. Do NOT match bare "gamescope"
+# (that process runs nested under KDE/GNOME while a game is up).
 _DE_PROCESS_HINTS: tuple[tuple[str, str, str], ...] = (
-    # id, display label, match substring in /proc/*/comm or cmdline basename
+    ("gamescope", "Gamescope", "gamescope-session"),
     ("cosmic", "COSMIC", "cosmic-comp"),
     ("cosmic", "COSMIC", "cosmic-session"),
     ("kde", "KDE Plasma", "plasmashell"),
     ("kde", "KDE Plasma", "kwin_wayland"),
     ("kde", "KDE Plasma", "kwin_x11"),
     ("gnome", "GNOME", "gnome-shell"),
+    ("cinnamon", "Cinnamon", "cinnamon-session"),
     ("cinnamon", "Cinnamon", "cinnamon"),
-    ("mate", "MATE", "mate-session"),
     ("xfce", "XFCE", "xfce4-session"),
+    ("xfce", "XFCE", "xfwm4"),
+    ("hyprland", "Hyprland", "Hyprland"),
+    ("hyprland", "Hyprland", "hyprland"),
+    ("mate", "MATE", "mate-session"),
     ("budgie", "Budgie", "budgie-panel"),
     ("sway", "Sway", "sway"),
-    ("hyprland", "Hyprland", "Hyprland"),
     ("i3", "i3", "i3"),
+    ("lxqt", "LXQt", "lxqt-session"),
 )
 
 
@@ -1086,15 +1102,16 @@ def _normalize_de_id(raw: str | None) -> tuple[str | None, str | None]:
     tokens = [t.strip() for t in re.split(r"[:;,\s]+", s) if t.strip()]
     joined = " ".join(tokens)
     rules: list[tuple[str, str, tuple[str, ...]]] = [
+        ("gamescope", "Gamescope", ("gamescope-session", "gamescope", "steamos")),
         ("cosmic", "COSMIC", ("cosmic",)),
         ("kde", "KDE Plasma", ("kde", "plasma")),
         ("gnome", "GNOME", ("gnome",)),
         ("cinnamon", "Cinnamon", ("cinnamon", "x-cinnamon")),
-        ("mate", "MATE", ("mate",)),
         ("xfce", "XFCE", ("xfce",)),
+        ("hyprland", "Hyprland", ("hyprland",)),
+        ("mate", "MATE", ("mate",)),
         ("budgie", "Budgie", ("budgie",)),
         ("sway", "Sway", ("sway",)),
-        ("hyprland", "Hyprland", ("hyprland",)),
         ("i3", "i3", ("i3",)),
         ("lxqt", "LXQt", ("lxqt",)),
         ("unity", "Unity", ("unity",)),
@@ -1120,7 +1137,9 @@ def detect_running_desktop() -> dict:
     from_proc_id: str | None = None
     from_proc_label: str | None = None
     for de_id, label, needle in _DE_PROCESS_HINTS:
-        if needle in procs:
+        if needle in procs or (
+            len(needle) >= 12 and any(n.startswith(needle[:15]) for n in procs)
+        ):
             from_proc_id, from_proc_label = de_id, label
             break
 
@@ -1265,6 +1284,121 @@ def _mesa_glx_version() -> tuple[str | None, str | None]:
     return ver, ver
 
 
+def parse_nvidia_smi_csv(line: str) -> dict:
+    """Parse one nvidia-smi CSV row into Pulse GPU fields.
+
+    Expected columns:
+      utilization.gpu, utilization.memory, memory.used, memory.total,
+      temperature.gpu, power.draw, clocks.gr, clocks.mem, fan.speed
+    """
+    def _num(raw: str) -> float | None:
+        s = (raw or "").strip().replace("[N/A]", "").replace("N/A", "")
+        if not s:
+            return None
+        try:
+            return float(s)
+        except ValueError:
+            return None
+
+    parts = [p.strip() for p in (line or "").split(",")]
+    while len(parts) < 9:
+        parts.append("")
+    used = _num(parts[2])
+    total = _num(parts[3])
+    vram_pct = round(100.0 * used / total, 1) if used is not None and total else None
+    busy = _num(parts[0])
+    mem_busy = _num(parts[1])
+    return {
+        "busy_pct": busy,
+        "gfx_pct": busy,
+        "mem_busy_pct": mem_busy,
+        "vram_used_mb": int(used) if used is not None else None,
+        "vram_total_mb": int(total) if total is not None else None,
+        "vram_pct": vram_pct,
+        "temp_c": _num(parts[4]),
+        "junction_c": _num(parts[4]),
+        "power_w": _num(parts[5]),
+        "gfx_mhz": _num(parts[6]),
+        "mclk_mhz": _num(parts[7]),
+        "fan_rpm": None,
+        "fan_pct": _num(parts[8]),
+        "vram_busy_pct": mem_busy,
+    }
+
+
+def detect_nvidia_driver() -> dict:
+    """NVIDIA proprietary driver version (nvidia-smi or /proc)."""
+    version = None
+    source = None
+    name = None
+    if shutil.which("nvidia-smi"):
+        try:
+            raw = subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=driver_version,name", "--format=csv,noheader"],
+                text=True,
+                timeout=1.5,
+                stderr=subprocess.DEVNULL,
+            )
+            line = (raw.splitlines() or [""])[0]
+            bits = [b.strip() for b in line.split(",", 1)]
+            if bits and bits[0] and "N/A" not in bits[0]:
+                version = bits[0]
+                source = "nvidia-smi"
+            if len(bits) > 1 and bits[1]:
+                name = bits[1]
+        except (subprocess.SubprocessError, OSError):
+            pass
+    if not version:
+        try:
+            text = Path("/proc/driver/nvidia/version").read_text(encoding="utf-8", errors="replace")
+            m = re.search(r"Kernel Module\s+([\d.]+)", text)
+            if m:
+                version = m.group(1)
+                source = "proc"
+        except OSError:
+            pass
+    return {
+        "present": bool(version),
+        "version": version,
+        "name": name,
+        "source": source,
+    }
+
+
+def detect_gpu_stack() -> dict:
+    """amdgpu / nvidia / intel + Mesa vs proprietary NVIDIA userspace."""
+    drm = discover_drm_cards()
+    disc = drm.get("discrete") or {}
+    driver = (disc.get("driver") or "").lower()
+    pci = (disc.get("pci_id") or "").upper()
+    vendor = "unknown"
+    if pci.startswith("10DE:") or driver in ("nvidia", "nouveau"):
+        vendor = "nvidia"
+    elif pci.startswith("1002:") or driver == "amdgpu":
+        vendor = "amd"
+    elif pci.startswith("8086:") or driver in ("i915", "xe"):
+        vendor = "intel"
+
+    nvidia = detect_nvidia_driver() if vendor == "nvidia" else {
+        "present": False, "version": None, "name": None, "source": None,
+    }
+    mesa = detect_mesa()
+    if nvidia.get("present") and driver == "nvidia":
+        stack = "nvidia"
+    elif mesa.get("present"):
+        stack = "mesa"
+    else:
+        stack = "unknown"
+    return {
+        "vendor": vendor,
+        "driver": driver or None,
+        "stack": stack,
+        "pci_id": pci or None,
+        "nvidia": nvidia,
+        "mesa": mesa,
+    }
+
+
 def detect_mesa() -> dict:
     """Mesa graphics stack version for host chrome (AMD/Intel gaming path)."""
     raw, short, pkg = _mesa_pkg_version()
@@ -1314,6 +1448,7 @@ def platform_identity() -> dict:
 
     desktop = detect_running_desktop()
     is_cosmic = bool(desktop.get("is_cosmic"))
+    de_id = desktop.get("id")
 
     kernel = ""
     try:
@@ -1321,7 +1456,8 @@ def platform_identity() -> dict:
     except OSError:
         pass
 
-    mesa = detect_mesa()
+    gpu = detect_gpu_stack()
+    mesa = gpu.get("mesa") or detect_mesa()
 
     badges: list[dict] = []
     if is_pop:
@@ -1355,13 +1491,10 @@ def platform_identity() -> dict:
             }
         )
 
-    # Running DE badge — always surface when known (KDE, COSMIC, GNOME, …)
+    # Running DE badge — first-class gaming desktops keep their own style.
     if desktop.get("id") and desktop.get("name"):
         de_id = desktop["id"]
-        badge_id = de_id if de_id in ("cosmic", "kde", "gnome", "other") else "de"
-        # Map well-known ids to CSS classes we style; others use generic .de
-        if de_id not in ("cosmic", "kde", "gnome"):
-            badge_id = "de"
+        badge_id = de_id if de_id in _FIRST_CLASS_DESKTOPS else "de"
         detail = desktop.get("detail")
         title = desktop.get("title") or desktop["name"]
         if desktop.get("cosmic_available") and not is_cosmic:
@@ -1395,8 +1528,25 @@ def platform_identity() -> dict:
                 "title": f"Linux {kernel}",
             }
         )
-    if mesa.get("present") and mesa.get("version"):
+    nv = (gpu.get("nvidia") or {}) if gpu.get("stack") == "nvidia" else {}
+    if nv.get("present") and nv.get("version"):
+        title = f"NVIDIA driver {nv['version']}"
+        if nv.get("name"):
+            title = f"{nv['name']} · {title}"
+        if gpu.get("driver"):
+            title = f"{title} · {gpu['driver']}"
+        badges.append(
+            {
+                "id": "nvidia",
+                "label": "NVIDIA",
+                "detail": nv["version"],
+                "title": title,
+            }
+        )
+    elif mesa.get("present") and mesa.get("version"):
         title_bits = [f"Mesa {mesa.get('version_raw') or mesa['version']}"]
+        if gpu.get("driver"):
+            title_bits.append(gpu["driver"])
         if mesa.get("package"):
             title_bits.append(mesa["package"])
         if mesa.get("flavor"):
@@ -1436,8 +1586,20 @@ def platform_identity() -> dict:
         "desktop": desktop,
         "kernel": kernel or None,
         "mesa": mesa,
+        "gpu": gpu,
         "badges": badges,
         "is_pop": is_pop,
         "is_system76": is_s76,
         "is_cosmic": is_cosmic,
+        "is_kde": de_id == "kde",
+        "is_gnome": de_id == "gnome",
+        "is_xfce": de_id == "xfce",
+        "is_cinnamon": de_id == "cinnamon",
+        "is_hyprland": de_id == "hyprland",
+        "is_gamescope": de_id == "gamescope",
+        "is_nvidia": gpu.get("vendor") == "nvidia",
+        "is_amd_gpu": gpu.get("vendor") == "amd",
+        "is_intel_gpu": gpu.get("vendor") == "intel",
+        "gpu_driver": gpu.get("driver"),
+        "gpu_stack": gpu.get("stack"),
     }

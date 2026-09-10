@@ -53,6 +53,7 @@ from hardware_probe import (
     igpu_label,
     igpu_sensor_prefix,
     nvme_sensor_tiles,
+    parse_nvidia_smi_csv,
     pci_to_sensor_suffix,
     platform_identity,
     probe_nvme_smart,
@@ -972,7 +973,86 @@ def _engine_pct(metrics_val: int | None, sysfs_fallback: int | None) -> float | 
     return round(max(positives) if positives else 0.0, 1)
 
 
+_NVIDIA_SMI_CACHE: tuple[float, dict] = (0.0, {})
+_NVIDIA_SMI_QUERY = (
+    "nvidia-smi",
+    "--query-gpu=utilization.gpu,utilization.memory,memory.used,memory.total,"
+    "temperature.gpu,power.draw,clocks.gr,clocks.mem,fan.speed",
+    "--format=csv,noheader,nounits",
+)
+
+
+def _nvidia_smi_snapshot() -> dict:
+    """1 Hz nvidia-smi for proprietary NVIDIA. Empty dict if unavailable."""
+    global _NVIDIA_SMI_CACHE
+    now = time.time()
+    if now - _NVIDIA_SMI_CACHE[0] < 0.85 and _NVIDIA_SMI_CACHE[1]:
+        return _NVIDIA_SMI_CACHE[1]
+    if not shutil.which("nvidia-smi"):
+        _NVIDIA_SMI_CACHE = (now, {})
+        return {}
+    try:
+        raw = subprocess.check_output(
+            _NVIDIA_SMI_QUERY, text=True, timeout=1.2, stderr=subprocess.DEVNULL
+        )
+        line = (raw.splitlines() or [""])[0]
+        parsed = parse_nvidia_smi_csv(line)
+    except (subprocess.SubprocessError, OSError, ValueError):
+        parsed = {}
+    _NVIDIA_SMI_CACHE = (now, parsed)
+    return parsed
+
+
+def _gpu_stats_nvidia(label: str) -> dict:
+    snap = _nvidia_smi_snapshot()
+    busy = snap.get("busy_pct")
+    mem_busy = snap.get("mem_busy_pct")
+    engines = [
+        {"id": "gfx", "label": "Shaders", "pct": busy},
+        {"id": "vram", "label": "Memory bus", "pct": mem_busy},
+        {"id": "mm", "label": "Video", "pct": None},
+    ]
+    peak = vram_peak_gbps()
+    vram_est = (
+        round((mem_busy or 0) * peak / 100, 1) if mem_busy is not None else None
+    )
+    return {
+        "label": label,
+        "busy_pct": busy,
+        "gfx_pct": busy,
+        "mem_busy_pct": mem_busy,
+        "engines": engines,
+        "vram_used_mb": snap.get("vram_used_mb"),
+        "vram_total_mb": snap.get("vram_total_mb"),
+        "vram_pct": snap.get("vram_pct"),
+        "temp_c": snap.get("temp_c"),
+        "junction_c": snap.get("junction_c"),
+        "mem_temp_c": None,
+        "power_w": snap.get("power_w"),
+        "fan_rpm": snap.get("fan_rpm"),
+        "fan_pct": snap.get("fan_pct"),
+        "gfx_mhz": snap.get("gfx_mhz"),
+        "mclk_mhz": snap.get("mclk_mhz"),
+        "pcie_active": None,
+        "pcie_link": "?",
+        "vram_est_gbps": vram_est,
+        "vram_busy_pct": mem_busy,
+        "vram_peak_gbps": peak,
+        "pcie_est_gbps": None,
+        "pcie_peak_gbps": PCIE_PEAK_GBPS,
+        "gtt": {},
+        "driver": "nvidia",
+    }
+
+
 def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = True) -> dict:
+    driver = ""
+    try:
+        driver = str((discover_drm_cards().get("discrete") or {}).get("driver") or "")
+    except Exception:
+        driver = ""
+    if driver == "nvidia":
+        return _gpu_stats_nvidia(label)
     hw = gpu_hwmon(base)
     sens = parse_sensors()
     vram_used = read_int(base / "mem_info_vram_used", 1024**2)
@@ -1062,6 +1142,7 @@ def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = T
         "pcie_est_gbps": pcie_est_gbps,
         "pcie_peak_gbps": PCIE_PEAK_GBPS,
         "gtt": gtt,
+        "driver": driver or None,
     }
 
 
@@ -1944,7 +2025,7 @@ def _tuning_context() -> dict:
             "gpu_model": _gpu_spec.get("model", ""),
             "gpu_card": drm["discrete"].get("card", "card1"),
             "gpu_sysfs": str(dpath),
-            "gpu_sensor": f"amdgpu-pci-{gpu_sensor_prefix()}",
+            "gpu_sensor": f"{(drm['discrete'].get('driver') or 'gpu')}-pci-{gpu_sensor_prefix()}",
         }
     )
     _tuning_ctx_cache = (now, ctx)
@@ -1959,6 +2040,11 @@ def tuning_hints(snap: dict) -> list[dict]:
 
 def _gpu_stats_sysfs_only(base: Path, label: str) -> dict:
     """GPU scoreboard fields from sysfs only — never calls ``sensors`` (watchdog-safe)."""
+    try:
+        if (discover_drm_cards().get("discrete") or {}).get("driver") == "nvidia":
+            return _gpu_stats_nvidia(label)
+    except Exception:
+        pass
     hw = gpu_hwmon(base)
     vram_used = read_int(base / "mem_info_vram_used", 1024**2)
     vram_total = read_int(base / "mem_info_vram_total", 1024**2)

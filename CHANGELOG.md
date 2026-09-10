@@ -8,6 +8,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **Host identity for other gaming PCs** — first-class desktop badges for KDE, GNOME, COSMIC, Cinnamon, XFCE, Hyprland, and Gamescope (Steam Deck session). NVIDIA proprietary driver badge + 1 Hz `nvidia-smi` meters; Mesa stays the AMD/Intel userspace badge. Rule packs see `platform.is_kde` / `is_nvidia` / `gpu.driver` / `gpu.stack`. RAM DMI maps Corsair, Kingston, Crucial, TeamGroup, and other common brands; DDR4 kits no longer labeled DDR5.
 - **Hardware scales** — Options sliders for CPU/GPU graph °C and watt-dial ceilings, persisted in `.pulse_config.json`.
 - **Product harness** — `python3 tests/harness.py` smokes sampler, metrics shape, Guidance pack (incl. RAPL), dashboard HTML, game-sessions, store, and read-only APIs.
 - **Guidance: RAPL udev** — builtin pack rule `cpu-rapl-unreadable` when package `energy_uj` is present but root-only; Data tools lists it as a source with the install command.

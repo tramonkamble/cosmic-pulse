@@ -268,7 +268,12 @@
     .host-badge.mesa .host-badge-mark.logo,
     .host-badge.kernel .host-badge-mark.logo,
     .host-badge.linux .host-badge-mark.logo,
-    .host-badge.de .host-badge-mark.logo {
+    .host-badge.de .host-badge-mark.logo,
+    .host-badge.xfce .host-badge-mark.logo,
+    .host-badge.cinnamon .host-badge-mark.logo,
+    .host-badge.hyprland .host-badge-mark.logo,
+    .host-badge.gamescope .host-badge-mark.logo,
+    .host-badge.nvidia .host-badge-mark.logo {
       background: transparent !important;
       padding: 0;
     }
@@ -338,6 +343,56 @@
     }
     .host-badge.gnome .host-badge-mark {
       background: linear-gradient(145deg, #62a0ea, #3584e4);
+    }
+    .host-badge.xfce {
+      border-color: color-mix(in srgb, #228b22 35%, var(--line));
+      background:
+        linear-gradient(120deg, color-mix(in srgb, #228b22 12%, transparent), transparent 70%),
+        color-mix(in srgb, var(--panel-solid) 90%, transparent);
+      color: color-mix(in srgb, #9fdf9f 50%, var(--text));
+    }
+    .host-badge.xfce .host-badge-mark {
+      background: linear-gradient(145deg, #3cb371, #1a6b1a);
+    }
+    .host-badge.cinnamon {
+      border-color: color-mix(in srgb, #c45c26 35%, var(--line));
+      background:
+        linear-gradient(120deg, color-mix(in srgb, #c45c26 12%, transparent), transparent 70%),
+        color-mix(in srgb, var(--panel-solid) 90%, transparent);
+      color: color-mix(in srgb, #f0c9a0 50%, var(--text));
+    }
+    .host-badge.cinnamon .host-badge-mark {
+      background: linear-gradient(145deg, #e07a3d, #9a3f12);
+    }
+    .host-badge.hyprland {
+      border-color: color-mix(in srgb, #89b4fa 35%, var(--line));
+      background:
+        linear-gradient(120deg, color-mix(in srgb, #89b4fa 12%, transparent), transparent 70%),
+        color-mix(in srgb, var(--panel-solid) 90%, transparent);
+      color: color-mix(in srgb, #cba6f7 45%, var(--text));
+    }
+    .host-badge.hyprland .host-badge-mark {
+      background: linear-gradient(145deg, #313244, #11111b);
+    }
+    .host-badge.gamescope {
+      border-color: color-mix(in srgb, #66c0f4 35%, var(--line));
+      background:
+        linear-gradient(120deg, color-mix(in srgb, #66c0f4 12%, transparent), transparent 70%),
+        color-mix(in srgb, var(--panel-solid) 90%, transparent);
+      color: color-mix(in srgb, #8bc53f 45%, var(--text));
+    }
+    .host-badge.gamescope .host-badge-mark {
+      background: linear-gradient(145deg, #1b2838, #0b141c);
+    }
+    .host-badge.nvidia {
+      border-color: color-mix(in srgb, #76b900 38%, var(--line));
+      background:
+        linear-gradient(120deg, color-mix(in srgb, #76b900 12%, transparent), transparent 70%),
+        color-mix(in srgb, var(--panel-solid) 90%, transparent);
+      color: color-mix(in srgb, #a3e635 45%, var(--text));
+    }
+    .host-badge.nvidia .host-badge-mark {
+      background: #111;
     }
     /* Other DEs */
     .host-badge.de {
@@ -11944,7 +11999,11 @@
       asus: 'ASUS', msi: 'MSI', corsair: 'CORSAIR', generic: 'HW',
     };
 
-    const RIG_MEMORY_BRANDS = { gskill: 'G.SKILL', corsair: 'Corsair', kingston: 'Kingston', crucial: 'Crucial' };
+    const RIG_MEMORY_BRANDS = {
+      gskill: 'G.SKILL', corsair: 'Corsair', kingston: 'Kingston', crucial: 'Crucial',
+      teamgroup: 'TeamGroup', patriot: 'Patriot', adata: 'ADATA', samsung: 'Samsung',
+      skhynix: 'SK hynix', micron: 'Micron', pny: 'PNY',
+    };
     const RIG_STORAGE_BRANDS = {
       samsung: 'Samsung', wd: 'WD', toshiba: 'Toshiba', crucial: 'Crucial',
       kingston: 'Kingston', sandisk: 'SanDisk', seagate: 'Seagate', skhynix: 'SK hynix',
@@ -12008,6 +12067,11 @@
       if (!name) return 'generic';
       const n = String(name).toLowerCase();
       if (n.includes('g.skill') || n.includes('gskill')) return 'gskill';
+      if (n.includes('teamgroup') || n.includes('t-force') || n.includes('t-create')) return 'teamgroup';
+      if (n.includes('patriot') || n.includes('viper')) return 'patriot';
+      if (n.includes('adata') || n.includes('xpg')) return 'adata';
+      if (n.includes('kingston') || n.includes('fury')) return 'kingston';
+      if (n.includes('crucial') || n.includes('ballistix')) return 'crucial';
       if (n.includes('system76')) return 'system76';
       if (n.includes('dell') || n.includes('alienware')) return 'dell';
       if (n.includes('lenovo')) return 'lenovo';
@@ -12094,6 +12158,11 @@
       cosmic: 'cosmic.svg',
       kde: 'kde.svg',
       gnome: 'gnome.svg',
+      xfce: 'xfce.svg',
+      cinnamon: 'cinnamon.svg',
+      hyprland: 'hyprland.svg',
+      gamescope: 'gamescope.svg',
+      nvidia: 'nvidia.svg',
       kernel: 'kernel.svg',
       mesa: 'mesa.svg',
       de: 'de.svg',
@@ -12124,6 +12193,12 @@
       document.body.classList.toggle('is-cosmic', !!plat?.is_cosmic);
       document.body.classList.toggle('is-kde', deId === 'kde');
       document.body.classList.toggle('is-gnome', deId === 'gnome');
+      document.body.classList.toggle('is-xfce', deId === 'xfce');
+      document.body.classList.toggle('is-cinnamon', deId === 'cinnamon');
+      document.body.classList.toggle('is-hyprland', deId === 'hyprland');
+      document.body.classList.toggle('is-gamescope', deId === 'gamescope');
+      document.body.classList.toggle('is-nvidia', !!plat?.is_nvidia);
+      document.body.classList.toggle('is-amd-gpu', !!plat?.is_amd_gpu);
       if (!badges.length) {
         host.hidden = true;
         host.innerHTML = '';

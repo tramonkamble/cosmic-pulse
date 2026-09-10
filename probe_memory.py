@@ -19,7 +19,55 @@ _BLANK_MFR = {
     "to be filled by o.e.m.",
     "oem",
     "null",
+    "jedec",
 }
+
+# DMI / JEDEC manufacturer strings → display brand.
+MFR_ALIASES: tuple[tuple[str, str], ...] = (
+    ("g.skill", "G.Skill"),
+    ("gskill", "G.Skill"),
+    ("corsair", "Corsair"),
+    ("kingston", "Kingston"),
+    ("crucial", "Crucial"),
+    ("micron", "Micron"),
+    ("samsung", "Samsung"),
+    ("sk hynix", "SK hynix"),
+    ("hynix", "SK hynix"),
+    ("teamgroup", "TeamGroup"),
+    ("team group", "TeamGroup"),
+    ("patriot", "Patriot"),
+    ("adata", "ADATA"),
+    ("xpg", "ADATA"),
+    ("silicon power", "Silicon Power"),
+    ("thermaltake", "Thermaltake"),
+    ("geil", "GeIL"),
+    ("mushkin", "Mushkin"),
+    ("oloy", "OLOy"),
+    ("pny", "PNY"),
+    ("apacer", "Apacer"),
+    ("gskill international", "G.Skill"),
+)
+
+# Part-number prefixes when DMI manufacturer is blank. Conservative kit names.
+PART_PREFIXES: tuple[tuple[str, str, str], ...] = (
+    ("F5-6000J3038F16G", "G.Skill", "Flare X5"),
+    ("F5-", "G.Skill", "DDR5"),
+    ("F4-", "G.Skill", "Ripjaws"),
+    ("CMK", "Corsair", "Vengeance"),
+    ("CMH", "Corsair", "Dominator"),
+    ("CMT", "Corsair", "Dominator"),
+    ("CMW", "Corsair", "Vengeance RGB"),
+    ("KF5", "Kingston", "Fury"),
+    ("KF4", "Kingston", "Fury"),
+    ("CT", "Crucial", "DDR"),
+    ("BL", "Crucial", "Ballistix"),
+    ("FF3D", "TeamGroup", "T-Create"),
+    ("TF", "TeamGroup", "T-Force"),
+    ("AX5U", "ADATA", "XPG"),
+    ("AX4U", "ADATA", "XPG"),
+    ("PVB", "Patriot", "Viper"),
+    ("PVS", "Patriot", "Viper"),
+)
 
 # Known modules — keyed by sticker part number (single-DIMM SKU).
 PART_DB: dict[str, dict] = {
@@ -34,6 +82,29 @@ PART_DB: dict[str, dict] = {
         "size_gb": 16,
     },
 }
+
+
+def normalize_manufacturer(raw: str | None) -> str | None:
+    s = (raw or "").strip()
+    if _is_blank_mfr(s):
+        return None
+    if re.fullmatch(r"[0-9A-Fa-f]{4}", s):
+        return None
+    low = s.lower()
+    for needle, name in MFR_ALIASES:
+        if needle in low:
+            return name
+    return s
+
+
+def lookup_part_prefix(part: str | None) -> dict | None:
+    if not part:
+        return None
+    key = part.strip().upper()
+    for prefix, mfr, kit in PART_PREFIXES:
+        if key.startswith(prefix.upper()):
+            return {"manufacturer": mfr, "kit": kit, "sku": part.strip()}
+    return None
 
 
 def _is_blank_mfr(value: str | None) -> bool:
@@ -61,13 +132,40 @@ def apply_part_db(spec: dict) -> dict:
                 part = str(stick["part"]).strip()
                 break
     info = lookup_part(part)
-    if _is_blank_mfr(spec.get("manufacturer")):
-        spec["manufacturer"] = None
+    prefix = None if info else lookup_part_prefix(part)
+    spec["manufacturer"] = normalize_manufacturer(spec.get("manufacturer"))
     for stick in spec.get("sticks") or []:
-        if _is_blank_mfr(stick.get("manufacturer")):
-            stick["manufacturer"] = ""
+        stick["manufacturer"] = normalize_manufacturer(stick.get("manufacturer")) or ""
+
+    ram_type = spec.get("type") or "DDR"
+    if not info and prefix:
+        if not spec.get("manufacturer"):
+            spec["manufacturer"] = prefix["manufacturer"]
+        if not spec.get("kit") or spec.get("kit") == part:
+            spec["kit"] = prefix["kit"]
+        for stick in spec.get("sticks") or []:
+            if not stick.get("manufacturer"):
+                stick["manufacturer"] = prefix["manufacturer"]
+        mts = int(spec.get("configured_mts") or spec.get("speed_mts") or 0)
+        sticks = spec.get("sticks") or []
+        n = len(sticks) or 2
+        channels = spec.get("channels") or (2 if n >= 2 else 1)
+        per = sticks[0].get("size_gb") if sticks else 0
+        mfr = spec.get("manufacturer")
+        kit = spec.get("kit")
+        if mfr and mts and per:
+            spec["label"] = f"{mfr} {kit} · {ram_type}-{mts} · {channels}×{per}GB"
+        return spec
 
     if not info:
+        mts = int(spec.get("configured_mts") or spec.get("speed_mts") or 0)
+        sticks = spec.get("sticks") or []
+        n = len(sticks) or 2
+        channels = spec.get("channels") or (2 if n >= 2 else 1)
+        per = sticks[0].get("size_gb") if sticks else 0
+        mfr = spec.get("manufacturer")
+        if mfr and mts and per:
+            spec["label"] = f"{mfr} {part or ram_type} · {ram_type}-{mts} · {channels}×{per}GB"
         return spec
 
     sticks = spec.get("sticks") or []
@@ -139,9 +237,7 @@ def parse_dmidecode(text: str) -> dict:
         speed = s.get("Configured Memory Speed") or s.get("Speed") or ""
         mts_m = re.search(r"(\d+)\s*MT/s", speed) or re.search(r"(\d+)\s*MHz", speed)
         mts = int(mts_m.group(1)) if mts_m else 0
-        mfr = (s.get("Manufacturer") or "").strip()
-        if _is_blank_mfr(mfr):
-            mfr = ""
+        mfr = normalize_manufacturer(s.get("Manufacturer")) or ""
         populated.append(
             {
                 "size_gb": gb,
@@ -167,7 +263,9 @@ def parse_dmidecode(text: str) -> dict:
     mts = mts_vals[0] if mts_vals else 0
     channels = 2 if len(populated) >= 2 else 1
     peak = round(mts * channels * 64 / 8 / 1000, 1) if mts else 0
-    label = f"DDR5-{mts} {channels}×{populated[0]['size_gb']}GB" if populated else "Unknown"
+    ram_type = populated[0].get("type") or "DDR" if populated else "DDR"
+    ram_type = ram_type if ram_type.upper().startswith("DDR") else "DDR"
+    label = f"{ram_type}-{mts} {channels}×{populated[0]['size_gb']}GB" if populated else "Unknown"
 
     mfrs = sorted({s.get("manufacturer", "").strip() for s in populated if s.get("manufacturer")})
     parts = [s.get("part", "").strip() for s in populated if s.get("part")]
@@ -176,7 +274,7 @@ def parse_dmidecode(text: str) -> dict:
     per = populated[0]["size_gb"] if populated else 0
     rich_label = label
     if manufacturer and mts and per:
-        rich_label = f"{manufacturer} {part or 'DDR5'} · DDR5-{mts} · {channels}×{per}GB"
+        rich_label = f"{manufacturer} {part or ram_type} · {ram_type}-{mts} · {channels}×{per}GB"
 
     return {
         "source": "dmidecode",
@@ -188,7 +286,7 @@ def parse_dmidecode(text: str) -> dict:
         "speed_mts": mts,
         "peak_gbps": peak,
         "label": rich_label,
-        "type": populated[0].get("type", "DDR5") if populated else "DDR5",
+        "type": populated[0].get("type", "DDR") if populated else "DDR",
         "manufacturer": manufacturer,
         "part": part,
         "kit": part,
@@ -202,23 +300,21 @@ def infer_fallback() -> dict:
     total_gb = min(common, key=lambda x: abs(x - total_raw))
     product = Path("/sys/class/dmi/id/product_version")
     model = product.read_text().strip() if product.exists() else ""
-    # Generic desktop: DDR5 dual-channel estimate when dmidecode is unavailable.
-    mts = 5600
+    # Generic desktop: capacity from /proc; speed unknown without DMI.
     channels = 2
     sticks = 2 if total_gb <= 64 else 4
-    peak = round(mts * channels * 64 / 8 / 1000, 1)
     return {
         "source": "inferred",
         "confidence": "estimated",
         "model": model,
-        "sticks": [{"size_gb": total_gb // sticks, "mts": mts, "type": "DDR5"}] * sticks,
+        "sticks": [{"size_gb": total_gb // sticks, "mts": 0, "type": "DDR"}] * sticks,
         "total_gb": total_gb,
         "channels": channels,
-        "configured_mts": mts,
-        "speed_mts": mts,
-        "peak_gbps": peak,
-        "label": f"DDR5-{mts} dual · {total_gb}GB (estimated)",
-        "type": "DDR5",
+        "configured_mts": 0,
+        "speed_mts": 0,
+        "peak_gbps": 0,
+        "label": f"{total_gb}GB system RAM (estimated)",
+        "type": "DDR",
         "note": "Run: sudo python3 probe_memory.py — for exact SPD speed",
     }
 

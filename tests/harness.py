@@ -403,6 +403,7 @@ def main() -> int:
     run_unit_file("tests/test_live_sensors.py")
     run_unit_file("tests/test_hw_scales.py")
     run_unit_file("tests/test_probe_memory.py")
+    run_unit_file("tests/test_platform_identity.py")
     run_unit_file("tests/test_chassis_identity.py")
     if full:
         run_unit_file("tests/test_sample_supervisor.py")
