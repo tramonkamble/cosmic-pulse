@@ -8,6 +8,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **Guidance authoring** — [docs/RULES.md](docs/RULES.md) (schema, metric catalog, rules-for-rules), [RULE_PACKS.md](RULE_PACKS.md) index, and annotated example pack `rules/examples/hello-swappiness/` (not loaded from builtin).
 - **CLI** — `cosmic-pulse --help` / `--port` / `--lan` / `--open` (open the UI, or reuse an already-bound port).
 - **Desktop launcher** — `.desktop` + icon from `install.sh` and the `.deb`.
 - **GitHub-ready docs** — `AGENTS.md` for coding agents, issue templates, `SECURITY.md`, current dashboard screenshots.

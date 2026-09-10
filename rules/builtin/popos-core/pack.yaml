@@ -1,3 +1,4 @@
+# Builtin pack — only when platform.is_pop. Authoring guide: docs/RULES.md
 id: popos-core
 name: Pop!_OS
 version: "0.1.0"

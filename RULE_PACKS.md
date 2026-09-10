@@ -1,32 +1,24 @@
-# Builtin rule packs (0.1)
+# Rule packs
 
-Cosmic Pulse ships **two** builtin packs. That is the whole default Guidance set — ten insights, not a coach encyclopedia.
+Pulse Guidance is YAML. Builtin packs stay small; community packs do the rest.
 
-| Pack | When it runs | Role |
-|------|----------------|------|
-| **pulse-core** | Always | Linux kernel, Steam/Proton, live gaming |
-| **popos-core** | `platform.is_pop` | Pop!_OS / COSMIC / apt / System76-class AMD |
+| Read | What |
+|------|------|
+| **[docs/RULES.md](docs/RULES.md)** | How to write a pack: schema, metric catalog, **rules for rules** |
+| [rules/examples/hello-swappiness/](rules/examples/hello-swappiness/) | One rule, comments on every field (not loaded automatically) |
+| [rules/builtin/pulse-core/rules.yaml](rules/builtin/pulse-core/rules.yaml) | Production examples (`cpu-governor-powersave`, then `stutter-proxy`) |
 
-Disable a pack in Options or `disabled_packs` in `~/.config/pulse/pulse_config.json`. Extra packs go in `~/.config/pulse/rules/<id>/pack.yaml`.
+Drop a folder in `~/.config/pulse/rules/<id>/` (`pack.yaml` + `rules.yaml`) and restart Pulse.
 
-## pulse-core (5)
+## Builtin (0.1)
 
-1. **cpu-governor-powersave** — governor stuck on `powersave`
-2. **vm-swappiness-high** — `vm.swappiness` too aggressive for gaming
-3. **stutter-proxy** — Pulse hitch score / events while a game runs (instrumented)
-4. **gpu-fps-cap** — GPU busy vs display refresh while a game runs (instrumented)
-5. **proton-wayland-launch-fix** — Proton on Wayland without an X11 launch override
+| Pack | When | Rules |
+|------|------|--------|
+| **pulse-core** | Always | governor, swappiness, stutter-proxy, gpu-fps-cap, proton-wayland |
+| **popos-core** | `platform.is_pop` | HDR off, RAPL udev, Proton libs, MangoHud, GPU hot |
 
-Builtin packs do not name titles. Process detection uses Steam AppIDs and generic Proton/Wine binaries.
-
-## popos-core (5)
-
-1. **display-hdr-off** — HDR-capable display in SDR; COSMIC has no desktop HDR toggle (instrumented EDID/DRM)
-2. **cpu-rapl-unreadable** — RAPL `energy_uj` is root-only; zenpower is not in Pop repos
-3. **game-libs-missing** — 32-bit Proton libs via `apt` / i386
-4. **mangohud-recommended** — optional overlay; Pulse can attach FPS to sessions
-5. **gpu-thermal-ceiling** — junction at the Pulse thermal-profile hot band
+Disable in Options or `disabled_packs` in config. Builtin packs do not name game titles.
 
 ## Not builtin
 
-Audio walls, tools shopping lists, CS2 encyclopedias, deep Steam health, per-title pro tips. Those belong in community packs after 0.1.
+Audio walls, tools shopping lists, CS2 encyclopedias, deep Steam health, per-title pro tips.

@@ -1,6 +1,11 @@
 # Five core insights: Linux kernel, Steam/Proton, live gaming (Pulse-sampled).
+# How to write packs: docs/RULES.md  |  commented example: rules/examples/hello-swappiness/
+#
+# Each rule: id, detect (metric + op, or all/any/not), emit (card), actions (copy-paste).
+# Pulse never executes actions. insight_id is the stable history key — do not rename.
 rules:
   - id: cpu-governor-powersave
+    # Leaf detect: flatten_metrics path + operator (eq, gt, exists, …).
     detect:
       metric: ctx.governor
       eq: powersave
@@ -45,6 +50,9 @@ rules:
         cmd: cat /proc/sys/vm/swappiness
 
   - id: stutter-proxy
+    # Compound detect (the other shape besides a single leaf):
+    #   all: game must be running, plus any hitch signal.
+    # level_when: nested detect/then/else picks info | warn | hot.
     detect:
       all:
         - metric: game.running

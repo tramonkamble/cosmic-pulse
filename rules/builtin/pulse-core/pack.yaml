@@ -1,3 +1,4 @@
+# Builtin pack — always eligible. Authoring guide: docs/RULES.md
 id: pulse-core
 name: Pulse core
 version: "0.1.0"

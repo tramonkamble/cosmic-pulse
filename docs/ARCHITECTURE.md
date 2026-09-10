@@ -49,7 +49,7 @@ Persisted to `.tuning_log.json` (debounced, gitignored).
 
 ### Rule packs
 
-`rules/builtin/pulse-core/` and `rules/builtin/popos-core/` define insights (five each). Packs are data, not code — extend without editing Python when possible. Per-title `game_overrides` belong in community packs, not builtin.
+`rules/builtin/pulse-core/` and `rules/builtin/popos-core/` define insights (five each). Packs are data, not code — extend without editing Python when possible. Per-title `game_overrides` belong in community packs, not builtin. Authoring: [RULES.md](RULES.md). Index: [../RULE_PACKS.md](../RULE_PACKS.md). Annotated example: `rules/examples/hello-swappiness/` (not loaded from builtin).
 
 **Product intent (0.1+):** Pulse owns the **engine** that evaluates packs; it does **not** own a large encyclopedia of game-tuning advice.
 
@@ -126,6 +126,7 @@ Smoke and domain tests live under `tests/`. No pytest required for a quick local
 
 ## Related docs
 
+- [RULES.md](RULES.md) — how to write Guidance YAML packs
 - [REVIEW.md](REVIEW.md) — reviewer focus areas
 - [PUBLISH_CHECKLIST.md](PUBLISH_CHECKLIST.md) — release steps
 - [../CONTRIBUTING.md](../CONTRIBUTING.md) — git workflow

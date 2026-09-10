@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -456,6 +457,28 @@ def test_gpu_fps_cap_fires_on_60hz():
     assert "60" in hit["text"]
 
 
+def test_example_hello_swappiness_pack_loads_via_env():
+    """rules/examples is not builtin; PULSE_RULE_PATH must pick it up."""
+    example_root = Path(__file__).resolve().parents[1] / "rules" / "examples"
+    assert (example_root / "hello-swappiness" / "pack.yaml").is_file()
+    with patch.dict(os.environ, {"PULSE_RULE_PATH": str(example_root)}):
+        reload_packs()
+        ids = {p["id"] for p in list_packs()}
+        assert "hello-swappiness" in ids
+        assert "pulse-core" in ids
+        _, high = evaluate_rule_packs(
+            _snap(), {}, {"governor": "performance", "swappiness": 80}
+        )
+        assert "example-swappiness-high" in high
+        _, low = evaluate_rule_packs(
+            _snap(), {}, {"governor": "performance", "swappiness": 10}
+        )
+        assert "example-swappiness-high" not in low
+    reload_packs()
+    ids = {p["id"] for p in list_packs()}
+    assert "hello-swappiness" not in ids
+
+
 def test_gpu_fps_cap_skips_high_refresh():
     from cosmic_pulse import rule_packs
 
@@ -491,6 +514,7 @@ def run_all() -> None:
     test_cpu_rapl_rule_skips_when_absent()
     test_gpu_fps_cap_fires_on_60hz()
     test_gpu_fps_cap_skips_high_refresh()
+    test_example_hello_swappiness_pack_loads_via_env()
     print("test_rule_packs: ok")
 
 

@@ -158,7 +158,7 @@ More: [docs/INSTALL.md](docs/INSTALL.md) § Troubleshooting.
 | `server.py` | Thin launcher (`python3 server.py`) |
 | `cosmic_pulse/` | Application package (HTTP, sampler, Guidance) |
 | `index.html` | Dashboard UI (single-file HTML/CSS/JS) |
-| `cosmic_pulse/rule_packs.py` + `rules/builtin/` | YAML-driven Guidance rules |
+| `cosmic_pulse/rule_packs.py` + `rules/builtin/` | YAML-driven Guidance rules ([docs/RULES.md](docs/RULES.md)) |
 | `cosmic_pulse/stutter.py` | Hitch / stutter proxy |
 | `cosmic_pulse/games.py` | Steam detection, Proton/Wayland helpers |
 | `cosmic_pulse/store.py` | SQLite history and correlations |
@@ -183,6 +183,8 @@ Full data flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 |-----|----------|
 | [AGENTS.md](AGENTS.md) | Map for Claude / Gemini / Codex / other coding agents |
 | [docs/INSTALL.md](docs/INSTALL.md) | Install script, `.deb`, systemd, uninstall |
+| [docs/RULES.md](docs/RULES.md) | How to write Guidance YAML packs (schema, metrics, style) |
+| [RULE_PACKS.md](RULE_PACKS.md) | Builtin vs community packs; annotated example |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Sampler loop, Guidance contracts, config paths |
 | [docs/REVIEW.md](docs/REVIEW.md) | Security focus, review checklist |
 | [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | Open technical findings |

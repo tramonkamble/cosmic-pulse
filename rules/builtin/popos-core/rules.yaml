@@ -1,4 +1,6 @@
 # Five Pop!_OS insights: COSMIC/desktop, apt/Proton libs, RAPL udev, Mesa GPU thermals.
+# Pack is gated by match_when: platform.is_pop (see pack.yaml).
+# How to write packs: docs/RULES.md  |  commented example: rules/examples/hello-swappiness/
 rules:
   - id: display-hdr-off
     detect:

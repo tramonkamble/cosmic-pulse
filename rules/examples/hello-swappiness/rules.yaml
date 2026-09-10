@@ -1,0 +1,35 @@
+# Heavily commented copy of the idea behind pulse-core's vm-swappiness-high.
+# Production rule: rules/builtin/pulse-core/rules.yaml
+#
+# Shape of every rule: id + detect + emit + actions.
+rules:
+  - id: example-swappiness-high
+    detect:
+      # all: every child must be true (prefer this over a single loose check).
+      all:
+        - metric: ctx.swappiness
+          exists: true          # path present (not just "not None" from a default)
+        - metric: ctx.swappiness
+          gt: 60                # numeric: gt gte lt lte  |  also eq ne in not_in
+    emit:
+      # insight_id is the forever key (history / ignore / mark-fixed). Do not rename.
+      insight_id: example-swappiness-high
+      level: warn               # info | warn | hot
+      title: Example — swappiness too high for gaming
+      # {dotted.path} and {path:.0f} fill from flatten_metrics(). Unresolved
+      # templates drop that action; detect should guarantee the path.
+      text: >-
+        vm.swappiness={ctx.swappiness}. This is an example community rule
+        (hello-swappiness). The real builtin id is vm-swappiness-high.
+      games: all                # all | active | "730" | ["730", "1234"]
+      condition_live: true      # badge “live this tick” vs only outstanding
+    actions:
+      # Pulse copies; it never executes.
+      - label: Lower swappiness for this boot
+        kind: cmd               # cmd | note | steam | game
+        cmd: sudo sysctl vm.swappiness=10
+        note: Needs sudo — Pulse will not run this
+      - label: Why this fires
+        kind: note
+        note: >-
+          detect.all requires ctx.swappiness to exist and be > 60. See docs/RULES.md.

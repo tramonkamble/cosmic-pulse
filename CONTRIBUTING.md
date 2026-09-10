@@ -51,6 +51,19 @@ Restart after Python edits: `systemctl --user restart cosmic-pulse` or re-run `p
 
 Ship `.pulse_config.example.json` instead of a real config. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Guidance rule packs
+
+YAML, not Python. Authoring guide: [docs/RULES.md](docs/RULES.md). Index: [RULE_PACKS.md](RULE_PACKS.md).
+
+- Production examples: `rules/builtin/pulse-core/rules.yaml` (`cpu-governor-powersave`, then `stutter-proxy`).
+- Annotated starter: `rules/examples/hello-swappiness/` — copy into `~/.config/pulse/rules/`; do not add example packs to `rules/builtin/`.
+- New sensors need Python (`flatten_metrics` in `cosmic_pulse/rule_packs.py`). A YAML field cannot invent a metric.
+- Keep builtin packs small (five rules each in 0.1). Per-title tips are community packs.
+
+```bash
+python3 tests/test_rule_packs.py
+```
+
 ## AI reviews
 
 Paste findings into a GitHub issue with the **AI review finding** template (`file:line`, severity, suggested fix). Do not open a PR that rewrites `index.html` unless the issue asks for that.

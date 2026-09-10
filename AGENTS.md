@@ -18,7 +18,7 @@ working in this repo. Keep diffs small. Run tests. Do not rewrite `index.html` f
 | SQLite history | `cosmic_pulse/store.py` |
 | Steam / Proton | `cosmic_pulse/games.py`, `game_performance.py` |
 | GPU sysfs / NVIDIA | `cosmic_pulse/gpu_metrics.py`, `gpu_thermal.py`, `hardware_probe.py` |
-| Guidance rules | `cosmic_pulse/rule_packs.py`, `rules/builtin/` |
+| Guidance rules | `cosmic_pulse/rule_packs.py`, `rules/builtin/` — authoring: [docs/RULES.md](docs/RULES.md) |
 | Config / data dirs | `cosmic_pulse/pulse_config.py`, `paths.py` |
 | Tests | `tests/harness.py` plus `tests/test_*.py` |
 
@@ -36,7 +36,7 @@ python3 tests/harness.py   # product smoke (spawns :18765, no pytest required)
 - **Local-only.** Default bind is `127.0.0.1`. `--lan` / `PULSE_LAN=1` has **no auth** — trusted LAN only.
 - Companion for a second monitor. Not a MangoHud or frametime replacement.
 - Stutter number is a **kernel-signal proxy** (PSI, faults, swap, disk), not in-game FPS.
-- Builtin Guidance is a **small scaffold** (`pulse-core` + `popos-core`). Richer tips belong in community packs under `~/.config/pulse/rules/`.
+- Builtin Guidance is a **small scaffold** (`pulse-core` + `popos-core`). Richer tips belong in community packs under `~/.config/pulse/rules/`. How to write packs: [docs/RULES.md](docs/RULES.md). Annotated copy-this pack: `rules/examples/hello-swappiness/` (not loaded automatically).
 - AMD sysfs is the dense GPU path; NVIDIA uses `nvidia-smi` when present. Do not fake AMD DRM nodes.
 
 Live lab tabs (keep them the same height): **Snapshot**, **Pulse Index**, **Stutter**.

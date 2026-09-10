@@ -1,0 +1,12 @@
+# Example community pack — not loaded from rules/builtin/.
+# Copy to ~/.config/pulse/rules/hello-swappiness/ or set PULSE_RULE_PATH.
+#
+# Full schema: docs/RULES.md
+id: hello-swappiness
+name: Example — swappiness
+version: "0.1.0"
+requires_pulse: "0.1"
+priority: 200              # higher than pulse-core (10); first matching insight_id wins
+# No match_when: this pack is eligible on every distro (it is an example).
+rules:
+  - rules.yaml
