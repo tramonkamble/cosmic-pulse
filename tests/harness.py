@@ -438,6 +438,7 @@ def main() -> int:
     run_unit_file("tests/test_chassis_identity.py")
     run_unit_file("tests/test_cli.py")
     run_unit_file("tests/test_rule_packs.py")
+    run_unit_file("tests/test_cosmic_theme.py")
     if full:
         run_unit_file("tests/test_sample_supervisor.py")
     else:

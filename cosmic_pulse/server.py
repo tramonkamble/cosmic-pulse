@@ -22,7 +22,7 @@ from urllib.parse import parse_qs, urlparse
 import psutil
 
 from .benchmarks import chassis_identity, cpu_identity, hardware_comparison, memory_identity
-from .cosmic_theme import get_cosmic_theme
+from .cosmic_theme import get_cosmic_theme, get_cosmic_theme_pack
 from .diagnostics import (
     diagnostics_job_status,
     get_diagnostics,
@@ -2798,7 +2798,10 @@ def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
                     return
 
                 try:
-                    _static["cosmic_theme"] = get_cosmic_theme()
+                    pack = get_cosmic_theme_pack()
+                    _static["cosmic_theme"] = pack["auto"]
+                    _static["cosmic_theme_dark"] = pack["dark"]
+                    _static["cosmic_theme_light"] = pack["light"]
                 except Exception:
                     pass
                 # Tool inventory is TTL-cached; refresh every ~30 ticks max, not every second.
@@ -3181,9 +3184,17 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 static_snap = _static
             # Fresh COSMIC tokens every poll (mtime-cached — free when unchanged).
-            cosmic_theme = get_cosmic_theme()
+            try:
+                pack = get_cosmic_theme_pack()
+            except Exception:
+                pack = {"auto": get_cosmic_theme(), "dark": None, "light": None}
+            cosmic_theme = pack["auto"]
             if static_snap is not None:
                 static_snap["cosmic_theme"] = cosmic_theme
+                if pack.get("dark"):
+                    static_snap["cosmic_theme_dark"] = pack["dark"]
+                if pack.get("light"):
+                    static_snap["cosmic_theme_light"] = pack["light"]
             samp = sampler_status()
             if bootstrap:
                 body = {

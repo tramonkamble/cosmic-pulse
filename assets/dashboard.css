@@ -115,6 +115,48 @@
       --label-tracking: 0.05em;
       --line-soft: color-mix(in srgb, var(--line) 72%, transparent);
       --inset-fill: rgba(0, 0, 0, 0.14);
+      --well: rgba(0, 0, 0, 0.22);
+      --well-strong: rgba(0, 0, 0, 0.32);
+      --code-bg: #12141a;
+    }
+    body.theme-light {
+      color-scheme: light;
+      --shadow: 0 8px 28px rgba(15, 23, 42, 0.10);
+      --surface-shine: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      --surface-shine-strong: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      --inset-fill: rgba(15, 23, 42, 0.06);
+      --well: rgba(15, 23, 42, 0.07);
+      --well-strong: rgba(15, 23, 42, 0.12);
+      --code-bg: #e7ebf2;
+      --m-cpu: #0369a1;
+      --m-cpu-deep: #075985;
+      --m-gpu: #6d28d9;
+      --m-gpu-deep: #5b21b6;
+      --m-mem: #047857;
+      --m-mem-deep: #065f46;
+      --m-disk: #b45309;
+      --m-stutter: #a21caf;
+      --m-game: #be185d;
+    }
+    body.theme-light .sum-meter,
+    body.theme-light .metric-bar-track,
+    body.theme-light .rank-bar,
+    body.theme-light .core-strip-cell,
+    body.theme-light .core-bar {
+      background: var(--well-strong);
+      border-color: color-mix(in srgb, var(--text) 12%, transparent);
+    }
+    body.theme-light .diag-pre,
+    body.theme-light .cmd-box,
+    body.theme-light code {
+      background: var(--code-bg);
+      color: var(--text);
+    }
+    body.theme-light .bl-item,
+    body.theme-light .warn-row,
+    body.theme-light .guidance-index,
+    body.theme-light .guidance-detail {
+      color: var(--text);
     }
     * { box-sizing: border-box; }
     button { font-family: inherit; color: inherit; }
@@ -2160,7 +2202,7 @@
         var(--panel-elevated);
     }
     .sum-detail { font-size: .88rem; color: var(--text-secondary); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sum-meter { height: 6px; background: rgba(0,0,0,.35); border-radius: 99px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
+    .sum-meter { height: 6px; background: var(--well-strong); border-radius: 99px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); }
     .sum-meter > span {
       display: block; height: 100%; border-radius: 99px; min-width: 2px;
       transition: width var(--meter-ease);
@@ -4309,7 +4351,7 @@
     }
     .theme-mode-list {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: .35rem;
     }
     body.ui-wrap-tight .theme-mode-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -5054,7 +5096,7 @@
       width: 5.4rem;
       height: 5.4rem;
       border-radius: 50%;
-      background: rgba(0, 0, 0, .22);
+      background: var(--well);
       pointer-events: none;
     }
     /* Family colors: same hue family, distinct shade per dial */

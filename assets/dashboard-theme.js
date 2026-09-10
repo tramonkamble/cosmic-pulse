@@ -154,11 +154,16 @@
     /* ── Theme chrome (non-metric). Metrics stay on METRIC / --m-* ─────── */
     const THEME_MODE_DEFAULT = 'cosmic';
     const THEME_MODE_LABELS = {
-      cosmic: 'Cosmic (auto)',
+      cosmic: 'Cosmic (desktop)',
+      'cosmic-dark': 'Cosmic Dark',
+      'cosmic-light': 'Cosmic Light',
       system: 'System',
-      dark: 'Dark',
-      light: 'Light',
+      dark: 'Pulse Dark',
+      light: 'Pulse Light',
     };
+    const THEME_MODE_ALLOWED = [
+      'cosmic', 'cosmic-dark', 'cosmic-light', 'system', 'dark', 'light',
+    ];
     /** Built-in chrome packs — deliberately separate from metric families. */
     const CHROME_DARK = {
       available: true,
@@ -194,27 +199,27 @@
       is_dark: false,
       is_frosted: false,
       palette: 'pulse-light',
-      accent: '#7c3aed',
-      accent_hover: '#6d28d9',
-      accent_soft: 'rgba(124, 58, 237, 0.12)',
+      accent: '#6d28d9',
+      accent_hover: '#5b21b6',
+      accent_soft: 'rgba(109, 40, 217, 0.12)',
       accent_on: '#ffffff',
-      bg: '#eef1f6',
-      panel: 'rgba(255, 255, 255, 0.92)',
+      bg: '#e6ebf3',
+      panel: '#ffffff',
       panel_solid: '#ffffff',
-      panel_elevated: '#f7f8fb',
-      panel_hover: '#eef0f5',
-      text: '#1c2330',
-      text_secondary: '#3d4658',
-      muted: '#6b7385',
-      line: 'rgba(28, 35, 48, 0.12)',
-      blue: '#0284c7',
-      purple: '#7c3aed',
-      green: '#059669',
-      orange: '#d97706',
-      amber: '#ca8a04',
-      hot: '#dc2626',
-      ok: '#059669',
-      glass: 'rgba(255, 255, 255, 0.88)',
+      panel_elevated: '#f4f6fb',
+      panel_hover: '#eef1f7',
+      text: '#111827',
+      text_secondary: '#374151',
+      muted: '#4b5563',
+      line: 'rgba(17, 24, 39, 0.14)',
+      blue: '#0369a1',
+      purple: '#6d28d9',
+      green: '#047857',
+      orange: '#b45309',
+      amber: '#a16207',
+      hot: '#b91c1c',
+      ok: '#047857',
+      glass: 'rgba(255, 255, 255, 0.92)',
       radius: 8,
       radius_lg: 16,
     };
@@ -249,10 +254,14 @@
 
     function resolveChromeTokens(mode, cosmic) {
       const m = mode || THEME_MODE_DEFAULT;
+      const darkPack = lastStatic?.cosmic_theme_dark;
+      const lightPack = lastStatic?.cosmic_theme_light;
       if (m === 'cosmic') {
         if (cosmic?.available) return cosmic;
         return CHROME_DARK;
       }
+      if (m === 'cosmic-dark') return darkPack?.available ? darkPack : CHROME_DARK;
+      if (m === 'cosmic-light') return lightPack?.available ? lightPack : CHROME_LIGHT;
       if (m === 'system') return prefersDarkSystem() ? CHROME_DARK : CHROME_LIGHT;
       if (m === 'light') return CHROME_LIGHT;
       return CHROME_DARK;
@@ -329,6 +338,9 @@
       document.body.classList.toggle('cosmic-frosted', !!t.is_frosted);
       document.body.classList.toggle('theme-light', t.is_dark === false);
       document.body.classList.toggle('theme-dark', t.is_dark !== false);
+      if (typeof applyChartChrome === 'function') {
+        try { applyChartChrome(); } catch (_) { /* charts script may not be loaded yet */ }
+      }
       const themeMeta = document.querySelector('meta[name="theme-color"]');
       if (themeMeta && (t.bg || t['bg-color'])) themeMeta.content = t.bg || t['bg-color'];
       // Metrics intentionally unchanged — chrome only.
@@ -396,6 +408,13 @@
         } else {
           el.innerHTML = 'Cosmic theme <strong>not detected</strong> — using Pulse dark chrome.';
         }
+      } else if (themeMode === 'cosmic-dark' || themeMode === 'cosmic-light') {
+        const pack = themeMode === 'cosmic-light'
+          ? lastStatic?.cosmic_theme_light
+          : lastStatic?.cosmic_theme_dark;
+        const name = pack?.palette || (themeMode === 'cosmic-light' ? 'cosmic-light' : 'cosmic-dark');
+        const src = pack?.available ? 'Pop COSMIC pack' : 'Pulse fallback';
+        el.innerHTML = `<strong>${THEME_MODE_LABELS[themeMode]}</strong> · ${name} · ${src}`;
       } else if (themeMode === 'system') {
         el.innerHTML = `Browser preference: <strong>${prefersDarkSystem() ? 'dark' : 'light'}</strong>`;
       } else {
@@ -428,8 +447,7 @@
     }
 
     async function setThemeMode(mode, { silent = false } = {}) {
-      const allowed = ['cosmic', 'system', 'dark', 'light'];
-      if (!allowed.includes(mode)) return;
+      if (!THEME_MODE_ALLOWED.includes(mode)) return;
       themeMode = mode;
       themePreviewMode = null;
       syncThemeModeUi();

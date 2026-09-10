@@ -30,8 +30,8 @@ UI_SCALE_STEP = 0.05
 TUNING_LOG_PRESETS = [24, 48, 96, 200]
 TUNING_LOG_MIN = 8
 TUNING_LOG_MAX_CAP = 500
-# cosmic = desktop tokens; system = prefers-color-scheme; dark/light = forced chrome
-THEME_MODES = ("cosmic", "system", "dark", "light")
+# cosmic = follow desktop; cosmic-dark/light = COSMIC packs; dark/light = Pulse chrome
+THEME_MODES = ("cosmic", "cosmic-dark", "cosmic-light", "system", "dark", "light")
 BYTES_PER_SAMPLE_EST = 200
 SAMPLES_PER_DAY = 86400
 

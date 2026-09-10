@@ -10,10 +10,11 @@ import threading
 from pathlib import Path
 
 COSMIC_ROOT = Path.home() / ".config/cosmic"
+SHARE_ROOT = Path("/usr/share/cosmic")
 
 # mtime-based cache: re-parse only when COSMIC theme files change (light/dark flip, accent, …)
 _LAST_MTIME: float = 0.0
-_THEME_CACHE: dict = {}
+_THEME_CACHE: dict[str, dict] = {}
 _THEME_LOCK = threading.RLock()
 
 # Hardcoded fallback when not on Pop/COSMIC (or config missing).
@@ -48,6 +49,40 @@ _FALLBACK_THEME: dict = {
     "radius_lg": 16,
     "space_m": 24,
     "chart": {"accent": "#e95420", "hot": "#fd9fa0", "warn": "#f7e062"},
+    "mtime": 0.0,
+}
+
+_FALLBACK_THEME_LIGHT: dict = {
+    "available": False,
+    "is_dark": False,
+    "is_frosted": False,
+    "palette": "pulse-fallback-light",
+    "accent": "#7c3aed",
+    "accent_hover": "#6d28d9",
+    "accent_soft": "rgba(124, 58, 237, 0.12)",
+    "accent_on": "#ffffff",
+    "bg": "#e6ebf3",
+    "panel": "#ffffff",
+    "panel_solid": "#ffffff",
+    "panel_elevated": "#f4f6fb",
+    "panel_hover": "#eef1f7",
+    "text": "#111827",
+    "text_secondary": "#374151",
+    "muted": "#4b5563",
+    "line": "rgba(17, 24, 39, 0.14)",
+    "divider": "rgba(17, 24, 39, 0.12)",
+    "blue": "#0369a1",
+    "purple": "#6d28d9",
+    "green": "#047857",
+    "orange": "#b45309",
+    "hot": "#b91c1c",
+    "amber": "#a16207",
+    "ok": "#047857",
+    "glass": "rgba(255, 255, 255, 0.92)",
+    "radius": 8,
+    "radius_lg": 16,
+    "space_m": 24,
+    "chart": {"accent": "#7c3aed", "hot": "#b91c1c", "warn": "#a16207"},
     "mtime": 0.0,
 }
 
@@ -162,23 +197,41 @@ def _palette_color(text: str, key: str) -> str | None:
     return _pick_color(text, key)
 
 
-def load_cosmic_theme() -> dict:
-    """Return CSS-ready COSMIC theme tokens, or fallback when not available."""
+def _theme_base(theme_name: str) -> Path | None:
+    """Prefer ~/.config/cosmic, then /usr/share/cosmic, when token files exist."""
+    for root in (COSMIC_ROOT, SHARE_ROOT):
+        base = root / f"com.system76.CosmicTheme.{theme_name}" / "v1"
+        if (base / "background").is_file() and (base / "palette").is_file():
+            return base
+    return None
+
+
+def load_cosmic_theme(*, force: str | None = None) -> dict:
+    """Return CSS-ready COSMIC theme tokens, or fallback when not available.
+
+    ``force`` is ``dark``, ``light``, or None (follow the desktop Mode file).
+    """
+    want_light = force == "light"
+    want_dark = force == "dark"
+    fallback = dict(_FALLBACK_THEME_LIGHT if want_light else _FALLBACK_THEME)
     if not COSMIC_ROOT.is_dir():
-        out = dict(_FALLBACK_THEME)
-        out["mtime"] = 0.0
-        return out
+        fallback["mtime"] = 0.0
+        return fallback
 
     mode_dir = COSMIC_ROOT / "com.system76.CosmicTheme.Mode" / "v1"
-    is_dark = (
-        _parse_bool(_read_text(mode_dir / "is_dark")) if (mode_dir / "is_dark").exists() else True
-    )
+    if want_light:
+        is_dark = False
+    elif want_dark:
+        is_dark = True
+    else:
+        is_dark = (
+            _parse_bool(_read_text(mode_dir / "is_dark")) if (mode_dir / "is_dark").exists() else True
+        )
     theme_name = "Dark" if is_dark else "Light"
-    base = COSMIC_ROOT / f"com.system76.CosmicTheme.{theme_name}" / "v1"
-    if not base.is_dir():
-        out = dict(_FALLBACK_THEME)
-        out["mtime"] = _theme_config_mtime()
-        return out
+    base = _theme_base(theme_name)
+    if base is None:
+        fallback["mtime"] = _theme_config_mtime()
+        return fallback
 
     accent_txt = _read_text(base / "accent")
     bg_txt = _read_text(base / "background")
@@ -254,7 +307,12 @@ def load_cosmic_theme() -> dict:
         "panel_hover": panel_hover,
         "text": text,
         "text_secondary": _pick_color(primary_txt, "on") or text,
-        "muted": _palette_color(palette_txt, "neutral_7") or "#ababab",
+        "muted": (
+            _palette_color(palette_txt, "neutral_5")
+            if not is_dark
+            else _palette_color(palette_txt, "neutral_7")
+        )
+        or ("#4b5563" if not is_dark else "#ababab"),
         "line": comp_divider,
         "divider": divider,
         "blue": blue,
@@ -282,32 +340,46 @@ def load_cosmic_theme() -> dict:
     }
 
 
-def get_cosmic_theme(ttl_sec: float = 8.0) -> dict:
+def get_cosmic_theme(ttl_sec: float = 8.0, *, force: str | None = None) -> dict:
     """Return COSMIC tokens, reloading only when config files' mtime advances.
 
-    ``ttl_sec`` is retained for call-site compatibility but **mtime wins**: if the
-    desktop theme files change, we re-parse immediately (no multi-second desync).
+    ``force`` is ``dark``, ``light``, or None (desktop Mode). ``ttl_sec`` is
+    retained for call-site compatibility but **mtime wins**.
     """
     global _LAST_MTIME, _THEME_CACHE
     _ = ttl_sec  # legacy arg
+    key = (force or "auto").lower()
+    if key not in ("auto", "dark", "light"):
+        key = "auto"
     try:
         mtime = _theme_config_mtime()
     except OSError:
         mtime = 0.0
 
     with _THEME_LOCK:
-        if _THEME_CACHE and mtime == _LAST_MTIME and mtime > 0:
-            return _THEME_CACHE
+        if mtime != _LAST_MTIME:
+            _THEME_CACHE = {}
+        cached = _THEME_CACHE.get(key)
+        if cached and mtime == _LAST_MTIME and mtime > 0:
+            return cached
 
         try:
-            theme = load_cosmic_theme()
+            theme = load_cosmic_theme(force=None if key == "auto" else key)
         except OSError:
-            theme = dict(_FALLBACK_THEME)
+            theme = dict(_FALLBACK_THEME_LIGHT if key == "light" else _FALLBACK_THEME)
             theme["mtime"] = mtime
 
-        # Ensure mtime stamp on every payload (including fallback)
         if "mtime" not in theme or theme.get("mtime") is None:
             theme["mtime"] = mtime
         _LAST_MTIME = float(theme.get("mtime") or mtime or 0.0)
-        _THEME_CACHE = theme
+        _THEME_CACHE[key] = theme
         return theme
+
+
+def get_cosmic_theme_pack() -> dict[str, dict]:
+    """Desktop-follow plus explicit Dark/Light packs for Options."""
+    return {
+        "auto": get_cosmic_theme(),
+        "dark": get_cosmic_theme(force="dark"),
+        "light": get_cosmic_theme(force="light"),
+    }

@@ -158,8 +158,35 @@
     };
     let lastWarningsHints = [];
 
-    const gridColor = 'rgba(255,255,255,.06)';
-    const tickColor = '#9aa3b2';
+    let gridColor = 'rgba(255,255,255,.06)';
+    let tickColor = '#9aa3b2';
+
+    function chartGridColor() {
+      return document.body.classList.contains('theme-light')
+        ? 'rgba(17, 24, 39, 0.10)'
+        : 'rgba(255,255,255,.06)';
+    }
+    function chartTickColor() {
+      return document.body.classList.contains('theme-light')
+        ? '#4b5563'
+        : '#9aa3b2';
+    }
+    function applyChartChrome() {
+      gridColor = chartGridColor();
+      tickColor = chartTickColor();
+      const charts = (typeof ALL_PULSE_CHARTS !== 'undefined') ? ALL_PULSE_CHARTS : [];
+      charts.forEach((ch) => {
+        if (!ch?.options?.scales) return;
+        Object.values(ch.options.scales).forEach((sc) => {
+          if (!sc) return;
+          if (sc.ticks) sc.ticks.color = tickColor;
+          if (sc.grid) sc.grid.color = gridColor;
+        });
+        const lab = ch.options?.plugins?.legend?.labels;
+        if (lab) lab.color = tickColor;
+        try { if (!chartInteractActive) ch.update('none'); } catch (_) { /* */ }
+      });
+    }
 
     /* —— Chart pause / drag-zoom (all Chart.js graphs) —— */
     let chartsPaused = false;
@@ -661,6 +688,7 @@
     ALL_PULSE_CHARTS.forEach(c => {
       if (c) c.options.devicePixelRatio = CHART_DPR;
     });
+    applyChartChrome();
 
     function syncChartControlUI() {
       const paused = chartsPaused || chartZoomed;

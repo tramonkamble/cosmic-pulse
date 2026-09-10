@@ -47,6 +47,16 @@ def test_cpu_temp_max_clamped_and_saved():
     _with_tmp_config(inner)
 
 
+def test_theme_mode_accepts_cosmic_packs():
+    def inner(_tmp):
+        for mode in ("cosmic", "cosmic-dark", "cosmic-light", "dark", "light", "system"):
+            cfg = pc.save_config(theme_mode=mode)
+            assert cfg["theme_mode"] == mode
+        bad = pc.save_config(theme_mode="neon")
+        assert bad["theme_mode"] == "cosmic"
+    _with_tmp_config(inner)
+
+
 def test_temp_min_stays_below_max():
     def inner(_tmp):
         cfg = pc.save_config(hw_scales={"cpu_temp_max_c": 60, "cpu_temp_min_c": 55})
@@ -58,6 +68,7 @@ def test_temp_min_stays_below_max():
 def run_all() -> None:
     test_defaults_include_cpu_temp_max()
     test_cpu_temp_max_clamped_and_saved()
+    test_theme_mode_accepts_cosmic_packs()
     test_temp_min_stays_below_max()
     print("test_hw_scales: ok")
 
