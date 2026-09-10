@@ -949,6 +949,12 @@
       border: 1px solid var(--line-soft);
       display: block; width: 100%;
     }
+    .guidance-detail .rec-step-do {
+      font-size: 0.88rem; color: var(--text-secondary);
+      padding: 0;
+      background: none;
+      border: none;
+    }
     .guidance-detail .rec-step .copy-btn {
       align-self: center;
       background: color-mix(in srgb, var(--accent) 16%, transparent);
@@ -1293,6 +1299,10 @@
       grid-column: 1; font-size: .82rem; color: var(--blue); word-break: break-all;
       font-family: ui-monospace, monospace; line-height: 1.45;
     }
+    .rec-step-do {
+      grid-column: 1; font-size: .88rem; color: var(--text-secondary); line-height: 1.45;
+    }
+    .rec-step-manual { grid-template-columns: 1fr; }
     .rec-step-note { grid-column: 1; font-size: .85rem; color: var(--muted); line-height: 1.4; }
     .rec-step .copy-btn { grid-column: 2; grid-row: 1 / span 3; align-self: start; }
     .copy-btn {
@@ -13346,6 +13356,18 @@
       return (list || []).find(h => h.insight_id === iid);
     }
 
+    /** Shell / Steam launch lines are copyable. Notes and in-game UI steps are not commands. */
+    function actionKind(a) {
+      return String(a?.kind || (a?.cmd ? 'cmd' : 'note')).toLowerCase();
+    }
+    function actionIsCopyable(a) {
+      const k = actionKind(a);
+      return !!(a?.cmd && (k === 'cmd' || k === 'steam'));
+    }
+    function actionIsShell(a) {
+      return !!(a?.cmd && actionKind(a) === 'cmd');
+    }
+
     function recCardHtml(h, idPrefix = '', rank = 0) {
       const isDetail = idPrefix === 'detail-';
       const lv = h.level || 'info';
@@ -13373,16 +13395,22 @@
         : '';
       const headActions = `${markFixedBtn}${ignoreBtn}${reopenBtn}`;
       const actions = h.actions || [];
-      const hasCmd = actions.some(a => a?.cmd);
-      const steps = actions.map((a, ai) => `
-        <div class="rec-step">
+      const hasShell = actions.some(actionIsShell);
+      const steps = actions.map((a, ai) => {
+        const copyable = actionIsCopyable(a);
+        const body = a.cmd
+          ? (copyable ? `<code>${esc(a.cmd)}</code>` : `<div class="rec-step-do">${esc(a.cmd)}</div>`)
+          : '';
+        return `
+        <div class="rec-step${copyable ? '' : ' rec-step-manual'}">
           <div class="rec-step-label">${esc(a.label)}</div>
-          ${a.cmd ? `<code>${esc(a.cmd)}</code>` : ''}
+          ${body}
           ${a.note ? `<div class="rec-step-note">${esc(a.note)}</div>` : ''}
-          ${a.cmd ? `<button class="copy-btn" type="button" data-iid="${esc(sid)}" data-a="${ai}">Copy</button>` : ''}
-        </div>`).join('');
+          ${copyable ? `<button class="copy-btn" type="button" data-iid="${esc(sid)}" data-a="${ai}">Copy</button>` : ''}
+        </div>`;
+      }).join('');
       const stepCount = actions.length;
-      const riskNote = hasCmd
+      const riskNote = hasShell
         ? `<p class="fix-risk-warn">Review each command before pasting into a terminal.</p>`
         : '';
       const stepsBlock = steps ? (isDetail ? `
@@ -13430,7 +13458,7 @@
       el.querySelectorAll('.copy-btn[data-iid]').forEach(btn => {
         const h = hintById(list, btn.dataset.iid);
         const a = h?.actions?.[+btn.dataset.a];
-        if (a?.cmd) btn.onclick = () => copyText(a.cmd, btn);
+        if (actionIsCopyable(a)) btn.onclick = () => copyText(a.cmd, btn);
       });
       el.querySelectorAll('.copy-btn').forEach(btn => {
         btn.addEventListener('click', e => e.stopPropagation());

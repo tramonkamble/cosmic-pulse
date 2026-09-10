@@ -21,7 +21,7 @@ rules:
     actions:
       - label: Monitor OSD
         kind: note
-        cmd: Enable HDR / HDR10 in the monitor's on-screen menu if present
+        note: Enable HDR / HDR10 in the monitor's on-screen menu if present
       - label: Install gamescope (per-game HDR)
         kind: cmd
         cmd: sudo apt install gamescope

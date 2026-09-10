@@ -243,6 +243,7 @@ def test_display_hdr_off_rule_fires_when_capable_and_sdr():
     }
     snap = _snap()
     ctx = {"governor": "performance", "swappiness": 10}
+    reload_packs()
     with (
         _force_pop(),
         patch.object(hardware_probe, "primary_display_hdr", lambda max_age_sec=30.0: hdr),
@@ -255,6 +256,10 @@ def test_display_hdr_off_rule_fires_when_capable_and_sdr():
     assert hit.get("actions")
     assert "fix_script" not in hit
     assert "HDR" in hit["title"] or "HDR" in hit["text"]
+    first = hit["actions"][0]
+    assert first.get("kind") == "note"
+    assert not (first.get("cmd") or "").strip()
+    assert "on-screen" in (first.get("note") or "").lower() or "osd" in (first.get("label") or "").lower()
 
 
 def test_display_hdr_off_rule_skips_when_active():
