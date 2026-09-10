@@ -1,21 +1,22 @@
 # Code review guide
 
-Thanks for reviewing Cosmic Pulse. This doc is written for a technical reviewer (e.g. a sibling or colleague) before the project is published publicly.
+Thanks for reviewing Cosmic Pulse. Start with [AGENTS.md](../AGENTS.md) and [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## What you're looking at
 
 Cosmic Pulse is a **single-user, local-only** Python HTTP server that samples system metrics at 1 Hz and serves a single-page dashboard. There is no auth layer. It binds to `127.0.0.1` by default; `--lan` / `PULSE_LAN=1` listens on all interfaces for a second monitor.
 
-**Stack:** Python 3 stdlib + `psutil` + one HTML file. Chart.js loaded from CDN. SQLite for optional history.
+**Stack:** Python 3 stdlib + `psutil` + `PyYAML` + one HTML file. Chart.js is vendored in `assets/vendor/` (no CDN). SQLite for optional history.
 
 ## How to run
 
 ```bash
-cd pulse
+cd cosmic-pulse
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python3 server.py
-# → http://localhost:8765
+# → http://127.0.0.1:8765
+python3 tests/harness.py
 ```
 
 No build step. UI changes are in `index.html`; restart the server after Python edits.

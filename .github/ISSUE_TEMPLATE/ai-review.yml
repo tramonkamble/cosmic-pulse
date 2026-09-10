@@ -1,0 +1,36 @@
+name: AI review finding
+description: Structured bug or improvement from Claude, Gemini, Codex, or another agent
+title: "[review] "
+labels: ["review"]
+body:
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options: [critical, high, medium, low, nit]
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: File (and line if you have it)
+      placeholder: server.py:214
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: Finding
+      description: What is wrong, why it matters, and a concrete fix. Cite file:line.
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: Test gap
+      placeholder: Which harness or unit test would catch this? None is ok.
+  - type: input
+    id: agent
+    attributes:
+      label: Agent / model (optional)
+      placeholder: Claude Opus, Gemini, GPT-5, …

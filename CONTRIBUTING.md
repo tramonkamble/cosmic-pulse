@@ -1,73 +1,56 @@
-# Contributing / git workflow
+# Contributing
 
-Cosmic Pulse uses standard local git practices. Remote (GitHub/GitLab) can be added later; the habits are the same.
+Clone: https://github.com/tramonkamble/cosmic-pulse
+
+Coding agents should read [AGENTS.md](AGENTS.md) first (Claude: [CLAUDE.md](CLAUDE.md); Gemini: [GEMINI.md](GEMINI.md)).
 
 ## Principles
 
-1. **Commit source, not runtime** — only tracked project files; DB, caches, and logs stay in `.gitignore`.
-2. **One logical change per commit** — a feature, fix, or doc update; not a mixed bag of unrelated edits.
-3. **Conventional Commits** — message format:
+1. **Commit source, not runtime** — DB, caches, and logs stay in `.gitignore`.
+2. **One logical change per commit.**
+3. **Conventional Commits:** `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `style:`, `perf:`.
+4. User-visible work gets a bullet under `CHANGELOG.md` → `[Unreleased]`.
+5. **`main` stays runnable.**
 
-   ```
-   <type>: <short summary>
-
-   Optional body explaining why, not just what.
-   ```
-
-   Types: `feat`, `fix`, `docs`, `refactor`, `chore`, `style` (UI-only), `perf`.
-
-4. **Changelog stays in sync** — user-visible work gets a bullet under `CHANGELOG.md` → `[Unreleased]` before or with the commit.
-5. **Clean working tree** — finish a task with `git status` clean (or WIP on a branch, not half-applied on `main`).
-6. **`main` is always runnable** — each commit should leave Cosmic Pulse in a working state.
-
-## Lint & format
-
-Before committing Python changes:
+## Lint & tests
 
 ```bash
-cd pulse   # your clone directory
+cd cosmic-pulse
 ruff check . --fix
 ruff format .
-python3 tests/harness.py          # product smoketest (no pytest)
-python3 tests/test_*.py           # or: pytest tests/ if installed
+python3 tests/harness.py          # product smoke (no pytest)
+python3 tests/test_stutter.py     # or: pytest tests/ if installed
 ```
 
-Ruff config lives in `pyproject.toml`. Install: `snap install ruff` or `pip install ruff`.
+Ruff config is in `pyproject.toml`.
 
 ## Typical flow
 
 ```bash
-cd pulse   # your clone directory
-
-# edit files …
-# ruff check . --fix && ruff format .
-# update CHANGELOG.md [Unreleased] …
+# edit …
+# ruff + harness …
+# CHANGELOG.md [Unreleased] if users will notice
 
 git add <files>
-git commit -m "feat: describe the change"
-
-# if UI or server changed:
-systemctl --user restart pulse   # service name unchanged
+git commit -m "fix: describe the change"
 ```
+
+Restart after Python edits: `systemctl --user restart cosmic-pulse` or re-run `python3 server.py`. Hard-refresh the browser after `index.html` changes. If you touched Live lab, check Snapshot, Pulse Index, and Stutter.
 
 ## Branches
 
-- **`main`** — default; day-to-day work is fine here while the repo is solo/local.
-- **`feat/…` / `fix/…`** — use for larger or risky changes that span multiple sessions.
+- **`main`** — default shipping UI + server.
+- **`feat/…` / `fix/…`** — larger or risky work.
 
 ## What not to commit
 
 - `pulse.db`, `pulse.db-wal`, `pulse.db-shm`
 - `.pulse_config.json`, `.tuning_log.json`, `.memory_cache.json`
 - `backups/`, `__pycache__/`, `.ruff_cache/`
-- Machine-specific paths in `~/.config/systemd/user/pulse.service` (use `deploy/pulse.service` template in repo)
+- Machine-specific systemd drop-ins (use `deploy/cosmic-pulse.service`)
 
-Ship `.pulse_config.example.json` instead of a real config. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for what each local file does.
+Ship `.pulse_config.example.json` instead of a real config. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Publishing later
+## AI reviews
 
-```bash
-git config user.email "you@example.com"
-git remote add origin https://github.com/tramonkamble/cosmic-pulse.git
-git push -u origin main
-```
+Paste findings into a GitHub issue with the **AI review finding** template (`file:line`, severity, suggested fix). Do not open a PR that rewrites `index.html` unless the issue asks for that.

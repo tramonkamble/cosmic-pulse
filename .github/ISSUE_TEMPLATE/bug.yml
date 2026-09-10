@@ -1,0 +1,34 @@
+name: Bug
+description: Something in Cosmic Pulse is wrong or missing
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. Pulse is local Linux — include distro, DE, and GPU when you can.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      placeholder: Expected vs actual. Tab (Dashboard / Guidance / Options) and Live lab tab if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. python3 server.py / cosmic-pulse --service …
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "Pop!_OS 24.04, KDE, RX 7900 XTX, Pulse git abc1234"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: `journalctl --user -u cosmic-pulse -n 50` or the terminal running `server.py`.
+      render: shell

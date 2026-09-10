@@ -1,13 +1,11 @@
 # Publish checklist
 
-Goal: **review-ready repo this week**, public GitHub/GitLab after brother's feedback.
+Goal: **public GitHub** so people and other coding agents can hunt bugs and send PRs.
 
 ## Ship blockers (0.1)
 
-Both required. **No 0.1 tag until every box is checked.**
-
-- [x] **Builtin rules cleanup** — two packs of five: `pulse-core` + `popos-core`. Engine + pack loader stay; **community** owns richer game packs. Heroic/etc. is post-0.1. Backlog: `rules-minimal-for-0.1`. See `AGENTS.md` § 0.1 ship gates.
-- [ ] **Daddy UI sign-off** — owner (daddy) is happy with the dashboard UI for a first public build. Closer after hierarchy/Live lab/colors, but not done until he says so. Agents do not self-declare “UI shipped.” Backlog: `ui-daddy-signoff-for-0.1`.
+- [x] **Builtin rules cleanup** — two packs of five: `pulse-core` + `popos-core`. Community owns richer packs.
+- [x] **First public push** — maintainer asked to publish for community + AI review (UI still iterating).
 
 ## This week — review prep
 
@@ -23,18 +21,21 @@ Both required. **No 0.1 tag until every box is checked.**
 - [x] `.pulse_config.example.json` — template for local settings
 - [x] Inline comments on Guidance render path (`index.html`) and `update_tuning_history`
 - [x] `install.sh` + `docs/INSTALL.md` + `deploy/build-deb.sh` (.deb)
-- [ ] **Brother code review** — feedback captured (issues or doc)
-- [ ] Address blocker / should-fix items from review
+- [x] Agent map — `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`
+- [x] Issue templates (bug + AI review)
+- [x] Current dashboard screenshot
+- [ ] `gh auth login` and `git push -u origin main` (needs GitHub credentials on this machine)
+- [ ] Confirm the GitHub repo is **public**
 
 ## Before public publish
 
 - [x] Create GitHub repo — https://github.com/tramonkamble/cosmic-pulse
-- [ ] Set git `user.email` to real address for attribution
-- [x] `git remote add origin` && `git push -u origin main`
+- [ ] Set git `user.email` to a real or GitHub-noreply address
+- [ ] `git push -u origin main` from a logged-in `gh` / SSH key
 - [x] README: clone URL points at GitHub
-- [ ] Optional: second screenshot (Fixes tab, league drill-down)
-- [x] Optional: `127.0.0.1` bind default + `--lan` flag (if review suggests)
-- [ ] Optional: GitHub Issues templates
+- [x] Snapshot vitals screenshot
+- [x] `127.0.0.1` bind default + `--lan` flag
+- [x] GitHub Issues templates
 
 ## After publish (System76 / community)
 

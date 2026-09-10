@@ -14,6 +14,21 @@ build/
 
 # Local review notes (not shipped)
 reviews_*-ux-review.md
+reviews_gemini-review.md
+PULSE_AGENTS.md
+PULSE_REVIEW.md
+RULE_PACKS_SUMMARY.md
+5-HOUR_*.md
+BUG_*.md
+BugHunt*.md
+UI_BUG_*.md
+UI_FIX*.md
+UI_REVIEW*.md
+UI_SPECIFIC_BUGS.md
+VERIFICATION_*.md
+docs/reviews/
+deploy/ab/
+assets/brand/placeholders/
 
 # Editor / OS
 *.swp

@@ -8,6 +8,7 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **GitHub-ready docs** — `AGENTS.md` for coding agents, issue templates, `SECURITY.md`, current dashboard screenshots.
 - **Host identity for other gaming PCs** — first-class desktop badges for KDE, GNOME, COSMIC, Cinnamon, XFCE, Hyprland, and Gamescope (Steam Deck session). NVIDIA proprietary driver badge + 1 Hz `nvidia-smi` meters; Mesa stays the AMD/Intel userspace badge. Rule packs see `platform.is_kde` / `is_nvidia` / `gpu.driver` / `gpu.stack`. RAM DMI maps Corsair, Kingston, Crucial, TeamGroup, and other common brands; DDR4 kits no longer labeled DDR5.
 - **Hardware scales** — Options sliders for CPU/GPU graph °C and watt-dial ceilings, persisted in `.pulse_config.json`.
 - **Product harness** — `python3 tests/harness.py` smokes sampler, metrics shape, Guidance pack (incl. RAPL), dashboard HTML, game-sessions, store, and read-only APIs.
@@ -27,7 +28,8 @@ Dates use the machine local timezone (EDT unless noted).
 - **UI draw cost** — Chart.js only redraws canvases that are on screen; closed Charts/Sensors/Compute drills skip their 1 Hz work. Live spark draws the visible window (not the full hour ring). Opening a tile no longer resizes every hidden chart. Background tabs keep sampling without painting.
 - **Wide layout** — dashboard max width 2400px; CPU/Mem/GPU/VRAM chips cap instead of stretching into slabs; chip sparks stay 0–100% (steady RAM no longer paints the whole card). Load bar sits under the spark, not through it. Live lab gives more of the extra width to the graph.
 - **Lab tools grid** — Warnings / Sensors / Charts / etc. sit as a COSMIC-style tile dock; opening one expands a sheet above the grid (not a stacked accordion). Tile titles wrap (no ellipsis clip); Sessions / Drives labels fit a normal dock width.
-- **Live lab vitals** — right-side dials fill the Live lab column (tall tiles, rings scale with the chart). CPU / GPU / memory / storage stay in-family but each dial has its own shade. Dropped idle storage R/W and opaque bus GB/s.
+- **Live lab vitals** — Snapshot clocks/thermals/power/pressure sit as three rings per row; group labels sit beside the trio so rings use the row height. Circular wells, not wide tiles.
+- **Live lab dock** — Warnings / Sensors / Charts / etc. stay equal-height tiles when collapsed.
 - **Dashboard density** — one glance row, chip sparklines, compact header/rig tiles; idle game strip and duplicate load/sensor chrome stay off the main screen.
 
 ### Fixed

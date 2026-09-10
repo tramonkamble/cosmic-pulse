@@ -1,84 +1,65 @@
-# Cosmic Pulse — terminal agent map
+# Cosmic Pulse — notes for coding agents
 
-Entry: **server.py** (HTTP) + **index.html** (UI). No app.py.
+This is **Cosmic Pulse**, a local Python dashboard for Linux gaming performance.
+There is **no** `app.py`, Flask, or Django.
 
-## UI branches (beta experiments)
+Use this file if you are Claude, Gemini, Codex, Cursor, Grok, or any other assistant
+working in this repo. Keep diffs small. Run tests. Do not rewrite `index.html` from scratch.
 
-**`main` ships the stable UI.** Alternate UIs live on branches only (not parallel `index-*.html` folders) so the API/server stay shared.
+## Layout
 
-| Branch | Role |
-|--------|------|
-| `main` | Stable / shipping dashboard UI |
-| `beta/ui-*` | Experimental frontends (same `index.html`, different design) |
+| What | Path |
+|------|------|
+| HTTP server + sampler | `server.py` |
+| Dashboard UI | `index.html` (one file: HTML/CSS/JS) |
+| Hitch / stutter proxy | `stutter.py` |
+| SQLite history | `store.py` |
+| Steam / Proton | `games.py`, `game_performance.py` |
+| GPU sysfs / NVIDIA | `gpu_metrics.py`, `gpu_thermal.py`, `hardware_probe.py` |
+| Guidance rules | `rule_packs.py`, `rules/builtin/` |
+| Config / data dirs | `pulse_config.py`, `paths.py` |
+| Tests | `tests/harness.py` plus `tests/test_*.py` |
 
-Current beta: **`beta/ui-noc`** — space-first dashboard (dedupe the main screen, Live lab fills the viewport). Diff is **`index.html` only** vs `main`.
+Run locally:
 
 ```bash
-# daily / release work
-git checkout main
-
-# continue a beta UI
-git checkout beta/ui-noc
-
-# new experiment from stable
-git checkout main && git checkout -b beta/ui-<name>
+python3 server.py          # http://127.0.0.1:8765
+python3 tests/harness.py   # product smoke (spawns :18765, no pytest required)
 ```
 
-Do not merge beta UI into `main` until explicitly promoted. Backend/Python work should land on `main` first, then rebase beta branches.
+`PULSE_TEST_EXISTING=1 python3 tests/harness.py` hits an already-running Pulse.
 
-## Host probes
+## Product
 
-- **CPU watts** need RAPL `energy_uj` readable. Kernel exposes it (`intel-rapl`) but mode `400` root-only. Dep: `deploy/99-rapl-readable.rules` via udev (not an apt package). `k10temp` has temps only; `zenpower` is not in Pop repos.
+- **Local-only.** Default bind is `127.0.0.1`. `--lan` / `PULSE_LAN=1` has **no auth** — trusted LAN only.
+- Companion for a second monitor. Not a MangoHud or frametime replacement.
+- Stutter number is a **kernel-signal proxy** (PSI, faults, swap, disk), not in-game FPS.
+- Builtin Guidance is a **small scaffold** (`pulse-core` + `popos-core`). Richer tips belong in community packs under `~/.config/pulse/rules/`.
+- AMD sysfs is the dense GPU path; NVIDIA uses `nvidia-smi` when present. Do not fake AMD DRM nodes.
 
-## Product scope (until stated otherwise)
+Live lab tabs (keep them the same height): **Snapshot**, **Pulse Index**, **Stutter**.
 
-**Primary target:** **Pop!_OS** (minimum bar). **COSMIC DE** is first-class when present; dual-DE (e.g. KDE for gaming) is in-scope because many Pop gamers do that.
+## Working rules
 
-### 0.1 ship gates (both required)
+1. Prefer small iterative changes. Match surrounding style.
+2. Do not commit runtime state: `pulse.db*`, `.pulse_config.json`, `.tuning_log.json`, logs.
+3. After Python edits, restart `server.py` (or `systemctl --user restart cosmic-pulse`).
+4. After `index.html` / CSS changes, hard-refresh the dashboard. If you touch Snapshot vitals, also open Pulse Index and Stutter — they share lab height.
+5. Do not add cloud APIs, accounts, or telemetry.
+6. Do not vendor extra JS CDNs; Chart.js is already in `assets/vendor/`.
+7. SPDX on new files: `GPL-3.0-only`.
 
-**Do not tag or ship 0.1 until every ship-blocker in `backlog.json` is cleared.**
+## Investigation order (bugs / perf)
 
-#### A — Rules: small scaffold, community owns the smarts
+1. `ls *.py tests/`
+2. `server.py` — handler map and sampler thread
+3. `store.py` / `stutter.py` for hot paths
+4. `python3 tests/harness.py` (or a single `tests/test_*.py`)
+5. Cite `file:line` in findings
 
-**Builtin Guidance is cut** (backlog `rules-minimal-for-0.1`, done). Do not grow it for 0.1.
+## Out of scope unless asked
 
-- Cosmic Pulse **0.1 ships the engine**: live metrics, UI, rule-pack loader, Guidance steps, history.
-- Builtin pack is a **scaffold** of obvious, high-confidence tips — not a full coach.
-- **Community** (people smarter about specific games/distros/GPUs) owns richer rulesets.
-- **`pulse-core`** (always): governor, swappiness, stutter-proxy, gpu-fps-cap, proton-wayland.
-- **`popos-core`** (`platform.is_pop`): HDR off, RAPL udev, Proton libs, MangoHud, GPU hot.
-- No per-title `game_overrides` in builtin packs.
-
-**Not in 0.1 builtin:** audio rule walls, tools shopping lists, deep Steam health encyclopedia, multi-title pro tips. **Later:** Heroic / Lutris / other launchers (`launcher-heroic-etc`, post-0.1) — Steam-first for ship.
-
-#### B — Daddy must be happy with the UI
-
-**Do not ship until the owner (daddy) explicitly signs off on the UI.**
-
-- Metrics reliability and code review do **not** unlock 0.1 without that human yes.
-- We are **much closer** after hierarchy / Live lab / family colors — closer is not shipped.
-- Agents propose passes; **only daddy declares the UI good enough to release**.
-- Backlog: `ui-daddy-signoff-for-0.1` (`priority: ship-blocker`).
-
-**Out of scope for core product until release+community:**
-- Distro-specific paths (Fedora, Arch, etc.) beyond “generic Linux that happens to run”
-- Non-Pop package managers as first-class install guidance
-- Hardware ecosystems we don’t dogfood (e.g. deep NVIDIA driver matrix) — ship as **optional community rule packs**, not builtin defaults
-- Per-game “pro tips” encyclopedias in the builtin pack
-
-**When adding features:** prefer Pop/System76/Steam/Proton/Mesa-AMD paths that work on this class of rig. Detect other stacks only when cheap; don’t block Pop UX on multi-distro perfection. Community packs (`~/.config/pulse/rules/`, rule-store later) own everything else.
-
-**When adding rules:** default answer for 0.1 is **no** — keep `pulse-core` / `popos-core` at five insights each; richer sets belong in community packs.
-
-## Review workflow (bash only)
-```bash
-ls *.py
-rg -n "threading|while True|time.sleep|global " server.py store.py stutter.py | head -40
-sed -n '1,100p' server.py
-python3 tests/harness.py            # product smoke (spawn :18765)
-PULSE_TEST_EXISTING=1 python3 tests/harness.py   # against running Pulse
-python3 tests/harness.py --full     # + slow sampler unit tests
-python3 -m pytest tests/ -q --tb=line   # if pytest is installed
-```
-
-Hot files: server.py, store.py, stutter.py, games.py, diagnostics.py, index.html
+- Mass rewrite of `index.html`
+- Deleting `pulse.db`
+- Expanding builtin rule packs past the two scaffolds
+- Packaging Cosmic Pulse as a rewrite in Rust / libcosmic
