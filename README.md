@@ -158,7 +158,8 @@ More: [docs/INSTALL.md](docs/INSTALL.md) § Troubleshooting.
 | `server.py` | Thin launcher (`python3 server.py`) |
 | `cosmic_pulse/` | Application package (HTTP, sampler, Guidance) |
 | `index.html` | Dashboard markup |
-| `assets/dashboard.css` / `assets/dashboard.js` | Dashboard styles and client logic |
+| `assets/dashboard.css` | Dashboard styles |
+| `assets/dashboard-theme.js` / `dashboard-charts.js` / `dashboard.js` | Client logic (classic scripts, load order matters) |
 | `cosmic_pulse/rule_packs.py` + `rules/builtin/` | YAML-driven Guidance rules ([docs/RULES.md](docs/RULES.md)) |
 | `cosmic_pulse/stutter.py` | Hitch / stutter proxy |
 | `cosmic_pulse/games.py` | Steam detection, Proton/Wayland helpers |

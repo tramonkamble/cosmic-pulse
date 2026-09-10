@@ -59,7 +59,7 @@ Persisted to `.tuning_log.json` (debounced, gitignored).
 
 ## Frontend
 
-Markup in `index.html`, styles in `assets/dashboard.css`, client logic in `assets/dashboard.js`. Chart.js is vendored under `assets/vendor/` (served locally, no CDN).
+Markup in `index.html`, styles in `assets/dashboard.css`. Client logic is three classic scripts (no bundler, load order matters): `assets/dashboard-theme.js`, `assets/dashboard-charts.js`, then `assets/dashboard.js` (`tick()` and the rest). Chart.js is vendored under `assets/vendor/` (served locally, no CDN).
 
 ### Poll loop (`tick()`)
 
