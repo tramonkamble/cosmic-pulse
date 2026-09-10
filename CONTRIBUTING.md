@@ -35,7 +35,7 @@ git add <files>
 git commit -m "fix: describe the change"
 ```
 
-Restart after Python edits: `systemctl --user restart cosmic-pulse` or re-run `python3 server.py`. Hard-refresh the browser after `index.html` changes. If you touched Live lab, check Snapshot, Pulse Index, and Stutter.
+Restart after Python edits: `systemctl --user restart cosmic-pulse` or re-run `python3 server.py`. Hard-refresh the browser after `index.html` / `assets/dashboard.css` / `assets/dashboard.js` changes. If you touched Live lab, check Snapshot, Pulse Index, and Stutter.
 
 ## Branches
 

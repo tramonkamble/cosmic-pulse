@@ -177,11 +177,17 @@ def check_dashboard_html() -> None:
         'data-dial="cpu-power"',
         'id="sumHealthCell" data-drill="insightsSection"',
         "pulse-core",
+        "/assets/dashboard.css",
+        "/assets/dashboard.js",
     ):
         # pack ids live in YAML; HTML need not mention them
         if needle == "pulse-core":
             continue
         check(f"html has {needle}", needle in html, "missing from index.html")
+    st, css = _get("/assets/dashboard.css")
+    check("GET /assets/dashboard.css", st == 200 and isinstance(css, str) and ":root" in css, f"status={st}")
+    st, js = _get("/assets/dashboard.js")
+    check("GET /assets/dashboard.js", st == 200 and isinstance(js, str) and "function syncUiWrap" in js, f"status={st}")
 
 
 def check_sampler_and_metrics() -> dict:

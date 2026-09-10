@@ -19,6 +19,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
+- **Dashboard sources** — CSS and JS live in `assets/dashboard.css` and `assets/dashboard.js`. `index.html` is markup plus script/link tags (~1.1k lines). No bundler.
 - **Data tools** — moved off the dashboard dock onto Guidance (collapsed host strip). Apt/udev unlocks sit with Scan, not Live lab.
 - **System checks dock tile** — removed. Steam/library scans already live under Guidance → Scan.
 - **Lab dock labels** — collapsed tile rollups wrap to two lines inside the card instead of clipping through the right padding.

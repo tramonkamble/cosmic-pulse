@@ -3116,6 +3116,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             data = fp.read_bytes()
             ctype = "application/octet-stream"
+            cache = "public, max-age=86400"
             if fp.suffix == ".svg":
                 ctype = "image/svg+xml"
             elif fp.suffix == ".png":
@@ -3124,9 +3125,15 @@ class Handler(BaseHTTPRequestHandler):
                 ctype = "image/jpeg"
             elif fp.suffix == ".webp":
                 ctype = "image/webp"
+            elif fp.suffix == ".css":
+                ctype = "text/css; charset=utf-8"
+                cache = "no-cache"
+            elif fp.suffix == ".js":
+                ctype = "text/javascript; charset=utf-8"
+                cache = "no-cache"
             self.send_response(200)
             self.send_header("Content-Type", ctype)
-            self.send_header("Cache-Control", "public, max-age=86400")
+            self.send_header("Cache-Control", cache)
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)

@@ -19,7 +19,7 @@ python3 server.py
 python3 tests/harness.py
 ```
 
-No build step. UI changes are in `index.html`; restart the server after Python edits.
+No build step. UI changes are in `index.html` / `assets/dashboard.css` / `assets/dashboard.js`; restart the server after Python edits. Hard-refresh after CSS/JS edits.
 
 ## Architecture (5-minute map)
 
@@ -56,7 +56,7 @@ Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` →
 
 ### Medium priority
 
-6. **`index.html` size** — ~7.9k lines monolith. Splitting JS/CSS is a future refactor, not blocking.
+6. **Dashboard split** — markup / CSS / JS are separate files under `index.html` and `assets/dashboard.*`. Still no bundler.
 7. **Stutter proxy accuracy** — `cosmic_pulse/stutter.py` is heuristic, not real frametime. Document limitations vs MangoHud.
 8. **SQLite growth** — retention pruning in `cosmic_pulse/store.py`; confirm bounds.
 9. **Error handling** — broad `except` in sampler loop; intentional for resilience but may hide bugs.

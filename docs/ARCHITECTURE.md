@@ -57,9 +57,9 @@ Persisted to `.tuning_log.json` (debounced, gitignored).
 
 **Launchers:** 0.1 is Steam-first (including extra Steam libraries from `libraryfolders.vdf`). Heroic / Lutris / etc. are planned post-0.1 integrations (`launcher-heroic-etc`).
 
-## Frontend (`index.html`)
+## Frontend
 
-~7.9k lines: CSS, markup, and JS in one file. Chart.js from CDN.
+Markup in `index.html`, styles in `assets/dashboard.css`, client logic in `assets/dashboard.js`. Chart.js is vendored under `assets/vendor/` (served locally, no CDN).
 
 ### Poll loop (`tick()`)
 
