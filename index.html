@@ -5269,7 +5269,7 @@
     body.dash-dedupe .chart-live-controls .ctrl-label { padding: 0 0.2rem; font-size: 0.72rem; }
 
     body.dash-dedupe #pageDashboard.page.active {
-      min-height: calc(100dvh - 4.4rem);
+      min-height: 0;
       gap: 0.45rem;
     }
     body.dash-dedupe #pageDashboard #summaryBar {
@@ -5278,20 +5278,20 @@
       gap: 0.4rem;
     }
     body.dash-dedupe #pageDashboard #vizPanel {
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       display: flex;
       flex-direction: column;
-      min-height: min(22rem, calc(100dvh - 14rem));
-      padding: 0.7rem 0.85rem 0.85rem;
+      min-height: 0;
+      padding: 0.55rem 0.75rem 0.65rem;
     }
-    body.dash-dedupe #pageDashboard #vizPanel .viz-panel-head { margin-bottom: 0.4rem; }
+    body.dash-dedupe #pageDashboard #vizPanel .viz-panel-head { margin-bottom: 0.35rem; }
     body.dash-dedupe #pageDashboard #vizPanel .viz-grid,
     body.dash-dedupe #pageDashboard #vizPanel .viz-block,
     body.dash-dedupe #pageDashboard #vizPanel .viz-block-body,
     body.dash-dedupe #pageDashboard #vizPanel .stutter-layout {
-      flex: 1 1 auto;
+      flex: 0 1 auto;
       min-height: 0;
-      height: 100%;
+      height: auto;
     }
     /* Hardware sensors already live in Live lab temps/power + Sensors drill */
     body.dash-dedupe .sensor-strip-wrap { display: none !important; }
@@ -5302,18 +5302,46 @@
     body.dash-dedupe .rig-load-dup,
     body.dash-dedupe .rig-col-load { display: none !important; }
     body.dash-dedupe .stutter-layout.rig-layout {
-      grid-template-columns: minmax(22rem, 2.1fr) minmax(16rem, 1fr);
-      height: 100%;
+      grid-template-columns: minmax(20rem, 2.1fr) minmax(14.5rem, 1fr);
+      height: auto;
     }
     body.dash-dedupe.ui-wrap-roomy .stutter-layout.rig-layout {
-      grid-template-columns: minmax(26rem, 2.35fr) minmax(16.5rem, 0.95fr);
+      grid-template-columns: minmax(22rem, 2.2fr) minmax(15rem, 0.95fr);
     }
-    body.dash-dedupe .rig-layout .stutter-chart-box { min-height: 18rem; }
+    body.dash-dedupe .rig-layout .stutter-chart-box {
+      flex: 0 0 auto;
+      min-height: 9.5rem;
+      height: min(28vh, 12.5rem);
+      max-height: 13rem;
+    }
+    body.dash-dedupe .stutter-layout.viz-tri .stutter-chart-box {
+      min-height: 9.5rem;
+      height: min(28vh, 12.5rem);
+      max-height: 13rem;
+    }
     body.dash-dedupe .rig-col-vitals,
     body.dash-dedupe .rig-vitals {
-      height: 100%;
+      height: auto;
       min-height: 0;
       overflow: visible;
+    }
+    body.dash-dedupe .pulse-dials {
+      flex: 0 0 auto;
+      height: auto;
+    }
+    body.dash-dedupe .pulse-dial {
+      height: auto;
+      min-height: 4.6rem;
+    }
+    body.dash-dedupe .pulse-dial-ring {
+      width: 4.6rem;
+      height: 4.6rem;
+    }
+    @supports (width: 1cqmin) {
+      body.dash-dedupe .pulse-dial-ring {
+        width: min(5.2rem, 86cqmin);
+        height: min(5.2rem, 86cqmin);
+      }
     }
     /* One glance row: Guidance · chips · game.
        Extra width goes to load chips (sparks), not an empty Game slab. */
@@ -5452,7 +5480,7 @@
       grid-template-columns: 1fr;
       height: auto;
     }
-    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 16rem; }
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 0; }
     body.dash-dedupe.ui-wrap-tight .summary-bar.compact-rig .rig-strip {
       grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
     }
@@ -5464,11 +5492,16 @@
       overflow: hidden;
     }
     @media (max-height: 780px) {
-      body.dash-dedupe #pageDashboard #vizPanel { min-height: 12rem; }
-      body.dash-dedupe .rig-layout .stutter-chart-box { min-height: 10rem; }
+      body.dash-dedupe #pageDashboard #vizPanel { min-height: 0; }
+      body.dash-dedupe .rig-layout .stutter-chart-box,
+      body.dash-dedupe .stutter-layout.viz-tri .stutter-chart-box {
+        min-height: 8.5rem;
+        height: min(24vh, 10.5rem);
+        max-height: 11rem;
+      }
       body.dash-dedupe .pulse-dial-ring {
-        width: min(6.4rem, 88cqmin);
-        height: min(6.4rem, 88cqmin);
+        width: min(4.8rem, 82cqmin);
+        height: min(4.8rem, 82cqmin);
       }
     }
 
