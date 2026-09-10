@@ -13,7 +13,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mangohud_logs import (
+from cosmic_pulse.mangohud_logs import (
     find_session_log,
     parse_mangohud_csv,
     summarize_for_session,
@@ -74,7 +74,7 @@ def test_find_session_log_prefers_mtime():
         os.utime(old, (now - 600, now - 600))
         os.utime(new, (now - 5, now - 5))
 
-        with mock.patch("mangohud_logs.mangohud_log_dirs", return_value=[log_dir]):
+        with mock.patch("cosmic_pulse.mangohud_logs.mangohud_log_dirs", return_value=[log_dir]):
             found = find_session_log(
                 started_ts=now - 120,
                 ended_ts=now,
@@ -92,7 +92,7 @@ def test_summarize_for_session():
         p = log_dir / "elden_ring.csv"
         _write_csv(p, n=100, fps_base=60.0)
         os.utime(p, (now - 2, now - 2))
-        with mock.patch("mangohud_logs.mangohud_log_dirs", return_value=[log_dir]):
+        with mock.patch("cosmic_pulse.mangohud_logs.mangohud_log_dirs", return_value=[log_dir]):
             summary = summarize_for_session(
                 started_ts=now - 300,
                 ended_ts=now,
@@ -105,7 +105,7 @@ def test_summarize_for_session():
 
 def test_incremental_byte_offset_reads():
     """Subsequent parses only ingest appended rows (offset tracking)."""
-    import mangohud_logs as mh
+    from cosmic_pulse import mangohud_logs as mh
 
     with tempfile.TemporaryDirectory() as td:
         p = Path(td) / "live.csv"
@@ -143,7 +143,7 @@ def test_incremental_byte_offset_reads():
 
 def test_attach_mangohud_on_finalize():
     """Session finalize prefers MangoHud frametime for hitch display."""
-    from game_performance import GameSessionTracker
+    from cosmic_pulse.game_performance import GameSessionTracker
 
     with tempfile.TemporaryDirectory() as td:
         log_dir = Path(td) / "mh"
@@ -172,7 +172,7 @@ def test_attach_mangohud_on_finalize():
             "sample_count": 40,
             "trend": [],
         }
-        with mock.patch("mangohud_logs.mangohud_log_dirs", return_value=[log_dir]):
+        with mock.patch("cosmic_pulse.mangohud_logs.mangohud_log_dirs", return_value=[log_dir]):
             out = tracker._attach_mangohud(row)
         assert out["mangohud"] is True
         assert out["fps_avg"] is not None

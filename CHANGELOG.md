@@ -18,6 +18,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
+- **Package layout** — Python modules live in `cosmic_pulse/`. Root `server.py` is a launcher (`python3 server.py` or `python3 -m cosmic_pulse`).
 - **systemd user unit** — no `network-online` wait; `TimeoutStopSec=20`; `KillMode=mixed`; SIGTERM reaps the sample-worker child so `systemctl stop` does not leave a stray sampler.
 - **Uninstall** — `./install.sh --uninstall` keeps `pulse.db`; `--purge` deletes history.
 - **Builtin Guidance** — two packs of five: `pulse-core` (Linux / Steam / hitch / FPS cap / Proton Wayland) and `popos-core` (Pop-only HDR, RAPL udev, Proton libs, MangoHud, GPU hot). Fat `pulse-default` removed; community packs stay `~/.config/pulse/rules/`.

@@ -12,8 +12,8 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import pulse_config
-from issue_aggregate import build_issue_views
+from cosmic_pulse import pulse_config
+from cosmic_pulse.issue_aggregate import build_issue_views
 
 
 def test_config_cache_avoids_repeat_reads(tmp_path, monkeypatch):
@@ -54,7 +54,7 @@ def test_by_game_skips_idle_titles_without_issues():
     ]
     active = [history[0]]
     empty_prefs = (set(), set())
-    with mock.patch("issue_aggregate.get_insight_pref_sets", return_value=empty_prefs):
+    with mock.patch("cosmic_pulse.issue_aggregate.get_insight_pref_sets", return_value=empty_prefs):
         views = build_issue_views(
             active,
             history,
@@ -66,14 +66,14 @@ def test_by_game_skips_idle_titles_without_issues():
         assert views["by_game"]["440"]["issue_count"] >= 1
 
         resolved_prefs = ({"cpu-governor-powersave"}, set())
-        with mock.patch("issue_aggregate.get_insight_pref_sets", return_value=resolved_prefs):
+        with mock.patch("cosmic_pulse.issue_aggregate.get_insight_pref_sets", return_value=resolved_prefs):
             views_cleared = build_issue_views([], history, [], None)
         assert "440" not in views_cleared["by_game"]
 
 
 def test_running_flag_uses_normalized_ids():
     empty_prefs = (set(), set())
-    with mock.patch("issue_aggregate.get_insight_pref_sets", return_value=empty_prefs):
+    with mock.patch("cosmic_pulse.issue_aggregate.get_insight_pref_sets", return_value=empty_prefs):
         views = build_issue_views(
             [],
             [],

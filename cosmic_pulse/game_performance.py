@@ -7,9 +7,9 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from games import game_meta
-from mangohud_logs import summarize_for_session
-from stutter import _percentile
+from .games import game_meta
+from .mangohud_logs import summarize_for_session
+from .stutter import _percentile
 
 MIN_SESSION_SAMPLES = 30  # ~30s at 1 Hz after load grace
 LOAD_GRACE_SEC = 45  # wait after detect before counting (loading / menus)

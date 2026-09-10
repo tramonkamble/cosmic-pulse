@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from games import (
+from cosmic_pulse.games import (
     CACHE_TTL_SEC,
     _cmd_has_appid_hint,
     _extract_appids_from_cmd,

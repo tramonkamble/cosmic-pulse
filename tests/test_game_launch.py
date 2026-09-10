@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from games import (
+from cosmic_pulse.games import (
     WAYLAND_X11_LAUNCH_OPTS,
     game_session_launch_metrics,
     game_uses_proton,
@@ -18,7 +18,7 @@ from games import (
     set_steam_launch_options,
     steam_launch_options,
 )
-from rule_packs import eval_condition, evaluate_rule_packs
+from cosmic_pulse.rule_packs import eval_condition, evaluate_rule_packs
 
 
 def _snap(**overrides) -> dict:
@@ -56,7 +56,7 @@ def test_launch_has_wayland_fix_detects_override():
 
 
 def test_steam_launch_options_reads_localconfig(monkeypatch, tmp_path):
-    import games
+    from cosmic_pulse import games
 
     cfg = tmp_path / "userdata" / "12345" / "config"
     cfg.mkdir(parents=True)
@@ -90,7 +90,7 @@ def test_steam_launch_options_reads_localconfig(monkeypatch, tmp_path):
 
 
 def test_proton_wayland_rule_fires_when_gated(monkeypatch):
-    import rule_packs
+    from cosmic_pulse import rule_packs
 
     monkeypatch.setattr(rule_packs, "session_is_wayland", lambda: True)
     monkeypatch.setattr(
@@ -121,7 +121,7 @@ def test_proton_wayland_rule_fires_when_gated(monkeypatch):
 
 
 def test_proton_wayland_rule_skips_when_fix_present(monkeypatch):
-    import rule_packs
+    from cosmic_pulse import rule_packs
 
     monkeypatch.setattr(rule_packs, "session_is_wayland", lambda: True)
     monkeypatch.setattr(
@@ -151,7 +151,7 @@ def test_proc_uses_proton_self_process():
 
 
 def test_most_recent_localconfig_account(monkeypatch, tmp_path):
-    import games
+    from cosmic_pulse import games
 
     root = tmp_path / "steam"
     (root / "config").mkdir(parents=True)
@@ -187,7 +187,7 @@ def test_most_recent_localconfig_account(monkeypatch, tmp_path):
 
 
 def test_set_steam_launch_options_writes_localconfig(monkeypatch, tmp_path):
-    import games
+    from cosmic_pulse import games
 
     cfg = tmp_path / "userdata" / "12345" / "config"
     cfg.mkdir(parents=True)
@@ -212,7 +212,7 @@ def test_set_steam_launch_options_writes_localconfig(monkeypatch, tmp_path):
 
 
 def test_game_session_launch_metrics_checks_runtime_env(monkeypatch):
-    import games
+    from cosmic_pulse import games
 
     monkeypatch.setattr(games, "steam_launch_options", lambda _aid: "")
     monkeypatch.setattr(games, "game_uses_proton", lambda *_a, **_k: True)
@@ -223,7 +223,7 @@ def test_game_session_launch_metrics_checks_runtime_env(monkeypatch):
 
 
 def test_game_uses_proton_compatdata_exe_fallback(monkeypatch, tmp_path):
-    import games
+    from cosmic_pulse import games
 
     root = tmp_path / "steam"
     compat = root / "steamapps" / "compatdata" / "570"

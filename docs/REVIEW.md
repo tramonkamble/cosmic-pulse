@@ -6,7 +6,7 @@ Thanks for reviewing Cosmic Pulse. Start with [AGENTS.md](../AGENTS.md) and [KNO
 
 Cosmic Pulse is a **single-user, local-only** Python HTTP server that samples system metrics at 1 Hz and serves a single-page dashboard. There is no auth layer. It binds to `127.0.0.1` by default; `--lan` / `PULSE_LAN=1` listens on all interfaces for a second monitor.
 
-**Stack:** Python 3 stdlib + `psutil` + `PyYAML` + one HTML file. Chart.js is vendored in `assets/vendor/` (no CDN). SQLite for optional history.
+**Stack:** Python 3 stdlib + `psutil` + `PyYAML` + `cosmic_pulse/` package + one HTML file. Chart.js is vendored in `assets/vendor/` (no CDN). SQLite for optional history.
 
 ## How to run
 
@@ -57,8 +57,8 @@ Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` →
 ### Medium priority
 
 6. **`index.html` size** — ~7.9k lines monolith. Splitting JS/CSS is a future refactor, not blocking.
-7. **Stutter proxy accuracy** — `stutter.py` is heuristic, not real frametime. Document limitations vs MangoHud.
-8. **SQLite growth** — retention pruning in `store.py`; confirm bounds.
+7. **Stutter proxy accuracy** — `cosmic_pulse/stutter.py` is heuristic, not real frametime. Document limitations vs MangoHud.
+8. **SQLite growth** — retention pruning in `cosmic_pulse/store.py`; confirm bounds.
 9. **Error handling** — broad `except` in sampler loop; intentional for resilience but may hide bugs.
 
 ### Low priority / polish
@@ -70,12 +70,12 @@ Data flow: `collect_metrics()` → ring buffer `_history` → `/api/metrics` →
 
 | Order | File | Why |
 |-------|------|-----|
-| 1 | `server.py` — `collect_metrics`, `Handler`, `sampler` | Core loop |
-| 2 | `tuning_actions.py` — `build_tuning_hints` | User-facing recommendations |
-| 3 | `stutter.py` | Novel logic |
-| 4 | `benchmarks.py` — `hardware_comparison` | Tier/league math |
+| 1 | `cosmic_pulse/server.py` — `collect_metrics`, `Handler` | Core loop |
+| 2 | `cosmic_pulse/tuning_actions.py` — `build_tuning_hints` | User-facing recommendations |
+| 3 | `cosmic_pulse/stutter.py` | Novel logic |
+| 4 | `cosmic_pulse/benchmarks.py` — `hardware_comparison` | Tier/league math |
 | 5 | `index.html` — `tick()`, `renderFixes`, `hintsLayoutKey` | UI update + Guidance stability |
-| 6 | `issue_aggregate.py` — `build_issue_views`, `guidance_sort_key` | Guidance ordering |
+| 6 | `cosmic_pulse/issue_aggregate.py` — `build_issue_views`, `guidance_sort_key` | Guidance ordering |
 
 ## Known limitations (not bugs)
 

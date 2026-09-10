@@ -10,14 +10,16 @@ working in this repo. Keep diffs small. Run tests. Do not rewrite `index.html` f
 
 | What | Path |
 |------|------|
-| HTTP server + sampler | `server.py` |
+| App package | `cosmic_pulse/` |
+| Launcher | `server.py` (`python3 server.py` or `python3 -m cosmic_pulse`) |
+| HTTP + sampler | `cosmic_pulse/server.py` |
 | Dashboard UI | `index.html` (one file: HTML/CSS/JS) |
-| Hitch / stutter proxy | `stutter.py` |
-| SQLite history | `store.py` |
-| Steam / Proton | `games.py`, `game_performance.py` |
-| GPU sysfs / NVIDIA | `gpu_metrics.py`, `gpu_thermal.py`, `hardware_probe.py` |
-| Guidance rules | `rule_packs.py`, `rules/builtin/` |
-| Config / data dirs | `pulse_config.py`, `paths.py` |
+| Hitch / stutter proxy | `cosmic_pulse/stutter.py` |
+| SQLite history | `cosmic_pulse/store.py` |
+| Steam / Proton | `cosmic_pulse/games.py`, `game_performance.py` |
+| GPU sysfs / NVIDIA | `cosmic_pulse/gpu_metrics.py`, `gpu_thermal.py`, `hardware_probe.py` |
+| Guidance rules | `cosmic_pulse/rule_packs.py`, `rules/builtin/` |
+| Config / data dirs | `cosmic_pulse/pulse_config.py`, `paths.py` |
 | Tests | `tests/harness.py` plus `tests/test_*.py` |
 
 Run locally:
@@ -52,8 +54,8 @@ Live lab tabs (keep them the same height): **Snapshot**, **Pulse Index**, **Stut
 ## Investigation order (bugs / perf)
 
 1. `ls *.py tests/`
-2. `server.py` — handler map and sampler thread
-3. `store.py` / `stutter.py` for hot paths
+2. `cosmic_pulse/server.py` — handler map and sampler
+3. `cosmic_pulse/store.py` / `stutter.py` for hot paths
 4. `python3 tests/harness.py` (or a single `tests/test_*.py`)
 5. Cite `file:line` in findings
 

@@ -8,7 +8,7 @@ import json
 import os
 import threading
 
-from paths import data_dir
+from .paths import data_dir
 
 CONFIG_PATH = data_dir() / ".pulse_config.json"
 _config_cache: tuple[float, dict] | None = None

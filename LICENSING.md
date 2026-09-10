@@ -4,7 +4,7 @@ Cosmic Pulse follows [Pop!_OS licensing guidance](https://github.com/pop-os/pop/
 
 | Kind | License | This project |
 |------|---------|--------------|
-| Application | **GPL-3.0-only** | Cosmic Pulse (`server.py`, `index.html`, app modules) |
+| Application | **GPL-3.0-only** | Cosmic Pulse (`cosmic_pulse/`, `index.html`) |
 | External deps | Various | `psutil` (BSD-3), Chart.js (MIT, CDN) |
 
 Use SPDX identifiers in source files: `GPL-3.0-only`.

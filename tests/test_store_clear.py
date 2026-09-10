@@ -18,8 +18,8 @@ def test_clear_history_drops_queued_inserts() -> None:
         os.environ["PULSE_DATA_DIR"] = raw
         import importlib
 
-        import paths
-        import store
+        from cosmic_pulse import paths
+        from cosmic_pulse import store
 
         paths.reset_data_dir_cache()
         importlib.reload(store)

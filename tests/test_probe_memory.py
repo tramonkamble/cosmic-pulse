@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from probe_memory import apply_part_db, parse_dmidecode
+from cosmic_pulse.probe_memory import apply_part_db, parse_dmidecode
 
 
 DMI = """
@@ -67,7 +67,7 @@ def test_blank_manufacturer_not_unknown():
 
 
 def test_enrich_from_existing_cache_shape():
-    from hardware_probe import enrich_memory_spec
+    from cosmic_pulse.hardware_probe import enrich_memory_spec
 
     cached = {
         "source": "dmidecode",

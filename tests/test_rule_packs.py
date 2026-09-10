@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from rule_packs import (
+from cosmic_pulse.rule_packs import (
     _get_path,
     _has_unresolved_template,
     _render_actions,
@@ -24,7 +24,7 @@ from rule_packs import (
     render_template,
 )
 
-import rule_packs as rule_packs_mod
+from cosmic_pulse import rule_packs as rule_packs_mod
 
 
 @contextmanager
@@ -195,7 +195,7 @@ def test_stutter_proxy_skips_when_idle():
 
 def test_resolve_games_string_all_not_char_split():
     """YAML ``games: all`` must not become ['a','l','l']."""
-    from rule_packs import _resolve_games
+    from cosmic_pulse.rule_packs import _resolve_games
 
     assert _resolve_games({"games": "all"}, {}) == ["all"]
     assert _resolve_games({"games": ["all"]}, {}) == ["all"]
@@ -227,8 +227,8 @@ def test_unresolved_template_regex_ignores_json_like_braces():
 
 
 def test_display_hdr_off_rule_fires_when_capable_and_sdr():
-    import hardware_probe
-    import rule_packs
+    from cosmic_pulse import hardware_probe
+    from cosmic_pulse import rule_packs
 
     hdr = {
         "capable": True,
@@ -263,8 +263,8 @@ def test_display_hdr_off_rule_fires_when_capable_and_sdr():
 
 
 def test_display_hdr_off_rule_skips_when_active():
-    import hardware_probe
-    import rule_packs
+    from cosmic_pulse import hardware_probe
+    from cosmic_pulse import rule_packs
 
     hdr = {
         "capable": True,
@@ -288,7 +288,7 @@ def test_display_hdr_off_rule_skips_when_active():
 
 
 def test_edid_hdr_static_parse():
-    from hardware_probe import _edid_hdr_static
+    from cosmic_pulse.hardware_probe import _edid_hdr_static
 
     # Minimal CTA block with HDR static metadata: EOTF=0x07 (SDR+HDR+PQ), max codes 112
     # Structure: 128-byte base + 128-byte CTA extension
@@ -363,7 +363,7 @@ def test_render_template_formats_numbers():
 
 
 def test_cpu_rapl_unreadable_rule_fires():
-    import rule_packs
+    from cosmic_pulse import rule_packs
 
     orig = rule_packs._cpu_rapl_tools
     rule_packs._cpu_rapl_tools = lambda: {"cpu_rapl": False, "cpu_rapl_present": True}
@@ -385,7 +385,7 @@ def test_cpu_rapl_unreadable_rule_fires():
 
 
 def test_cpu_rapl_rule_skips_when_readable():
-    import rule_packs
+    from cosmic_pulse import rule_packs
 
     orig = rule_packs._cpu_rapl_tools
     rule_packs._cpu_rapl_tools = lambda: {"cpu_rapl": True, "cpu_rapl_present": True}
@@ -415,7 +415,7 @@ def test_popos_pack_skips_when_not_pop():
 
 
 def test_cpu_rapl_rule_skips_when_absent():
-    import rule_packs
+    from cosmic_pulse import rule_packs
 
     orig = rule_packs._cpu_rapl_tools
     rule_packs._cpu_rapl_tools = lambda: {"cpu_rapl": False, "cpu_rapl_present": False}
@@ -444,7 +444,7 @@ def _busy_game_snap() -> dict:
 
 
 def test_gpu_fps_cap_fires_on_60hz():
-    import rule_packs
+    from cosmic_pulse import rule_packs
 
     with patch.object(rule_packs, "primary_display_refresh_hz", lambda max_age_sec=120.0: 60.0):
         hints, emitted = evaluate_rule_packs(
@@ -457,7 +457,7 @@ def test_gpu_fps_cap_fires_on_60hz():
 
 
 def test_gpu_fps_cap_skips_high_refresh():
-    import rule_packs
+    from cosmic_pulse import rule_packs
 
     with patch.object(rule_packs, "primary_display_refresh_hz", lambda max_age_sec=120.0: 144.0):
         _, emitted = evaluate_rule_packs(

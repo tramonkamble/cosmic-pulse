@@ -7,12 +7,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-_APP_ROOT = Path(__file__).resolve().parent
+_PKG_DIR = Path(__file__).resolve().parent
+_APP_ROOT = _PKG_DIR.parent  # install/repo root (index.html, rules/, assets/)
 _DATA_DIR: Path | None = None
 
 
 def app_root() -> Path:
-    """Application tree: Python modules, index.html, rules/."""
+    """Application tree: index.html, rules/, assets/, and this package."""
     return _APP_ROOT
 
 

@@ -7,7 +7,7 @@ For security review notes, see [REVIEW.md](REVIEW.md).
 ## Data flow
 
 ```
-collect_metrics()  [server.py, sampler thread]
+collect_metrics()  [cosmic_pulse/server.py, sample worker]
     ├── hardware_probe / gpu_metrics / stutter / games / diagnostics
     ├── build_tuning_hints()     → active rule matches this tick
     ├── update_tuning_history()  → merge into persistent history
@@ -24,17 +24,17 @@ collect_metrics()  [server.py, sampler thread]
 
 | Module | Role |
 |--------|------|
-| `server.py` | HTTP handler, sampler loop, metric assembly |
-| `tuning_actions.py` | Evaluate YAML rules → hint dicts |
-| `rule_packs.py` | Load `rules/builtin/…` packs |
-| `issue_aggregate.py` | Priority scoring, per-game grouping, stable sort |
-| `guidance_auto.py` | Auto-resolve timers, clear-after-fix grace |
-| `games.py` | Steam AppID detection, Proton/Wayland helpers, game linger |
-| `stutter.py` | Hitch proxy; `effective_disk_io_wait()` dampens zram PSI |
-| `diagnostics.py` | On-demand log/system scan (cached ~90s) |
-| `apply_fix.py` | `requires_root` labels only (Pulse never executes) |
-| `pulse_config.py` | `.pulse_config.json` — retention, suppressed/resolved insights |
-| `store.py` | SQLite history (`pulse.db`, gitignored) |
+| `cosmic_pulse/server.py` | HTTP handler, sampler loop, metric assembly |
+| `cosmic_pulse/tuning_actions.py` | Evaluate YAML rules → hint dicts |
+| `cosmic_pulse/rule_packs.py` | Load `rules/builtin/…` packs |
+| `cosmic_pulse/issue_aggregate.py` | Priority scoring, per-game grouping, stable sort |
+| `cosmic_pulse/guidance_auto.py` | Auto-resolve timers, clear-after-fix grace |
+| `cosmic_pulse/games.py` | Steam AppID detection, Proton/Wayland helpers, game linger |
+| `cosmic_pulse/stutter.py` | Hitch proxy; `effective_disk_io_wait()` dampens zram PSI |
+| `cosmic_pulse/diagnostics.py` | On-demand log/system scan (cached ~90s) |
+| `cosmic_pulse/apply_fix.py` | `requires_root` labels only (Pulse never executes) |
+| `cosmic_pulse/pulse_config.py` | `.pulse_config.json` — retention, suppressed/resolved insights |
+| `cosmic_pulse/store.py` | SQLite history (`pulse.db`, gitignored) |
 
 ### Guidance history (`update_tuning_history`)
 

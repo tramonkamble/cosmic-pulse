@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from apply_fix import requires_root
-from games import active_game_context
-from rule_packs import evaluate_rule_packs
+from .apply_fix import requires_root
+from .games import active_game_context
+from .rule_packs import evaluate_rule_packs
 
 
 def _hint(

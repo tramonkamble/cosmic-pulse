@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from hardware_profiles import (
+from .hardware_profiles import (
     FAN_CURVE_ARCHITECTURES,
     infer_gpu_model,
     profile_for_model,

@@ -13,10 +13,10 @@ from typing import Any
 
 import yaml
 
-from apply_fix import requires_root
-from audio_probe import audio_metrics
-from diagnostics import _PROMOTE_SEVERITIES, scan_findings
-from games import (
+from .apply_fix import requires_root
+from .audio_probe import audio_metrics
+from .diagnostics import _PROMOTE_SEVERITIES, scan_findings
+from .games import (
     active_game_context,
     game_meta,
     game_session_launch_metrics,
@@ -26,11 +26,13 @@ from games import (
     steam_update_needs_attention,
     steam_update_summary_parts,
 )
-from gpu_thermal import gpu_thermal_state, profile_for_model
-from hardware_probe import primary_display_hdr, primary_display_refresh_hz
-from load_phase import page_fault_settle, page_fault_warn
+from .gpu_thermal import gpu_thermal_state, profile_for_model
+from .hardware_probe import primary_display_hdr, primary_display_refresh_hz
+from .load_phase import page_fault_settle, page_fault_warn
 
-PULSE_ROOT = Path(__file__).resolve().parent
+from .paths import app_root
+
+PULSE_ROOT = app_root()
 BUILTIN_RULES = PULSE_ROOT / "rules" / "builtin"
 USER_RULES = Path.home() / ".config" / "pulse" / "rules"
 
@@ -60,7 +62,7 @@ def rule_search_paths() -> list[Path]:
             if part.strip():
                 _add(Path(part.strip()))
     try:
-        from pulse_config import get_rule_pack_paths
+        from .pulse_config import get_rule_pack_paths
 
         for part in get_rule_pack_paths():
             _add(Path(part))
@@ -75,7 +77,7 @@ def rule_search_paths() -> list[Path]:
 
 def _disabled_pack_ids() -> set[str]:
     try:
-        from pulse_config import get_disabled_packs
+        from .pulse_config import get_disabled_packs
 
         return set(get_disabled_packs())
     except Exception:
@@ -284,7 +286,7 @@ def _flatten_steam(active_appid: str | None, running: bool) -> dict:
 def _platform_flags() -> dict:
     """Host identity for pack match_when (Pop pack stays off on other distros)."""
     try:
-        from hardware_probe import platform_identity
+        from .hardware_probe import platform_identity
 
         ident = platform_identity() or {}
     except Exception:
@@ -363,7 +365,7 @@ def flatten_metrics(snap: dict, mem_spec: dict | None, ctx: dict) -> dict:
     )
 
     try:
-        from diagnostics import get_diagnostics
+        from .diagnostics import get_diagnostics
 
         findings = (get_diagnostics() or {}).get("findings") or []
     except Exception:
@@ -820,7 +822,7 @@ def _load_packs(force: bool = False, *, include_disabled: bool = False) -> list[
     latest = max((_pack_dir_mtime(p) for p in rule_search_paths()), default=0.0)
     # Also invalidate when enable/disable list changes (config mtime not in path scan)
     try:
-        from pulse_config import CONFIG_PATH
+        from .pulse_config import CONFIG_PATH
 
         if CONFIG_PATH.exists():
             latest = max(latest, CONFIG_PATH.stat().st_mtime)
@@ -870,7 +872,7 @@ def _load_packs(force: bool = False, *, include_disabled: bool = False) -> list[
         _PACK_CACHE["packs"] = packs
         if had_cached_packs or force:
             try:
-                from games import reload_game_pack_data
+                from .games import reload_game_pack_data
 
                 reload_game_pack_data()
             except Exception:
@@ -1065,7 +1067,7 @@ def reload_packs() -> list[dict]:
 
 def set_pack_enabled(pack_id: str, enabled: bool) -> dict:
     """Enable/disable a pack via pulse_config.disabled_packs."""
-    from pulse_config import get_disabled_packs, save_config
+    from .pulse_config import get_disabled_packs, save_config
 
     pid = (pack_id or "").strip()
     if not pid:

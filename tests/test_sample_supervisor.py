@@ -17,8 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import paths  # noqa: E402
-import sample_supervisor as ss  # noqa: E402
+from cosmic_pulse import paths  # noqa: E402
+from cosmic_pulse import sample_supervisor as ss  # noqa: E402
 
 
 def _dummy_worker_script(tmp: Path) -> Path:
@@ -190,7 +190,8 @@ def test_cmdline_is_sample_worker() -> None:
     assert ss._cmdline_is_sample_worker(["python3.12", "-u", "sample_worker.py"])
     assert ss._cmdline_is_sample_worker(["/usr/bin/pypy3", "sample_worker.py"])
     assert ss._cmdline_is_sample_worker(["sample_worker.py"])
-    assert not ss._cmdline_is_sample_worker(["python3", "server.py"])
+    assert ss._cmdline_is_sample_worker(["python3", "-u", "-m", "cosmic_pulse.sample_worker"])
+    assert not ss._cmdline_is_sample_worker(["python3", "cosmic_pulse.server.py"])
     assert not ss._cmdline_is_sample_worker(["python3", "not_sample_worker.py"])
     assert not ss._cmdline_is_sample_worker(["vim", "sample_worker.py"])
     assert not ss._cmdline_is_sample_worker(["less", "/opt/pulse/sample_worker.py"])
@@ -209,7 +210,7 @@ def test_data_dir_matches() -> None:
 def test_atomic_write_uses_pid_tmp_and_cleans_up() -> None:
     import json
 
-    from sample_worker import _atomic_write_json
+    from cosmic_pulse.sample_worker import _atomic_write_json
 
     with tempfile.TemporaryDirectory() as raw:
         dest = Path(raw) / ".sample_live.json"

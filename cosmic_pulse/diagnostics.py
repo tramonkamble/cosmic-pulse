@@ -16,7 +16,7 @@ import threading
 import time
 from pathlib import Path
 
-from games import (
+from .games import (
     game_name_for_appid,
     installed_appids,
     steam_install_health,
@@ -395,7 +395,7 @@ def _check_steam_install_health(findings: list[dict]) -> None:
             # Pending redistributable updates are almost never the user's problem.
             if background:
                 continue
-            from games import steam_update_summary_parts
+            from .games import steam_update_summary_parts
 
             shader_mb = round(health.get("shader_cache_bytes", 0) / 1024**2, 1)
             parts = steam_update_summary_parts(health)

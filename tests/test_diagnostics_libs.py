@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from diagnostics import _ldconfig_has_i386_soname, run_diagnostics
+from cosmic_pulse.diagnostics import _ldconfig_has_i386_soname, run_diagnostics
 
 
 def test_ldconfig_i386_pop_format():

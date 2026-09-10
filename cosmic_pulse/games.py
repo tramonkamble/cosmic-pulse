@@ -115,7 +115,7 @@ def _load_legacy_game_ids() -> dict[str, str]:
         if _LEGACY_ID_CACHE is not None:
             return _LEGACY_ID_CACHE
         try:
-            from rule_packs import get_legacy_game_ids
+            from .rule_packs import get_legacy_game_ids
 
             _LEGACY_ID_CACHE = get_legacy_game_ids()
         except Exception:
@@ -131,7 +131,7 @@ def _load_game_overrides() -> dict[str, dict]:
         if _GAME_OVERRIDE_CACHE is not None:
             return _GAME_OVERRIDE_CACHE
         try:
-            from rule_packs import get_game_overrides
+            from .rule_packs import get_game_overrides
 
             _GAME_OVERRIDE_CACHE = get_game_overrides()
         except Exception:

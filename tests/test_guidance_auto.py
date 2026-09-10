@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from guidance_auto import (
+from cosmic_pulse.guidance_auto import (
     AUTO_RESOLVE_CLEAR_SEC,
     CLEAR_SINCE_KEY,
     COOLDOWN_UNTIL_KEY,

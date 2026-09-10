@@ -37,14 +37,14 @@ def _atomic_write_json(path: Path, payload: dict) -> None:
 
 
 def main() -> int:
-    # Ensure we import sibling modules from this app root
-    root = Path(__file__).resolve().parent
+    # Prefer ``python -m cosmic_pulse.sample_worker`` so package imports work.
+    root = Path(__file__).resolve().parent.parent
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
     os.chdir(root)
 
-    import server as srv
-    from paths import data_dir
+    from cosmic_pulse import server as srv
+    from cosmic_pulse.paths import data_dir
 
     out_path = data_dir() / ".sample_live.json"
     pid_path = data_dir() / ".sample_worker.pid"

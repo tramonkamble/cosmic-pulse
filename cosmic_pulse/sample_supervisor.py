@@ -71,13 +71,16 @@ def _cmdline_is_sample_worker(cmdline: list | None) -> bool:
     """Match a Pulse sample worker, not an editor with the path in argv."""
     if not cmdline:
         return False
-    names = [os.path.basename(str(part)) for part in cmdline]
-    if "sample_worker.py" not in names:
+    parts = [str(p) for p in cmdline]
+    names = [os.path.basename(p) for p in parts]
+    joined = " ".join(parts)
+    looks_like = "sample_worker.py" in names or "cosmic_pulse.sample_worker" in joined
+    if not looks_like:
         return False
     exe = names[0].lower()
-    if exe == "sample_worker.py":
+    if exe in ("sample_worker.py", "python", "python3") or exe.startswith("python") or exe.startswith("pypy"):
         return True
-    return "python" in exe or exe.startswith("pypy")
+    return "python" in exe
 
 
 def _data_dir_matches(got: str | None, want: str | None) -> bool:
@@ -184,7 +187,7 @@ def _resolve_server_module():
     main = sys.modules.get("__main__")
     if main is not None and hasattr(main, "_publish_sample") and hasattr(main, "collect_metrics"):
         return main
-    import server as srv
+    from . import server as srv
 
     return srv
 
@@ -283,7 +286,7 @@ def _apply_loop(srv, live_path: Path, my_gen: int) -> None:
 
 
 def _supervisor_loop(srv=None) -> None:
-    from paths import app_root, data_dir
+    from .paths import app_root, data_dir
 
     if srv is None:
         srv = _resolve_server_module()
@@ -293,11 +296,16 @@ def _supervisor_loop(srv=None) -> None:
     live_path = ddir / ".sample_live.json"
     pid_path = ddir / ".sample_worker.pid"
     override = os.environ.get("PULSE_SAMPLE_WORKER", "").strip()
-    worker_script = Path(override) if override else root / "sample_worker.py"
+    if override:
+        worker_cmd = [sys.executable or "python3", "-u", override]
+    else:
+        worker_cmd = [sys.executable or "python3", "-u", "-m", "cosmic_pulse.sample_worker"]
     stalls = 0
     env = os.environ.copy()
     env["PULSE_DATA_DIR"] = str(ddir)
-    py = sys.executable or "python3"
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(root)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else [])
+    )
 
     if not hasattr(srv, "_apply_gen"):
         srv._apply_gen = 0
@@ -381,7 +389,7 @@ def _supervisor_loop(srv=None) -> None:
                     pass
                 return
             proc = subprocess.Popen(
-                [py, "-u", str(worker_script)],
+                worker_cmd,
                 cwd=str(root),
                 env=env,
                 stdout=log_f,
@@ -543,7 +551,7 @@ def stop_supervisor() -> None:
     Call from SIGTERM/SIGINT. ``atexit`` does not run on unhandled SIGTERM,
     which is what ``systemctl stop`` sends.
     """
-    from paths import data_dir as _data_dir
+    from .paths import data_dir as _data_dir
 
     _set_supervisor_shutdown()
     reap_stray_workers(data_dir=_data_dir())
@@ -551,7 +559,7 @@ def stop_supervisor() -> None:
 
 def start_sample_supervisor(srv=None) -> None:
     """Start supervisor. Pass ``srv=sys.modules[__name__]`` from server.main()."""
-    from paths import data_dir as _data_dir
+    from .paths import data_dir as _data_dir
 
     ddir = _data_dir()
 

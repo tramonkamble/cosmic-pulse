@@ -318,6 +318,13 @@ def check_guidance(boot: dict, live: dict) -> None:
         check("CPU watts n/a while RAPL blocked", pw is None, str(pw))
     elif present and readable:
         pw = (latest.get("cpu") or {}).get("power_w")
+        for _ in range(8):
+            if isinstance(pw, (int, float)):
+                break
+            time.sleep(0.35)
+            live = _wait_sample()
+            latest = (live.get("latest") or {}) if isinstance(live, dict) else {}
+            pw = (latest.get("cpu") or {}).get("power_w")
         check(
             "CPU watts numeric when RAPL readable",
             isinstance(pw, (int, float)),

@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from benchmarks import chassis_identity
+from cosmic_pulse.benchmarks import chassis_identity
 
 
 def test_system76_thelio():

@@ -155,14 +155,13 @@ More: [docs/INSTALL.md](docs/INSTALL.md) § Troubleshooting.
 
 | Path | Role |
 |------|------|
-| `server.py` | HTTP server, 1 Hz sampler, metrics API |
+| `server.py` | Thin launcher (`python3 server.py`) |
+| `cosmic_pulse/` | Application package (HTTP, sampler, Guidance) |
 | `index.html` | Dashboard UI (single-file HTML/CSS/JS) |
-| `tuning_actions.py` + `rules/builtin/` | YAML-driven Guidance rules |
-| `stutter.py` | Hitch / stutter proxy |
-| `games.py` | Steam detection, Proton/Wayland helpers |
-| `diagnostics.py` | System troubleshooting scanner |
-| `apply_fix.py` | `requires_root` labels for Guidance (no execution) |
-| `store.py` | SQLite history and correlations |
+| `cosmic_pulse/rule_packs.py` + `rules/builtin/` | YAML-driven Guidance rules |
+| `cosmic_pulse/stutter.py` | Hitch / stutter proxy |
+| `cosmic_pulse/games.py` | Steam detection, Proton/Wayland helpers |
+| `cosmic_pulse/store.py` | SQLite history and correlations |
 | `install.sh` | User-local installer |
 | `deploy/build-deb.sh` | Build `.deb` for apt |
 

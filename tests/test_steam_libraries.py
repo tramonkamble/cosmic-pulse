@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import games
+from cosmic_pulse import games
 
 
 def test_extra_library_manifests_are_visible() -> None:
@@ -58,7 +58,7 @@ def test_extra_library_manifests_are_visible() -> None:
 
 
 def test_listen_host_loopback_by_default() -> None:
-    import server as srv
+    from cosmic_pulse import server as srv
 
     old_argv = sys.argv
     old_env = os.environ.get("PULSE_LAN")

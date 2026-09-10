@@ -10,7 +10,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from audio_probe import (
+from cosmic_pulse.audio_probe import (
     _classify_sink,
     audio_metrics,
     invalidate_audio_cache,
@@ -77,8 +77,8 @@ update: id:0 key:'clock.quantum' value:'1024' type:''
             return ""
         return ""
 
-    with mock.patch("audio_probe._run", side_effect=fake_run):
-        with mock.patch("audio_probe.shutil.which", return_value="/usr/bin/x"):
+    with mock.patch("cosmic_pulse.audio_probe._run", side_effect=fake_run):
+        with mock.patch("cosmic_pulse.audio_probe.shutil.which", return_value="/usr/bin/x"):
             a = probe_audio(force=True)
 
     assert a["default_hdmi"] is True
@@ -134,11 +134,11 @@ update: id:0 key:'clock.max-quantum' value:'2048' type:''
             return ""
         return ""
 
-    with mock.patch("audio_probe._run", side_effect=fake_run):
-        with mock.patch("audio_probe.shutil.which", return_value="/usr/bin/x"):
-            with mock.patch("audio_probe._scan_pipewire_conf", return_value=conf):
+    with mock.patch("cosmic_pulse.audio_probe._run", side_effect=fake_run):
+        with mock.patch("cosmic_pulse.audio_probe.shutil.which", return_value="/usr/bin/x"):
+            with mock.patch("cosmic_pulse.audio_probe._scan_pipewire_conf", return_value=conf):
                 with mock.patch(
-                    "audio_probe._scan_wireplumber_hdmi_priority",
+                    "cosmic_pulse.audio_probe._scan_wireplumber_hdmi_priority",
                     return_value={
                         "conf_hdmi_priority": 3000,
                         "conf_usb_priority": 2000,
@@ -184,8 +184,8 @@ update: id:0 key:'clock.quantum' value:'256' type:''
             return "Jul 30 pipewire: XRun on node foo"
         return ""
 
-    with mock.patch("audio_probe._run", side_effect=fake_run):
-        with mock.patch("audio_probe.shutil.which", return_value="/usr/bin/x"):
+    with mock.patch("cosmic_pulse.audio_probe._run", side_effect=fake_run):
+        with mock.patch("cosmic_pulse.audio_probe.shutil.which", return_value="/usr/bin/x"):
             a = probe_audio(force=True)
 
     assert a["default_bluetooth"] is True

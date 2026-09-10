@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import time
 
-from games import LEGACY_GAME_IDS, game_meta, normalize_game_id
-from pulse_config import get_insight_pref_sets
+from .games import LEGACY_GAME_IDS, game_meta, normalize_game_id
+from .pulse_config import get_insight_pref_sets
 
 LEVEL_SCORE = {"hot": 100, "warn": 70, "info": 40, "ok": 10}
 MULTI_GAME_BOOST = 22  # extra priority per additional game affected

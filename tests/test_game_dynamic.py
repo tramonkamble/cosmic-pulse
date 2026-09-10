@@ -9,8 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from games import GAME_OVERRIDES, LEGACY_GAME_IDS, reload_game_pack_data
-from rule_packs import evaluate_rule_packs, game_context_kwargs, get_game_overrides
+from cosmic_pulse.games import GAME_OVERRIDES, LEGACY_GAME_IDS, reload_game_pack_data
+from cosmic_pulse.rule_packs import evaluate_rule_packs, game_context_kwargs, get_game_overrides
 
 
 def _snap(**overrides) -> dict:
@@ -52,7 +52,7 @@ def test_builtin_pack_has_no_title_overrides():
 
 
 def test_lazy_dict_invalidates_on_reload():
-    from games import reload_game_pack_data
+    from cosmic_pulse.games import reload_game_pack_data
 
     GAME_OVERRIDES._cache = {"999": {"short": "STALE"}}
     reload_game_pack_data()
@@ -65,7 +65,7 @@ def test_legacy_ids_from_pack():
 
 
 def test_game_context_kwargs_from_metrics():
-    from rule_packs import flatten_metrics
+    from cosmic_pulse.rule_packs import flatten_metrics
 
     metrics = flatten_metrics(_snap(), {}, {"governor": "performance"})
     kw = game_context_kwargs(metrics)
@@ -74,7 +74,7 @@ def test_game_context_kwargs_from_metrics():
 
 
 def test_unresolved_template_actions_filtered():
-    from rule_packs import _render_actions
+    from cosmic_pulse.rule_packs import _render_actions
 
     metrics = {"game": {"appid": None, "name": "your game", "running": False}}
     actions = _render_actions(
@@ -89,7 +89,7 @@ def test_unresolved_template_actions_filtered():
 
 
 def test_lib_apt_install_built_from_findings():
-    from rule_packs import _lib_install_context
+    from cosmic_pulse.rule_packs import _lib_install_context
 
     findings = [
         {
@@ -119,7 +119,7 @@ def test_prefix_reset_requires_running_game():
 
 
 def test_no_game_metrics_context():
-    from rule_packs import flatten_metrics
+    from cosmic_pulse.rule_packs import flatten_metrics
 
     snap = _snap(game_totals={"running": False, "game_id": None, "game_name": None})
     metrics = flatten_metrics(snap, {}, {"governor": "performance"})
@@ -130,7 +130,7 @@ def test_no_game_metrics_context():
 
 
 def test_legacy_game_id_normalized():
-    from games import normalize_game_id
+    from cosmic_pulse.games import normalize_game_id
 
     assert normalize_game_id("alias") == "alias"
     assert normalize_game_id("570") == "570"
@@ -148,7 +148,7 @@ def test_rule_pack_game_actions_get_appid():
         "effective_pending_stage_bytes": 0,
         "shader_cache_bytes": 0,
     }
-    with patch("rule_packs.steam_install_health", return_value=health):
+    with patch("cosmic_pulse.rule_packs.steam_install_health", return_value=health):
         hints, emitted = evaluate_rule_packs(snap, {}, {"governor": "performance"})
     if "game-files-corrupt" in emitted:
         hit = next(h for h in hints if h["insight_id"] == "game-files-corrupt")

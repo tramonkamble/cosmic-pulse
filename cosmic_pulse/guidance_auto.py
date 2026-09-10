@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from pulse_config import STATE_VERIFIED_INSIGHTS
+from .pulse_config import STATE_VERIFIED_INSIGHTS
 
 # Sustained absence from live rule eval before moving to Fixed.
 # Keep short: users apply a step and expect the card to go away within a moment.

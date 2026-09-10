@@ -11,8 +11,8 @@ import sqlite3
 import threading
 import time
 
-from paths import data_dir
-from pulse_config import (
+from .paths import data_dir
+from .pulse_config import (
     DEFAULT_RETENTION_DAYS,
     DEFAULT_THEME_MODE,
     DEFAULT_TUNING_LOG_MAX,

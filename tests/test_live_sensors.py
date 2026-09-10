@@ -10,7 +10,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from server import _engine_pct, _parse_hwmon_tree, memory_bandwidth, slim_history_point
+from cosmic_pulse.server import _engine_pct, _parse_hwmon_tree, memory_bandwidth, slim_history_point
 
 
 def test_engine_pct_prefers_any_live_counter():
@@ -32,10 +32,10 @@ def test_dram_idle_not_inflated_by_minor_faults():
     }
     psi = {"avg10": 0.0, "avg60": 0.0, "avg300": 0.0}
     with (
-        mock.patch("server.psutil.virtual_memory", return_value=vm),
-        mock.patch("server.swap_rates", return_value={"in_kbps": 0.0, "out_kbps": 0.0}),
-        mock.patch("server.vmstat_rates", return_value=vmstat),
-        mock.patch("server.psi_read", return_value=psi),
+        mock.patch("cosmic_pulse.server.psutil.virtual_memory", return_value=vm),
+        mock.patch("cosmic_pulse.server.swap_rates", return_value={"in_kbps": 0.0, "out_kbps": 0.0}),
+        mock.patch("cosmic_pulse.server.vmstat_rates", return_value=vmstat),
+        mock.patch("cosmic_pulse.server.psi_read", return_value=psi),
     ):
         bw = memory_bandwidth(cpu_pct=5.0, game_cpu_pct=0.0)
     # ~2% from CPU + ~5% from RAM residency — not the old 22% fault churn.

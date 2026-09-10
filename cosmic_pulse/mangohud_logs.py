@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from paths import data_dir
+from .paths import data_dir
 
 # How far after session end we still accept a log mtime (write flush).
 _LOG_SLACK_SEC = 120.0

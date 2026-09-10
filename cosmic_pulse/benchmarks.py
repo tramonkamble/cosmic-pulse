@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-from hardware_profiles import GPU_ALIASES, gpu_tier_list
+from .hardware_profiles import GPU_ALIASES, gpu_tier_list
 
 # Tier score 0-100 = approximate relative strength for city-builder / AAA gaming.
 CPU_TIERS: list[dict] = [

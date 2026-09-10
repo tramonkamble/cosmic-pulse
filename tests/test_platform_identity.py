@@ -10,15 +10,15 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from hardware_probe import (
+from cosmic_pulse.hardware_probe import (
     _FIRST_CLASS_DESKTOPS,
     _is_igpu,
     _normalize_de_id,
     parse_nvidia_smi_csv,
     platform_identity,
 )
-from probe_memory import apply_part_db, normalize_manufacturer, parse_dmidecode
-from rule_packs import _platform_flags
+from cosmic_pulse.probe_memory import apply_part_db, normalize_manufacturer, parse_dmidecode
+from cosmic_pulse.rule_packs import _platform_flags
 
 
 def test_top_seven_gaming_desktops():
@@ -126,7 +126,7 @@ def test_platform_flags_include_de_and_gpu():
         "desktop": {"id": "kde"},
         "gpu": {"vendor": "nvidia", "driver": "nvidia", "stack": "nvidia"},
     }
-    with patch("hardware_probe.platform_identity", return_value=fake):
+    with patch("cosmic_pulse.hardware_probe.platform_identity", return_value=fake):
         flags = _platform_flags()
     assert flags["is_kde"] is True
     assert flags["is_nvidia"] is True
@@ -153,10 +153,10 @@ def test_platform_identity_nvidia_badge(monkeypatch=None):
         "mesa": {"present": False, "version": None},
     }
     with (
-        patch("hardware_probe.detect_running_desktop", return_value=desktop),
-        patch("hardware_probe.detect_gpu_stack", return_value=gpu),
-        patch("hardware_probe._read_os_release", return_value={"ID": "fedora", "NAME": "Fedora Linux", "PRETTY_NAME": "Fedora Linux 41"}),
-        patch("hardware_probe._read_dmi", return_value=""),
+        patch("cosmic_pulse.hardware_probe.detect_running_desktop", return_value=desktop),
+        patch("cosmic_pulse.hardware_probe.detect_gpu_stack", return_value=gpu),
+        patch("cosmic_pulse.hardware_probe._read_os_release", return_value={"ID": "fedora", "NAME": "Fedora Linux", "PRETTY_NAME": "Fedora Linux 41"}),
+        patch("cosmic_pulse.hardware_probe._read_dmi", return_value=""),
     ):
         ident = platform_identity()
     assert ident["is_gnome"] is True

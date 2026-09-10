@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from games import (
+from cosmic_pulse.games import (
     GAME_LINGER_SEC,
     primary_active_game_with_linger,
     reset_game_linger,

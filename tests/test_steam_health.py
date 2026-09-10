@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from games import (
+from cosmic_pulse.games import (
     _SHADER_SIZE_CACHE,
     _SHADER_SIZE_TTL,
     _STEAM_HEALTH_CACHE,
@@ -216,7 +216,7 @@ def test_steam_caches_prune_stale_appids():
 
 def test_live_installed_games_not_false_positive():
     clear_steam_health_caches()
-    from games import installed_appids
+    from cosmic_pulse.games import installed_appids
 
     for appid in installed_appids()[:8]:
         health = steam_install_health(appid, cache=False)

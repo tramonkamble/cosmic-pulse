@@ -33,7 +33,7 @@ def test_help() -> None:
 
 def test_parse_args_port() -> None:
     sys.path.insert(0, str(ROOT))
-    import server
+    from cosmic_pulse import server
 
     args = server.parse_args(["--port", "9999", "--lan"])
     assert args.port == 9999
