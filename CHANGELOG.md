@@ -20,6 +20,8 @@ Dates use the machine local timezone (EDT unless noted).
 
 ### Changed
 - **Data tools** — moved off the dashboard dock onto Guidance (collapsed host strip). Apt/udev unlocks sit with Scan, not Live lab.
+- **System checks dock tile** — removed. Steam/library scans already live under Guidance → Scan.
+- **Lab dock labels** — collapsed tile rollups wrap to two lines inside the card instead of clipping through the right padding.
 - **UI scale default** — 100% (16px rem root). 150% is still on the Options slider if you sit farther from the screen.
 - **Package layout** — Python modules live in `cosmic_pulse/`. Root `server.py` is a launcher (`python3 server.py` or `python3 -m cosmic_pulse`).
 - **systemd user unit** — no `network-online` wait; `TimeoutStopSec=20`; `KillMode=mixed`; SIGTERM reaps the sample-worker child so `systemctl stop` does not leave a stray sampler.

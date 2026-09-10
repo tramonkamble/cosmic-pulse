@@ -3841,17 +3841,25 @@
     body.cosmic-frosted details.drill[open] { background: var(--panel); }
 
     details.drill:not([open]) {
-      min-height: 7.5rem;
+      min-height: 8rem;
     }
     details.drill:not([open]) > summary {
       flex-direction: column;
-      align-items: flex-start;
+      align-items: stretch;
       justify-content: flex-start;
       gap: 0.4rem;
-      min-height: 7.5rem;
-      height: 7.5rem;
+      min-height: 8rem;
+      height: 8rem;
       overflow: hidden;
-      padding: 0.72rem 0.8rem 0.78rem;
+      padding: 0.7rem 0.9rem 0.7rem 0.8rem;
+    }
+    details.drill:not([open]) .drill-icon { align-self: flex-start; }
+    details.drill:not([open]) .drill-summary-text {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      overflow: hidden;
+      flex: 1 1 auto;
     }
     details.drill:not([open]) .drill-chevron { display: none; }
     details.drill:not([open]) .drill-title {
@@ -3859,7 +3867,20 @@
       display: block;
       -webkit-line-clamp: unset;
       line-clamp: unset;
+      overflow: hidden;
       text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    details.drill:not([open]) .drill-rollup {
+      white-space: pre-line;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      overflow-wrap: break-word;
     }
     details.drill > summary {
       list-style: none;
@@ -6598,21 +6619,6 @@
           </div>
         </div>
       </details>
-
-      <details class="drill drill-secondary" id="drill-troubleshoot" data-open-key="drill-troubleshoot">
-        <summary class="drill-summary">
-          <span class="drill-icon checks" data-glyph="health"></span>
-          <span class="drill-summary-text">
-            <span class="drill-title">System checks</span>
-            <span class="drill-rollup">Moved to Guidance</span>
-          </span>
-          <span class="drill-chevron" aria-hidden="true"></span>
-        </summary>
-        <div class="drill-body">
-          <p class="section-lead" style="margin-top:0">Steam, libraries, and log scans now live in <strong>Guidance</strong> under the <strong>Scan</strong> filter. Critical items are promoted to Outstanding automatically.</p>
-          <button class="btn" type="button" id="openGuidanceScan">Open Guidance → Scan</button>
-        </div>
-      </details>
     </div>
     </div>
 
@@ -9187,7 +9193,7 @@
     const DRILL_IDS = new Set([
       'warningsSection',
       'drill-sensors', 'drill-charts', 'drill-bandwidth', 'drill-compute',
-      'drill-league', 'drill-game', 'drill-storage', 'drill-troubleshoot',
+      'drill-league', 'drill-game', 'drill-storage',
     ]);
 
     const DIAG_CAT_LABEL = {
@@ -9329,14 +9335,15 @@
     }
 
     document.getElementById('diagRefresh')?.addEventListener('click', () => fetchDiagnostics(true));
-    document.getElementById('openGuidanceScan')?.addEventListener('click', () => {
+
+    function openGuidanceScan() {
       setTab('fixes', 'guidanceIndex');
       guidanceIndexFilter = 'scan';
       renderGuidanceFilters();
       renderGuidanceIndex(lastGuidanceIndexGroups, lastGuidanceFixedHints, lastSelectedGuidanceId);
       const first = lastDiagPrimary || lastGuidanceScanFindings[0];
       if (first) selectGuidanceHint(`diag:${first.id}`, { scroll: true });
-    });
+    }
 
     function openGuidanceDataTools() {
       const tools = document.getElementById('guidanceTools');
@@ -9348,6 +9355,10 @@
     function jumpTo(id) {
       if (id === 'drill-admin' || id === 'guidanceTools' || id === 'toolsList') {
         openGuidanceDataTools();
+        return;
+      }
+      if (id === 'drill-troubleshoot') {
+        openGuidanceScan();
         return;
       }
       if (id === 'insightsSection' || id === 'guidanceSection' || id === 'guidanceHero') {
@@ -10018,24 +10029,26 @@
       }
 
       const sh = l.sensor_health;
+      const cpuT = c.temps?.package;
+      const gpuT = g.junction_c;
       document.getElementById('drillSensorsSum').textContent = sh
-        ? `${sh.ok}/${sh.total} live · CPU ${c.temps?.package ?? '—'}° · GPU ${g.junction_c ?? '—'}°`
+        ? `${sh.ok}/${sh.total} live\nCPU ${cpuT != null ? Math.round(cpuT) : '—'}° · GPU ${gpuT != null ? Math.round(gpuT) : '—'}°`
         : 'Sensors offline';
 
       const st = l.stutter || {};
       const hitchMs = st.session?.hitch_ms_1pct;
       document.getElementById('drillChartsSum').textContent =
-        `CPU ${Math.round(c.overall_pct ?? 0)}% · GPU ${g.busy_pct != null ? Math.round(g.busy_pct) : '—'}% · hitch ${st.score ?? 0}${hitchMs != null ? ` · 1% ${hitchMs}ms` : ''}`;
+        `CPU ${Math.round(c.overall_pct ?? 0)}% · GPU ${g.busy_pct != null ? Math.round(g.busy_pct) : '—'}%\nhitch ${st.score ?? 0}${hitchMs != null ? ` · 1% ${hitchMs}ms` : ''}`;
 
       document.getElementById('drillBwSum').textContent =
         `VRAM ${bw.gpu?.vram_est_gbps ?? '—'} · DRAM ${bw.memory?.dram_est_gbps ?? '—'} GB/s`;
 
       const vramU = g.vram_used_mb, vramT = g.vram_total_mb;
-      const vramBit = (vramU != null && vramT != null)
-        ? ` · VRAM ${Math.round(vramU / 1024 * 10) / 10}/${Math.round(vramT / 1024)}G`
-        : '';
+      const cpuGpuBit = `CPU ${Math.round(c.overall_pct ?? 0)}% · GPU ${g.busy_pct != null ? Math.round(g.busy_pct) : '—'}%`;
       document.getElementById('drillComputeSum').textContent =
-        `CPU ${Math.round(c.overall_pct ?? 0)}% · GPU ${g.busy_pct != null ? Math.round(g.busy_pct) : '—'}%${vramBit}`;
+        (vramU != null && vramT != null)
+          ? `${cpuGpuBit}\nVRAM ${Math.round(vramU / 1024 * 10) / 10}/${Math.round(vramT / 1024)}G`
+          : cpuGpuBit;
 
       document.getElementById('drillLeagueSum').textContent = comparison
         ? `Index ${leagueIdx}/100 · class ${comparison.composite_rank ?? '—'}`
@@ -15111,7 +15124,7 @@
       const drillSum = document.getElementById('drillStorageSum');
       if (drillSum) {
         drillSum.textContent =
-          `${(s.samples || 0).toLocaleString()} samples · ${s.size_mb ?? 0} MB · keep ${days}d`;
+          `${(s.samples || 0).toLocaleString()} samples · ${s.size_mb ?? 0} MB\nkeep ${days}d`;
       }
       const presets = s.retention_presets || [3, 7, 10, 14, 30];
       const min = s.retention_min ?? 1;
