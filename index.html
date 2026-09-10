@@ -5288,26 +5288,27 @@
       gap: 0.4rem;
     }
     body.dash-dedupe #pageDashboard #vizPanel {
-      /* Cap leftover 1080p; do not fill it. JS sets --lab-stage-max / --lab-chart-h. */
+      /* Shared stage for Snapshot / Index / Stutter. JS sets --lab-stage-max
+         to leftover 1080p so the lab never overflows; 24rem is the look. */
+      --lab-stage-h: 24rem;
       --lab-stage-max: 36rem;
-      --lab-chart-h: 11rem;
-      --lab-mid: minmax(15.5rem, 1.55fr);
-      --lab-side: minmax(13.5rem, 1.15fr);
+      --lab-mid: minmax(16rem, 1.7fr);
+      --lab-side: minmax(14rem, 1.1fr);
       flex: 0 0 auto;
       display: flex;
       flex-direction: column;
       min-height: 0;
-      padding: 0.4rem 0.65rem 0.5rem;
+      padding: 0.65rem 0.8rem 0.75rem;
     }
-    body.dash-dedupe #pageDashboard #vizPanel .viz-panel-head { margin-bottom: 0.28rem; }
+    body.dash-dedupe #pageDashboard #vizPanel .viz-panel-head { margin-bottom: 0.4rem; }
     body.dash-dedupe #pageDashboard #vizPanel .viz-grid,
     body.dash-dedupe #pageDashboard #vizPanel .viz-block,
     body.dash-dedupe #pageDashboard #vizPanel .viz-block-body {
-      flex: 0 1 auto;
-      min-height: 0;
+      flex: 1 1 auto;
+      min-height: min(var(--lab-stage-h), var(--lab-stage-max));
       height: auto;
     }
-    /* Snapshot / Index / Stutter: same 3-col, content height, leftover is a max only. */
+    /* One stage height so tab switches do not jump. Charts stretch with the sides. */
     body.dash-dedupe #pageDashboard #vizPanel .stutter-layout,
     body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.rig-layout,
     body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.viz-tri,
@@ -5315,140 +5316,79 @@
       display: grid;
       grid-template-columns: var(--lab-side) var(--lab-mid) var(--lab-side);
       grid-template-areas: "drivers chart summary";
-      grid-template-rows: auto;
-      height: auto;
-      min-height: 0;
+      grid-template-rows: minmax(0, 1fr);
+      height: min(var(--lab-stage-h), var(--lab-stage-max));
+      min-height: min(var(--lab-stage-h), var(--lab-stage-max));
       max-height: var(--lab-stage-max);
-      align-items: start;
-      gap: 0.4rem;
+      align-items: stretch;
+      gap: 0.55rem;
     }
-    body.dash-dedupe #pageDashboard #vizPanel .stutter-drivers { grid-area: drivers; min-height: 0; max-height: var(--lab-stage-max); overflow: auto; }
-    body.dash-dedupe #pageDashboard #vizPanel .stutter-chart-col { grid-area: chart; min-height: 0; height: auto; overflow: hidden; }
-    body.dash-dedupe #pageDashboard #vizPanel .stutter-summary { grid-area: summary; min-height: 0; max-height: var(--lab-stage-max); overflow: auto; }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.rig-layout {
+      grid-template-columns: minmax(22rem, 2.1fr) minmax(16rem, 1fr);
+      grid-template-areas: "chart summary";
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.viz-tri,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.index-layout {
+      grid-template-columns: minmax(12.5rem, 0.9fr) minmax(16rem, 1.9fr) minmax(16.5rem, 1.3fr);
+    }
+    body.dash-dedupe.ui-wrap-roomy #pageDashboard #vizPanel .stutter-layout.rig-layout {
+      grid-template-columns: minmax(26rem, 2.35fr) minmax(16.5rem, 0.95fr);
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-drivers { grid-area: drivers; min-height: 0; overflow: auto; }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-chart-col { grid-area: chart; min-height: 0; overflow: hidden; }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-summary { grid-area: summary; min-height: 0; overflow: auto; }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-col,
     body.dash-dedupe #pageDashboard #vizPanel .rig-col,
     body.dash-dedupe #pageDashboard #vizPanel .rig-col-chart {
-      height: auto;
+      height: 100%;
     }
     body.dash-dedupe #pageDashboard #vizPanel .rig-panel-chart {
-      height: auto;
+      height: 100%;
       min-height: 0;
       display: flex;
       flex-direction: column;
     }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.viz-tri .rig-panel {
-      height: auto;
-      flex: 0 1 auto;
+      height: 100%;
+      flex: 1 1 auto;
     }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-chart-box,
     body.dash-dedupe #pageDashboard #vizPanel .rig-layout .stutter-chart-box,
     body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.viz-tri .stutter-chart-box {
-      flex: 0 0 var(--lab-chart-h);
-      min-height: var(--lab-chart-h) !important;
-      height: var(--lab-chart-h) !important;
-      max-height: var(--lab-chart-h) !important;
+      flex: 1 1 auto;
+      min-height: 14rem !important;
+      height: auto !important;
+      max-height: none !important;
     }
     body.dash-dedupe #pageDashboard #vizPanel .index-gauge,
     body.dash-dedupe #pageDashboard #vizPanel .stutter-gauge {
-      width: 4.6rem;
-      height: 4.6rem;
+      width: 7.25rem;
+      height: 7.25rem;
     }
-    body.dash-dedupe .index-gauge-center .score,
-    body.dash-dedupe .stutter-gauge-center .score { font-size: 1.12rem; }
-    body.dash-dedupe .index-gauge-center .sub,
-    body.dash-dedupe .stutter-gauge-center .smooth { font-size: 0.62rem; }
     /* Hardware sensors already live in Live lab temps/power + Sensors drill */
     body.dash-dedupe .sensor-strip-wrap { display: none !important; }
     /* Idle game strip duplicates the Game cell — show only while a title is live */
     body.dash-dedupe .game-perf-hero.is-minimized { display: none !important; }
     body.dash-dedupe .game-perf-hero:not(.is-minimized) { margin: 0; }
     /* Load bars duplicate chips; core maps stay in the Compute drill */
-    body.dash-dedupe .rig-load-dup { display: none !important; }
-    body.dash-dedupe.ui-wrap-roomy #pageDashboard #vizPanel {
-      --lab-mid: minmax(16.5rem, 1.6fr);
-      --lab-side: minmax(14rem, 1.15fr);
-    }
+    body.dash-dedupe .rig-load-dup,
+    body.dash-dedupe .rig-col-load { display: none !important; }
     body.dash-dedupe .rig-col-vitals,
     body.dash-dedupe .rig-vitals {
-      height: auto;
+      height: 100%;
       min-height: 0;
       overflow: visible;
     }
-    body.dash-dedupe .rig-vitals {
-      padding: 0.32rem 0.45rem 0.36rem;
-      gap: 0;
-    }
     body.dash-dedupe .rig-vitals-flat {
-      flex: 0 0 auto;
-      height: auto;
+      flex: 1 1 auto;
+      height: 100%;
     }
     body.dash-dedupe .rig-vitals-flat .rig-vitals-section {
-      flex: 0 0 auto;
-      gap: 0.16rem;
-      padding: 0.2rem 0;
+      flex: 1 1 0;
     }
-    body.dash-dedupe .rig-panel {
-      padding: 0.45rem 0.5rem;
-      gap: 0.3rem;
-    }
-    body.dash-dedupe .pulse-dials {
-      flex: 0 0 auto;
-      height: auto;
-      gap: 0.28rem;
-    }
-    body.dash-dedupe .pulse-dial {
-      height: auto;
-      min-height: 3.55rem;
-      padding: 0.12rem;
-    }
-    body.dash-dedupe .pulse-dial-ring {
-      width: 3.65rem;
-      height: 3.65rem;
-    }
-    @supports (width: 1cqmin) {
-      body.dash-dedupe .pulse-dial-ring {
-        width: min(4rem, 86cqmin);
-        height: min(4rem, 86cqmin);
-      }
-    }
-    body.dash-dedupe .pulse-dial-k {
-      font-size: clamp(0.52rem, 8cqmin, 0.66rem);
-    }
-    body.dash-dedupe .pulse-dial-v {
-      font-size: clamp(0.7rem, 14cqmin, 1.02rem);
-    }
-    body.dash-dedupe .index-rank-list { gap: 0.2rem; }
-    body.dash-dedupe .index-rank-card {
-      padding: 0.22rem 0.35rem 0.24rem;
-      gap: 0.1rem;
-    }
-    body.dash-dedupe .index-rank-head .part .hw-icon-box {
-      width: 1.2rem;
-      height: 1.2rem;
-    }
-    body.dash-dedupe .index-rank-name { font-size: 0.62rem; line-height: 1.15; }
-    body.dash-dedupe .index-rank-bars { gap: 0.1rem; }
-    body.dash-dedupe .index-rank-bar-row { gap: 0.22rem; }
-    body.dash-dedupe .index-rank-bar-row .rank-bar { height: 5px; }
-    body.dash-dedupe .index-rank-foot { line-height: 1.2; }
-    body.dash-dedupe .index-build-strip { padding: 0.2rem 0.35rem; }
-    body.dash-dedupe .stutter-insight-top { gap: 0.35rem 0.45rem; }
-    body.dash-dedupe .stutter-kpis { gap: 0.22rem; }
-    body.dash-dedupe .stutter-kpi { padding: 0.26rem 0.3rem 0.28rem; }
-    body.dash-dedupe .stutter-kpi .v { font-size: 0.86rem; }
-    body.dash-dedupe .stutter-mix { gap: 0.22rem; }
-    body.dash-dedupe .stutter-mix-bar { height: 10px; }
-    body.dash-dedupe .stutter-timeline { gap: 0.16rem; }
-    body.dash-dedupe .stutter-timeline-track { height: 2.55rem; }
-    body.dash-dedupe .viz-summary-panel { gap: 0.32rem; }
-    body.dash-dedupe .stutter-summary { gap: 0.35rem; }
-    body.dash-dedupe .stutter-driver-bars { gap: 0.42rem; }
-    body.dash-dedupe .index-layout .stutter-drivers .rig-panel { gap: 0.28rem; }
-    body.dash-dedupe .stutter-side-label { margin-bottom: 0.18rem; }
-    body.dash-dedupe .rig-chart-title-row {
-      padding: 0 0.05rem 0.08rem;
-      margin-bottom: 0.08rem;
-    }
+    body.dash-dedupe .index-rank-card { flex-shrink: 0; }
+    body.dash-dedupe .stutter-kpis { min-width: 0; }
+    body.dash-dedupe .stutter-insight-top { min-width: 0; }
     /* One glance row: Guidance · chips · game.
        Extra width goes to load chips (sparks), not an empty Game slab. */
     body.dash-dedupe .sum-grid,
@@ -5582,7 +5522,7 @@
         "game game";
     }
     body.dash-dedupe.ui-wrap-wide #sumHealthCell .health-sev-row { max-width: 24rem; }
-    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 0; }
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 16rem; }
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout,
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.rig-layout,
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.viz-tri,
@@ -5591,22 +5531,17 @@
       grid-template-areas:
         "drivers chart"
         "summary summary";
-      grid-template-rows: auto auto;
+      grid-template-rows: minmax(16rem, 1fr) auto;
       height: auto;
       min-height: 0;
       max-height: none;
     }
-    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-drivers,
-    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-summary {
-      max-height: none;
-    }
-    body.dash-dedupe.ui-wrap-tight .pulse-dial { min-height: 3.35rem; }
-    body.dash-dedupe.ui-wrap-tight .rig-vitals-flat .rig-vitals-section { min-height: 0; }
-    body.dash-dedupe.ui-wrap-tight .rig-layout .stutter-chart-box,
-    body.dash-dedupe.ui-wrap-tight .stutter-layout.viz-tri .stutter-chart-box {
-      min-height: var(--lab-chart-h) !important;
-      height: var(--lab-chart-h) !important;
-      max-height: var(--lab-chart-h) !important;
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.rig-layout {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "chart"
+        "summary";
+      grid-template-rows: minmax(14rem, 18rem) auto;
     }
     body.dash-dedupe.ui-wrap-tight .summary-bar.compact-rig .rig-strip {
       grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
@@ -5620,11 +5555,11 @@
     }
     @media (max-height: 780px) {
       body.dash-dedupe #pageDashboard #vizPanel {
-        min-height: 0;
+        --lab-stage-h: 18rem;
       }
       body.dash-dedupe .pulse-dial-ring {
-        width: min(3.4rem, 80cqmin);
-        height: min(3.4rem, 80cqmin);
+        width: min(6.4rem, 88cqmin);
+        height: min(6.4rem, 88cqmin);
       }
     }
 
@@ -5884,8 +5819,8 @@
           <div class="viz-block-head viz-block-head-sr"><span class="hw-icon-box cpu" data-glyph="activity"></span><h3>Rig snapshot</h3></div>
           <div class="viz-block-body">
             <div class="stutter-layout rig-layout">
-              <!-- LEFT: clocks + thermals (mirrors Index/Stutter side cards) -->
-              <div class="stutter-col stutter-drivers rig-col rig-col-vitals" data-hw-keep>
+              <!-- LEFT: load + activity (hidden on the main glance) -->
+              <div class="stutter-col stutter-drivers rig-col rig-col-load">
                 <div class="rig-panel rig-load-dup" hidden>
                   <div class="rig-panel-head">
                     <span class="stutter-side-label">Load</span>
@@ -5907,6 +5842,39 @@
                     </div>
                   </div>
                 </div>
+              </div>
+              <!-- CENTER: trend -->
+              <div class="stutter-col stutter-chart-col rig-col rig-col-chart" data-hw-keep>
+                <div class="rig-panel rig-panel-chart">
+                  <div class="rig-chart-head">
+                    <div class="rig-chart-title-row">
+                      <span class="stutter-side-label" id="sparkChartLabel">Load · 5 min</span>
+                      <div class="rig-chart-swatches" id="sparkChartSwatches" aria-hidden="true"></div>
+                    </div>
+                    <!-- KPIs kept for JS updates; hidden — left bars + chart already show the same % -->
+                    <div class="stutter-kpis rig-kpis-inline live-ov-kpi-dup" id="rigChartKpis" hidden>
+                      <div class="stutter-kpi" data-kpi="cpu">
+                        <span class="k">CPU</span>
+                        <span class="v" id="rigKpiCpu">—</span>
+                        <span class="s" id="rigKpiCpuSub">overall</span>
+                      </div>
+                      <div class="stutter-kpi" data-kpi="gpu">
+                        <span class="k">GPU</span>
+                        <span class="v" id="rigKpiGpu">—</span>
+                        <span class="s" id="rigKpiGpuSub">busy</span>
+                      </div>
+                      <div class="stutter-kpi" data-kpi="ram">
+                        <span class="k">RAM</span>
+                        <span class="v" id="rigKpiRam">—</span>
+                        <span class="s" id="rigKpiRamSub">used</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="stutter-chart-box"><canvas id="sparkChart"></canvas></div>
+                </div>
+              </div>
+              <!-- RIGHT: clocks, thermals, power, pressure -->
+              <div class="stutter-col stutter-summary rig-col rig-col-vitals" data-hw-keep>
                 <div class="rig-panel rig-vitals rig-vitals-flat">
                   <div class="rig-vitals-section">
                     <div class="stutter-side-label">Clocks</div>
@@ -5960,41 +5928,6 @@
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              <!-- CENTER: trend -->
-              <div class="stutter-col stutter-chart-col rig-col rig-col-chart" data-hw-keep>
-                <div class="rig-panel rig-panel-chart">
-                  <div class="rig-chart-head">
-                    <div class="rig-chart-title-row">
-                      <span class="stutter-side-label" id="sparkChartLabel">Load · 5 min</span>
-                      <div class="rig-chart-swatches" id="sparkChartSwatches" aria-hidden="true"></div>
-                    </div>
-                    <!-- KPIs kept for JS updates; hidden — left bars + chart already show the same % -->
-                    <div class="stutter-kpis rig-kpis-inline live-ov-kpi-dup" id="rigChartKpis" hidden>
-                      <div class="stutter-kpi" data-kpi="cpu">
-                        <span class="k">CPU</span>
-                        <span class="v" id="rigKpiCpu">—</span>
-                        <span class="s" id="rigKpiCpuSub">overall</span>
-                      </div>
-                      <div class="stutter-kpi" data-kpi="gpu">
-                        <span class="k">GPU</span>
-                        <span class="v" id="rigKpiGpu">—</span>
-                        <span class="s" id="rigKpiGpuSub">busy</span>
-                      </div>
-                      <div class="stutter-kpi" data-kpi="ram">
-                        <span class="k">RAM</span>
-                        <span class="v" id="rigKpiRam">—</span>
-                        <span class="s" id="rigKpiRamSub">used</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="stutter-chart-box"><canvas id="sparkChart"></canvas></div>
-                </div>
-              </div>
-              <!-- RIGHT: power + pressure -->
-              <div class="stutter-col stutter-summary rig-col rig-col-vitals" data-hw-keep>
-                <div class="rig-panel rig-vitals rig-vitals-flat">
                   <div class="rig-vitals-section rig-vitals-power">
                     <div class="stutter-side-label">Power · hitch</div>
                     <div class="pulse-dials" id="glanceGrid" role="group" aria-label="Power and hitch">
@@ -6786,7 +6719,7 @@
       syncLabStage();
     }
 
-    /** Leftover 1080p is a max only. Charts stay short; side cards size the lab. */
+    /** Leftover 1080p is a max. Stage height itself is --lab-stage-h (24rem). */
     function syncLabStage() {
       const viz = document.getElementById('vizPanel');
       if (!viz) return;
@@ -6805,12 +6738,8 @@
         + (head?.offsetHeight || 44)
         + pad + gap * 2;
       const screen = Math.min(window.innerHeight || 1080, 1080);
-      const maxH = Math.max(240, Math.round(screen - chrome));
-      const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-      const preferredChart = Math.round(11 * remPx);
-      const chartH = Math.max(140, Math.min(preferredChart, Math.round(maxH * 0.52)));
+      const maxH = Math.max(280, Math.round(screen - chrome));
       viz.style.setProperty('--lab-stage-max', `${maxH}px`);
-      viz.style.setProperty('--lab-chart-h', `${chartH}px`);
       requestAnimationFrame(() => {
         try { sparkChart?.resize(); } catch (_) { /* chart not ready */ }
         try { indexChart?.resize(); } catch (_) { /* chart not ready */ }
