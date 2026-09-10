@@ -46,10 +46,10 @@
       --radius-lg: 16px;
       /*
         UI scale — rem root tracks html font-size.
-        100% = 16px (normal desktop), 150% = 24px (second-monitor default), 200% = 32px.
+        100% = 16px (default), 150% = 24px, 200% = 32px.
         Dense labels use --fs-* floors so chrome stays readable when scaled.
       */
-      --ui-scale: 1.5;
+      --ui-scale: 1;
       --ui-root: calc(16px * var(--ui-scale));
       --bar-h: calc(133px * var(--ui-scale));
       --meter-h: calc(12px * var(--ui-scale));
@@ -6661,11 +6661,11 @@
               <h3>UI scale</h3>
               <div class="options-row">
                 <div class="options-scale-wrap">
-                  <input type="range" id="uiScaleRange" min="1" max="2" step="0.05" value="1.5"
-                    aria-label="UI scale" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1.5" />
-                  <span class="options-scale-val" id="uiScaleVal">150%</span>
+                  <input type="range" id="uiScaleRange" min="1" max="2" step="0.05" value="1"
+                    aria-label="UI scale" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1" />
+                  <span class="options-scale-val" id="uiScaleVal">100%</span>
                   <p class="options-scale-hint">
-                    Drag, then release to save. 100% desktop, 150% second-monitor default, 200% largest.
+                    Drag, then release to save. 100% default, 150% larger, 200% largest.
                   </p>
                 </div>
               </div>
@@ -6889,7 +6889,7 @@
     /** Viewport wrap vs UI scale. rem in @media ignores html font-size / --ui-scale. */
     function syncUiWrap() {
       const raw = getComputedStyle(document.documentElement).getPropertyValue('--ui-scale');
-      const scale = Math.max(1, Math.min(2, parseFloat(String(raw).trim()) || 1.5));
+      const scale = Math.max(1, Math.min(2, parseFloat(String(raw).trim()) || 1));
       const w = window.innerWidth;
       const wide = 75 * 16 * scale;      // 1200px @100%, 1800px @150%
       const tight = 68.75 * 16 * scale;  // 1100px @100%, 1650px @150%
@@ -14660,7 +14660,7 @@
       return !!document.activeElement?.dataset?.hwScale;
     }
 
-    const UI_SCALE_DEFAULT = 1.5;
+    const UI_SCALE_DEFAULT = 1;
 
     function fmtStoreSpan(ts) {
       if (!ts) return '—';

@@ -15,7 +15,7 @@ _config_cache: tuple[float, dict] | None = None
 _config_write_lock = threading.Lock()
 
 DEFAULT_RETENTION_DAYS = 10
-DEFAULT_UI_SCALE = 1.5
+DEFAULT_UI_SCALE = 1.0
 DEFAULT_TUNING_LOG_MAX = 48
 DEFAULT_THEME_MODE = "cosmic"
 
