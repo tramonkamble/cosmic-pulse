@@ -5304,8 +5304,8 @@
     body.dash-dedupe #pageDashboard #vizPanel .viz-grid,
     body.dash-dedupe #pageDashboard #vizPanel .viz-block,
     body.dash-dedupe #pageDashboard #vizPanel .viz-block-body {
-      flex: 1 1 auto;
-      min-height: min(var(--lab-stage-h), var(--lab-stage-max));
+      flex: 0 0 auto;
+      min-height: 0;
       height: auto;
     }
     /* One stage height so tab switches do not jump. Charts stretch with the sides. */
@@ -5319,8 +5319,9 @@
       grid-template-rows: minmax(0, 1fr);
       height: min(var(--lab-stage-h), var(--lab-stage-max));
       min-height: min(var(--lab-stage-h), var(--lab-stage-max));
-      max-height: var(--lab-stage-max);
+      max-height: min(var(--lab-stage-h), var(--lab-stage-max));
       align-items: stretch;
+      overflow: hidden;
       gap: 0.55rem;
     }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.rig-layout {
@@ -5337,6 +5338,11 @@
     body.dash-dedupe #pageDashboard #vizPanel .stutter-drivers { grid-area: drivers; min-height: 0; overflow: auto; }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-chart-col { grid-area: chart; min-height: 0; overflow: hidden; }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-summary { grid-area: summary; min-height: 0; overflow: auto; }
+    body.dash-dedupe #pageDashboard #vizPanel .viz-summary-panel {
+      overflow: auto;
+      min-height: 0;
+      height: 100%;
+    }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-col,
     body.dash-dedupe #pageDashboard #vizPanel .rig-col,
     body.dash-dedupe #pageDashboard #vizPanel .rig-col-chart {
@@ -5362,8 +5368,40 @@
     }
     body.dash-dedupe #pageDashboard #vizPanel .index-gauge,
     body.dash-dedupe #pageDashboard #vizPanel .stutter-gauge {
-      width: 7.25rem;
-      height: 7.25rem;
+      width: 5.8rem;
+      height: 5.8rem;
+    }
+    /* Gauge + 3 KPIs share one row so labels are not crushed into ellipsis. */
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-insight-top {
+      display: grid;
+      grid-template-columns: auto repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 0.4rem;
+      min-width: 0;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-insight-top .stutter-kpis {
+      display: contents;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-kpi {
+      min-width: 0;
+      padding: 0.35rem 0.4rem 0.38rem;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-kpi .k,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-kpi .v,
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-kpi .s {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: unset;
+      max-width: none;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-kpi .k {
+      letter-spacing: 0.04em;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-kpi .s {
+      line-height: 1.25;
+    }
+    body.dash-dedupe #pageDashboard #vizPanel .stutter-timeline-track {
+      height: 3.2rem;
     }
     /* Hardware sensors already live in Live lab temps/power + Sensors drill */
     body.dash-dedupe .sensor-strip-wrap { display: none !important; }
@@ -5387,8 +5425,6 @@
       flex: 1 1 0;
     }
     body.dash-dedupe .index-rank-card { flex-shrink: 0; }
-    body.dash-dedupe .stutter-kpis { min-width: 0; }
-    body.dash-dedupe .stutter-insight-top { min-width: 0; }
     /* One glance row: Guidance · chips · game.
        Extra width goes to load chips (sparks), not an empty Game slab. */
     body.dash-dedupe .sum-grid,
@@ -5522,26 +5558,26 @@
         "game game";
     }
     body.dash-dedupe.ui-wrap-wide #sumHealthCell .health-sev-row { max-width: 24rem; }
-    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 16rem; }
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 0; }
+    /* Windowed 1600-class widths wrap the scoreboard, not the lab — keep one stage height. */
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout,
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.rig-layout,
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.viz-tri,
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.index-layout {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
-      grid-template-areas:
-        "drivers chart"
-        "summary summary";
-      grid-template-rows: minmax(16rem, 1fr) auto;
-      height: auto;
-      min-height: 0;
-      max-height: none;
+      grid-template-rows: minmax(0, 1fr);
+      height: min(var(--lab-stage-h), var(--lab-stage-max));
+      min-height: min(var(--lab-stage-h), var(--lab-stage-max));
+      max-height: min(var(--lab-stage-h), var(--lab-stage-max));
+      overflow: hidden;
     }
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.rig-layout {
-      grid-template-columns: 1fr;
-      grid-template-areas:
-        "chart"
-        "summary";
-      grid-template-rows: minmax(14rem, 18rem) auto;
+      grid-template-columns: minmax(16rem, 2.1fr) minmax(13rem, 1fr);
+      grid-template-areas: "chart summary";
+    }
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.viz-tri,
+    body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout.index-layout {
+      grid-template-columns: minmax(10rem, 0.9fr) minmax(12rem, 1.7fr) minmax(12.5rem, 1.25fr);
+      grid-template-areas: "drivers chart summary";
     }
     body.dash-dedupe.ui-wrap-tight .summary-bar.compact-rig .rig-strip {
       grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
@@ -6029,7 +6065,7 @@
                       <div class="stutter-kpi">
                         <span class="k">Headroom</span>
                         <span class="v ok" id="indexHeadroom">—</span>
-                        <span class="s" id="indexHeadroomSub">spare capacity</span>
+                        <span class="s" id="indexHeadroomSub">spare</span>
                       </div>
                       <div class="stutter-kpi">
                         <span class="k">Session</span>
@@ -6039,7 +6075,7 @@
                       <div class="stutter-kpi">
                         <span class="k">vs typical</span>
                         <span class="v" id="indexVsAvg">—</span>
-                        <span class="s" id="indexVsAvgSub">average gaming PC</span>
+                        <span class="s" id="indexVsAvgSub">typical PC</span>
                       </div>
                     </div>
                   </div>
@@ -6097,12 +6133,12 @@
                       <div class="stutter-kpi">
                         <span class="k">Now</span>
                         <span class="v" id="stutterEstMs">—</span>
-                        <span class="s" id="stutterEstSub">estimate</span>
+                        <span class="s" id="stutterEstSub">est.</span>
                       </div>
                       <div class="stutter-kpi">
                         <span class="k">1% low</span>
                         <span class="v" id="stutter1Pct">—</span>
-                        <span class="s" id="stutter1PctSub">worst frame estimate</span>
+                        <span class="s" id="stutter1PctSub">session</span>
                       </div>
                       <div class="stutter-kpi">
                         <span class="k">5m</span>
@@ -10887,14 +10923,14 @@
       estEl.textContent = st.est_ms != null ? `${st.est_ms}ms` : '—';
       estEl.className = `v ${sev === 'none' ? 'ok' : sev}`;
       const estSub = document.getElementById('stutterEstSub');
-      if (estSub) estSub.textContent = st.event ? 'live hitch' : 'single-frame est.';
+      if (estSub) estSub.textContent = st.event ? 'live hitch' : 'est.';
       const pctEl = document.getElementById('stutter1Pct');
       pctEl.textContent = sess.hitch_ms_1pct != null ? `${sess.hitch_ms_1pct}ms` : '—';
       pctEl.className = `v ${(sess.hitch_ms_1pct || 0) >= 50 ? 'severe' : (sess.hitch_ms_1pct || 0) >= 28 ? 'moderate' : 'ok'}`;
       const pctSub = document.getElementById('stutter1PctSub');
       if (pctSub) {
         const smoothSess = sess.smoothness_session;
-        pctSub.textContent = smoothSess != null ? `${smoothSess}% session smooth` : 'session worst';
+        pctSub.textContent = smoothSess != null ? `${smoothSess}% smooth` : 'session';
       }
       const eventsEl = document.getElementById('stutterEvents');
       eventsEl.textContent = sess.events ?? 0;
@@ -11374,7 +11410,7 @@
         headEl.className = `v ${headroom <= 15 ? 'severe' : headroom <= 30 ? 'warn' : 'ok'}`;
       }
       const headSub = document.getElementById('indexHeadroomSub');
-      if (headSub) headSub.textContent = gaugePct >= 86 ? 'near maxed' : 'spare capacity';
+      if (headSub) headSub.textContent = gaugePct >= 86 ? 'near max' : 'spare';
 
       const sessEl = document.getElementById('indexSessionKpi');
       if (sessEl) {
@@ -11390,7 +11426,7 @@
         avgEl.className = `v ${vsAvg > 5 ? 'ok' : vsAvg < -5 ? 'severe' : ''}`;
       }
       const avgSub = document.getElementById('indexVsAvgSub');
-      if (avgSub) avgSub.textContent = 'vs average build';
+      if (avgSub) avgSub.textContent = 'typical PC';
 
       renderIndexRankings(c);
 
