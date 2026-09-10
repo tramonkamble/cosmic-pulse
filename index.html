@@ -510,6 +510,11 @@
       min-height: calc(100vh - var(--header-scroll-offset, 7rem) - 1.35rem);
       gap: 0.55rem;
     }
+    #pageFixes.page.active {
+      height: calc(100vh - var(--header-scroll-offset, 7rem) - 1.35rem);
+      min-height: 0;
+      overflow: hidden;
+    }
     .grid { display: grid; gap: 0.85rem; }
     .g-hero { grid-template-columns: repeat(3, 1fr); }
     @media (max-width: 1000px) { .g-hero { grid-template-columns: repeat(2, 1fr); } }
@@ -613,7 +618,8 @@
       flex-direction: column;
       gap: 0.5rem;
       flex: 1 1 auto;
-      min-height: calc(100vh - var(--header-scroll-offset, 7rem) - 1.35rem);
+      min-height: 0;
+      height: 100%;
       /* card chrome already on .card — keep padding tight */
       padding: 0.65rem 0.75rem !important;
     }
@@ -733,19 +739,58 @@
       .guidance-scan-meta { text-align: left; }
     }
 
-    /* Master–detail — fill remaining viewport (no artificial max-height cap) */
+    /* Master–detail fills leftover under the hero (and Data tools strip). */
     .guidance-split {
       display: grid;
       grid-template-columns: minmax(16rem, 34%) minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr);
       gap: 0.55rem;
       flex: 1 1 auto;
-      min-height: 0;
-      /* Hero ~4.5rem + page gaps + main padding — rest is workspace */
-      height: calc(100vh - var(--header-scroll-offset, 7rem) - 6.25rem);
+      min-height: 16rem;
+      height: auto;
       max-height: none;
       align-items: stretch;
     }
+    .guidance-tools {
+      flex: 0 0 auto;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--panel-elevated) 90%, #000 10%);
+      box-shadow: var(--surface-shine);
+      min-width: 0;
+    }
+    .guidance-tools > summary {
+      display: flex;
+      align-items: baseline;
+      gap: 0.55rem 0.75rem;
+      padding: 0.5rem 0.8rem;
+      cursor: pointer;
+      list-style: none;
+    }
+    .guidance-tools > summary::-webkit-details-marker { display: none; }
+    .guidance-tools-kicker {
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .guidance-tools-title {
+      font-size: 0.98rem;
+      font-weight: 600;
+    }
+    .guidance-tools-sum {
+      margin-left: auto;
+      font-size: 0.86rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .guidance-tools-body {
+      padding: 0 0.8rem 0.85rem;
+      max-height: min(36vh, 22rem);
+      overflow: auto;
+    }
+    .guidance-tools-body .section-lead { margin: 0 0 0.55rem; }
     @media (max-width: 920px) {
       .guidance-split {
         grid-template-columns: 1fr;
@@ -6568,24 +6613,6 @@
           <button class="btn" type="button" id="openGuidanceScan">Open Guidance → Scan</button>
         </div>
       </details>
-
-      <details class="drill drill-secondary" id="drill-admin" data-open-key="drill-admin">
-        <summary class="drill-summary">
-          <span class="drill-icon admin" data-glyph="chip"></span>
-          <span class="drill-summary-text">
-            <span class="drill-title">Data tools</span>
-            <span class="drill-rollup" id="drillAdminSum">—</span>
-          </span>
-          <span class="drill-chevron" aria-hidden="true"></span>
-        </summary>
-        <div class="drill-body">
-          <p class="section-lead" style="margin-top:0">
-            Only packages Pulse actually uses. Installing them unlocks better metrics —
-            not a generic shopping list.
-          </p>
-          <div class="backlog" id="toolsList"></div>
-        </div>
-      </details>
     </div>
     </div>
 
@@ -6640,6 +6667,21 @@
           <div id="guidanceDetailCard"></div>
         </div>
       </div>
+
+      <details class="guidance-tools" id="guidanceTools">
+        <summary>
+          <span class="guidance-tools-kicker">Host</span>
+          <span class="guidance-tools-title">Data tools</span>
+          <span class="guidance-tools-sum" id="guidanceToolsSum">—</span>
+        </summary>
+        <div class="guidance-tools-body">
+          <p class="section-lead">
+            Packages Pulse actually uses. Installing them unlocks better metrics —
+            not a generic shopping list.
+          </p>
+          <div class="backlog" id="toolsList"></div>
+        </div>
+      </details>
     </section>
     </div>
 
@@ -8566,7 +8608,7 @@
       }
       el.dataset.key = key;
       const smartNote = l?.nvme_smart && !l.nvme_smart.readable
-        ? `<p class="storage-note">${esc(l.nvme_smart.message || 'NVMe SMART not readable yet — see Data tools.')}</p>`
+        ? `<p class="storage-note">${esc(l.nvme_smart.message || 'NVMe SMART not readable yet.')} <button type="button" class="btn" data-open-guidance-tools>Guidance → Data tools</button></p>`
         : '';
       el.innerHTML = smartNote + drives.map(d => {
         const temp = tempById[d.name];
@@ -9145,7 +9187,7 @@
     const DRILL_IDS = new Set([
       'warningsSection',
       'drill-sensors', 'drill-charts', 'drill-bandwidth', 'drill-compute',
-      'drill-league', 'drill-game', 'drill-storage', 'drill-troubleshoot', 'drill-admin',
+      'drill-league', 'drill-game', 'drill-storage', 'drill-troubleshoot',
     ]);
 
     const DIAG_CAT_LABEL = {
@@ -9295,9 +9337,19 @@
       const first = lastDiagPrimary || lastGuidanceScanFindings[0];
       if (first) selectGuidanceHint(`diag:${first.id}`, { scroll: true });
     });
+
+    function openGuidanceDataTools() {
+      const tools = document.getElementById('guidanceTools');
+      if (tools) tools.open = true;
+      setTab('fixes', 'guidanceTools');
+    }
     fetchDiagnostics();
 
     function jumpTo(id) {
+      if (id === 'drill-admin' || id === 'guidanceTools' || id === 'toolsList') {
+        openGuidanceDataTools();
+        return;
+      }
       if (id === 'insightsSection' || id === 'guidanceSection' || id === 'guidanceHero') {
         setTab('fixes', id === 'guidanceSection' ? 'insightsSection' : id);
         return;
@@ -9399,12 +9451,12 @@
         return;
       }
       el.innerHTML = rows.join('');
-      const adminSum = document.getElementById('drillAdminSum');
+      const toolsSum = document.getElementById('guidanceToolsSum');
       const all = [...data, ...helpers];
       const feeding = data.filter(t => t.feeding).length;
       const installed = all.filter(t => t.installed).length;
-      if (adminSum) {
-        adminSum.textContent = `${feeding}/${data.length} feeding · ${installed}/${all.length} installed`;
+      if (toolsSum) {
+        toolsSum.textContent = `${feeding}/${data.length} feeding · ${installed}/${all.length} installed`;
       }
     }
 
@@ -15410,6 +15462,9 @@
     });
     document.getElementById('openOptionsRetention')?.addEventListener('click', () => {
       setTab('options', 'optionsData', true);
+    });
+    document.getElementById('driveList')?.addEventListener('click', (e) => {
+      if (e.target.closest('[data-open-guidance-tools]')) openGuidanceDataTools();
     });
 
     document.getElementById('tuningLogApply')?.addEventListener('click', () =>

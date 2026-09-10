@@ -19,6 +19,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
+- **Data tools** — moved off the dashboard dock onto Guidance (collapsed host strip). Apt/udev unlocks sit with Scan, not Live lab.
 - **UI scale default** — 100% (16px rem root). 150% is still on the Options slider if you sit farther from the screen.
 - **Package layout** — Python modules live in `cosmic_pulse/`. Root `server.py` is a launcher (`python3 server.py` or `python3 -m cosmic_pulse`).
 - **systemd user unit** — no `network-online` wait; `TimeoutStopSec=20`; `KillMode=mixed`; SIGTERM reaps the sample-worker child so `systemctl stop` does not leave a stray sampler.
