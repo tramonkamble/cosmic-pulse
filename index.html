@@ -5278,8 +5278,8 @@
       gap: 0.4rem;
     }
     body.dash-dedupe #pageDashboard #vizPanel {
-      --lab-chart-h: 11.5rem;
-      --lab-stage-h: 17rem;
+      /* JS sets --lab-stage-h so header + scoreboard + lab fill a 1080p screen. */
+      --lab-stage-h: 36rem;
       --lab-mid: minmax(16rem, 1.7fr);
       --lab-side: minmax(13rem, 1.05fr);
       flex: 0 0 auto;
@@ -5318,13 +5318,19 @@
     body.dash-dedupe #pageDashboard #vizPanel .stutter-drivers { grid-area: drivers; min-height: 0; overflow: auto; }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-chart-col { grid-area: chart; min-height: 0; overflow: hidden; }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-summary { grid-area: summary; min-height: 0; overflow: auto; }
+    body.dash-dedupe #pageDashboard #vizPanel .rig-panel-chart {
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
     body.dash-dedupe #pageDashboard #vizPanel .stutter-chart-box,
     body.dash-dedupe #pageDashboard #vizPanel .rig-layout .stutter-chart-box,
     body.dash-dedupe #pageDashboard #vizPanel .stutter-layout.viz-tri .stutter-chart-box {
-      flex: 0 0 var(--lab-chart-h);
-      height: var(--lab-chart-h) !important;
-      min-height: var(--lab-chart-h) !important;
-      max-height: var(--lab-chart-h) !important;
+      flex: 1 1 auto;
+      min-height: 0 !important;
+      height: auto !important;
+      max-height: none !important;
     }
     body.dash-dedupe #pageDashboard #vizPanel .index-gauge,
     body.dash-dedupe #pageDashboard #vizPanel .stutter-gauge {
@@ -5535,8 +5541,6 @@
     @media (max-height: 780px) {
       body.dash-dedupe #pageDashboard #vizPanel {
         min-height: 0;
-        --lab-chart-h: 10rem;
-        --lab-stage-h: 15rem;
       }
       body.dash-dedupe .pulse-dial-ring {
         width: min(4.8rem, 82cqmin);
@@ -6697,6 +6701,30 @@
       document.body.classList.toggle('ui-wrap-wide', w <= wide);
       document.body.classList.toggle('ui-wrap-tight', w <= tight);
       document.body.classList.toggle('ui-wrap-roomy', w >= roomy);
+      syncLabStage();
+    }
+
+    /** Header + scoreboard + Live lab fill a 1080p screen; taller monitors keep that cap. */
+    function syncLabStage() {
+      const viz = document.getElementById('vizPanel');
+      if (!viz) return;
+      const header = document.querySelector('header');
+      const summary = document.getElementById('summaryBar');
+      const head = viz.querySelector('.viz-panel-head');
+      const main = document.querySelector('main');
+      const pad = main ? (() => {
+        const cs = getComputedStyle(main);
+        return (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      })() : 24;
+      const dash = document.getElementById('pageDashboard');
+      const gap = dash ? (parseFloat(getComputedStyle(dash).gap) || 8) : 8;
+      const chrome = (header?.offsetHeight || 56)
+        + (summary?.offsetHeight || 100)
+        + (head?.offsetHeight || 44)
+        + pad + gap * 2;
+      const screen = Math.min(window.innerHeight || 1080, 1080);
+      const h = Math.max(320, Math.round(screen - chrome));
+      viz.style.setProperty('--lab-stage-h', `${h}px`);
     }
     syncUiWrap();
     window.addEventListener('resize', syncUiWrap);
@@ -14406,6 +14434,12 @@
       updateUiScaleLabel(clamped);
       applyChartFontScale();
       try { syncUiWrap(); } catch (_) { /* ignore */ }
+      requestAnimationFrame(() => {
+        try { syncLabStage(); } catch (_) { /* ignore */ }
+        try { sparkChart?.resize(); } catch (_) { /* ignore */ }
+        try { indexChart?.resize(); } catch (_) { /* ignore */ }
+        try { stutterChart?.resize(); } catch (_) { /* ignore */ }
+      });
       return clamped;
     }
 
