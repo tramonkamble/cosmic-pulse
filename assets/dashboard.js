@@ -6657,12 +6657,12 @@
       if (!s) return;
       storeCache = s;
       if (!optionsThemeLocked()) {
-        if (s.theme_mode && s.theme_mode !== themeMode) {
-          themeMode = s.theme_mode;
+        if (!themeHydrated) {
+          if (s.theme_mode) themeMode = s.theme_mode;
+          themeHydrated = true;
           syncThemeModeUi();
           applyThemeFromSettings({ force: true });
-        } else if (s.theme_mode) {
-          // Keep status / preview current when store refreshes
+        } else if (s.theme_mode === themeMode) {
           updateThemeStatus(lastStatic?.cosmic_theme);
           if (!themePreviewMode) {
             paintThemePreview(

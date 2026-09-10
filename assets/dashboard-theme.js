@@ -230,6 +230,7 @@
     let themeSavePending = null; // last { mode, silent } while a POST is in flight
     let storeWriteGen = 0; // bump on Options POST so an older GET cannot paint over it
     let themePreviewMode = null; // hover preview without commit
+    let themeHydrated = false; // first store GET may set mode; later GETs must not clobber a pick
 
     function softHex(c, aHex) {
       if (!c || typeof c !== 'string') return null;
@@ -449,6 +450,7 @@
     async function setThemeMode(mode, { silent = false } = {}) {
       if (!THEME_MODE_ALLOWED.includes(mode)) return;
       themeMode = mode;
+      themeHydrated = true;
       themePreviewMode = null;
       syncThemeModeUi();
       applyThemeFromSettings({ force: true });

@@ -19,7 +19,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
-- **Themes** — Options can pick Cosmic (follow desktop), Cosmic Dark, Cosmic Light, Pulse Dark, Pulse Light, or System. Light chrome uses darker type and lighter wells so numbers stay readable. Chart axis ticks follow the chrome.
+- **Themes** — Options can pick Cosmic (follow desktop), Cosmic Dark, Cosmic Light, Pulse Dark, Pulse Light, or System. Light chrome uses darker type and lighter wells so numbers stay readable. Plot wells stay dark so series colors remain visible; a store refresh no longer snaps chrome back to dark.
 - **Dashboard sources** — CSS in `assets/dashboard.css`. Client JS is three classic scripts: `dashboard-theme.js`, `dashboard-charts.js`, `dashboard.js` (poll loop last). `index.html` is markup. No bundler.
 - **Data tools** — moved off the dashboard dock onto Guidance (collapsed host strip). Apt/udev unlocks sit with Scan, not Live lab.
 - **System checks dock tile** — removed. Steam/library scans already live under Guidance → Scan.

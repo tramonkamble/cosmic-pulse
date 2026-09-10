@@ -162,14 +162,11 @@
     let tickColor = '#9aa3b2';
 
     function chartGridColor() {
-      return document.body.classList.contains('theme-light')
-        ? 'rgba(17, 24, 39, 0.10)'
-        : 'rgba(255,255,255,.06)';
+      // Plot wells stay dark in every chrome so series colors remain readable.
+      return 'rgba(255,255,255,.10)';
     }
     function chartTickColor() {
-      return document.body.classList.contains('theme-light')
-        ? '#4b5563'
-        : '#9aa3b2';
+      return '#d0d7e2';
     }
     function applyChartChrome() {
       gridColor = chartGridColor();
