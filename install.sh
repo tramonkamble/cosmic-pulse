@@ -12,7 +12,10 @@ WRAPPER="${BIN_DIR}/cosmic-pulse"
 PORT="${PULSE_PORT:-8765}"
 WITH_SERVICE=0
 UNINSTALL=0
+PURGE=0
 USE_SYSTEM_PYTHON=0
+DESKTOP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/256x256/apps"
 
 usage() {
   cat <<'EOF'
@@ -26,7 +29,8 @@ Options:
   --service        Enable and start systemd user service
   --port PORT      HTTP port (default: 8765)
   --system-python  Use system python3 + pip --user instead of a venv
-  --uninstall      Remove install dir, wrapper, and user service
+  --uninstall      Remove the app, wrapper, desktop entry, and user service
+  --purge          With --uninstall, also delete pulse.db and local config
   -h, --help       Show this help
 
 After install:
@@ -78,6 +82,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --system-python) USE_SYSTEM_PYTHON=1; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
+    --purge) PURGE=1; UNINSTALL=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1 (try --help)" ;;
   esac
@@ -89,9 +94,24 @@ uninstall() {
   rm -f "$SERVICE_FILE"
   systemctl --user daemon-reload 2>/dev/null || true
   rm -f "$WRAPPER"
+  rm -f "$DESKTOP_DIR/cosmic-pulse.desktop"
+  rm -f "$ICON_DIR/cosmic-pulse.png"
   if [[ -d "$INSTALL_DIR" ]]; then
-    log "Removing $INSTALL_DIR"
-    rm -rf "$INSTALL_DIR"
+    if [[ "$PURGE" -eq 1 ]]; then
+      log "Removing $INSTALL_DIR (including history)"
+      rm -rf "$INSTALL_DIR"
+    else
+      log "Removing app files; keeping pulse.db / config in $INSTALL_DIR"
+      shopt -s dotglob nullglob
+      for p in "$INSTALL_DIR"/*; do
+        case "$(basename "$p")" in
+          pulse.db|pulse.db-wal|pulse.db-shm|.pulse_config.json|.tuning_log.json|.memory_cache.json)
+            continue ;;
+        esac
+        rm -rf "$p"
+      done
+      shopt -u dotglob nullglob
+    fi
   fi
   log "Uninstall complete"
 }
@@ -102,27 +122,62 @@ if [[ "$UNINSTALL" -eq 1 ]]; then
 fi
 
 need_cmd python3
-need_cmd rsync
+
+copy_app() {
+  # Tracked files only when this is a git checkout; otherwise rsync the tree.
+  local dest="$1"
+  mkdir -p "$dest"
+  shopt -s dotglob nullglob
+  for p in "$dest"/*; do
+    case "$(basename "$p")" in
+      pulse.db|pulse.db-wal|pulse.db-shm|.pulse_config.json|.tuning_log.json|.memory_cache.json)
+        continue ;;
+    esac
+    rm -rf "$p"
+  done
+  shopt -u dotglob nullglob
+  if [[ -d "$SOURCE_DIR/.git" ]] && command -v git >/dev/null 2>&1; then
+    git -C "$SOURCE_DIR" archive HEAD | tar -x -C "$dest"
+  else
+    need_cmd rsync
+    rsync -a --delete \
+      --exclude '.git/' \
+      --exclude '.github/' \
+      --exclude '.venv/' \
+      --exclude '.hermes/' \
+      --exclude '__pycache__/' \
+      --exclude '.ruff_cache/' \
+      --exclude 'pulse.db' \
+      --exclude 'pulse.db-*' \
+      --exclude '.pulse_config.json' \
+      --exclude '.tuning_log.json' \
+      --exclude '.memory_cache.json' \
+      --exclude 'backups/' \
+      --exclude 'reviews_*' \
+      --exclude 'build/' \
+      --exclude 'tests/' \
+      --exclude '*.log' \
+      --exclude '.sample_live.json' \
+      --exclude '.sample_worker.pid' \
+      --exclude '5-HOUR_*' \
+      --exclude 'BUG_*' \
+      --exclude 'BugHunt*' \
+      --exclude 'UI_*' \
+      --exclude 'VERIFICATION_*' \
+      --exclude 'PULSE_AGENTS.md' \
+      --exclude 'PULSE_REVIEW.md' \
+      --exclude 'docs/reviews/' \
+      --exclude 'deploy/ab/' \
+      --exclude 'assets/brand/placeholders/' \
+      "$SOURCE_DIR/" "$dest/"
+  fi
+  rm -rf "$dest/tests" "$dest/.github" "$dest/.hermes"
+}
 
 [[ -f "$SOURCE_DIR/server.py" ]] || die "run install.sh from the Cosmic Pulse repo root"
 
 log "Installing to $INSTALL_DIR"
-mkdir -p "$INSTALL_DIR"
-
-rsync -a --delete \
-  --exclude '.git/' \
-  --exclude '.venv/' \
-  --exclude '__pycache__/' \
-  --exclude '.ruff_cache/' \
-  --exclude 'pulse.db' \
-  --exclude 'pulse.db-*' \
-  --exclude '.pulse_config.json' \
-  --exclude '.tuning_log.json' \
-  --exclude '.memory_cache.json' \
-  --exclude 'backups/' \
-  --exclude 'reviews_*' \
-  --exclude 'build/' \
-  "$SOURCE_DIR/" "$INSTALL_DIR/"
+copy_app "$INSTALL_DIR"
 
 mkdir -p "$BIN_DIR"
 
@@ -161,6 +216,14 @@ exec "${PYTHON_BIN}" "${INSTALL_DIR}/server.py" "\$@"
 EOF
 chmod +x "$WRAPPER"
 
+mkdir -p "$DESKTOP_DIR" "$ICON_DIR"
+if [[ -f "$SOURCE_DIR/assets/brand/pulse-mark-256.png" ]]; then
+  install -m 644 "$SOURCE_DIR/assets/brand/pulse-mark-256.png" "$ICON_DIR/cosmic-pulse.png"
+fi
+if [[ -f "$SOURCE_DIR/deploy/cosmic-pulse.desktop" ]]; then
+  install -m 644 "$SOURCE_DIR/deploy/cosmic-pulse.desktop" "$DESKTOP_DIR/cosmic-pulse.desktop"
+fi
+
 if [[ "$WITH_SERVICE" -eq 1 ]]; then
   need_cmd systemctl
   mkdir -p "$SERVICE_DIR"
@@ -168,9 +231,8 @@ if [[ "$WITH_SERVICE" -eq 1 ]]; then
   cat >"$SERVICE_FILE" <<EOF
 [Unit]
 Description=Cosmic Pulse gaming performance dashboard
-Documentation=file://${INSTALL_DIR}/README.md
-After=network-online.target
-Wants=network-online.target
+Documentation=https://github.com/tramonkamble/cosmic-pulse
+After=default.target
 
 [Service]
 Type=simple
@@ -179,6 +241,10 @@ ExecStart=${WRAPPER}
 Environment=PYTHONUNBUFFERED=1
 Restart=on-failure
 RestartSec=3
+TimeoutStopSec=20
+KillMode=mixed
+NoNewPrivileges=yes
+PrivateTmp=yes
 
 [Install]
 WantedBy=default.target

@@ -4,7 +4,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Depends: python3 (>= 3.11), python3-psutil, python3-yaml
-Maintainer: Cosmic Pulse contributors <https://github.com/tramonkamble/cosmic-pulse>
+Maintainer: Cosmic Pulse contributors <tramonkamble@users.noreply.github.com>
 Homepage: https://github.com/tramonkamble/cosmic-pulse
 Description: Local gaming performance dashboard for Linux
  Cosmic Pulse is a second-monitor performance coach for Linux gaming.

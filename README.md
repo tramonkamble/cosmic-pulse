@@ -32,7 +32,7 @@ chmod +x install.sh
 ./install.sh --service
 ```
 
-Open **http://localhost:8765**. For a second machine or phone on the LAN: `cosmic-pulse --lan` (or `PULSE_LAN=1`).
+Open **http://127.0.0.1:8765**, or run `cosmic-pulse --open`. For a second machine on the LAN: `cosmic-pulse --lan` (or `PULSE_LAN=1`).
 
 Ensure `~/.local/bin` is on your `PATH` so the `cosmic-pulse` command works.
 
@@ -70,8 +70,10 @@ Optional: `dmidecode`, `smartmontools` (provides `smartctl`), `corectrl`, `nvtop
 | Method | Best for | Guide |
 |--------|----------|--------|
 | **`./install.sh --service`** | Most users | Below + [docs/INSTALL.md](docs/INSTALL.md) |
-| **`.deb` package** | apt-based distros | [docs/INSTALL.md](docs/INSTALL.md) § Debian |
-| **`python3 server.py`** | Development / hacking | Clone repo, run in tree |
+| **`.deb` package** | Optional on Debian/Pop/Ubuntu | [docs/INSTALL.md](docs/INSTALL.md) |
+| **`python3 server.py`** | Development | Clone repo, run in tree |
+
+Fedora / Arch: use `install.sh`. No RPM in 0.1.
 
 ### Install script flags
 

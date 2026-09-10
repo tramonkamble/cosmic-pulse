@@ -23,3 +23,4 @@ jobs:
           python tests/test_stutter.py
           python tests/test_rule_packs.py
           python tests/test_store_clear.py
+          python tests/test_cli.py

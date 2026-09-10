@@ -1,15 +1,20 @@
 [Unit]
 Description=Cosmic Pulse gaming performance dashboard
-Documentation=file:///usr/share/doc/cosmic-pulse/README.md
-After=network-online.target
-Wants=network-online.target
+Documentation=https://github.com/tramonkamble/cosmic-pulse
+# Localhost HTTP — do not wait on network-online (that delays or fails offline).
+After=default.target
 
 [Service]
 Type=simple
+WorkingDirectory=/usr/lib/cosmic-pulse
 ExecStart=/usr/bin/cosmic-pulse
 Environment=PYTHONUNBUFFERED=1
 Restart=on-failure
 RestartSec=3
+TimeoutStopSec=20
+KillMode=mixed
+NoNewPrivileges=yes
+PrivateTmp=yes
 
 [Install]
 WantedBy=default.target

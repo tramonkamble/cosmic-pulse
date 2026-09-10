@@ -28,7 +28,7 @@ server.py (sampler thread + HTTP)
     ├── benchmarks.py    → hardware tiers, session index
     ├── stutter.py       → hitch proxy from PSI/faults/swap
     ├── tuning_actions.py→ insights + action commands
-    ├── apply_fix.py    → requires_root labels only (no execution)
+    ├── apply_fix.py    → requires_root labels only (no command execution)
     ├── diagnostics.py   → journal/steam/vulkan scans
     ├── games.py         → Steam process detection
     └── store.py         → SQLite pulse.db (gitignored)

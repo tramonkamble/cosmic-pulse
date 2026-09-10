@@ -3,11 +3,14 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Live performance dashboard for Pop!_OS gaming rigs."""
 
+import argparse
 import atexit
+import errno
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -2734,6 +2737,32 @@ def listen_host() -> str:
     return "127.0.0.1"
 
 
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="cosmic-pulse",
+        description="Local Linux gaming performance dashboard (http://127.0.0.1:8765).",
+    )
+    parser.add_argument("--lan", action="store_true", help="Bind 0.0.0.0 (no auth; trusted LAN only)")
+    parser.add_argument("--port", type=int, metavar="N", help="HTTP port (default 8765, or PULSE_PORT)")
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Open the dashboard in a browser (if the port is busy, just open it)",
+    )
+    return parser.parse_args(argv)
+
+
+def apply_cli(args: argparse.Namespace) -> None:
+    global PORT
+    if args.port:
+        if args.port < 1 or args.port > 65535:
+            raise SystemExit(f"invalid --port {args.port}")
+        os.environ["PULSE_PORT"] = str(args.port)
+        PORT = args.port
+    if args.lan:
+        os.environ["PULSE_LAN"] = "1"
+
+
 def _run_sampler_loop(my_gen: int, platform_last_refresh: float) -> None:
     """1 Hz sample loop for one generation. Abandoned gens exit without publishing."""
     global _sampler_last_reason, _sampler_tick_started_mono, _sampler_live_loops
@@ -3466,7 +3495,17 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
 
-def main():
+def _open_dashboard(host: str) -> None:
+    url = f"http://127.0.0.1:{PORT}/"
+    try:
+        import webbrowser
+
+        webbrowser.open(url)
+    except Exception as exc:
+        print(f"Cosmic Pulse: could not open browser ({exc})", flush=True)
+
+
+def main(open_browser: bool = False):
     # spawn children must be protected on some platforms; always fine as main.
     init_db()
     # Background SQLite writer (WAL) — sample inserts never block the 1 Hz sampler.
@@ -3484,13 +3523,20 @@ def main():
     # Killable sample child — wedged ticks get SIGKILL; parent stays alive forever.
     # Pass this module explicitly: when launched as ``python server.py`` we are
     # ``__main__``, not ``server``, and a second import would shadow state.
-    from sample_supervisor import start_sample_supervisor
+    from sample_supervisor import start_sample_supervisor, stop_supervisor
 
     start_sample_supervisor(srv=sys.modules[__name__])
     time.sleep(1.2)
     atexit.register(lambda: finalize_open_session(save_session=save_game_session))
     host = listen_host()
-    server = ThreadingHTTPServer((host, PORT), Handler)
+    try:
+        server = ThreadingHTTPServer((host, PORT), Handler)
+    except OSError as exc:
+        if open_browser and getattr(exc, "errno", None) == errno.EADDRINUSE:
+            print(f"Cosmic Pulse already on port {PORT} — opening the dashboard", flush=True)
+            _open_dashboard(host)
+            return
+        raise
     print(f"Cosmic Pulse: http://127.0.0.1:{PORT}")
     if host == "0.0.0.0":
         print("              LAN bind (--lan / PULSE_LAN=1) — no authentication")
@@ -3500,6 +3546,19 @@ def main():
         except (subprocess.SubprocessError, IndexError):
             pass
     print("Press Ctrl+C to stop.")
+
+    def _stop(_signum=None, _frame=None):
+        print("Cosmic Pulse: stopping", flush=True)
+        try:
+            stop_supervisor()
+        except Exception:
+            pass
+        threading.Thread(target=server.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+    if open_browser:
+        threading.Timer(0.5, lambda: _open_dashboard(host)).start()
     server.serve_forever()
 
 
@@ -3512,4 +3571,6 @@ if __name__ == "__main__":
         _mp.set_start_method(mp_method, force=False)
     except RuntimeError:
         pass
-    main()
+    _args = parse_args()
+    apply_cli(_args)
+    main(open_browser=_args.open)

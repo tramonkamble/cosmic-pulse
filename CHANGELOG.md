@@ -8,6 +8,8 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
+- **CLI** — `cosmic-pulse --help` / `--port` / `--lan` / `--open` (open the UI, or reuse an already-bound port).
+- **Desktop launcher** — `.desktop` + icon from `install.sh` and the `.deb`.
 - **GitHub-ready docs** — `AGENTS.md` for coding agents, issue templates, `SECURITY.md`, current dashboard screenshots.
 - **Host identity for other gaming PCs** — first-class desktop badges for KDE, GNOME, COSMIC, Cinnamon, XFCE, Hyprland, and Gamescope (Steam Deck session). NVIDIA proprietary driver badge + 1 Hz `nvidia-smi` meters; Mesa stays the AMD/Intel userspace badge. Rule packs see `platform.is_kde` / `is_nvidia` / `gpu.driver` / `gpu.stack`. RAM DMI maps Corsair, Kingston, Crucial, TeamGroup, and other common brands; DDR4 kits no longer labeled DDR5.
 - **Hardware scales** — Options sliders for CPU/GPU graph °C and watt-dial ceilings, persisted in `.pulse_config.json`.
@@ -16,6 +18,8 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
+- **systemd user unit** — no `network-online` wait; `TimeoutStopSec=20`; `KillMode=mixed`; SIGTERM reaps the sample-worker child so `systemctl stop` does not leave a stray sampler.
+- **Uninstall** — `./install.sh --uninstall` keeps `pulse.db`; `--purge` deletes history.
 - **Builtin Guidance** — two packs of five: `pulse-core` (Linux / Steam / hitch / FPS cap / Proton Wayland) and `popos-core` (Pop-only HDR, RAPL udev, Proton libs, MangoHud, GPU hot). Fat `pulse-default` removed; community packs stay `~/.config/pulse/rules/`.
 - **No title-specific builtin overrides** — CS2 / Cities II `game_overrides` and watt dials sized for one 7900X/XTX kit are out of the shipped defaults. Steam catalog is installed manifests only.
 - **Listen on localhost** — default bind is `127.0.0.1`. `--lan` / `PULSE_LAN=1` for a second machine. POST APIs no longer send `Access-Control-Allow-Origin: *`.

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Cosmic Pulse
+Comment=Second-monitor performance dashboard for Linux gaming
+Exec=cosmic-pulse --open
+Icon=cosmic-pulse
+Terminal=false
+Categories=System;Monitor;Game;
+Keywords=gpu;cpu;stutter;steam;proton;mangohud;
+StartupNotify=false

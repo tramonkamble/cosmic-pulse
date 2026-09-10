@@ -537,6 +537,18 @@ def _supervisor_loop(srv=None) -> None:
         time.sleep(RESPAWN_PAUSE_SEC)
 
 
+def stop_supervisor() -> None:
+    """Stop watchdog respawns and SIGKILL this data-dir's sample workers.
+
+    Call from SIGTERM/SIGINT. ``atexit`` does not run on unhandled SIGTERM,
+    which is what ``systemctl stop`` sends.
+    """
+    from paths import data_dir as _data_dir
+
+    _set_supervisor_shutdown()
+    reap_stray_workers(data_dir=_data_dir())
+
+
 def start_sample_supervisor(srv=None) -> None:
     """Start supervisor. Pass ``srv=sys.modules[__name__]`` from server.main()."""
     from paths import data_dir as _data_dir
