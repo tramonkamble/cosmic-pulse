@@ -5,7 +5,7 @@ Three supported ways to run Pulse. All are **local-only** — no cloud, no accou
 | Method | Who it’s for |
 |--------|----------------|
 | **`./install.sh --service`** | Most people (Pop!_OS, Ubuntu, Fedora, Arch, …) |
-| **`python3 server.py`** | Development |
+| **`python3 server.py`** | Run from a git clone without installing |
 | **`.deb`** | Optional apt install on Debian/Pop/Ubuntu |
 
 There is **no RPM** in 0.1. Fedora / Nobara / Bazzite: use `install.sh` (see below). An untested distro package would be worse than a script that works.
@@ -86,11 +86,7 @@ Read-only files go under `/usr/lib/cosmic-pulse/`. Writable state is **`~/.local
 
 ## systemd user service
 
-This is the supported always-on mode. The unit:
-
-- does **not** wait on `network-online` (Pulse is localhost)
-- restarts on crash (`Restart=on-failure`)
-- stops in ≤20s and reaps the sample-worker child (`KillMode=mixed` + SIGTERM handler)
+This is the supported always-on mode. It runs as your user, on localhost, and restarts if it crashes.
 
 ```bash
 systemctl --user status cosmic-pulse
@@ -150,4 +146,4 @@ rm -rf ~/.local/share/cosmic-pulse   # optional — your DB/history
 | Empty Guidance | Wait a few sampler ticks; run **Scan** on the Guidance tab |
 | Service starts but UI is dead after `systemctl stop` | Upgrade — 0.1 reaps the sample worker on SIGTERM |
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for data directories.
+Writable state (history, config) lives next to the install, or in `~/.local/share/cosmic-pulse` for the `.deb`.

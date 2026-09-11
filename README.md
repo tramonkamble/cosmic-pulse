@@ -8,7 +8,7 @@ If you watched a Windows box with **MSI Afterburner** or **AMD Software: Adrenal
 
 ![Cosmic Pulse dashboard](docs/screenshots/dashboard.png)
 
-> **Status:** v0.2.2 (0.x prerelease) — community project, **not** an official System76 app. Issues and PRs welcome. Coding agents: start at [AGENTS.md](AGENTS.md).
+> **Status:** v0.2.2 (0.x prerelease) — community project, **not** an official System76 app. Issues and PRs welcome.
 
 ## If you came from Windows
 
@@ -20,7 +20,7 @@ Pulse is not a port of Afterburner, and it is not AMD Crimson/Adrenalin or the N
 | **AMD Software: Adrenalin** (older name: Crimson) | Driver overlay, metrics, tuning | The metrics *page* — plus a hardware class score and “what to do next.” Driver tuning stays in CoreCtrl / LACT / `amdgpu`. |
 | **NVIDIA App** overlay / FrameView | FPS overlay, frame capture | Session recap and GPU meters via `nvidia-smi`. Overlay stays MangoHud / Steam. |
 | **CapFrameX** / PresentMon | 1% lows, frametime traces | A **hitch proxy** from kernel stalls (PSI, faults, swap, disk). Real frametime still wants MangoHud. |
-| **HWiNFO** | Sensor wall and logging | Live lab (clocks / thermals / power / pressure) and optional SQLite history. |
+| **HWiNFO** | Sensor wall and logging | Live lab (clocks / thermals / power / pressure) and optional history on this machine. |
 
 Leave the in-game overlay to [MangoHud](https://github.com/flightlessmango/MangoHud). Leave voltage/clock/fan curves to CoreCtrl, LACT, or `nvidia-settings`. Pulse is the dashboard you park on the other monitor: **what is the box doing, is this session hitching, is this PC in the right league, and what should I change.**
 
@@ -29,39 +29,41 @@ Leave the in-game overlay to [MangoHud](https://github.com/flightlessmango/Mango
 | Typical monitor | Cosmic Pulse |
 |-----------------|--------------|
 | Raw CPU/GPU % | **Stutter proxy** — hitch score from kernel stall signals |
-| Static graphs | **Hardware league** — how this session compares to published CPU/GPU relatives |
+| Static graphs | **Hardware league** — how this PC compares to published CPU/GPU relatives |
 | “Google the error” | **Guidance** — ranked issues, copy-paste steps, optional one-click fixes |
 | Generic | **Game-aware** — detects running Steam titles, Proton/Wayland context |
 
 It is a **companion**, not a replacement for MangoHud, COSMIC System Monitor, or in-game frametime tools.
 
+## What you get
+
+- **Live lab** — Snapshot (load, clocks, thermals, power), Pulse Index, and Stutter, with 1 / 5 / 10 / 60 minute views
+- **Stutter estimate** — hitch score from page faults, PSI, swap, and disk I/O (not in-game frametime)
+- **Pulse Index** — how this build ranks vs published 1440p GPU / 1080p CPU relatives, plus live session load
+- **Game performance** — Steam title detection, last-session rating, Smooth % / GPU / game CPU trend
+- **Guidance** — ranked issues with copy-paste steps and optional one-click user-owned fixes
+- **Host identity** — desktop (COSMIC, KDE, GNOME, XFCE, …) and GPU stack (Mesa / NVIDIA)
+- **COSMIC theme sync** — accent and surfaces from `~/.config/cosmic` when present
+- **History** — samples kept on this machine so you can browse past sessions
+
 ## Quick start (Pop!_OS / Ubuntu)
 
 ```bash
-# Dependencies (once)
 sudo apt install python3-psutil python3-yaml
-
-# Install
 git clone https://github.com/tramonkamble/cosmic-pulse.git
 cd cosmic-pulse
 chmod +x install.sh
 ./install.sh --service
 ```
 
-Open **http://127.0.0.1:8765**, or run `cosmic-pulse --open`. For a second machine on the LAN: `cosmic-pulse --lan` (or `PULSE_LAN=1`).
+Open **http://127.0.0.1:8765**, or run `cosmic-pulse --open`. For a second machine on the LAN: `cosmic-pulse --lan` (trusted home network only — there is no login).
 
-Ensure `~/.local/bin` is on your `PATH` so the `cosmic-pulse` command works.
+Put `~/.local/bin` on your `PATH` so the `cosmic-pulse` command works. Full options, `.deb`, Fedora/Arch: [docs/INSTALL.md](docs/INSTALL.md).
 
-## Features
-
-- **Live lab** — Snapshot (load + clocks/thermals/power), Pulse Index, Stutter; same stage height on every tab
-- **Stutter estimate** — hitch score from page faults, PSI, swap, and disk I/O (not in-game frametime)
-- **Pulse Index** — session load vs hardware tier tables
-- **Guidance** — ranked issues, copy-paste steps, optional one-click user-owned fixes
-- **Host identity** — desktop (COSMIC, KDE, GNOME, XFCE, …) and GPU stack (Mesa / NVIDIA)
-- **Steam / Proton** — running-title detection, launch-option hints (e.g. Wayland → X11)
-- **COSMIC theme sync** — accent and surfaces from `~/.config/cosmic` when present
-- **History** — optional SQLite retention for trends
+```bash
+systemctl --user status cosmic-pulse
+systemctl --user restart cosmic-pulse
+```
 
 ## Requirements
 
@@ -69,91 +71,38 @@ Ensure `~/.local/bin` is on your `PATH` so the `cosmic-pulse` command works.
 |----------|--------|
 | Linux + `/proc`, `/sys` | Any modern distro |
 | Python **3.11+** | `python3 --version` |
-| `psutil`, `PyYAML` | `sudo apt install python3-psutil python3-yaml` or `pip install -r requirements.txt` |
+| `psutil`, `PyYAML` | `sudo apt install python3-psutil python3-yaml` |
 
 | Recommended | Notes |
 |-------------|--------|
-| AMD discrete GPU | Dense sysfs metrics (busy, VRAM, PPT, fan) |
+| AMD discrete GPU | Dense GPU meters (busy, VRAM, PPT, fan) |
 | NVIDIA | `nvidia-smi` meters when the proprietary driver is present |
-| `/sys/class/hwmon` | CPU/GPU/NVMe temps and fans (no `sensors` binary) |
-| Steam | Game-aware Guidance and log scans |
+| Steam | Game-aware Guidance and session recap |
 | Second monitor | Dashboard is meant to sit beside the game |
 
-Optional: `dmidecode`, `smartmontools` (provides `smartctl`), `corectrl`, `nvtop` — surfaced in the tools panel when present.
+Optional: `dmidecode` (exact RAM kit), `smartctl`, CoreCtrl, nvtop — Pulse lists them when they are installed.
 
-## Install options
+## On this machine
 
-| Method | Best for | Guide |
-|--------|----------|--------|
-| **`./install.sh --service`** | Most users | Below + [docs/INSTALL.md](docs/INSTALL.md) |
-| **`.deb` package** | Optional on Debian/Pop/Ubuntu | [docs/INSTALL.md](docs/INSTALL.md) |
-| **`python3 server.py`** | Development | Clone repo, run in tree |
-
-Fedora / Arch: use `install.sh`. No RPM in 0.1.
-
-### Install script flags
-
-```bash
-./install.sh --service          # background systemd user service
-./install.sh --dir ~/.local/share/cosmic-pulse
-./install.sh --port 8765        # set PULSE_PORT
-./install.sh --system-python    # skip venv (use apt/pip packages)
-./install.sh --uninstall        # remove install + service
-```
-
-Install location defaults to `~/.local/share/cosmic-pulse`. The `cosmic-pulse` wrapper is placed in `~/.local/bin`.
-
-### Service commands
-
-```bash
-systemctl --user status cosmic-pulse
-systemctl --user restart cosmic-pulse
-journalctl --user -u cosmic-pulse -f
-```
-
-User services start at login. For start-at-boot without login: `loginctl enable-linger "$USER"`.
-
-## Configuration
-
-Local state is **per machine** — never committed to git:
+Pulse does not use an account or the cloud. History and settings stay local:
 
 | File | Purpose |
 |------|---------|
-| `pulse.db` | Sample history (SQLite) |
-| `.pulse_config.json` | Retention, suppressed/resolved insights |
-| `.tuning_log.json` | Guidance history cache |
+| `pulse.db` | Sample and session history |
+| `.pulse_config.json` | Retention, theme, suppressed tips |
+| `.tuning_log.json` | Guidance history |
 
-Copy the template if you want an explicit config:
+Default location is the install directory (`~/.local/share/cosmic-pulse` for the script and the `.deb`). Uninstall keeps that data; `./install.sh --purge` deletes it.
 
-```bash
-cp .pulse_config.example.json .pulse_config.json
-```
+## Privacy
 
-**Environment variables:**
+Binds to **`127.0.0.1`** by default. `--lan` / `PULSE_LAN=1` listens on the LAN **with no authentication** — second monitor or phone on a network you trust, not the internet. One-click **Fix** actions only touch user-owned things (folders, Steam launch options). Root steps are commands you run yourself. Details: [SECURITY.md](SECURITY.md).
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `PULSE_PORT` | `8765` | HTTP port |
-| `PULSE_LAN` | unset | Set to `1` to bind `0.0.0.0` (LAN view, no auth) |
-| `PULSE_DATA_DIR` | install dir or `~/.local/share/cosmic-pulse` | Writable state (`.deb` installs) |
-| `STEAM_BASE` | auto-detect | Steam root if non-standard |
+## Limitations
 
-Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Security notice
-
-Cosmic Pulse binds to **`127.0.0.1`** by default. Pass **`--lan`** (or `PULSE_LAN=1`) to listen on all interfaces for a second monitor or phone. There is **no authentication**. Use LAN bind only on networks you trust. Do not expose port 8765 to the internet without a reverse proxy and auth.
-
-One-click **Fix** actions are limited to safe, user-owned changes (e.g. open folders, Steam launch options). Root/sudo steps are scripts you run yourself.
-
-## Known limitations (v0.1)
-
-- Stutter score is a **kernel-signal proxy**, not real frametime.
-- AMD sysfs is the dense GPU path; NVIDIA depends on `nvidia-smi`.
-- Chart.js is vendored (no CDN).
+- Stutter score is a **kernel-signal proxy**, not MangoHud frametime.
+- AMD GPUs have the richest meters; NVIDIA uses `nvidia-smi` when it is installed.
 - Some Guidance commands are machine-specific — read them before running.
-
-See [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) and [docs/REVIEW.md](docs/REVIEW.md).
 
 ## Troubleshooting
 
@@ -161,66 +110,14 @@ See [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) and [docs/REVIEW.md](docs/REVIE
 |---------|-----|
 | `cosmic-pulse: command not found` | `export PATH="$HOME/.local/bin:$PATH"` |
 | Blank / “Connecting…” | `journalctl --user -u cosmic-pulse -n 30` |
-| Install fails on venv | `sudo apt install python3-psutil python3-yaml` — script falls back to system Python |
-| No GPU stats | Check `/sys/class/drm/` — see [docs/REVIEW.md](docs/REVIEW.md) |
+| Install fails on venv | `sudo apt install python3-psutil python3-yaml` |
+| No GPU stats | AMD: `/sys/class/drm/`. NVIDIA: is `nvidia-smi` on `PATH`? |
 | Guidance empty at first | Wait a few seconds; run **Scan** on the Guidance tab |
 
-More: [docs/INSTALL.md](docs/INSTALL.md) § Troubleshooting.
-
-## Project layout
-
-| Path | Role |
-|------|------|
-| `server.py` | Thin launcher (`python3 server.py`) |
-| `cosmic_pulse/` | Application package (HTTP, sampler, Guidance) |
-| `index.html` | Dashboard markup |
-| `assets/dashboard.css` | Dashboard styles |
-| `assets/dashboard-theme.js` / `dashboard-charts.js` / `dashboard.js` | Client logic (classic scripts, load order matters) |
-| `cosmic_pulse/rule_packs.py` + `rules/builtin/` | YAML-driven Guidance rules ([docs/RULES.md](docs/RULES.md)) |
-| `cosmic_pulse/stutter.py` | Hitch / stutter proxy |
-| `cosmic_pulse/games.py` | Steam detection, Proton/Wayland helpers |
-| `cosmic_pulse/store.py` | SQLite history and correlations |
-| `install.sh` | User-local installer |
-| `deploy/build-deb.sh` | Build `.deb` for apt |
-
-## API (selected)
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | Dashboard |
-| `GET /api/metrics` | Latest sample; `?bootstrap=1` for full history + static rig |
-| `GET /api/diagnostics` | Troubleshooting scan (`?force=1` to bypass cache) |
-| `POST /api/store` | Retention, suppress/resolve insights |
-| `GET /api/trends`, `/api/correlation` | Historical series |
-
-Full data flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Documentation
-
-| Doc | Contents |
-|-----|----------|
-| [AGENTS.md](AGENTS.md) | Map for Claude / Gemini / Codex / other coding agents |
-| [docs/INSTALL.md](docs/INSTALL.md) | Install script, `.deb`, systemd, uninstall |
-| [docs/RULES.md](docs/RULES.md) | How to write Guidance YAML packs (schema, metrics, style) |
-| [RULE_PACKS.md](RULE_PACKS.md) | Builtin vs community packs; annotated example |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Sampler loop, Guidance contracts, config paths |
-| [docs/REVIEW.md](docs/REVIEW.md) | Security focus, review checklist |
-| [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) | Open technical findings |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Git workflow, lint, tests |
-| [CHANGELOG.md](CHANGELOG.md) | Release notes |
-| [SECURITY.md](SECURITY.md) | Bind address, LAN, how to report |
-
-## Contributing
-
-Pull requests and structured AI reviews welcome.
-
-```bash
-python3 tests/harness.py
-# optional: ruff check . && ruff format .
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Use the **AI review finding** issue template if an agent spotted something.
+More: [docs/INSTALL.md](docs/INSTALL.md).
 
 ## License
 
-**GPL-3.0-only** — aligned with [Pop!_OS application licensing](https://github.com/pop-os/pop/blob/master/LICENSING.md). See [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md).
+**GPL-3.0-only** — see [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md).
+
+Issues and pull requests welcome. How we take changes: [CONTRIBUTING.md](CONTRIBUTING.md). Release notes: [CHANGELOG.md](CHANGELOG.md).
