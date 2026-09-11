@@ -7,6 +7,8 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-10
+
 ### Changed
 - **Pulse Index** — CPU/GPU class scores now follow Tom's Hardware 2026 published relatives (1080p gaming CPU, 1440p raster GPU, RTX 5090 / 9850X3D = 100) instead of hand-picked 0–100 guesses. A 7900X no longer outranks a 7800X3D. Memory is peak bandwidth vs DDR5-6000 dual. Source line is on the Index tab.
 
