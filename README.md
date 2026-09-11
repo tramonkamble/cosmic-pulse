@@ -6,7 +6,7 @@ Cosmic Pulse is a local web dashboard that helps you understand *why* a game stu
 
 ![Cosmic Pulse dashboard](docs/screenshots/dashboard.png)
 
-> **Status:** v0.2.1 (0.x prerelease) — community project, **not** an official System76 app. Issues and PRs welcome. Coding agents: start at [AGENTS.md](AGENTS.md).
+> **Status:** v0.2.2 (0.x prerelease) — community project, **not** an official System76 app. Issues and PRs welcome. Coding agents: start at [AGENTS.md](AGENTS.md).
 
 ## Why Cosmic Pulse?
 

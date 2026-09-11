@@ -7,6 +7,8 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-11
+
 ### Fixed
 - **RAM probe after the package move** — `sudo python3 probe_memory.py` and `/api/probe-memory` still pointed at a root script that no longer exists, and the probe wrote `cosmic_pulse/.memory_cache.json` while the sampler reads the install-root cache. Exact DIMM specs (this kit: G.Skill Flare X5 DDR5-6000 @ JEDEC 4800) never reached Pulse Index.
 

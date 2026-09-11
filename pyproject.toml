@@ -1,6 +1,6 @@
 [project]
 name = "cosmic-pulse"
-version = "0.2.1"
+version = "0.2.2"
 description = "Local performance dashboard for Pop!_OS gaming rigs"
 readme = "README.md"
 requires-python = ">=3.11"
