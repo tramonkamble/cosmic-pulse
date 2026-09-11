@@ -4,20 +4,36 @@
 
 Cosmic Pulse is a local web dashboard that helps you understand *why* a game stutters — not just CPU/GPU graphs. It ties together hardware context, kernel stall signals (PSI, page faults, swap), and actionable Guidance steps. Built for [Pop!_OS](https://pop.system76.com/) / COSMIC; works on other Linux distros with Python 3.11+.
 
+If you watched a Windows box with **MSI Afterburner** or **AMD Software: Adrenalin**, this is that same “keep an eye on the rig while I play” world — on a second monitor, not as an overlay or overclocking suite.
+
 ![Cosmic Pulse dashboard](docs/screenshots/dashboard.png)
 
 > **Status:** v0.2.2 (0.x prerelease) — community project, **not** an official System76 app. Issues and PRs welcome. Coding agents: start at [AGENTS.md](AGENTS.md).
+
+## If you came from Windows
+
+Pulse is not a port of Afterburner, and it is not AMD Crimson/Adrenalin or the NVIDIA overlay. It sits in that *monitoring-while-you-game* neighborhood.
+
+| On Windows you probably used… | For… | On Linux, Pulse is… |
+|-------------------------------|------|---------------------|
+| **MSI Afterburner** + RivaTuner (RTSS) | On-screen graphs, OSD, optional OC/fans | Live clocks, load, thermals, and hitch signals on a **second screen**. No OSD, no clock/fan sliders. |
+| **AMD Software: Adrenalin** (older name: Crimson) | Driver overlay, metrics, tuning | The metrics *page* — plus a hardware class score and “what to do next.” Driver tuning stays in CoreCtrl / LACT / `amdgpu`. |
+| **NVIDIA App** overlay / FrameView | FPS overlay, frame capture | Session recap and GPU meters via `nvidia-smi`. Overlay stays MangoHud / Steam. |
+| **CapFrameX** / PresentMon | 1% lows, frametime traces | A **hitch proxy** from kernel stalls (PSI, faults, swap, disk). Real frametime still wants MangoHud. |
+| **HWiNFO** | Sensor wall and logging | Live lab (clocks / thermals / power / pressure) and optional SQLite history. |
+
+Leave the in-game overlay to [MangoHud](https://github.com/flightlessmango/MangoHud). Leave voltage/clock/fan curves to CoreCtrl, LACT, or `nvidia-settings`. Pulse is the dashboard you park on the other monitor: **what is the box doing, is this session hitching, is this PC in the right league, and what should I change.**
 
 ## Why Cosmic Pulse?
 
 | Typical monitor | Cosmic Pulse |
 |-----------------|--------------|
 | Raw CPU/GPU % | **Stutter proxy** — hitch score from kernel stall signals |
-| Static graphs | **Hardware league** — how this session compares to reference tiers |
+| Static graphs | **Hardware league** — how this session compares to published CPU/GPU relatives |
 | “Google the error” | **Guidance** — ranked issues, copy-paste steps, optional one-click fixes |
 | Generic | **Game-aware** — detects running Steam titles, Proton/Wayland context |
 
-Cosmic Pulse is a **companion** for a second monitor while gaming — not a replacement for MangoHud, COSMIC System Monitor, or in-game frametime tools.
+It is a **companion**, not a replacement for MangoHud, COSMIC System Monitor, or in-game frametime tools.
 
 ## Quick start (Pop!_OS / Ubuntu)
 

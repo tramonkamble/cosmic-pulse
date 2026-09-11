@@ -7,6 +7,9 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Changed
+- **GitHub landing** — README now places Pulse next to MSI Afterburner, AMD Adrenalin (Crimson), NVIDIA overlay / FrameView, CapFrameX, and HWiNFO, and is explicit that it is not an OSD or overclocking suite.
+
 ## [0.2.2] - 2026-09-11
 
 ### Fixed
