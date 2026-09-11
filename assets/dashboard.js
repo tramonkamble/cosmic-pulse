@@ -714,7 +714,6 @@
         try {
           fetchRuleCatalog(document.getElementById('ruleCatalogSearch')?.value?.trim());
         } catch (_) { /* ignore */ }
-        try { fillHwScaleHints(); } catch (_) { /* ignore */ }
       }
       if (name === 'fixes') {
         try {
@@ -950,12 +949,11 @@
         return;
       }
       if (activeTab !== 'dashboard') setTab('dashboard');
-      // Game hero only occupies the main screen while a title is live
       if (id === 'viz-game' || id === 'gameVizBlock' || id === 'gamePerformanceHero') {
         const hero = document.getElementById('gamePerformanceHero');
-        const live = !!(hero && !hero.classList.contains('is-minimized'));
+        const open = !!(hero && !hero.classList.contains('is-minimized'));
         requestAnimationFrame(() => {
-          if (live) {
+          if (open) {
             scrollToElement(hero);
             try { gamePerfChart?.resize(); gamePerfSessionsChart?.resize(); } catch (_) { /* */ }
           } else {
@@ -1156,8 +1154,8 @@
             : 'Session smoothness score · Pulse rating — not a Steam score',
           val: `${last.rating}/100`,
           context: mh
-            ? `Last session · ${fmtStoreSpan(last.ended_ts)} · MangoHud`
-            : `Last session · ${fmtStoreSpan(last.ended_ts)}`,
+            ? `Last · ${fmtClock(last.ended_ts)} · MangoHud`
+            : `Last · ${fmtClock(last.ended_ts)}`,
           meter: last.rating,
           stats,
           drillRollup: mh && last.fps_avg != null
@@ -1200,14 +1198,14 @@
         live: false,
         tier: null,
         gameId: null,
-        label: 'Game',
+        label: 'Idle',
         sectionTitle: 'Game performance',
         explainer: 'Waiting for first session… Launch a Steam game to start tracking',
-        val: '—',
-        context: 'Launch a Steam game',
+        val: '',
+        context: 'No session yet',
         meter: 0,
         stats: [],
-        drillRollup: 'Awaiting Steam game',
+        drillRollup: 'No session yet',
       };
     }
 
@@ -1373,33 +1371,47 @@
       const gameVal = document.getElementById('sumGameVal');
       if (!gameCell || !gameVal) return;
 
-      document.querySelector('.sum-grid')?.classList.toggle('game-prominent', gs.tall);
-      document.body.classList.toggle('game-prominent-active', gs.tall);
-      gameCell.classList.toggle('tall', gs.tall);
+      // Glance row is ~18rem — do not explode into art + stat grid there.
+      const glance = document.body.classList.contains('dash-dedupe');
+      const explode = !!(gs.tall && !glance);
+      document.querySelector('.sum-grid')?.classList.toggle('game-prominent', explode);
+      document.body.classList.toggle('game-prominent-active', explode);
+      gameCell.classList.toggle('tall', explode);
       gameCell.classList.toggle('game-live', gs.live);
-      gameCell.classList.toggle('sum-game-idle-pulse', !gs.tall);
+      gameCell.classList.remove('sum-game-idle-pulse');
       const banner = document.getElementById('sumGameBanner');
       const sectionTitle = document.getElementById('sumGameSectionTitle');
       const explainer = document.getElementById('sumGameExplainer');
       if (banner) {
-        banner.hidden = !gs.tall;
-        banner.classList.toggle('is-visible', gs.tall);
-        banner.setAttribute('aria-hidden', gs.tall ? 'false' : 'true');
+        banner.hidden = !explode;
+        banner.classList.toggle('is-visible', explode);
+        banner.setAttribute('aria-hidden', explode ? 'false' : 'true');
       }
       if (sectionTitle) sectionTitle.textContent = gs.sectionTitle || gs.label || 'Game performance';
       if (explainer) explainer.textContent = gs.explainer || '';
       const sumLbl = document.getElementById('sumGameLabel');
-      if (sumLbl && gs.label) sumLbl.textContent = gs.tall ? '' : gs.label;
+      if (sumLbl && gs.label) sumLbl.textContent = gs.label;
       GAME_RATING_TIERS.forEach(t => gameCell.classList.remove(`tier-${t}`));
       if (gs.tier) gameCell.classList.add(`tier-${gs.tier}`);
 
-      gameVal.textContent = gs.val;
+      let displayVal = gs.val || '';
+      if (glance && displayVal && displayVal !== 'Loading'
+          && Number.isFinite(Number(gs.meter))) {
+        displayVal = `${Math.round(Number(gs.meter))}`;
+      }
+      gameVal.textContent = displayVal;
+      gameVal.hidden = !displayVal;
       gameVal.className = `sum-value${gs.tier ? ` ${gs.tier}` : ''}`;
+      gameCell.classList.toggle('has-rating', !!displayVal);
+      gameCell.classList.toggle('has-session', !gs.live && !!gs.gameId);
       const ctxEl = document.getElementById('sumGameContext');
       if (ctxEl) ctxEl.textContent = gs.context || '';
       const subEl = document.getElementById('sumGameSub');
-      if (subEl) subEl.textContent = gs.tall ? '' : (gs.context || '');
-      setMeterWidth(document.getElementById('sumGameMeter'), gs.meter);
+      if (subEl) subEl.textContent = explode ? '' : (gs.context || '');
+      const meterEl = document.getElementById('sumGameMeter');
+      const meterWrap = meterEl?.closest('.sum-meter');
+      if (meterWrap) meterWrap.hidden = !gs.meter;
+      setMeterWidth(meterEl, gs.meter);
       setRatingTierBadge(document.getElementById('sumGameBadge'), gs.tier);
       renderGameSummaryStats(document.getElementById('sumGameStats'), gs.stats);
       applyGameSummaryArt(gs.gameId, gs.label);
@@ -1476,7 +1488,6 @@
         }).join('');
       }
       if (clearEl) clearEl.hidden = totalOpen > 0;
-      const leagueIdx = comparison ? smoothDisplayPct('session-index', comparison.session_index) : 0;
 
       const setChipBar = (id, pct) => {
         const bar = document.getElementById(id);
@@ -1598,18 +1609,22 @@
         const live = soleFocus === 'memory' ? part?.live_pressure_pct : part?.live_pct;
         const liveSmooth = smoothDisplayPct(`sum-league-${soleFocus}`, live ?? 0);
         document.getElementById('sumLeagueVal').textContent = `${liveSmooth}%`;
-        setTierBadge(document.getElementById('sumLeagueBadge'), part?.tier_rank);
+        setTierBadge(document.getElementById('sumLeagueBadge'), part?.tier_rank, false);
         document.getElementById('sumLeagueSub').textContent =
           `Class ${part?.tier_rank ?? '—'} · ${part?.tier_score ?? '—'}/100`;
         setMeterWidth(document.getElementById('sumLeagueMeter'), liveSmooth);
       } else {
-        document.getElementById('sumLeagueVal').textContent = comparison ? `${leagueIdx}` : '—';
-        setTierBadge(document.getElementById('sumLeagueBadge'), comparison?.composite_rank);
+        const build = comparison?.composite_tier;
+        const rank = comparison?.composite_rank;
+        document.getElementById('sumLeagueVal').textContent =
+          build != null && Number.isFinite(Number(build)) ? `${Math.round(Number(build))}` : '—';
+        setTierBadge(document.getElementById('sumLeagueBadge'), rank, false);
         document.getElementById('sumLeagueSub').textContent =
-          comparison?.composite_rank != null
-            ? `Class ${comparison.composite_rank} · /100`
-            : 'Build score';
-        setMeterWidth(document.getElementById('sumLeagueMeter'), leagueIdx);
+          rank != null ? `Class ${rank}` : 'Build score';
+        setMeterWidth(
+          document.getElementById('sumLeagueMeter'),
+          build != null && Number.isFinite(Number(build)) ? Number(build) : 0,
+        );
       }
 
       const sh = l.sensor_health;
@@ -1634,8 +1649,9 @@
           ? `${cpuGpuBit}\nVRAM ${Math.round(vramU / 1024 * 10) / 10}/${Math.round(vramT / 1024)}G`
           : cpuGpuBit;
 
+      const buildScore = comparison?.composite_tier;
       document.getElementById('drillLeagueSum').textContent = comparison
-        ? `Index ${leagueIdx}/100 · class ${comparison.composite_rank ?? '—'}`
+        ? `Build ${buildScore != null ? Math.round(Number(buildScore)) : '—'}/100 · class ${comparison.composite_rank ?? '—'}`
         : 'Building index…';
 
       renderGameSummaryCell(l.game_performance, gt, l.stutter);
@@ -2283,7 +2299,7 @@
         };
       });
       if (active.some(s => s.key === 'hitch')) {
-        const tCut = (sparkRing.ts.at(-1) || 0) - chartViewSec - 2;
+        const tCut = historyCutTs();
         const eventPts = [];
         const nEv = Math.min(sparkRing.ts.length, sparkRing.hitch.length, sparkRing.hitchEvent.length);
         for (let i = 0; i < nEv; i++) {
@@ -2401,6 +2417,12 @@
             ? `${hwFocusLabelText()} · hitch · ${mode}`
             : `${hwFocusLabelText()} · ${mode}`;
         }
+        const nPts = newDatasets
+          .filter(d => d.type !== 'scatter')
+          .reduce((n, d) => n + (d.data?.length || 0), 0);
+        if (chartZoomed && nPts === 0) {
+          chartLabel.textContent += ' · no rig samples in this window (Live lab keeps 60 min)';
+        }
       }
       if (!chartInteractActive) sparkChart.update('none');
     }
@@ -2507,7 +2529,7 @@
       const gpuPts = xySeriesView(sparkRing.ts, sparkRing.gpu, chartViewSec, cap);
       const estTs = [];
       const estVals = [];
-      const tCut = (sparkRing.ts.at(-1) ?? rawHistory.at(-1)?.ts ?? 0) - chartViewSec - 2;
+      const tCut = historyCutTs();
       for (const h of rawHistory) {
         if (h?.ts == null || h.ts < tCut) continue;
         estTs.push(h.ts);
@@ -2517,7 +2539,7 @@
       const hitchByTs = new Map(scorePts.map(p => [p.x, p.y]));
       const eventPoints = [];
       const nEv = Math.min(sparkRing.ts.length, sparkRing.hitch.length, sparkRing.hitchEvent.length);
-      const evCut = (sparkRing.ts.at(-1) || 0) - chartViewSec - 2;
+      const evCut = historyCutTs();
       for (let i = 0; i < nEv; i++) {
         if (!sparkRing.hitchEvent[i] || sparkRing.ts[i] < evCut) continue;
         eventPoints.push({ x: sparkRing.ts[i], y: sparkRing.hitch[i] ?? hitchByTs.get(sparkRing.ts[i]) ?? 0 });
@@ -3215,11 +3237,26 @@
       const buildMeta = document.getElementById('indexBuildMeta');
       if (buildMeta) {
         const bits = [
-          c.composite_tier != null ? `Composite ${Math.round(c.composite_tier)}/100` : null,
+          c.composite_tier != null ? `Build ${Math.round(c.composite_tier)}/100` : null,
           vsAvg != null ? `vs typical ${vsFmt(vsAvg)}` : null,
           vsEnth != null ? `vs high-end ${vsFmt(vsEnth)}` : null,
         ].filter(Boolean);
         buildMeta.innerHTML = bits.join(' · ') || '—';
+      }
+      const srcEl = document.getElementById('indexSourceNote');
+      if (srcEl) {
+        const gpuSrc = c.sources?.gpu || {};
+        const cpuSrc = c.sources?.cpu || {};
+        const line = [gpuSrc.source, cpuSrc.source].filter(Boolean);
+        if (line.length) {
+          const when = gpuSrc.as_of || cpuSrc.as_of || '';
+          srcEl.hidden = false;
+          srcEl.textContent = `Tom's Hardware · ${when || '2026'} · 1440p raster GPU / 1080p gaming CPU`;
+          if (gpuSrc.url) srcEl.title = gpuSrc.url;
+        } else {
+          srcEl.hidden = true;
+          srcEl.textContent = '';
+        }
       }
 
       const scoreEl = document.getElementById('indexScoreVal');
@@ -5149,8 +5186,7 @@
       const gid = gt.running ? gt.game_id : null;
       const short = gid ? gameLabel(gid) : 'Game';
 
-      const sumLbl = document.getElementById('sumGameLabel');
-      if (sumLbl) sumLbl.textContent = gt.running ? short : 'Game';
+      // Glance title is owned by renderGameSummaryCell (Idle / last game / live).
 
       const gameDef = utilDefs.find(d => d.key === 'gameCpu');
       if (gameDef) {
@@ -5784,6 +5820,13 @@
     let gameSessionsKey = '';
     let gameSessionsTick = 0;
     let lastSeenSessionEnd = 0;
+    let selectedSessionKey = '';
+    let gamePerfPickerWired = false;
+
+    function sessionKey(s) {
+      if (!s) return '';
+      return String(s.ended_ts || s.started_ts || s.game_id || '');
+    }
 
     function sessionHasMangoHud(s) {
       if (!s) return false;
@@ -5840,16 +5883,16 @@
           tension: 0.2,
         },
         {
-          label: 'Stutter',
-          data: xySeries(ts, points.map(p => p.stutter_score ?? null)),
-          borderColor: METRIC.stutter,
+          label: 'GPU',
+          data: xySeries(ts, points.map(p => p.gpu_busy ?? null)),
+          borderColor: METRIC.gpu,
           backgroundColor: 'transparent',
           borderWidth: 2,
           pointRadius: 0,
           tension: 0.2,
         },
         {
-          label: 'Game process',
+          label: 'Game CPU',
           data: xySeries(ts, points.map(p => p.game_cpu ?? null)),
           borderColor: METRIC.cpu,
           backgroundColor: 'transparent',
@@ -5859,11 +5902,11 @@
         },
       ];
       lockPctAxis(gamePerfChart, 'y');
-      if (!chartInteractActive) {
-        if (chartsPaused || chartZoomed) {
-          if (chartRange) {
-            gamePerfChart.options.scales.x.min = chartRange.min;
-            gamePerfChart.options.scales.x.max = chartRange.max;
+      if (!gameChartInteractActive) {
+        if (gameChartsPaused || gameChartZoomed) {
+          if (gameChartRange) {
+            gamePerfChart.options.scales.x.min = gameChartRange.min;
+            gamePerfChart.options.scales.x.max = gameChartRange.max;
           }
         } else if (ts.length >= 2) {
           const tMin = Math.min(...ts.filter(Number.isFinite));
@@ -5878,7 +5921,7 @@
       if (lead) lead.textContent = title;
     }
 
-    /** Frametime display: MangoHud FPS → ms, else hitch proxy. */
+    /** Frametime: MangoHud only. Kernel stall proxy is not a frame time. */
     function gameFrametimeCard(src, mh) {
       if (mh && src?.fps_avg != null && src.fps_avg > 0) {
         return {
@@ -5890,19 +5933,13 @@
           mh: true,
         };
       }
-      const hitch = src?.hitch_ms_1pct;
-      if (hitch != null) {
-        const hot = hitch >= 50;
-        return {
-          k: 'Frametime',
-          v: `${hitch}ms`,
-          s: mh ? '1% worst (MH)' : '1% hitch est.',
-          cls: hot ? 'poor' : 'ok',
-          primary: true,
-          card: hot ? 'hero-warn' : 'hero-primary',
-        };
-      }
-      return { k: 'Frametime', v: '—', s: 'waiting…', cls: 'muted', primary: true };
+      return {
+        k: 'Frametime',
+        v: '—',
+        s: mh ? 'no samples yet' : 'needs MangoHud log',
+        cls: 'muted',
+        primary: true,
+      };
     }
 
     function gameFpsCard(src, mh) {
@@ -5937,18 +5974,18 @@
         };
       }
       const hitch = src?.hitch_ms_1pct;
-      if (hitch != null) {
+      if (hitch != null && hitch > 0) {
         const hot = hitch >= 50;
         return {
-          k: '1% lows',
+          k: 'Stall 1%',
           v: `${hitch}ms`,
-          s: mh ? 'frametime MH' : 'hitch proxy',
+          s: 'kernel stall proxy',
           cls: hot ? 'poor' : 'ok',
           primary: true,
           card: hot ? 'hero-warn' : 'hero-primary',
         };
       }
-      return { k: '1% lows', v: '—', s: 'waiting…', cls: 'muted', primary: true };
+      return { k: '1% lows', v: '—', s: mh ? 'waiting…' : 'no stall events', cls: 'muted', primary: true };
     }
 
     /**
@@ -5997,10 +6034,54 @@
       });
     }
 
+    function viewedGameSession(gp, gt) {
+      const sessions = gameSessionsCache?.sessions || [];
+      if (selectedSessionKey) {
+        const hit = sessions.find(s => sessionKey(s) === selectedSessionKey);
+        if (hit) return hit;
+      }
+      const gid = gp?.active ? gp.game_id
+        : (gt?.running ? gt.game_id : (gp?.last_session?.game_id || lastActiveGameId));
+      return resolveLastSession(gp, gid);
+    }
+
+    function populateGamePerfPicker(sessions) {
+      const wrap = document.getElementById('gamePerfPickerWrap');
+      const sel = document.getElementById('gamePerfPicker');
+      if (!wrap || !sel) return;
+      const rows = sessions || [];
+      if (!rows.length) {
+        wrap.hidden = true;
+        return;
+      }
+      wrap.hidden = false;
+      const sig = rows.map(s => sessionKey(s)).join('|');
+      if (sel.dataset.sig !== sig) {
+        sel.dataset.sig = sig;
+        sel.innerHTML = rows.slice(0, 40).map(s => {
+          const when = fmtStoreSpan(s.ended_ts || s.started_ts);
+          const name = s.game_name || gameLabel(s.game_id) || 'Game';
+          const rating = s.rating != null ? Math.round(s.rating) : '—';
+          return `<option value="${esc(sessionKey(s))}">${esc(when)} · ${esc(name)} · ${rating}</option>`;
+        }).join('');
+      }
+      const want = selectedSessionKey || sessionKey(rows[0]);
+      if (sel.value !== want && [...sel.options].some(o => o.value === want)) sel.value = want;
+      if (!gamePerfPickerWired) {
+        gamePerfPickerWired = true;
+        sel.addEventListener('change', () => {
+          selectedSessionKey = sel.value || '';
+          try { resumeGameChart(); } catch (_) { /* */ }
+          if (lastLatest) renderGamePerformance(lastLatest, lastStatic);
+        });
+      }
+    }
+
     /**
      * Game strip between summary hero and Live lab.
-     * No active game → minimized one-line strip (“No game running”).
-     * Active / loading → expanded KPIs + charts.
+     * Live title → expanded KPIs + charts.
+     * After quit → recap of last (or picked) session stays open.
+     * No sessions at all → minimized.
      */
     function renderGamePerfKpis(gp, gt, st) {
       const el = document.getElementById('gamePerfKpis');
@@ -6011,15 +6092,23 @@
       if (!el || !hero) return;
 
       const activeGame = !!(gp?.active || gt?.running);
+      const last = viewedGameSession(gp, gt);
+      const recap = !activeGame && last?.rating != null;
       const hitchScore = st?.score ?? st?.session?.score;
       const stuttery = activeGame && hitchScore != null && hitchScore >= 42;
 
-      hero.classList.toggle('is-minimized', !activeGame);
+      hero.classList.toggle('is-minimized', !activeGame && !recap);
       hero.classList.toggle('is-live', activeGame && !!gp?.recording);
+      hero.classList.toggle('is-recap', recap);
       hero.classList.toggle('is-stutter', !!stuttery);
-      hero.setAttribute('aria-expanded', activeGame ? 'true' : 'false');
+      hero.setAttribute('aria-expanded', (activeGame || recap) ? 'true' : 'false');
+      populateGamePerfPicker(gameSessionsCache?.sessions || []);
+      if (activeGame) {
+        const picker = document.getElementById('gamePerfPickerWrap');
+        if (picker) picker.hidden = true;
+      }
 
-      if (!activeGame) {
+      if (!activeGame && !recap) {
         if (nameEl && nameEl.textContent) nameEl.textContent = '';
         if (statusEl) {
           statusEl.className = 'game-perf-hero-status is-listening';
@@ -6030,11 +6119,43 @@
           const b = 'No game running';
           if (idleBadge.textContent !== b) idleBadge.textContent = b;
         }
-        // Keep charts mounted but hidden via CSS; clear KPI grid noise
         if (el.dataset.kpiSig !== 'idle') {
           el.dataset.kpiSig = 'idle';
           el.innerHTML = '';
         }
+        return;
+      }
+
+      if (recap) {
+        const gname = last.game_name || gameLabel(last.game_id) || 'Game';
+        if (nameEl && nameEl.textContent !== gname) nameEl.textContent = gname;
+        if (idleBadge) idleBadge.textContent = 'Last session';
+        const tier = last.rating_tier || 'fair';
+        const mh = sessionHasMangoHud(last);
+        if (statusEl) {
+          statusEl.className = 'game-perf-hero-status';
+          const msg = `Last session · ${fmtStoreSpan(last.ended_ts)} · ${last.rating ?? '—'}/100`;
+          if (statusEl.textContent !== msg) statusEl.textContent = msg;
+        }
+        patchGamePerfKpis(el, [
+          { id: 'fps', ...gameFpsCard(last, mh) },
+          { id: 'onepct', ...gameOnePctCard(last, mh) },
+          { id: 'ft', ...gameFrametimeCard(last, mh) },
+          { id: 'rating', k: 'Rating', v: last.rating ?? '—', s: RATING_TIER_LABEL[tier] || tier, cls: tier },
+          { id: 'smooth', k: 'Smooth', v: `${last.smoothness_avg ?? '—'}%`, s: fmtDuration(last.duration_sec), cls: '' },
+          {
+            id: 'hitches',
+            k: 'Hitches',
+            v: last.hitch_events ?? 0,
+            s: hitchStatSub(last),
+            cls: (last.hitch_events || 0) >= 5 ? 'fair' : 'ok',
+          },
+          { id: 'gproc', k: 'CPU', v: `${last.game_cpu_avg ?? '—'}%`, s: 'session avg', cls: '' },
+          { id: 'gpu', k: 'GPU', v: `${last.gpu_busy_avg ?? '—'}%`, s: 'session avg', cls: '' },
+        ]);
+        requestAnimationFrame(() => {
+          try { gamePerfChart?.resize(); gamePerfSessionsChart?.resize(); } catch (_) { /* */ }
+        });
         return;
       }
 
@@ -6108,6 +6229,7 @@
             smoothness: h.stutter?.smoothness,
             stutter_score: h.stutter?.score,
             game_cpu: h.game_totals?.cpu_pct,
+            gpu_busy: h.gpu?.discrete?.gfx_pct ?? h.gpu?.discrete?.busy_pct,
           }));
         }
         const n = trend?.length || 0;
@@ -6127,12 +6249,12 @@
         }
         return;
       }
-      const last = resolveLastSession(gp, gid);
+      const last = viewedGameSession(gp, gt);
       if (last?.trend?.length) {
         const name = last.game_name || gameLabel(last.game_id);
         applyGamePerfTrendChart(
           last.trend,
-          `Last session — ${name} · ended ${fmtStoreSpan(last.ended_ts)} · rating ${last.rating ?? '—'}/100`,
+          `Session — ${name} · ended ${fmtStoreSpan(last.ended_ts)} · rating ${last.rating ?? '—'}/100`,
         );
         return;
       }
@@ -6140,7 +6262,11 @@
       gamePerfChart.data.datasets = [];
       gamePerfChart.update('none');
       const lead = document.getElementById('gamePerfTrendLead');
-      if (lead) lead.textContent = 'Last session trend — appears after you finish a game (45s load + 30s play)';
+      if (lead) {
+        lead.textContent = last
+          ? `Session — ${last.game_name || gameLabel(last.game_id)} · no trend samples`
+          : 'Last session trend — appears after you finish a game (45s load + ~15s play)';
+      }
     }
 
     function renderGamePerfSessionChart(sessions, markers) {
@@ -6179,16 +6305,21 @@
 
     function renderGamePerfHistory(sessions) {
       const body = document.getElementById('gamePerfHistory');
-      const rows = (sessions || []).slice(0, 12);
+      const rows = (sessions || []).slice(0, 24);
+      const selected = selectedSessionKey || sessionKey(rows[0]);
       body.innerHTML = rows.length
         ? rows.map(s => {
             const mh = sessionHasMangoHud(s);
+            const key = sessionKey(s);
+            const name = s.game_name || gameLabel(s.game_id) || 'Game';
             const fpsCell = mh && s.fps_avg != null
               ? `<strong>${s.fps_avg}</strong>${s.fps_1pct != null ? ` <span style="color:var(--muted)">1% ${s.fps_1pct}</span>` : ''}`
               : '<span style="color:var(--muted)">—</span>';
             const hitchNote = mh ? ' title="MangoHud measured frametime"' : ' title="Kernel stutter proxy"';
-            return `<tr>
-            <td>${fmtStoreSpan(s.started_ts)}${mh ? ' <span class="mh-badge">MH</span>' : ''}</td>
+            const on = key === selected ? ' class="is-selected"' : '';
+            return `<tr data-session-key="${esc(key)}"${on}>
+            <td>${esc(name)}${mh ? ' <span class="mh-badge">MH</span>' : ''}</td>
+            <td>${fmtStoreSpan(s.started_ts)}</td>
             <td><strong>${s.rating ?? '—'}</strong> <span style="color:var(--muted)">${RATING_TIER_LABEL[s.rating_tier] || s.rating_tier || ''}</span></td>
             <td>${s.smoothness_avg ?? '—'}%</td>
             <td>${fpsCell}</td>
@@ -6197,32 +6328,53 @@
             <td>${fmtDuration(s.duration_sec)}</td>
           </tr>`;
           }).join('')
-        : '<tr><td colspan="7" style="color:var(--muted)">No completed sessions yet — after the 45s load wait, play ~30s+; ratings save when you quit. Enable MangoHud logging for real FPS.</td></tr>';
+        : '<tr><td colspan="8" style="color:var(--muted)">No completed sessions yet — after the 45s load wait, play ~15s+; ratings save when you quit. Enable MangoHud logging for real FPS.</td></tr>';
+      if (!body.dataset.pickWired) {
+        body.dataset.pickWired = '1';
+        body.addEventListener('click', (ev) => {
+          const tr = ev.target?.closest?.('tr[data-session-key]');
+          if (!tr) return;
+          selectedSessionKey = tr.dataset.sessionKey || '';
+          if (lastLatest) renderGamePerformance(lastLatest, lastStatic);
+          const hero = document.getElementById('gamePerformanceHero');
+          if (hero && !hero.classList.contains('is-minimized')) scrollToElement(hero);
+        });
+      }
     }
 
     async function fetchGameSessions(gameId) {
-      if (!gameId) {
-        gameSessionsCache = { sessions: [], markers: [] };
-        renderGamePerfSessionChart([], []);
-        renderGamePerfHistory([]);
-        return;
-      }
-      const key = gameId;
+      const key = gameId || 'all';
       if (gameSessionsKey === key && gameSessionsCache && gameSessionsTick % 30 !== 0) {
         renderGamePerfSessionChart(gameSessionsCache.sessions, gameSessionsCache.markers);
         renderGamePerfHistory(gameSessionsCache.sessions);
+        populateGamePerfPicker(gameSessionsCache.sessions);
         return;
       }
       try {
-        const data = await (await fetch(`/api/game-sessions?game=${encodeURIComponent(gameId)}&days=30`)).json();
+        const url = gameId
+          ? `/api/game-sessions?game=${encodeURIComponent(gameId)}&days=30`
+          : `/api/game-sessions?days=30`;
+        const data = await (await fetch(url)).json();
         gameSessionsCache = data;
         gameSessionsKey = key;
         renderGamePerfSessionChart(data.sessions, data.markers);
         renderGamePerfHistory(data.sessions);
-        renderGamePerfLiveTrend(rawHistory, lastLatest?.game_performance || {}, lastLatest?.game_totals || {});
+        populateGamePerfPicker(data.sessions);
+        if (lastLatest) {
+          renderGameSummaryCell(
+            lastLatest.game_performance,
+            lastLatest.game_totals,
+            lastLatest.stutter,
+          );
+          renderGamePerfKpis(lastLatest.game_performance || {}, lastLatest.game_totals || {}, lastLatest.stutter);
+          renderGamePerfLiveTrend(rawHistory, lastLatest.game_performance || {}, lastLatest.game_totals || {});
+        }
       } catch (_) {
-        document.getElementById('gamePerfHistory').innerHTML =
-          '<tr><td colspan="7" style="color:var(--muted)">Session history unavailable</td></tr>';
+        const body = document.getElementById('gamePerfHistory');
+        if (body) {
+          body.innerHTML =
+            '<tr><td colspan="8" style="color:var(--muted)">Session history unavailable</td></tr>';
+        }
       }
     }
 
@@ -6252,16 +6404,14 @@
         gameSessionsKey = '';
       }
       renderGamePerfKpis(gp, gt, l.stutter);
-      const heroLive = !document.getElementById('gamePerformanceHero')?.classList.contains('is-minimized');
-      if (heroLive || isDrillOpen('drill-game')) {
-        renderGamePerfLiveTrend(rawHistory, gp, gt);
-        const gid = gp.active ? gp.game_id
-          : (gt?.running ? gt.game_id : (gp.last_session?.game_id || lastActiveGameId));
-        if (gid !== gameSessionsKey || ++gameSessionsTick % 30 === 0) fetchGameSessions(gid);
-        else if (gameSessionsCache) {
-          renderGamePerfSessionChart(gameSessionsCache.sessions, gameSessionsCache.markers);
-          renderGamePerfHistory(gameSessionsCache.sessions);
-        }
+      renderGamePerfLiveTrend(rawHistory, gp, gt);
+      const gid = gp.active ? gp.game_id : (gt?.running ? gt.game_id : null);
+      const cacheKey = gid || 'all';
+      if (cacheKey !== gameSessionsKey || ++gameSessionsTick % 30 === 0) fetchGameSessions(gid);
+      else if (gameSessionsCache) {
+        renderGamePerfSessionChart(gameSessionsCache.sessions, gameSessionsCache.markers);
+        renderGamePerfHistory(gameSessionsCache.sessions);
+        populateGamePerfPicker(gameSessionsCache.sessions);
       }
     }
 
@@ -6310,6 +6460,11 @@
     }
 
     const UI_SCALE_DEFAULT = 1;
+
+    function fmtClock(ts) {
+      if (!ts) return '—';
+      return new Date(ts * 1000).toLocaleString([], { hour: 'numeric', minute: '2-digit' });
+    }
 
     function fmtStoreSpan(ts) {
       if (!ts) return '—';
@@ -6428,26 +6583,6 @@
         const lab = document.getElementById(el.id + 'Val');
         if (lab && v != null) lab.textContent = (HW_SCALE_LABEL[key] || (x => String(x)))(v);
       });
-      fillHwScaleHints();
-    }
-
-    function fillHwScaleHints() {
-      const cpu = (lastLatest?.comparison?.cpu?.name
-        || lastStatic?.cpu_model
-        || '').replace(/^AMD\s+/i, '').trim();
-      const gpu = (lastLatest?.comparison?.gpu?.name
-        || lastLatest?.gpu?.discrete?.name
-        || lastStatic?.gpu_model
-        || '').replace(/^AMD\s+/i, '').trim();
-      const pwr = document.getElementById('hwPowerHint');
-      if (pwr) {
-        const bits = [];
-        if (cpu) bits.push(`${cpu} package`);
-        if (gpu) bits.push(`${gpu} board`);
-        pwr.textContent = bits.length
-          ? `Dial 100% is full ${bits.join(' / ')} power. Raise if the ring pegs; lower if it never fills.`
-          : 'Dial 100% is the watt ceiling you set. Raise if the ring pegs; lower if it never fills.';
-      }
     }
 
     let hwScaleBusy = false;
@@ -6730,7 +6865,6 @@
       }
       if (!optionsUiScaleLocked()) renderUiScaleControls(s);
       if (!optionsHwScaleLocked()) applyHwScalesFromStore(s);
-      else fillHwScaleHints();
       renderTuningLogControls(s);
       renderResetStats(s);
       renderGuidancePrefs(s);

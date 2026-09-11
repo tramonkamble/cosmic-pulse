@@ -11,7 +11,7 @@ from .games import game_meta
 from .mangohud_logs import summarize_for_session
 from .stutter import _percentile
 
-MIN_SESSION_SAMPLES = 30  # ~30s at 1 Hz after load grace
+MIN_SESSION_SAMPLES = 15  # ~15s at 1 Hz after load grace
 LOAD_GRACE_SEC = 45  # wait after detect before counting (loading / menus)
 MAX_TREND_POINTS = 600  # cap stored trend samples per session
 
@@ -126,8 +126,8 @@ class GameSessionTracker:
         st = snap.get("stutter") or {}
         score = float(st.get("score") or 0)
         acc["stutter_scores"].append(score)
-        acc["hitch_ms"].append(float(st.get("est_ms") or 0))
         if st.get("event"):
+            acc["hitch_ms"].append(float(st.get("est_ms") or 0))
             acc["hitch_events"] += 1
 
         gt = snap.get("game_totals") or {}

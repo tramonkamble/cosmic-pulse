@@ -7,20 +7,27 @@ from __future__ import annotations
 import re
 
 from .hardware_profiles import GPU_ALIASES, gpu_tier_list
+from .league_index import apply_cpu_scores, league_meta, memory_tier_score
 
-# Tier score 0-100 = approximate relative strength for city-builder / AAA gaming.
-CPU_TIERS: list[dict] = [
-    {"name": "Ryzen 5 5600X", "score": 42, "class": "mid"},
-    {"name": "Ryzen 5 7600X", "score": 58, "class": "mid"},
-    {"name": "Ryzen 7 5800X3D", "score": 62, "class": "mid"},
-    {"name": "Ryzen 7 7700X", "score": 68, "class": "upper"},
-    {"name": "Ryzen 7 7800X3D", "score": 74, "class": "upper"},
-    {"name": "Ryzen 9 7900X", "score": 82, "class": "enthusiast"},
-    {"name": "Ryzen 9 7950X", "score": 88, "class": "enthusiast"},
-    {"name": "Core i7-13700K", "score": 80, "class": "enthusiast"},
-    {"name": "Core i9-14900K", "score": 90, "class": "flagship"},
-    {"name": "Threadripper 9970X", "score": 98, "class": "workstation"},
-]
+# Scores overwritten from cosmic_pulse/data/league_index.json (Tom's Hardware).
+CPU_TIERS: list[dict] = apply_cpu_scores(
+    [
+        {"name": "Ryzen 5 5600X", "score": 54, "class": "mid"},
+        {"name": "Ryzen 5 7600X", "score": 66, "class": "mid"},
+        {"name": "Ryzen 9 7900X", "score": 69, "class": "mid"},
+        {"name": "Ryzen 9 7900X3D", "score": 77, "class": "upper"},
+        {"name": "Ryzen 7 5800X3D", "score": 70, "class": "upper"},
+        {"name": "Ryzen 7 7700X", "score": 71, "class": "upper"},
+        {"name": "Ryzen 9 7950X", "score": 71, "class": "upper"},
+        {"name": "Core i7-13700K", "score": 76, "class": "upper"},
+        {"name": "Core i9-14900K", "score": 78, "class": "upper"},
+        {"name": "Ryzen 5 7600X3D", "score": 81, "class": "upper"},
+        {"name": "Ryzen 7 7800X3D", "score": 86, "class": "enthusiast"},
+        {"name": "Ryzen 7 9800X3D", "score": 97, "class": "flagship"},
+        {"name": "Ryzen 7 9850X3D", "score": 100, "class": "flagship"},
+        {"name": "Threadripper 9970X", "score": 72, "class": "workstation"},
+    ]
+)
 
 GPU_TIERS: list[dict] = gpu_tier_list()
 
@@ -53,17 +60,21 @@ MEM_TIERS: list[dict] = [
     {"name": "DDR5-7200 dual", "mts": 7200, "channels": 2, "peak_gbps": 115.2, "class": "flagship"},
 ]
 
-# Composite reference builds for "vs" bars.
+# Composite reference builds for "vs" bars (same published index as the SKU table).
 REFERENCE_BUILDS = {
-    "average_pc": {"label": "Avg gaming PC", "cpu": 58, "gpu": 48, "mem": 83.2},
-    "enthusiast": {"label": "Enthusiast build", "cpu": 88, "gpu": 82, "mem": 96.0},
-    "flagship": {"label": "Flagship 2025", "cpu": 98, "gpu": 100, "mem": 115.2},
+    "average_pc": {"label": "Typical 1440p PC", "cpu": 66.0, "gpu": 46.5, "mem": 80.0},
+    "enthusiast": {"label": "Enthusiast build", "cpu": 85.6, "gpu": 73.1, "mem": 100.0},
+    "flagship": {"label": "Flagship 2026", "cpu": 100.0, "gpu": 100.0, "mem": 100.0},
 }
 
 CPU_ALIASES = {
+    "9850x3d": "Ryzen 7 9850X3D",
+    "9800x3d": "Ryzen 7 9800X3D",
+    "7900x3d": "Ryzen 9 7900X3D",
     "7900x": "Ryzen 9 7900X",
     "7950x": "Ryzen 9 7950X",
     "7700x": "Ryzen 7 7700X",
+    "7600x3d": "Ryzen 5 7600X3D",
     "7600x": "Ryzen 5 7600X",
     "7800x3d": "Ryzen 7 7800X3D",
     "14900k": "Core i9-14900K",
@@ -366,8 +377,10 @@ def hardware_comparison(
     enth = refs["enthusiast"]
     flag = refs["flagship"]
 
-    def vs(ref_score: int, yours: int) -> int:
-        return round((yours - ref_score) / ref_score * 100) if ref_score else 0
+    def vs(ref_score: float, yours: float) -> int:
+        ref = float(ref_score or 0)
+        you = float(yours or 0)
+        return round((you - ref) / ref * 100) if ref else 0
 
     # Live extraction: how much of *your* hardware you're using right now.
     cpu_live = round(cpu_pct, 1)
@@ -386,14 +399,21 @@ def hardware_comparison(
         1,
     )
 
+    mem_score = memory_tier_score(mem_peak)
     composite_tier = round(
-        cpu_t["score"] * 0.4 + gpu_t["score"] * 0.45 + min(100, mem_peak / 1.15) * 0.15, 1
+        cpu_t["score"] * 0.4 + gpu_t["score"] * 0.45 + mem_score * 0.15, 1
     )
+    meta = league_meta()
 
     return {
         "session_index": session_index,
         "composite_tier": composite_tier,
         "composite_rank": rank_label(int(composite_tier)),
+        "sources": {
+            "gpu": meta.get("gpu") or {},
+            "cpu": meta.get("cpu") or {},
+            "memory": meta.get("memory") or {},
+        },
         "chassis": chassis_id,
         "cpu": {
             "name": cpu_t["name"],
@@ -433,14 +453,14 @@ def hardware_comparison(
             "brand": mem_id["brand"],
             "kit": mem_id["kit"],
             "label": mem_id["label"],
-            "tier_score": round(min(100, mem_peak / 1.15), 1),
-            "tier_rank": rank_label(int(min(100, mem_peak / 1.15))),
+            "tier_score": mem_score,
+            "tier_rank": rank_label(int(mem_score)),
             "peak_gbps": mem_peak,
             "live_gbps_est": dram_est,
             "live_pressure_pct": dram_live_pct,
-            "vs_avg_pct": vs(avg["mem"], mem_peak),
-            "vs_enthusiast_pct": vs(enth["mem"], mem_peak),
-            "vs_flagship_pct": vs(flag["mem"], mem_peak),
+            "vs_avg_pct": vs(avg["mem"], mem_score),
+            "vs_enthusiast_pct": vs(enth["mem"], mem_score),
+            "vs_flagship_pct": vs(flag["mem"], mem_score),
         },
         "references": refs,
     }

@@ -27,6 +27,10 @@ from pathlib import Path
 CHILD_STALL_SEC = 8.0
 APPLY_STALE_SEC = 8.0
 APPLY_RESTART_COOLDOWN_SEC = 15.0
+# Never run two apply loops. A replacement cannot kill the stuck thread; it
+# only waits on the same lock until HTTP and the UI freeze (futex storm).
+APPLY_MAX_LIVE = 1
+APPLY_STALE_LOG_SEC = 60.0
 RESPAWN_PAUSE_SEC = 0.4
 POLL_SEC = 0.5
 APPLY_POLL_SEC = 0.25
@@ -200,22 +204,62 @@ def _hb_apply_loop(srv) -> None:
     srv._apply_loop_mono = time.monotonic()
 
 
+def _apply_live_inc(srv) -> int:
+    lock = getattr(srv, "_apply_live_lock", None)
+    if lock is None:
+        srv._apply_live_lock = threading.Lock()
+        lock = srv._apply_live_lock
+    with lock:
+        n = int(getattr(srv, "_apply_live", 0) or 0) + 1
+        srv._apply_live = n
+        return n
+
+
+def _apply_live_dec(srv) -> None:
+    lock = getattr(srv, "_apply_live_lock", None)
+    if lock is None:
+        return
+    with lock:
+        srv._apply_live = max(0, int(getattr(srv, "_apply_live", 1) or 1) - 1)
+
+
 def _start_apply_thread(srv, live_path: Path, *, force: bool = False) -> None:
+    if not hasattr(srv, "_apply_live_lock"):
+        srv._apply_live_lock = threading.Lock()
+    if not hasattr(srv, "_apply_live"):
+        srv._apply_live = 0
     t = getattr(srv, "_pulse_apply_thread", None)
-    if t is not None and t.is_alive() and not force:
+    if t is not None and t.is_alive():
+        # A second loop cannot preempt the first; it only piles onto the same lock.
+        if force:
+            last = float(getattr(srv, "_apply_skip_spawn_log_mono", 0.0) or 0.0)
+            now = time.monotonic()
+            if now - last >= APPLY_STALE_LOG_SEC:
+                srv._apply_skip_spawn_log_mono = now
+                print(
+                    "Cosmic Pulse sampler: apply loop stale but still running — not spawning",
+                    flush=True,
+                )
         return
     srv._apply_gen = int(getattr(srv, "_apply_gen", 0) or 0) + 1
     if force:
         print(
-            f"Cosmic Pulse sampler: restarting apply thread (gen={srv._apply_gen})",
+            f"Cosmic Pulse sampler: apply loop dead — starting gen={srv._apply_gen}",
             flush=True,
         )
     my_gen = srv._apply_gen
+
+    def _run() -> None:
+        _apply_live_inc(srv)
+        try:
+            _apply_loop(srv, live_path, my_gen)
+        finally:
+            _apply_live_dec(srv)
+
     thread = threading.Thread(
-        target=_apply_loop,
-        args=(srv, live_path, my_gen),
+        target=_run,
         daemon=True,
-        name=f"pulse-sample-apply-{my_gen}",
+        name=f"pulse-apply-{my_gen}",
     )
     srv._pulse_apply_thread = thread
     thread.start()
@@ -510,7 +554,9 @@ def _supervisor_loop(srv=None) -> None:
 
                 apply_loop_mono = float(getattr(srv, "_apply_loop_mono", 0.0) or 0.0)
                 if apply_loop_mono and (now_m - apply_loop_mono) >= APPLY_STALE_SEC:
-                    if now_m - last_apply_restart_mono >= APPLY_RESTART_COOLDOWN_SEC:
+                    apply_thread = getattr(srv, "_pulse_apply_thread", None)
+                    apply_dead = apply_thread is None or not apply_thread.is_alive()
+                    if apply_dead and now_m - last_apply_restart_mono >= APPLY_RESTART_COOLDOWN_SEC:
                         last_apply_restart_mono = now_m
                         srv._sampler_last_reason = "stale"
                         _start_apply_thread(srv, live_path, force=True)

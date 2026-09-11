@@ -184,6 +184,29 @@ def test_wedged_apply_does_not_prevent_worker_respawn():
             _cleanup_worker(tmp)
 
 
+def test_wedged_apply_does_not_spawn_thread_storm() -> None:
+    """A stuck publish must not create another apply thread (futex storm)."""
+    with tempfile.TemporaryDirectory() as raw:
+        tmp = Path(raw)
+        srv = _fake_srv(block_publish=True)
+        try:
+            _start(tmp, srv)
+            deadline = time.time() + 8
+            while time.time() < deadline and int(getattr(srv, "_apply_live", 0) or 0) < 1:
+                time.sleep(0.05)
+            assert int(getattr(srv, "_apply_live", 0) or 0) == 1
+            gen0 = int(getattr(srv, "_apply_gen", 0) or 0)
+            time.sleep(ss.APPLY_RESTART_COOLDOWN_SEC + 3.0)
+            live = int(getattr(srv, "_apply_live", 0) or 0)
+            gen = int(getattr(srv, "_apply_gen", 0) or 0)
+            assert live == 1, f"apply thread storm live={live}"
+            assert gen == gen0, f"apply gen climbed {gen0} -> {gen}"
+            t = getattr(srv, "_pulse_apply_thread", None)
+            assert t is not None and t.is_alive()
+        finally:
+            _cleanup_worker(tmp)
+
+
 def test_cmdline_is_sample_worker() -> None:
     assert ss._cmdline_is_sample_worker(["python3", "-u", "/opt/pulse/sample_worker.py"])
     assert ss._cmdline_is_sample_worker(["/usr/bin/python3", "sample_worker.py"])
@@ -292,6 +315,7 @@ def run_all() -> None:
     test_reap_stray_workers_filters_data_dir()
     test_apply_does_not_reload_tuning_log()
     test_wedged_apply_does_not_prevent_worker_respawn()
+    test_wedged_apply_does_not_spawn_thread_storm()
     print("test_sample_supervisor: ok")
 
 

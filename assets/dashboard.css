@@ -1785,11 +1785,28 @@
       overflow: hidden;
     }
     #sumGameCell:not(.tall) .sum-game-art { display: none !important; }
+    #sumGameCell .sum-kicker {
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #sumGameCell .sum-game-title {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     #sumGameCell .sum-game-main {
       grid-area: game-main;
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.12rem;
       min-width: 0;
       align-items: stretch;
       justify-content: center;
@@ -1964,13 +1981,8 @@
     .sum-grid.game-prominent #sumGameCell .sum-game-context {
       font-size: .875rem; font-weight: 500; color: var(--text-secondary);
     }
-    .sum-game-idle-pulse {
-      animation: game-idle-pulse 2.4s ease-in-out infinite;
-    }
-    @keyframes game-idle-pulse {
-      0%, 100% { opacity: .55; }
-      50% { opacity: 1; }
-    }
+    .sum-game-idle-pulse { animation: none; }
+    #sumGameCell .sum-meter[hidden] { display: none !important; }
     .sum-game-stat {
       display: flex;
       flex-direction: column;
@@ -2024,6 +2036,7 @@
     .sum-cell.mem .sum-value { color: var(--m-mem); }
     .sum-cell.gpu .sum-value { color: var(--m-gpu); }
     .sum-cell.game .sum-value { color: var(--m-game); }
+    #sumGameCell:not(.game-live) .sum-value { color: var(--text-secondary); }
     .sum-cell.league .sum-value { color: var(--m-league); }
     /* Soft family wash — understated, not neon */
     .sum-cell.cpu {
@@ -2474,6 +2487,13 @@
       padding: 0 0.1rem 0.2rem;
       border-bottom: 1px solid var(--line-soft);
       margin-bottom: 0.15rem;
+    }
+    #gamePerfCharts .rig-chart-title-row {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.35rem 0.75rem;
     }
     .rig-chart-title-row .stutter-side-label {
       margin: 0;
@@ -3028,6 +3048,13 @@
     .index-build-strip .meta .vs-pos,
     .index-build-strip .meta .vs-neg { font-weight: 600; }
     .index-build-strip .rank-badge { font-size: .8rem; padding: .28rem .55rem; flex-shrink: 0; }
+    .index-source-note {
+      margin: 0.2rem 0.15rem 0.45rem;
+      font-size: 0.68rem;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+    .index-source-note[hidden] { display: none !important; }
     .index-rank-list {
       display: flex; flex-direction: column; gap: .32rem;
       flex: 0 0 auto; min-height: 0;
@@ -3317,6 +3344,42 @@
         0 0 0 1px color-mix(in srgb, var(--m-game) 35%, transparent),
         0 8px 28px color-mix(in srgb, var(--m-game) 10%, transparent);
     }
+    .game-perf-hero.is-recap {
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-game) 18%, transparent);
+    }
+    .game-perf-picker {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      min-width: 0;
+      margin-left: auto;
+    }
+    .game-perf-picker-k {
+      font-size: 0.64rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .game-perf-picker select {
+      font-family: inherit;
+      font-size: 0.82rem;
+      color: var(--text);
+      background: var(--well, var(--panel-elevated));
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0.28rem 0.5rem;
+      max-width: min(28rem, 100%);
+      min-width: 12rem;
+    }
+    .game-perf-history tbody tr[data-session-key] { cursor: pointer; }
+    .game-perf-history tbody tr[data-session-key]:hover {
+      background: color-mix(in srgb, var(--accent) 8%, transparent);
+    }
+    .game-perf-history tbody tr.is-selected {
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+    }
     .game-perf-hero.is-stutter {
       box-shadow:
         0 0 0 1px color-mix(in srgb, var(--sev-warn) 45%, transparent),
@@ -3377,6 +3440,16 @@
     .game-perf-hero-body {
       /* KPIs + charts — hidden when minimized */
     }
+    .game-perf-chart-controls {
+      margin-left: auto;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+    }
+    .game-perf-chart-controls .btn {
+      font-size: 0.78rem;
+      padding: 0.28rem 0.55rem;
+    }
+    .game-perf-hero.is-minimized .game-perf-chart-controls { display: none; }
     .game-perf-hero-head {
       display: flex;
       flex-wrap: wrap;
@@ -4218,27 +4291,15 @@
     }
     .storage-note { margin: 0; font-size: .9rem; color: var(--muted); line-height: 1.5; }
     .storage-msg { font-size: .9rem; color: var(--green); min-height: 1.2em; }
-    /* Options — full main width, multi-column on wide screens */
+    /* Options — single centered column of settings cards */
     .options-layout {
-      display: grid;
-      gap: 0.7rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
       width: 100%;
-      max-width: none;
-      margin: 0;
-      align-items: start;
-    }
-    @media (min-width: 1100px) {
-      .options-layout {
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem 0.85rem;
-      }
-      .options-layout > .options-page-head,
-      .options-layout > #optionsGeneral,
-      .options-layout > #optionsGuidance,
-      .options-layout > #optionsRulePacks,
-      .options-layout > #optionsReset {
-        grid-column: 1 / -1;
-      }
+      max-width: 68rem;
+      margin: 0 auto;
+      min-width: 0;
     }
     .options-page-head {
       display: flex;
@@ -4247,7 +4308,7 @@
       justify-content: space-between;
       gap: .35rem 1rem;
       margin: 0;
-      padding: 0.15rem 0.15rem 0.1rem;
+      padding: 0.1rem 0.15rem 0;
     }
     .options-page-head h2 {
       margin: 0;
@@ -4274,54 +4335,59 @@
     }
     .options-section {
       display: grid;
-      gap: 0.55rem;
-      padding: 0.75rem 0.9rem 0.8rem;
-      border-radius: var(--radius);
-      border: 1px solid var(--line-soft);
-      background: color-mix(in srgb, var(--panel-elevated) 88%, #000 12%);
-      box-shadow: none;
+      gap: 0.75rem;
+      padding: 1rem 1.15rem 1.1rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line);
+      background: var(--panel-solid);
+      box-shadow: var(--shadow), var(--surface-shine);
       min-width: 0;
     }
     .options-section h2 {
       margin: 0;
-      font-size: 0.98rem;
+      font-size: 1.05rem;
       font-weight: 600;
       letter-spacing: 0.01em;
     }
     .options-section .section-lead {
       margin: 0;
-      font-size: 0.86rem;
+      font-size: 0.88rem;
       color: var(--muted);
-      line-height: 1.4;
+      line-height: 1.45;
+    }
+    .options-field {
+      display: grid;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+    .options-field h3,
+    .options-subblock h3 {
+      margin: 0;
+      font-size: var(--fs-xs);
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
     .options-subgrid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 0.65rem 0.75rem;
+      gap: 0.75rem 1rem;
       min-width: 0;
     }
-    @media (max-width: 720px) {
+    @media (max-width: 980px) {
       .options-subgrid { grid-template-columns: 1fr; }
-    }
-    /* When Hardware / Data share a row they are ~half viewport — stack their inner cards */
-    @media (max-width: 1600px) {
-      #optionsHardware .options-subgrid,
-      #optionsData .options-subgrid { grid-template-columns: 1fr; }
-    }
-    /* Appearance is full-width: compact scale column, theme takes the rest */
-    #optionsGeneral .options-subgrid {
-      grid-template-columns: minmax(16rem, 20rem) minmax(0, 1fr);
-      align-items: start;
-    }
-    @media (max-width: 900px) {
-      #optionsGeneral .options-subgrid { grid-template-columns: 1fr; }
     }
     #optionsHardware .options-row,
     #optionsData .options-row {
       display: grid;
-      grid-template-columns: 7.6rem minmax(0, 1fr);
+      grid-template-columns: 8.2rem minmax(0, 1fr);
       align-items: center;
-      gap: 0.3rem 0.7rem;
+      gap: 0.35rem 0.75rem;
+    }
+    @media (max-width: 520px) {
+      #optionsHardware .options-row,
+      #optionsData .options-row { grid-template-columns: 1fr; }
     }
     #optionsHardware .options-scale-wrap {
       flex-wrap: nowrap;
@@ -4336,56 +4402,40 @@
     }
     .options-subblock {
       display: grid;
-      gap: 0.45rem;
+      gap: 0.5rem;
       min-width: 0;
-      padding: 0.55rem 0.65rem;
+      padding: 0.7rem 0.8rem;
       border-radius: var(--radius-md);
       border: 1px solid var(--line-soft);
-      background: rgba(0, 0, 0, 0.18);
-    }
-    .options-subblock h3 {
-      margin: 0;
-      font-size: var(--fs-xs);
-      font-weight: 600;
-      color: var(--text-secondary);
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-    .options-themes-inline {
-      display: grid;
-      gap: .5rem;
-      min-width: 0;
+      background: var(--well);
+      overflow: hidden;
     }
     .theme-mode-list {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: .35rem;
-    }
-    body.ui-wrap-tight .theme-mode-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    @media (max-width: 520px) {
-      .theme-mode-list { grid-template-columns: 1fr; }
+      grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+      gap: 0.45rem;
     }
     .theme-mode-opt {
       display: flex;
       flex-direction: column;
-      gap: .12rem;
-      padding: .5rem .6rem .55rem;
-      border-radius: 8px;
+      gap: .15rem;
+      padding: .55rem .65rem .6rem;
+      border-radius: var(--radius-md);
       border: 1px solid var(--line);
-      background: color-mix(in srgb, var(--panel-elevated) 70%, transparent);
+      background: var(--well);
       cursor: pointer;
       transition: border-color .15s, background .15s, box-shadow .15s;
       min-width: 0;
       position: relative;
     }
     .theme-mode-opt:hover {
-      border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
-      background: color-mix(in srgb, var(--accent) 6%, var(--panel-elevated));
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+      background: color-mix(in srgb, var(--accent) 8%, var(--well));
     }
     .theme-mode-opt.is-active {
-      border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-      background: color-mix(in srgb, var(--accent) 10%, var(--panel-elevated));
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+      background: color-mix(in srgb, var(--accent) 12%, var(--well));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
     }
     .theme-mode-opt:focus-within {
       outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
@@ -4395,32 +4445,35 @@
       position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none;
     }
     .theme-mode-opt .theme-mode-title {
-      font-size: .88rem; font-weight: 600; color: var(--text); line-height: 1.3;
+      font-size: .9rem; font-weight: 600; color: var(--text); line-height: 1.3;
     }
     .theme-mode-opt .theme-mode-desc {
-      font-size: .72rem; color: var(--muted); line-height: 1.35; margin: 0;
+      font-size: .75rem; color: var(--muted); line-height: 1.35; margin: 0;
     }
     .theme-status {
-      margin: 0; font-size: .82rem; color: var(--muted); line-height: 1.35;
+      margin: 0; font-size: .84rem; color: var(--muted); line-height: 1.4;
     }
     .theme-status strong { color: var(--text); font-weight: 500; }
     .theme-preview {
-      border-radius: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .55rem .75rem;
+      padding: .45rem .55rem;
+      border-radius: var(--radius-md);
       border: 1px solid var(--tp-line, var(--line));
       background: var(--tp-bg, var(--bg));
       color: var(--tp-text, var(--text));
       overflow: hidden;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
     }
     .theme-preview-bar {
       display: flex; align-items: center; justify-content: space-between; gap: .5rem;
-      padding: .4rem .55rem;
-      background: var(--tp-glass, var(--glass));
-      border-bottom: 1px solid var(--tp-line, var(--line));
+      flex: 1 1 16rem;
+      min-width: 0;
     }
     .theme-preview-brand {
       display: inline-flex; align-items: center; gap: .4rem;
-      font-size: .78rem; font-weight: 600; color: var(--tp-text, var(--text));
+      font-size: .8rem; font-weight: 600; color: var(--tp-text, var(--text));
     }
     .theme-preview-dot {
       width: .45rem; height: .45rem; border-radius: 50%;
@@ -4440,46 +4493,12 @@
       background: var(--tp-accent, var(--accent));
       color: var(--tp-accent-on, var(--accent-on));
     }
-    .theme-preview-body { padding: .65rem .7rem .75rem; display: grid; gap: .55rem; }
-    .theme-preview-card {
-      border-radius: 10px;
-      border: 1px solid var(--tp-line, var(--line));
-      background: var(--tp-panel, var(--panel-solid));
-      padding: .55rem .65rem;
-      box-shadow: 0 4px 14px rgba(0,0,0,.12);
-    }
-    .theme-preview-card-title {
-      font-size: var(--fs-xs); font-weight: 600; color: var(--tp-text, var(--text)); margin: 0 0 .35rem;
-    }
-    .theme-preview-card-line {
-      height: .35rem; border-radius: 99px; margin-bottom: .28rem;
-      background: color-mix(in srgb, var(--tp-muted, var(--muted)) 35%, transparent);
-    }
-    .theme-preview-card-line.short { width: 58%; }
-    .theme-preview-row {
-      display: flex; flex-wrap: wrap; gap: .35rem; align-items: center;
-    }
-    .theme-preview-btn {
-      font-size: var(--fs-2xs); font-weight: 600; padding: .28rem .5rem; border-radius: 7px;
-      background: var(--tp-accent, var(--accent));
-      color: var(--tp-accent-on, var(--accent-on));
-    }
-    .theme-preview-btn.ghost {
-      background: transparent;
-      color: var(--tp-muted, var(--muted));
-      border: 1px solid var(--tp-line, var(--line));
-    }
-    .theme-preview-pill {
-      font-size: var(--fs-2xs); padding: .2rem .45rem; border-radius: 999px;
-      border: 1px solid var(--tp-line, var(--line));
-      background: var(--tp-elevated, var(--panel-elevated));
-      color: var(--tp-text-sec, var(--text-secondary));
-    }
     .theme-preview-swatches {
-      display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .15rem;
+      display: flex; flex-wrap: wrap; gap: .3rem;
+      margin: 0;
     }
     .theme-preview-swatch {
-      width: 1.15rem; height: 1.15rem; border-radius: 6px;
+      width: 1.05rem; height: 1.05rem; border-radius: 5px;
       border: 1px solid color-mix(in srgb, var(--tp-line, var(--line)) 80%, #000);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
     }
@@ -4573,6 +4592,15 @@
     .options-scale-wrap input[type="range"] {
       flex: 1 1 10rem; min-width: 8rem; max-width: 20rem; accent-color: var(--accent);
       height: 0.45rem; cursor: pointer;
+    }
+    .options-row-scale {
+      width: 100%;
+    }
+    .options-row-scale .options-scale-wrap {
+      width: 100%;
+    }
+    .options-row-scale input[type="range"] {
+      max-width: none;
     }
     .options-scale-val {
       font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums;
@@ -5777,18 +5805,110 @@
       position: relative;
       z-index: 1;
     }
-    body.dash-dedupe #sumGameCell:not(.tall) {
-      padding: 0.28rem 0.4rem;
-      min-height: 0;
+    body.dash-dedupe .sum-cell.sum-chip .sum-chip-meta {
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      overflow: hidden;
     }
-    body.dash-dedupe #sumGameCell:not(.tall) .sum-game-primary .sum-value { font-size: 1.15rem; }
-    body.dash-dedupe #sumGameCell:not(.tall) .sum-detail { display: none; }
+    /* Game + Index: one chip, two panes — name/score | Index class. */
+    body.dash-dedupe #sumGameCell {
+      grid-template-columns: minmax(0, 1fr) auto;
+      column-gap: 0.35rem;
+      padding: 0.28rem 0.35rem 0.28rem 0.5rem;
+      min-height: 5.4rem;
+      align-items: stretch;
+    }
+    body.dash-dedupe #sumGameCell:not(.tall) {
+      padding: 0.28rem 0.35rem 0.28rem 0.5rem;
+      min-height: 5.4rem;
+    }
+    body.dash-dedupe #sumGameCell .sum-head,
+    body.dash-dedupe #sumGameCell .sum-meter,
+    body.dash-dedupe #sumGameCell .sum-detail {
+      display: none !important;
+    }
+    body.dash-dedupe #sumGameCell .sum-game-main {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.65rem;
+      min-width: 0;
+      padding: 0.1rem 0.2rem 0.1rem 0.05rem;
+    }
+    body.dash-dedupe #sumGameCell .sum-game-info {
+      flex: 0 1 auto;
+      max-width: 11.5rem;
+      gap: 0.1rem;
+      min-width: 0;
+    }
+    body.dash-dedupe #sumGameCell .sum-game-title {
+      font-size: 0.95rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+    }
     body.dash-dedupe #sumGameCell:not(.tall) .sum-game-context {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
+      line-height: 1.25;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    body.dash-dedupe #sumGameCell .sum-game-primary {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 0.16rem;
+      min-width: 2.6rem;
+    }
+    body.dash-dedupe #sumGameCell:not(.has-rating) .sum-game-primary {
+      display: none;
+    }
+    body.dash-dedupe #sumGameCell .sum-game-primary .sum-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    body.dash-dedupe #sumGameCell .sum-value[hidden] { display: none !important; }
+    body.dash-dedupe #sumGameCell .sum-game-badge {
+      min-height: 0;
+    }
+    body.dash-dedupe #sumGameCell .rating-tier-pill {
+      font-size: 0.58rem;
+      padding: 0.12rem 0.38rem;
+    }
+    body.dash-dedupe #sumGameCell .sum-game-index {
+      min-width: 4.4rem;
+      padding: 0.22rem 0.55rem 0.22rem 0.6rem;
+      gap: 0.14rem;
+      justify-content: center;
+    }
+    body.dash-dedupe #sumGameCell .sum-game-index-k {
+      letter-spacing: 0.07em;
+      font-size: 0.58rem;
+    }
+    body.dash-dedupe #sumGameCell .sum-game-index-row {
+      flex-wrap: nowrap;
+      gap: 0.32rem;
+    }
+    body.dash-dedupe #sumGameCell .sum-game-index-v {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+    body.dash-dedupe #sumGameCell .sum-league-badge {
+      min-height: 0;
+    }
+    body.dash-dedupe #sumGameCell .sum-league-badge .rank-badge {
+      font-size: 0.78rem;
+      padding: 0.16rem 0.4rem;
+      border-radius: 7px;
+    }
+    body.dash-dedupe .sum-game-banner { display: none !important; }
     /* Scale-aware wrap: body.ui-wrap-* is set from --ui-scale × viewport.
        rem in @media is stuck at the 16px initial font, so 150% would never wrap. */
     body.dash-dedupe.ui-wrap-wide .sum-grid,
@@ -5801,6 +5921,7 @@
         "game game";
     }
     body.dash-dedupe.ui-wrap-wide #sumHealthCell .health-sev-row { max-width: 24rem; }
+    body.dash-dedupe.ui-wrap-wide #sumGameCell .sum-game-info { max-width: 16rem; }
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 0; }
     /* Windowed 1600-class widths wrap the scoreboard, not the lab — keep one stage height. */
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout,

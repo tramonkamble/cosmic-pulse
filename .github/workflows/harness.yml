@@ -24,3 +24,5 @@ jobs:
           python tests/test_rule_packs.py
           python tests/test_store_clear.py
           python tests/test_cli.py
+          python tests/test_version.py
+          python tests/test_league_index.py

@@ -254,6 +254,12 @@ def check_bootstrap() -> dict:
         return {}
     static = data.get("static") or {}
     check("pulse_root", bool(static.get("pulse_root")))
+    check(
+        "pulse_version 0.x.y",
+        isinstance(static.get("pulse_version"), str)
+        and static["pulse_version"].startswith("0."),
+        str(static.get("pulse_version")),
+    )
     check("games_catalog", isinstance(static.get("games_catalog"), dict))
     check("history is list", isinstance(data.get("history"), list))
     hmax = static.get("history_max_sec")
@@ -436,7 +442,9 @@ def main() -> int:
     run_unit_file("tests/test_probe_memory.py")
     run_unit_file("tests/test_platform_identity.py")
     run_unit_file("tests/test_chassis_identity.py")
+    run_unit_file("tests/test_league_index.py")
     run_unit_file("tests/test_cli.py")
+    run_unit_file("tests/test_version.py")
     run_unit_file("tests/test_rule_packs.py")
     run_unit_file("tests/test_cosmic_theme.py")
     if full:

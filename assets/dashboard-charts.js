@@ -185,7 +185,7 @@
       });
     }
 
-    /* —— Chart pause / drag-zoom (all Chart.js graphs) —— */
+    /* —— Chart pause / drag-zoom (Live lab graphs only) —— */
     let chartsPaused = false;
     /** Fixed unix-sec window when paused or zoomed; null = follow live spanSec tail. */
     let chartRange = null;
@@ -195,6 +195,16 @@
     let _chartZoomSyncing = false;
     /** True while user is mid drag-zoom / pan — skip scale rewrites that abort the gesture. */
     let chartInteractActive = false;
+
+    /* —— Game performance session chart (own series; time window can join Live lab) —— */
+    let gameChartsPaused = false;
+    let gameChartRange = null;
+    let gameChartPauseSnapshot = null;
+    let gameChartZoomed = false;
+    let gameChartInteractActive = false;
+    let _gameChartZoomSyncing = false;
+    /** True while Live lab X-axis is following a session inspect window. */
+    let labJoinedSessionWindow = false;
 
     function fmtTimeAxis(ts) {
       if (ts == null || !Number.isFinite(+ts)) return '';
@@ -211,6 +221,15 @@
         return chartRange;
       }
       return getLiveChartWindow();
+    }
+
+    /** Inclusive floor for hitch-event dots when Live lab is zoomed/paused. */
+    function historyCutTs() {
+      if (chartRange && (chartsPaused || chartZoomed)
+          && Number.isFinite(chartRange.min)) {
+        return chartRange.min - 2;
+      }
+      return (sparkRing?.ts?.at(-1) || rawHistory.at(-1)?.ts || 0) - chartViewSec - 2;
     }
 
     function xySeries(tsArr, valArr) {
@@ -316,21 +335,56 @@
 
     function onChartInspectComplete(chart) {
       if (_chartZoomSyncing || !chart?.scales?.x) return;
+      if (chart === gamePerfChart || chart === gamePerfSessionsChart) return;
       const x = chart.scales.x;
       if (!Number.isFinite(x.min) || !Number.isFinite(x.max) || x.max <= x.min) return;
+      labJoinedSessionWindow = false;
       chartRange = { min: x.min, max: x.max };
       chartZoomed = true;
       chartsPaused = true;
       syncChartControlUI();
       applyChartRangeToAll(chartRange, chart);
-      refreshAllCharts();
+      refreshLabCharts();
+    }
+
+    function onGameChartInspectComplete(chart) {
+      if (_gameChartZoomSyncing || !chart?.scales?.x) return;
+      const x = chart.scales.x;
+      if (!Number.isFinite(x.min) || !Number.isFinite(x.max) || x.max <= x.min) return;
+      gameChartRange = { min: x.min, max: x.max };
+      gameChartZoomed = true;
+      gameChartsPaused = true;
+      syncGameChartControlUI();
+      applyGameChartRange(gameChartRange, chart);
+      refreshGameChart();
+      joinLabToSessionWindow(gameChartRange);
+    }
+
+    /** Align Live lab X-axis to a session inspect window. Series stay separate. */
+    function joinLabToSessionWindow(range) {
+      if (!range || !Number.isFinite(range.min) || !Number.isFinite(range.max) || range.max <= range.min) {
+        return;
+      }
+      labJoinedSessionWindow = true;
+      chartRange = { min: range.min, max: range.max };
+      chartZoomed = true;
+      chartsPaused = true;
+      syncChartControlUI();
+      applyChartRangeToAll(chartRange);
+      refreshLabCharts();
+    }
+
+    function unjoinLabFromSession() {
+      if (!labJoinedSessionWindow) return;
+      labJoinedSessionWindow = false;
+      resumeChartsLive();
     }
 
     function applyChartRangeToAll(range, except) {
       if (!range) return;
       _chartZoomSyncing = true;
       try {
-        for (const c of ALL_PULSE_CHARTS) {
+        for (const c of LIVE_LAB_CHARTS) {
           if (!c || c === except || !c.options?.scales?.x) continue;
           c.options.scales.x.min = range.min;
           c.options.scales.x.max = range.max;
@@ -341,10 +395,22 @@
       }
     }
 
+    function applyGameChartRange(range, except) {
+      if (!range || !gamePerfChart || gamePerfChart === except) return;
+      _gameChartZoomSyncing = true;
+      try {
+        gamePerfChart.options.scales.x.min = range.min;
+        gamePerfChart.options.scales.x.max = range.max;
+        try { gamePerfChart.update('none'); } catch (_) { /* ignore */ }
+      } finally {
+        _gameChartZoomSyncing = false;
+      }
+    }
+
     function clearChartRangeLimits() {
       _chartZoomSyncing = true;
       try {
-        for (const c of ALL_PULSE_CHARTS) {
+        for (const c of LIVE_LAB_CHARTS) {
           if (!c?.options?.scales?.x) continue;
           delete c.options.scales.x.min;
           delete c.options.scales.x.max;
@@ -357,8 +423,24 @@
       }
     }
 
-    function zoomPluginOpts() {
-      // Always attach zoom config. Plugin is registered before charts are created.
+    function clearGameChartRangeLimits() {
+      _gameChartZoomSyncing = true;
+      try {
+        if (gamePerfChart?.options?.scales?.x) {
+          delete gamePerfChart.options.scales.x.min;
+          delete gamePerfChart.options.scales.x.max;
+          try {
+            if (typeof gamePerfChart.resetZoom === 'function') gamePerfChart.resetZoom('none');
+          } catch (_) { /* ignore */ }
+        }
+      } finally {
+        _gameChartZoomSyncing = false;
+      }
+    }
+
+    function zoomPluginOpts(kind) {
+      // kind: 'lab' (Live lab) | 'game' (session trend). Plugin is registered first.
+      const game = kind === 'game';
       return {
         zoom: {
           zoom: {
@@ -371,23 +453,38 @@
               borderWidth: 1,
             },
             mode: 'x',
-            onZoomStart: () => { chartInteractActive = true; },
+            onZoomStart: () => {
+              if (game) gameChartInteractActive = true;
+              else chartInteractActive = true;
+            },
             onZoomComplete: ({ chart }) => {
-              chartInteractActive = false;
-              onChartInspectComplete(chart);
+              if (game) {
+                gameChartInteractActive = false;
+                onGameChartInspectComplete(chart);
+              } else {
+                chartInteractActive = false;
+                onChartInspectComplete(chart);
+              }
             },
           },
           pan: {
             enabled: true,
             mode: 'x',
             modifierKey: 'shift',
-            onPanStart: () => { chartInteractActive = true; },
+            onPanStart: () => {
+              if (game) gameChartInteractActive = true;
+              else chartInteractActive = true;
+            },
             onPanComplete: ({ chart }) => {
-              chartInteractActive = false;
-              onChartInspectComplete(chart);
+              if (game) {
+                gameChartInteractActive = false;
+                onGameChartInspectComplete(chart);
+              } else {
+                chartInteractActive = false;
+                onChartInspectComplete(chart);
+              }
             },
           },
-          // Unix-sec axis: minRange = 15 seconds of visible window
           limits: { x: { minRange: 15 } },
         },
       };
@@ -629,7 +726,7 @@
           padding: 10,
           callbacks: { title(items) { return fmtTimeAxis(items?.[0]?.parsed?.x); } },
         },
-        ...zoomPluginOpts(),
+        ...zoomPluginOpts('game'),
       },
       scales: {
         x: timeXScale({
@@ -669,7 +766,6 @@
               },
             },
           },
-          ...zoomPluginOpts(),
         },
         scales: {
           x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 } }, grid: { color: gridColor } },
@@ -678,8 +774,11 @@
       },
     });
 
+    const LIVE_LAB_CHARTS = [
+      utilChart, bwChart, ioChart, sparkChart, stutterChart, indexChart,
+    ];
     const ALL_PULSE_CHARTS = [
-      utilChart, bwChart, ioChart, sparkChart, stutterChart, indexChart, gamePerfChart, gamePerfSessionsChart,
+      ...LIVE_LAB_CHARTS, gamePerfChart, gamePerfSessionsChart,
     ];
     const CHART_DPR = Math.min(window.devicePixelRatio || 1, 1.4);
     ALL_PULSE_CHARTS.forEach(c => {
@@ -696,6 +795,11 @@
         el.textContent = statusText;
         el.classList.remove('is-paused', 'is-zoom');
         if (statusCls) el.classList.add(statusCls);
+        if (labJoinedSessionWindow) {
+          el.title = 'Time window matched to the game session chart';
+        } else {
+          el.removeAttribute('title');
+        }
       });
       document.querySelectorAll('#btnChartsPause, [data-charts-pause]').forEach(el => {
         el.hidden = chartsPaused && !chartZoomed;
@@ -719,16 +823,18 @@
     }
 
     function resumeChartsLive() {
+      labJoinedSessionWindow = false;
       chartsPaused = false;
       chartZoomed = false;
       chartRange = null;
       chartPauseSnapshot = null;
       clearChartRangeLimits();
       syncChartControlUI();
-      refreshAllCharts();
+      refreshLabCharts();
     }
 
     function resetChartsZoom() {
+      labJoinedSessionWindow = false;
       chartZoomed = false;
       if (chartPauseSnapshot) {
         // Explicit Pause then zoom: unzoom but keep the frozen window.
@@ -742,14 +848,80 @@
       clearChartRangeLimits();
       if (chartsPaused && chartRange) applyChartRangeToAll(chartRange);
       syncChartControlUI();
-      refreshAllCharts();
+      refreshLabCharts();
     }
 
-    function refreshAllCharts() {
-      try { renderCharts(); } catch (_) { /* ignore */ }
-      try { renderSparkChart(); } catch (_) { /* ignore */ }
-      try { renderStutterChart(); } catch (_) { /* ignore */ }
-      try { renderIndexChart(); } catch (_) { /* ignore */ }
+    function currentGameChartWindow() {
+      const x = gamePerfChart?.scales?.x;
+      if (x && Number.isFinite(x.min) && Number.isFinite(x.max) && x.max > x.min) {
+        return { min: x.min, max: x.max };
+      }
+      return gameChartRange;
+    }
+
+    function syncGameChartControlUI() {
+      const paused = gameChartsPaused || gameChartZoomed;
+      const status = document.getElementById('gameChartViewStatus');
+      if (status) {
+        status.textContent = gameChartZoomed ? 'Zoomed' : (gameChartsPaused ? 'Paused' : 'Follow');
+        status.classList.toggle('is-zoom', gameChartZoomed);
+        status.classList.toggle('is-paused', gameChartsPaused && !gameChartZoomed);
+      }
+      const pauseBtn = document.getElementById('btnGameChartPause');
+      if (pauseBtn) {
+        pauseBtn.hidden = gameChartsPaused && !gameChartZoomed;
+        pauseBtn.setAttribute('aria-pressed', gameChartsPaused ? 'true' : 'false');
+        pauseBtn.classList.toggle('is-active', gameChartsPaused && !gameChartZoomed);
+      }
+      const resumeBtn = document.getElementById('btnGameChartResume');
+      if (resumeBtn) resumeBtn.hidden = !paused;
+      const resetBtn = document.getElementById('btnGameChartResetZoom');
+      if (resetBtn) resetBtn.hidden = !gameChartZoomed;
+    }
+
+    function pauseGameChart() {
+      const win = currentGameChartWindow();
+      if (win) {
+        gameChartRange = { min: win.min, max: win.max };
+        gameChartPauseSnapshot = { min: win.min, max: win.max };
+      }
+      gameChartsPaused = true;
+      syncGameChartControlUI();
+      if (gameChartRange) applyGameChartRange(gameChartRange);
+    }
+
+    function resumeGameChart() {
+      gameChartsPaused = false;
+      gameChartZoomed = false;
+      gameChartRange = null;
+      gameChartPauseSnapshot = null;
+      clearGameChartRangeLimits();
+      syncGameChartControlUI();
+      refreshGameChart();
+      unjoinLabFromSession();
+    }
+
+    function resetGameChartZoom() {
+      gameChartZoomed = false;
+      if (gameChartPauseSnapshot) {
+        gameChartsPaused = true;
+        gameChartRange = { min: gameChartPauseSnapshot.min, max: gameChartPauseSnapshot.max };
+      } else {
+        gameChartsPaused = false;
+        gameChartRange = null;
+      }
+      clearGameChartRangeLimits();
+      if (gameChartsPaused && gameChartRange) {
+        applyGameChartRange(gameChartRange);
+        joinLabToSessionWindow(gameChartRange);
+      } else {
+        unjoinLabFromSession();
+      }
+      syncGameChartControlUI();
+      refreshGameChart();
+    }
+
+    function refreshGameChart() {
       try {
         if (lastLatest) {
           renderGamePerfLiveTrend(
@@ -759,6 +931,18 @@
           );
         }
       } catch (_) { /* ignore */ }
+    }
+
+    function refreshLabCharts() {
+      try { renderCharts(); } catch (_) { /* ignore */ }
+      try { renderSparkChart(); } catch (_) { /* ignore */ }
+      try { renderStutterChart(); } catch (_) { /* ignore */ }
+      try { renderIndexChart(); } catch (_) { /* ignore */ }
+    }
+
+    function refreshAllCharts() {
+      refreshLabCharts();
+      refreshGameChart();
     }
 
     function syncChartViewUI() {
@@ -788,7 +972,11 @@
       document.querySelectorAll('#btnChartsResetZoom, [data-charts-reset-zoom]').forEach(el => {
         el.addEventListener('click', () => resetChartsZoom());
       });
+      document.getElementById('btnGameChartPause')?.addEventListener('click', () => pauseGameChart());
+      document.getElementById('btnGameChartResume')?.addEventListener('click', () => resumeGameChart());
+      document.getElementById('btnGameChartResetZoom')?.addEventListener('click', () => resetGameChartZoom());
       syncChartControlUI();
+      syncGameChartControlUI();
     }
     wireChartLiveControls();
     document.querySelectorAll('[data-view]').forEach(btn => {

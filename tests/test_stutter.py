@@ -117,6 +117,56 @@ def test_attach_stutter_populates_session():
     assert snap["stutter"]["smoothness"] >= 0
 
 
+def test_calm_tick_has_no_hitch_ms():
+    reset_stutter_state()
+    st = compute_stutter(_snap(pgmaj=2, game_id="730", running=True))
+    assert st["event"] is False
+    assert st["est_ms"] == 0
+
+
+def test_session_window_ignores_other_games():
+    reset_stutter_state()
+    now = 3000.0
+    history = [
+        {
+            "ts": now - 20,
+            "game_totals": {"game_id": "other", "running": True},
+            "stutter": {"score": 90, "est_ms": 180, "event": True},
+        },
+        {
+            "ts": now - 10,
+            "game_totals": {"game_id": "730", "running": True},
+            "stutter": {"score": 8, "est_ms": 0, "event": False},
+        },
+    ]
+    snap = _snap(ts=now, pgmaj=0, game_id="730", running=True)
+    attach_stutter(snap, history)
+    sess = snap["stutter"]["session"]
+    assert sess["events"] == 0
+    assert sess["hitch_ms_1pct"] == 0
+
+
+def test_hitch_1pct_uses_events_only():
+    reset_stutter_state()
+    now = 4000.0
+    history = [
+        {
+            "ts": now - 40,
+            "game_totals": {"game_id": "730", "running": True},
+            "stutter": {"score": 12, "est_ms": 0, "event": False},
+        },
+        {
+            "ts": now - 20,
+            "game_totals": {"game_id": "730", "running": True},
+            "stutter": {"score": 60, "est_ms": 55, "event": True},
+        },
+    ]
+    snap = _snap(ts=now, pgmaj=0, game_id="730", running=True)
+    attach_stutter(snap, history)
+    assert snap["stutter"]["session"]["hitch_ms_1pct"] == 55
+    assert snap["stutter"]["session"]["events"] == 1
+
+
 if __name__ == "__main__":
     test_ema_resets_on_game_change()
     test_window_samples_skips_old_history()
@@ -125,4 +175,7 @@ if __name__ == "__main__":
     test_effective_disk_io_wait_tracks_busy_disk()
     test_io_stall_uses_adjusted_wait_not_raw_psi()
     test_attach_stutter_populates_session()
+    test_calm_tick_has_no_hitch_ms()
+    test_session_window_ignores_other_games()
+    test_hitch_1pct_uses_events_only()
     print("all ok")

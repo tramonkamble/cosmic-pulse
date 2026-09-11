@@ -24,6 +24,20 @@ python3 tests/test_stutter.py     # or: pytest tests/ if installed
 
 Ruff config is in `pyproject.toml`.
 
+## Version (0.x.y prerelease)
+
+`pyproject.toml` `[project].version` is the source of truth. `cosmic_pulse.__version__` reads it. The `.deb` builder copies that into `debian/control`.
+
+```bash
+python3 deploy/bump_version.py show      # 0.1.0
+python3 deploy/bump_version.py patch     # 0.1.0 -> 0.1.1
+python3 deploy/bump_version.py minor     # 0.1.0 -> 0.2.0
+python3 deploy/bump_version.py patch --commit --tag
+git push --follow-tags                   # GitHub prerelease + .deb
+```
+
+Stay on **0.x.y** until a real 1.0. `major` is refused unless you pass `--major`. Pushing tag `v0.x.y` runs `.github/workflows/release.yml` (prerelease).
+
 ## Typical flow
 
 ```bash

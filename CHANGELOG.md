@@ -7,7 +7,11 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Changed
+- **Pulse Index** — CPU/GPU class scores now follow Tom's Hardware 2026 published relatives (1080p gaming CPU, 1440p raster GPU, RTX 5090 / 9850X3D = 100) instead of hand-picked 0–100 guesses. A 7900X no longer outranks a 7800X3D. Memory is peak bandwidth vs DDR5-6000 dual. Source line is on the Index tab.
+
 ### Added
+- **0.x.y versions** — `pyproject.toml` is the source of truth; `cosmic-pulse --version` and `/api/metrics` `static.pulse_version` report it. `python3 deploy/bump_version.py patch|minor` updates changelog/docs; tag `v0.x.y` publishes a GitHub prerelease.
 - **Guidance authoring** — [docs/RULES.md](docs/RULES.md) (schema, metric catalog, rules-for-rules), [RULE_PACKS.md](RULE_PACKS.md) index, and annotated example pack `rules/examples/hello-swappiness/` (not loaded from builtin).
 - **CLI** — `cosmic-pulse --help` / `--port` / `--lan` / `--open` (open the UI, or reuse an already-bound port).
 - **Desktop launcher** — `.desktop` + icon from `install.sh` and the `.deb`.
@@ -19,6 +23,11 @@ Dates use the machine local timezone (EDT unless noted).
 - **Live lab view windows** — 1m / 5m / 10m / 60m at 1 Hz (fixed X window, 0–100% load axis). History ring keeps 60 minutes.
 
 ### Changed
+- **Game glance card** — idle no longer pulses or truncates “Launch a Steam…”. Pulse Index on that card is the hardware build score (Class + composite), not the session-load 12 mixed with an empty `/100`. Live titles stay compact in the glance row instead of exploding art/stats into an 18rem chip. Title / rating / last-session line are separate so the chip is readable.
+- **Game performance charts** — Pause / Resume / Reset zoom on the session trend are independent of Live lab. Drag-zoom on that chart no longer freezes Snapshot/Index/Stutter.
+- **Hitch proxy** — stall events need a clearer spike (score 48+, or a real fault/PSI jump). Millisecond estimates are only stored on those events, and the 5-minute window is scoped to the active game. Recap no longer copies that proxy into Frametime (that card is MangoHud-only).
+- **Session recap** — the Game performance strip stays after you quit (last rating, KPIs, trend). Browse older sessions from the dropdown or the Sessions table; data was never deleted, the strip was just hidden when idle. Completed sessions still need ~45s load grace + ~15s play to save.
+- **Options page** — single centered column of settings cards (same chrome as dashboard panels). Theme packs are compact chips plus a slim preview; hardware/data no longer sit in a cramped two-column mash. Wells use `--well` / `--panel-solid` instead of a black wash, so light theme stays readable. Power-dial hint no longer names the detected CPU/GPU SKU.
 - **Themes** — Options can pick Cosmic (follow desktop), Cosmic Dark, Cosmic Light, Pulse Dark, Pulse Light, or System. Light chrome uses darker type and lighter wells so numbers stay readable. Plot wells stay dark so series colors remain visible; a store refresh no longer snaps chrome back to dark. Cosmic Dark/Light persist through `POST /api/store`; packaged `/usr/share/cosmic` packs load even without `~/.config/cosmic`.
 - **Dashboard sources** — CSS in `assets/dashboard.css`. Client JS is three classic scripts: `dashboard-theme.js`, `dashboard-charts.js`, `dashboard.js` (poll loop last). `index.html` is markup. No bundler.
 - **Data tools** — moved off the dashboard dock onto Guidance (collapsed host strip). Apt/udev unlocks sit with Scan, not Live lab.
@@ -45,6 +54,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **Dashboard density** — one glance row, chip sparklines, compact header/rig tiles; idle game strip and duplicate load/sensor chrome stay off the main screen.
 
 ### Fixed
+- **Sampler apply storm** — a wedged parent apply used to spawn a new thread every 15s. Those piled up on one lock (~100 threads, UI stuck on Stale). There is only ever one apply loop (no replacement while it is alive). Guidance/session enrich runs on a separate thread so a slow tick cannot stall publish or look like a dead apply loop.
 - **Dial contrast** — CPU power, GPU power, and GPU hotspot use lighter family blues/violets so they read on the dark background.
 - **Live lab wheel** — scrolling the page works with the pointer over the right-side meters (those tiles no longer trap the wheel).
 - **Memory probe** — DMI `Manufacturer: Unknown` no longer wins over a known part number. This kit is G.Skill Flare X5 (F5-6000J3038F16G); live speed stays 4800 with the 6000 rating on the label. Duplicate `DIMM 1` locators are split by bank.

@@ -166,13 +166,14 @@
               <img id="sumGameArtImg" alt="">
             </div>
             <div class="sum-game-info">
-              <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-label" id="sumGameLabel">Game</span></div>
-              <span class="sum-game-context" id="sumGameContext"></span>
+              <div class="sum-head"><span class="hw-icon-box game" data-glyph="game"></span><span class="sum-kicker">Game</span></div>
+              <span class="sum-game-title" id="sumGameLabel">Idle</span>
+              <span class="sum-game-context" id="sumGameContext">No session yet</span>
             </div>
             <div class="sum-game-primary">
-              <span class="sum-value" id="sumGameVal">—</span>
+              <span class="sum-value" id="sumGameVal" hidden>—</span>
               <div id="sumGameBadge" class="sum-game-badge"></div>
-              <div class="sum-meter game"><span id="sumGameMeter" style="width:0%"></span></div>
+              <div class="sum-meter game" hidden><span id="sumGameMeter" style="width:0%"></span></div>
             </div>
             <div class="sum-game-stats" id="sumGameStats" hidden></div>
             <span class="sum-detail" id="sumGameSub">—</span>
@@ -180,11 +181,11 @@
           <!-- Pulse Index lives with the session strip (not competing with load chips) -->
           <button type="button" class="sum-game-index" id="sumGameIndex" data-drill="viz-index" data-hw-keep
             title="Open Pulse Index — build score for this rig">
-            <span class="sum-game-index-k">Pulse Index</span>
+            <span class="sum-game-index-k">Index</span>
             <div class="sum-game-index-row">
               <span class="sum-game-index-v" id="sumLeagueVal">—</span>
               <div id="sumLeagueBadge" class="sum-league-badge"></div>
-              <div class="sum-meter league"><span id="sumLeagueMeter" style="width:0%"></span></div>
+              <div class="sum-meter league" hidden><span id="sumLeagueMeter" style="width:0%"></span></div>
             </div>
             <span class="sum-detail" id="sumLeagueSub">—</span>
           </button>
@@ -221,6 +222,10 @@
             </p>
           </div>
         </div>
+        <label class="game-perf-picker" id="gamePerfPickerWrap" hidden>
+          <span class="game-perf-picker-k">Browse</span>
+          <select id="gamePerfPicker" aria-label="Browse game sessions"></select>
+        </label>
         <span class="game-perf-idle-badge" id="gamePerfIdleBadge">No game running</span>
         <span class="game-perf-hero-name" id="gamePerfGameName"></span>
       </div>
@@ -230,6 +235,13 @@
           <div class="rig-panel rig-panel-chart">
             <div class="rig-chart-title-row">
               <span class="stutter-side-label" id="gamePerfTrendLead">This session</span>
+              <div class="chart-live-controls game-perf-chart-controls" id="gamePerfChartControls"
+                title="Drag to zoom this session. Live lab matches the same time window (rig stats stay on Live lab; this chart stays game-session metrics). Ctrl+scroll zooms; Shift+drag pans.">
+                <button type="button" class="btn" id="btnGameChartPause" aria-pressed="false">Pause</button>
+                <button type="button" class="btn" id="btnGameChartResume" hidden>Resume</button>
+                <button type="button" class="btn" id="btnGameChartResetZoom" hidden>Reset zoom</button>
+                <span class="chart-view-status" id="gameChartViewStatus">Follow</span>
+              </div>
             </div>
             <div class="stutter-chart-box"><canvas id="gamePerfChart" aria-label="Session trend chart"></canvas></div>
           </div>
@@ -252,7 +264,7 @@
           <button type="button" class="viz-tab" role="tab" data-viz-tab="index" aria-selected="false">Pulse Index <span class="viz-tab-val" id="vizTabIndexVal"></span></button>
           <button type="button" class="viz-tab" role="tab" data-viz-tab="stutter" aria-selected="false">Stutter <span class="viz-tab-val" id="vizTabStutterVal"></span></button>
         </div>
-        <div class="chart-live-controls" id="chartLiveControls" title="Pause freezes chart follow. Drag on a chart to zoom a time range. Ctrl+scroll zooms; Shift+drag pans. View is how much time the X-axis shows; samples stay 1 Hz.">
+        <div class="chart-live-controls" id="chartLiveControls" title="Pause freezes chart follow. Drag on a chart to zoom a time range. Zooming a game session also sets this window so you can align rig stats with the session. Ctrl+scroll zooms; Shift+drag pans. View is how much time the X-axis shows while live; samples stay 1 Hz.">
           <span class="ctrl-label" title="How much time the graphs show. Collector still samples at 1 Hz.">View</span>
           <div class="ctrl-group chart-view-btns" id="chartViewBtns" role="group" aria-label="Chart time window">
             <button type="button" class="btn" data-view="60">1m</button>
@@ -454,6 +466,7 @@
                     <span id="indexBuildBadge"></span>
                     <span class="meta" id="indexBuildMeta">—</span>
                   </div>
+                  <p class="index-source-note" id="indexSourceNote" hidden></p>
                   <div class="stutter-side-label">Component rankings</div>
                   <div class="index-rank-list" id="indexRankList"></div>
                 </div>
@@ -622,12 +635,12 @@
         </summary>
         <div class="drill-body">
           <p class="section-lead" style="margin:0 0 .55rem">
-            Live KPIs and charts sit in the <strong>Game performance</strong> strip when a title is running. History and processes stay here.
+            Live and last-session recap sit in the <strong>Game performance</strong> strip above Live lab. Click a row to open that session.
           </p>
           <div class="game-perf-history">
             <h3 class="guidance-section-title" style="margin:.2rem 0 .45rem">Past sessions</h3>
             <table>
-              <thead><tr><th>When</th><th>Rating</th><th>Smooth</th><th>FPS</th><th>1% low</th><th>Hitches</th><th>Duration</th></tr></thead>
+              <thead><tr><th>Game</th><th>When</th><th>Rating</th><th>Smooth</th><th>FPS</th><th>1% low</th><th>Hitches</th><th>Duration</th></tr></thead>
               <tbody id="gamePerfHistory"></tbody>
             </table>
           </div>
@@ -901,98 +914,84 @@
         <div class="options-page-head">
           <div>
             <h2>Options</h2>
-            <p class="sub">Settings for this machine — appearance, hardware scales, data, and Guidance.</p>
+            <p class="sub">Appearance, hardware scales, data, and Guidance.</p>
           </div>
           <p class="options-msg" id="optionsMsg" aria-live="polite"></p>
         </div>
 
         <section class="options-section" id="optionsGeneral">
           <h2>Appearance</h2>
-          <p class="section-lead">UI size and chrome theme for this machine. Metric chart colors stay fixed.</p>
-          <div class="options-subgrid">
-            <div class="options-subblock">
-              <h3>UI scale</h3>
-              <div class="options-row">
-                <div class="options-scale-wrap">
-                  <input type="range" id="uiScaleRange" min="1" max="2" step="0.05" value="1"
-                    aria-label="UI scale" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1" />
-                  <span class="options-scale-val" id="uiScaleVal">100%</span>
-                  <p class="options-scale-hint">
-                    Drag, then release to save. 100% default, 150% larger, 200% largest.
-                  </p>
-                </div>
+          <p class="section-lead">UI size and chrome theme. Metric chart colors stay fixed.</p>
+          <div class="options-field" id="optionsScale">
+            <h3>UI scale</h3>
+            <div class="options-row options-row-scale">
+              <div class="options-scale-wrap">
+                <input type="range" id="uiScaleRange" min="1" max="2" step="0.05" value="1"
+                  aria-label="UI scale" aria-valuemin="1" aria-valuemax="2" aria-valuenow="1" />
+                <span class="options-scale-val" id="uiScaleVal">100%</span>
               </div>
             </div>
-            <div class="options-subblock options-themes-inline" id="optionsThemes">
-              <h3>Theme</h3>
-              <p class="theme-status" id="themeStatus">Detecting desktop theme…</p>
-              <div class="theme-mode-list" id="themeModeList" role="radiogroup" aria-label="Theme mode">
-                <label class="theme-mode-opt is-active" data-mode="cosmic">
-                  <input type="radio" name="themeMode" value="cosmic" checked />
-                  <span class="theme-mode-title">Cosmic</span>
-                  <p class="theme-mode-desc">Follow the desktop Light/Dark setting.</p>
-                </label>
-                <label class="theme-mode-opt" data-mode="cosmic-dark">
-                  <input type="radio" name="themeMode" value="cosmic-dark" />
-                  <span class="theme-mode-title">Cosmic Dark</span>
-                  <p class="theme-mode-desc">Pop COSMIC dark pack.</p>
-                </label>
-                <label class="theme-mode-opt" data-mode="cosmic-light">
-                  <input type="radio" name="themeMode" value="cosmic-light" />
-                  <span class="theme-mode-title">Cosmic Light</span>
-                  <p class="theme-mode-desc">Pop COSMIC light pack.</p>
-                </label>
-                <label class="theme-mode-opt" data-mode="dark">
-                  <input type="radio" name="themeMode" value="dark" />
-                  <span class="theme-mode-title">Pulse Dark</span>
-                  <p class="theme-mode-desc">Built-in dark chrome.</p>
-                </label>
-                <label class="theme-mode-opt" data-mode="light">
-                  <input type="radio" name="themeMode" value="light" />
-                  <span class="theme-mode-title">Pulse Light</span>
-                  <p class="theme-mode-desc">Built-in light chrome.</p>
-                </label>
-                <label class="theme-mode-opt" data-mode="system">
-                  <input type="radio" name="themeMode" value="system" />
-                  <span class="theme-mode-title">System</span>
-                  <p class="theme-mode-desc">Browser light/dark preference.</p>
-                </label>
-              </div>
-              <div class="theme-preview" id="themePreview" aria-label="Theme preview">
-                <div class="theme-preview-bar">
-                  <span class="theme-preview-brand">
-                    <span class="theme-preview-dot" aria-hidden="true"></span>
-                    Cosmic Pulse
-                  </span>
-                  <span class="theme-preview-tabs" aria-hidden="true">
-                    <span class="theme-preview-tab on">Dashboard</span>
-                    <span class="theme-preview-tab">Guidance</span>
-                    <span class="theme-preview-tab">Options</span>
-                  </span>
-                </div>
-                <div class="theme-preview-body">
-                  <div class="theme-preview-card">
-                    <p class="theme-preview-card-title">Live lab</p>
-                    <div class="theme-preview-card-line"></div>
-                    <div class="theme-preview-card-line short"></div>
-                    <div class="theme-preview-row" style="margin-top:.45rem">
-                      <span class="theme-preview-btn">Active</span>
-                      <span class="theme-preview-btn ghost">Idle</span>
-                      <span class="theme-preview-pill">Online</span>
-                    </div>
-                  </div>
-                  <div class="theme-preview-swatches" id="themePreviewSwatches" aria-hidden="true"></div>
-                </div>
-              </div>
-              <p class="theme-preview-caption" id="themePreviewCaption">Preview updates as you change the mode.</p>
+            <p class="options-scale-hint">
+              Drag, then release to save. 100% default, 150% larger, 200% largest.
+            </p>
+          </div>
+          <div class="options-field" id="optionsThemes">
+            <h3>Theme</h3>
+            <p class="theme-status" id="themeStatus">Detecting desktop theme…</p>
+            <div class="theme-mode-list" id="themeModeList" role="radiogroup" aria-label="Theme mode">
+              <label class="theme-mode-opt is-active" data-mode="cosmic">
+                <input type="radio" name="themeMode" value="cosmic" checked />
+                <span class="theme-mode-title">Cosmic</span>
+                <p class="theme-mode-desc">Follow desktop Light/Dark.</p>
+              </label>
+              <label class="theme-mode-opt" data-mode="cosmic-dark">
+                <input type="radio" name="themeMode" value="cosmic-dark" />
+                <span class="theme-mode-title">Cosmic Dark</span>
+                <p class="theme-mode-desc">Pop COSMIC dark pack.</p>
+              </label>
+              <label class="theme-mode-opt" data-mode="cosmic-light">
+                <input type="radio" name="themeMode" value="cosmic-light" />
+                <span class="theme-mode-title">Cosmic Light</span>
+                <p class="theme-mode-desc">Pop COSMIC light pack.</p>
+              </label>
+              <label class="theme-mode-opt" data-mode="dark">
+                <input type="radio" name="themeMode" value="dark" />
+                <span class="theme-mode-title">Pulse Dark</span>
+                <p class="theme-mode-desc">Built-in dark chrome.</p>
+              </label>
+              <label class="theme-mode-opt" data-mode="light">
+                <input type="radio" name="themeMode" value="light" />
+                <span class="theme-mode-title">Pulse Light</span>
+                <p class="theme-mode-desc">Built-in light chrome.</p>
+              </label>
+              <label class="theme-mode-opt" data-mode="system">
+                <input type="radio" name="themeMode" value="system" />
+                <span class="theme-mode-title">System</span>
+                <p class="theme-mode-desc">Browser light/dark preference.</p>
+              </label>
             </div>
+            <div class="theme-preview" id="themePreview" aria-label="Theme preview">
+              <div class="theme-preview-bar">
+                <span class="theme-preview-brand">
+                  <span class="theme-preview-dot" aria-hidden="true"></span>
+                  Cosmic Pulse
+                </span>
+                <span class="theme-preview-tabs" aria-hidden="true">
+                  <span class="theme-preview-tab on">Dashboard</span>
+                  <span class="theme-preview-tab">Guidance</span>
+                  <span class="theme-preview-tab">Options</span>
+                </span>
+              </div>
+              <div class="theme-preview-swatches" id="themePreviewSwatches" aria-hidden="true"></div>
+            </div>
+            <p class="theme-preview-caption" id="themePreviewCaption">Hover a pack to preview; click to save.</p>
           </div>
         </section>
 
         <section class="options-section" id="optionsHardware">
           <h2>Hardware scales</h2>
           <p class="section-lead">
-            Graph and dial ceilings for this machine. Does not change sensors — only how full the plot looks.
+            Graph and dial ceilings. Does not change sensors — only how full the plot looks.
             Release a slider to save.
           </p>
           <div class="options-subgrid">

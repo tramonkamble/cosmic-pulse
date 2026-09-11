@@ -9,6 +9,8 @@ import shutil
 import subprocess
 from typing import Any
 
+from .league_index import apply_gpu_sku_scores
+
 # Architecture families: thermal semantics and fix-tool hints (no per-rig hardcoding).
 GPU_FAMILIES: dict[str, dict[str, Any]] = {
     "rdna3": {
@@ -397,6 +399,7 @@ GPU_SKUS: list[dict[str, Any]] = [
         "patterns": ("GTX 1080", "1080 TI", "1080TI"),
     },
 ]
+apply_gpu_sku_scores(GPU_SKUS)
 
 GPU_ALIASES: dict[str, str] = {
     "7900 xtx": "RX 7900 XTX",

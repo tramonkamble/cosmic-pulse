@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -29,6 +30,17 @@ def test_help() -> None:
     assert "--lan" in out
     assert "--port" in out
     assert "--open" in out
+    assert "--version" in out
+
+
+def test_version() -> None:
+    proc = _run("--version")
+    assert proc.returncode == 0, proc.stderr
+    from cosmic_pulse.version import read_pyproject_version
+
+    ver = read_pyproject_version(ROOT / "pyproject.toml")
+    out = (proc.stdout + proc.stderr).strip()
+    assert ver in out, out
 
 
 def test_parse_args_port() -> None:
@@ -59,5 +71,6 @@ def test_parse_args_port() -> None:
 
 if __name__ == "__main__":
     test_help()
+    test_version()
     test_parse_args_port()
     print("ok")

@@ -5,7 +5,9 @@
 from __future__ import annotations
 
 SESSION_WINDOW_SEC = 300
-EVENT_SCORE = 38
+# Tick is an "event" only when stall is clearly above idle noise.
+# 38 used to fire on moderate major-fault background (shader cache, Steam).
+EVENT_SCORE = 48
 _EMA_SCORE: float | None = None
 _active_game_id: str | None = None
 
@@ -72,12 +74,20 @@ def hitch_ms_proxy(
     psi_mem: float,
     psi_io: float,
     swap_out: float,
+    *,
+    is_event: bool = True,
 ) -> float:
-    """Rough single-hitch duration estimate in milliseconds."""
-    base = score * 1.2 + min(80.0, pgmaj * 0.4) + psi_mem * 1.5 + psi_io * 0.8
+    """Rough stall-duration estimate in milliseconds.
+
+    Not frametime. Only set on event ticks so calm seconds do not leak into
+    session 1% (p99 of every 1 Hz score-as-ms used to look like 100ms+ hitches).
+    """
+    if not is_event:
+        return 0.0
+    base = score * 0.9 + min(60.0, pgmaj * 0.25) + psi_mem * 1.2 + psi_io * 0.5
     if swap_out > 100:
-        base += 15.0
-    return round(min(250.0, max(0.0, base)), 1)
+        base += 12.0
+    return round(min(200.0, max(8.0, base)), 1)
 
 
 def _percentile(values: list[float], pct: float) -> float:
@@ -98,8 +108,18 @@ def _sync_game_baseline(snap: dict) -> None:
         _active_game_id = gid
 
 
-def _window_samples(history: list, now: float, window_sec: float) -> list:
-    """Recent history points within window_sec (newest history is at the end)."""
+def _window_samples(
+    history: list,
+    now: float,
+    window_sec: float,
+    *,
+    game_id: str | None = None,
+) -> list:
+    """Recent history points within window_sec (newest history is at the end).
+
+    When *game_id* is set, skip ticks from other titles / idle so a 5-minute
+    stutter window is not polluted by the desktop before launch.
+    """
     if not history:
         return []
     cutoff = now - window_sec
@@ -108,6 +128,10 @@ def _window_samples(history: list, now: float, window_sec: float) -> list:
         ts = point.get("ts") or 0
         if ts < cutoff:
             break
+        if game_id:
+            gt = point.get("game_totals") or {}
+            if not gt.get("running") or str(gt.get("game_id") or "") != str(game_id):
+                continue
         out.append(point)
     out.reverse()
     return out
@@ -157,7 +181,12 @@ def compute_stutter(snap: dict) -> dict:
     spike = score - _EMA_SCORE > 22.0
 
     causes = [k for k, v in components.items() if v >= 35.0]
-    is_event = score >= EVENT_SCORE or spike or (pgmaj >= 100 and psi_mem >= 4.0)
+    is_event = (
+        score >= EVENT_SCORE
+        or spike
+        or pgmaj >= 80
+        or (pgmaj >= 40 and psi_mem >= 5.0)
+    )
 
     if score >= 70 or (is_event and score >= 55):
         severity = "severe"
@@ -168,7 +197,9 @@ def compute_stutter(snap: dict) -> dict:
     else:
         severity = "none"
 
-    est_ms = hitch_ms_proxy(score, pgmaj, psi_mem, io_wait, swap_out)
+    est_ms = hitch_ms_proxy(
+        score, pgmaj, psi_mem, io_wait, swap_out, is_event=is_event
+    )
 
     return {
         "score": score,
@@ -183,7 +214,9 @@ def compute_stutter(snap: dict) -> dict:
 
 def session_stats(snap: dict, history: list) -> dict:
     now = float(snap.get("ts") or 0)
-    window = _window_samples(history, now, SESSION_WINDOW_SEC)
+    gt = snap.get("game_totals") or {}
+    gid = str(gt["game_id"]) if gt.get("running") and gt.get("game_id") else None
+    window = _window_samples(history, now, SESSION_WINDOW_SEC, game_id=gid)
     samples = window
     if not samples or (samples[-1].get("ts") or 0) < now:
         samples = window + [snap]
@@ -194,8 +227,9 @@ def session_stats(snap: dict, history: list) -> dict:
     for h in samples:
         st = h.get("stutter") or {}
         scores.append(float(st.get("score") or 0))
-        hitch_ms.append(float(st.get("est_ms") or 0))
+        # 1% uses event stalls only — calm ticks are 0 so p99 is not a fake ms.
         if st.get("event"):
+            hitch_ms.append(float(st.get("est_ms") or 0))
             events += 1
 
     avg = sum(scores) / len(scores) if scores else 0.0
