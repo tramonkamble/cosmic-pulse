@@ -77,7 +77,7 @@ Build on the target machine:
 
 ```bash
 ./deploy/build-deb.sh
-sudo apt install ./build/deb/cosmic-pulse_0.2.0_all.deb
+sudo apt install ./build/deb/cosmic-pulse_0.2.1_all.deb
 systemctl --user enable --now cosmic-pulse
 cosmic-pulse --open
 ```

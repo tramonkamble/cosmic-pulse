@@ -7,6 +7,8 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-10
+
 ### Fixed
 - **Harness on GitHub Actions** — CPU package/CCD temps are skipped when the runner has no hwmon, so CI can finish.
 
