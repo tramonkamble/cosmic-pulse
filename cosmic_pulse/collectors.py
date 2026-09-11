@@ -34,12 +34,11 @@ from .hardware_probe import (
     pci_to_sensor_suffix,
     probe_nvme_smart,
 )
-from .paths import data_dir
-from .probe_memory import infer_fallback
+from .probe_memory import infer_fallback, memory_cache_path
 
 VRAM_PEAK_GBPS = 800.0
 PCIE_PEAK_GBPS = 31.5
-MEMORY_CACHE = data_dir() / ".memory_cache.json"
+MEMORY_CACHE = memory_cache_path()
 _HWMON_CHIPS_TTL = 30.0
 _RAPL_DOMAIN_TTL = 60.0
 _PCI_BDF_RE = re.compile(r"([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f])", re.I)

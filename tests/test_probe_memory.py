@@ -98,10 +98,35 @@ def test_enrich_from_existing_cache_shape():
     assert out["configured_mts"] == 4800
 
 
+def test_cache_path_matches_collectors() -> None:
+    from cosmic_pulse.collectors import MEMORY_CACHE
+    from cosmic_pulse.paths import data_dir
+    from cosmic_pulse.probe_memory import memory_cache_path, probe_script_path
+
+    assert memory_cache_path() == data_dir() / ".memory_cache.json"
+    assert MEMORY_CACHE == memory_cache_path()
+    script = probe_script_path()
+    assert script.name == "probe_memory.py"
+    assert script.parent.name == "cosmic_pulse"
+    assert script.is_file()
+    # Package move left no root shim — API/UI must not point here.
+    assert not (script.parent.parent / "probe_memory.py").exists()
+
+
+def test_http_api_probes_package_script() -> None:
+    src = (Path(__file__).resolve().parents[1] / "cosmic_pulse" / "http_api.py").read_text(
+        encoding="utf-8"
+    )
+    assert "ROOT / \"probe_memory.py\"" not in src
+    assert "probe_script_path" in src
+
+
 def run_all() -> None:
     test_dmi_gskill_flare_x5_keeps_live_4800()
     test_blank_manufacturer_not_unknown()
     test_enrich_from_existing_cache_shape()
+    test_cache_path_matches_collectors()
+    test_http_api_probes_package_script()
     print("test_probe_memory: ok")
 
 

@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 from . import collectors as col
 from . import server as srv
 from .collectors import load_memory_spec
+from .probe_memory import probe_script_path
 from .cosmic_theme import get_cosmic_theme, get_cosmic_theme_pack
 from .diagnostics import (
     diagnostics_job_status,
@@ -102,10 +104,14 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/probe-memory":
             import subprocess as sp
 
-            payload = {"ok": False, "message": "Run: sudo python3 probe_memory.py"}
+            script = probe_script_path()
+            payload = {
+                "ok": False,
+                "message": f"Run: sudo python3 {script}",
+            }
             try:
                 raw = sp.check_output(
-                    ["sudo", "-n", "python3", str(srv.ROOT / "probe_memory.py")],
+                    ["sudo", "-n", sys.executable, str(script)],
                     text=True,
                     timeout=8,
                     stderr=sp.DEVNULL,

@@ -96,7 +96,9 @@
         if (btn) btn.onclick = async () => {
           btn.textContent = 'Need sudo in terminal…';
           btn.disabled = true;
-          const probe = pulseRoot ? `${pulseRoot}/probe_memory.py` : 'probe_memory.py';
+          const probe = pulseRoot
+            ? `${pulseRoot}/cosmic_pulse/probe_memory.py`
+            : 'cosmic_pulse/probe_memory.py';
           alert(`Run in terminal for exact RAM speed:\\n\\nsudo python3 '${probe}'\\n\\nThen refresh this page.`);
         };
       }

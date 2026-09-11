@@ -9,7 +9,26 @@ import subprocess
 import sys
 from pathlib import Path
 
-CACHE = Path(__file__).resolve().parent / ".memory_cache.json"
+def probe_script_path() -> Path:
+    """Absolute path to this file — used by sudo / the dashboard hint."""
+    return Path(__file__).resolve()
+
+
+def memory_cache_path() -> Path:
+    """Same ``.memory_cache.json`` ``collectors.load_memory_spec()`` reads.
+
+    Must not live next to this module (``cosmic_pulse/.memory_cache.json``) —
+    that file is never loaded after the package move.
+    """
+    try:
+        from .paths import data_dir
+    except ImportError:
+        app_root = Path(__file__).resolve().parent.parent
+        if str(app_root) not in sys.path:
+            sys.path.insert(0, str(app_root))
+        from cosmic_pulse.paths import data_dir
+
+    return data_dir() / ".memory_cache.json"
 
 _BLANK_MFR = {
     "",
@@ -315,7 +334,7 @@ def infer_fallback() -> dict:
         "peak_gbps": 0,
         "label": f"{total_gb}GB system RAM (estimated)",
         "type": "DDR",
-        "note": "Run: sudo python3 probe_memory.py — for exact SPD speed",
+        "note": f"Run: sudo python3 {probe_script_path()} — for exact SPD speed",
     }
 
 
@@ -382,11 +401,12 @@ def main():
             pass
         elif spec["confidence"] != "exact":
             print("Could not read DMI (need root). Wrote estimated spec.", file=sys.stderr)
-            print("For exact speed: sudo python3 probe_memory.py", file=sys.stderr)
+            print(f"For exact speed: sudo python3 {probe_script_path()}", file=sys.stderr)
 
-    CACHE.write_text(json.dumps(spec, indent=2))
+    cache = memory_cache_path()
+    cache.write_text(json.dumps(spec, indent=2))
     print(json.dumps(spec, indent=2))
-    print(f"\nCached → {CACHE}")
+    print(f"\nCached → {cache}")
 
 
 if __name__ == "__main__":
