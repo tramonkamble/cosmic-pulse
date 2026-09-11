@@ -107,24 +107,25 @@ def _theme_config_mtime() -> float:
     mode = COSMIC_ROOT / "com.system76.CosmicTheme.Mode" / "v1"
     for name in ("is_dark", "is_high_contrast"):
         mt = max(mt, _safe_mtime(mode / name))
-    for theme in ("Dark", "Light"):
-        base = COSMIC_ROOT / f"com.system76.CosmicTheme.{theme}" / "v1"
-        if not base.is_dir():
-            continue
-        mt = max(mt, _safe_mtime(base))
-        for fname in (
-            "accent",
-            "background",
-            "primary",
-            "palette",
-            "spacing",
-            "corner_radii",
-            "is_frosted",
-            "destructive",
-            "success",
-            "warning",
-        ):
-            mt = max(mt, _safe_mtime(base / fname))
+    for root in (COSMIC_ROOT, SHARE_ROOT):
+        for theme in ("Dark", "Light"):
+            base = root / f"com.system76.CosmicTheme.{theme}" / "v1"
+            if not base.is_dir():
+                continue
+            mt = max(mt, _safe_mtime(base))
+            for fname in (
+                "accent",
+                "background",
+                "primary",
+                "palette",
+                "spacing",
+                "corner_radii",
+                "is_frosted",
+                "destructive",
+                "success",
+                "warning",
+            ):
+                mt = max(mt, _safe_mtime(base / fname))
     return mt
 
 
@@ -214,10 +215,6 @@ def load_cosmic_theme(*, force: str | None = None) -> dict:
     want_light = force == "light"
     want_dark = force == "dark"
     fallback = dict(_FALLBACK_THEME_LIGHT if want_light else _FALLBACK_THEME)
-    if not COSMIC_ROOT.is_dir():
-        fallback["mtime"] = 0.0
-        return fallback
-
     mode_dir = COSMIC_ROOT / "com.system76.CosmicTheme.Mode" / "v1"
     if want_light:
         is_dark = False

@@ -1401,7 +1401,7 @@
 
     .script-pre {
       font-size: .85rem; line-height: 1.5; max-height: 240px; overflow: auto;
-      background: #12141a; border: 1px solid var(--line); border-radius: 10px;
+      background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
       padding: .65rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
       font-family: ui-monospace, monospace; margin: .35rem 0 0;
       overscroll-behavior: contain;
@@ -2230,7 +2230,7 @@
     .viz-tabs {
       display: flex; flex-wrap: wrap; gap: .2rem;
       padding: .2rem; border-radius: 999px;
-      background: rgba(0,0,0,.22);
+      background: var(--well);
       border: 1px solid var(--line-soft);
     }
     .viz-tab {
@@ -3794,7 +3794,7 @@
     details.diag-detail summary { font-size: .88rem; color: var(--blue); margin: 0; }
     .diag-pre {
       font-size: .78rem; line-height: 1.45; max-height: 180px; overflow: auto;
-      background: #12141a; border: 1px solid var(--line); border-radius: 8px;
+      background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
       padding: .55rem; color: #b8c0cc; white-space: pre-wrap; word-break: break-word;
       font-family: ui-monospace, monospace; margin-top: .4rem;
       overscroll-behavior: contain;
@@ -5204,7 +5204,7 @@
       align-self: stretch;
       border: none;
       border-radius: var(--radius-sm);
-      background: rgba(0, 0, 0, .22);
+      background: var(--well);
       box-shadow: var(--surface-shine);
       overflow: hidden;
       position: relative;
@@ -5213,25 +5213,25 @@
       box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-cpu) 55%, transparent);
       background:
         linear-gradient(105deg, color-mix(in srgb, var(--m-cpu) 9%, transparent), transparent 55%),
-        rgba(0, 0, 0, .22);
+        var(--well);
     }
     .sum-cell.sum-chip.mem {
       box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-mem) 55%, transparent);
       background:
         linear-gradient(105deg, color-mix(in srgb, var(--m-mem) 9%, transparent), transparent 55%),
-        rgba(0, 0, 0, .22);
+        var(--well);
     }
     .sum-cell.sum-chip.gpu {
       box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-gpu) 55%, transparent);
       background:
         linear-gradient(105deg, color-mix(in srgb, var(--m-gpu) 9%, transparent), transparent 55%),
-        rgba(0, 0, 0, .22);
+        var(--well);
     }
     .sum-cell.sum-chip.vram {
       box-shadow: var(--surface-shine), inset 3px 0 0 color-mix(in srgb, var(--m-gpu-vram) 60%, transparent);
       background:
         linear-gradient(105deg, color-mix(in srgb, var(--m-gpu-vram) 10%, transparent), transparent 55%),
-        rgba(0, 0, 0, .22);
+        var(--well);
     }
     .sum-cell.sum-chip .sum-chip-top {
       display: flex;

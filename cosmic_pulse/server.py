@@ -74,6 +74,7 @@ from .paths import app_root, data_dir
 from .probe_memory import infer_fallback
 from .pulse_config import (
     STATE_VERIFIED_INSIGHTS,
+    THEME_MODES,
     get_insight_pref_sets,
     get_resolved_insights,
     get_suppressed_insights,
@@ -3448,16 +3449,11 @@ class Handler(BaseHTTPRequestHandler):
                     return
             if "theme_mode" in body:
                 mode = body["theme_mode"]
-                if not isinstance(mode, str) or mode.strip().lower() not in (
-                    "cosmic",
-                    "system",
-                    "dark",
-                    "light",
-                ):
+                if not isinstance(mode, str) or mode.strip().lower() not in THEME_MODES:
                     self._json(
                         {
                             "ok": False,
-                            "error": "theme_mode must be cosmic, system, dark, or light",
+                            "error": "theme_mode must be " + ", ".join(THEME_MODES),
                         },
                         status=400,
                     )
