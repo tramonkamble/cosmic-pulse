@@ -61,6 +61,7 @@ _hwmon_chips_cache: tuple[float, list[tuple[Path, str]]] = (0.0, [])
 _rapl_domain_cache: tuple[float, Path | None] = (0.0, None)
 _rate_smooth: dict[str, float] = {}
 _proc_stats_cache: tuple[float, int, int] = (0.0, 0, 0)
+_cpu_freq_percpu_cache: tuple[float, list | None] = (0.0, None)
 _psi_cache: dict[str, tuple[float, dict | None]] = {}
 _tools_status_cache: tuple[float, dict] = (0.0, {})
 _sensors_lock = threading.Lock()
@@ -421,20 +422,42 @@ def psi_read(kind: str) -> dict | None:
 
 
 def _proc_stats() -> tuple[int, int]:
-    """Process + thread counts (cached — full walk is tens of ms)."""
+    """Process + thread counts without opening every PID (that hitchs in-game).
+
+    ``/proc/loadavg`` field 4 is ``runnable/nr_threads``. Process count is a
+    ``/proc`` scandir of numeric names — no ``status`` reads.
+    """
     global _proc_stats_cache
     now = time.time()
     if now - _proc_stats_cache[0] < _PROC_STATS_TTL:
         return _proc_stats_cache[1], _proc_stats_cache[2]
-    procs = len(psutil.pids())
+    procs = 0
     threads = 0
-    for proc in psutil.process_iter(["num_threads"]):
-        try:
-            threads += proc.info["num_threads"] or 0
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
+    try:
+        fields = Path("/proc/loadavg").read_text().split()
+        if len(fields) >= 4 and "/" in fields[3]:
+            threads = int(fields[3].split("/", 1)[1])
+    except (OSError, ValueError, IndexError):
+        threads = 0
+    try:
+        with os.scandir("/proc") as it:
+            procs = sum(1 for ent in it if ent.name.isdigit())
+    except OSError:
+        procs = 0
     _proc_stats_cache = (now, procs, threads)
     return procs, threads
+
+
+def cpu_freq_percpu():
+    """Per-core MHz for the compute drill — cached; 24 sysfs reads are not 1 Hz work."""
+    global _cpu_freq_percpu_cache
+    now = time.time()
+    ts, cached = _cpu_freq_percpu_cache
+    if cached is not None and now - ts < 2.0:
+        return cached
+    freqs = psutil.cpu_freq(percpu=True)
+    _cpu_freq_percpu_cache = (now, freqs)
+    return freqs
 
 
 def swap_rates() -> dict:
@@ -622,8 +645,10 @@ def _nvidia_smi_snapshot() -> dict:
     """1 Hz nvidia-smi for proprietary NVIDIA. Empty dict if unavailable."""
     global _NVIDIA_SMI_CACHE
     now = time.time()
-    if now - _NVIDIA_SMI_CACHE[0] < 0.85 and _NVIDIA_SMI_CACHE[1]:
-        return _NVIDIA_SMI_CACHE[1]
+    ts, snap = _NVIDIA_SMI_CACHE
+    # Empty dict is a valid miss — do not treat it as "uncached" (AMD PATH walk).
+    if ts and now - ts < 0.85:
+        return snap
     if not shutil.which("nvidia-smi"):
         _NVIDIA_SMI_CACHE = (now, {})
         return {}
@@ -1519,7 +1544,7 @@ def reprime_rate_baselines() -> None:
     """Drop delta baselines so post-resume rates are not averaged over hours of sleep."""
     global _prev_net, _prev_disk, _prev_swap, _prev_ctx, _prev_gtt
     global _prev_vmstat, _prev_disk_busy, _prev_cpu_stat, _prev_cpu_rapl, _sensors_cache
-    global _hwmon_chips_cache, _rapl_domain_cache
+    global _hwmon_chips_cache, _rapl_domain_cache, _cpu_freq_percpu_cache, _NVIDIA_SMI_CACHE
     _prev_net = {}
     _prev_disk = None
     _prev_swap = None
@@ -1532,6 +1557,8 @@ def reprime_rate_baselines() -> None:
     _sensors_cache = (0.0, {})
     _hwmon_chips_cache = (0.0, [])
     _rapl_domain_cache = (0.0, None)
+    _cpu_freq_percpu_cache = (0.0, None)
+    _NVIDIA_SMI_CACHE = (0.0, {})
 
 
 def _prime_rate_counters() -> None:

@@ -9,6 +9,7 @@ Dates use the machine local timezone (EDT unless noted).
 
 ### Changed
 - **GitHub landing** — README is the product page (what Pulse is, Windows analogs, install). Agent/layout notes, source map, and API live in contributor files, not the front page.
+- **Sampler yield** — the sample worker runs at nice 10 so the game keeps the cores. Process/thread tiles read `/proc/loadavg` instead of opening every PID. Per-core MHz is cached ~2s. A missing `nvidia-smi` is cached so NVIDIA-less boxes do not walk `PATH` every tick.
 
 ## [0.2.2] - 2026-09-11
 

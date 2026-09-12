@@ -51,6 +51,12 @@ def main() -> int:
     pid_path.write_text(str(os.getpid()))
     print(f"Cosmic Pulse sample-worker: pid={os.getpid()} out={out_path}", flush=True)
 
+    # Yield the CPU to the game — this process is 1 Hz telemetry, not the title.
+    try:
+        os.nice(10)
+    except OSError:
+        pass
+
     srv.init_probe_state(for_child=True)
     _atomic_write_json(
         out_path,

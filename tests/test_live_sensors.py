@@ -105,11 +105,49 @@ def test_slim_history_keeps_chip_series() -> None:
     assert g["busy_pct"] == 4.0
 
 
+def test_proc_stats_skips_process_iter() -> None:
+    import cosmic_pulse.collectors as col
+
+    col._proc_stats_cache = (0.0, 0, 0)
+    with mock.patch("cosmic_pulse.collectors.psutil.process_iter") as it:
+        procs, threads = col._proc_stats()
+    it.assert_not_called()
+    assert procs > 0
+    assert threads > 0
+
+
+def test_nvidia_smi_absent_cached() -> None:
+    import cosmic_pulse.collectors as col
+
+    col._NVIDIA_SMI_CACHE = (0.0, {})
+    with mock.patch("cosmic_pulse.collectors.shutil.which", return_value=None) as which:
+        a = col._nvidia_smi_snapshot()
+        b = col._nvidia_smi_snapshot()
+    assert a == {}
+    assert b == {}
+    assert which.call_count == 1
+
+
+def test_cpu_freq_percpu_cached() -> None:
+    import cosmic_pulse.collectors as col
+
+    col._cpu_freq_percpu_cache = (0.0, None)
+    fake = [mock.Mock(current=4000)]
+    with mock.patch("cosmic_pulse.collectors.psutil.cpu_freq", return_value=fake) as cf:
+        a = col.cpu_freq_percpu()
+        b = col.cpu_freq_percpu()
+    assert a is b
+    assert cf.call_count == 1
+
+
 def run_all() -> None:
     test_engine_pct_prefers_any_live_counter()
     test_dram_idle_not_inflated_by_minor_faults()
     test_hwmon_parse_k10_and_amdgpu()
     test_slim_history_keeps_chip_series()
+    test_proc_stats_skips_process_iter()
+    test_nvidia_smi_absent_cached()
+    test_cpu_freq_percpu_cached()
     print("test_live_sensors: ok")
 
 

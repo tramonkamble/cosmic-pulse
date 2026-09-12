@@ -95,6 +95,7 @@ from .collectors import (  # noqa: F401 — re-export for tests / sample_worker
     _gpu_stats_sysfs_only,
     _parse_hwmon_tree,
     _prime_rate_counters,
+    cpu_freq_percpu,
     cpu_iowait_pct,
     cpu_temps,
     disk_rates,
@@ -913,7 +914,7 @@ def collect_live_core() -> dict:
 def collect_metrics() -> dict:
     # interval=None: delta since last cpu_percent (primed in sampler) — avoids ~80ms block/tick.
     cpu_pct = psutil.cpu_percent(interval=None, percpu=True)
-    freqs = psutil.cpu_freq(percpu=True)
+    freqs = cpu_freq_percpu()
     per_core = []
     for i, pct in enumerate(cpu_pct):
         mhz = None
