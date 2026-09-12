@@ -105,6 +105,18 @@ def test_slim_history_keeps_chip_series() -> None:
     assert g["busy_pct"] == 4.0
 
 
+def test_intel_gpu_stats_missing_sysfs() -> None:
+    import tempfile
+
+    from cosmic_pulse.collectors import _gpu_stats_intel
+
+    root = Path(tempfile.mkdtemp())
+    out = _gpu_stats_intel(root, "Arc B580")
+    assert out["label"] == "Arc B580"
+    assert out["busy_pct"] is None
+    assert isinstance(out["driver"], str)
+
+
 def test_proc_stats_skips_process_iter() -> None:
     import cosmic_pulse.collectors as col
 
@@ -145,6 +157,7 @@ def run_all() -> None:
     test_dram_idle_not_inflated_by_minor_faults()
     test_hwmon_parse_k10_and_amdgpu()
     test_slim_history_keeps_chip_series()
+    test_intel_gpu_stats_missing_sysfs()
     test_proc_stats_skips_process_iter()
     test_nvidia_smi_absent_cached()
     test_cpu_freq_percpu_cached()

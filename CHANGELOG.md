@@ -7,9 +7,14 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Added
+- **Pulse Index coverage** — Intel CPUs (14900K through 12400F, Core Ultra 200) and Intel Arc (B580/B570/A770/A750/A580, UHD/Iris). More NVIDIA 50-series and AMD RX 9000 SKUs. Scores still follow Tom's Hardware 2026 relatives; older parts stay flagged estimated.
+- **RAM brands** — Corsair, Kingston Fury, Crucial, Patriot, TeamGroup, ADATA XPG (and other DMI aliases) in addition to G.Skill Flare X5.
+
 ### Changed
 - **GitHub landing** — README is the product page (what Pulse is, Windows analogs, install). Agent/layout notes, source map, and API live in contributor files, not the front page.
 - **Sampler yield** — the sample worker runs at nice 10 so the game keeps the cores. Process/thread tiles read `/proc/loadavg` instead of opening every PID. Per-core MHz is cached ~2s. A missing `nvidia-smi` is cached so NVIDIA-less boxes do not walk `PATH` every tick.
+- **GPU meters** — NVIDIA (`nvidia-smi`), AMD (`amdgpu` sysfs), and Intel Arc/UHD (`i915` / `xe` clocks, busy, VRAM, hwmon). Hybrid laptops use the DRM node that matches each card.
 
 ## [0.2.2] - 2026-09-11
 

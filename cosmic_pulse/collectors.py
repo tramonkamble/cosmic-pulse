@@ -706,14 +706,126 @@ def _gpu_stats_nvidia(label: str) -> dict:
     }
 
 
-def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = True) -> dict:
-    driver = ""
+_intel_busy_prev: dict[str, tuple[int, float]] = {}
+
+
+def _drm_driver_for_base(base: Path) -> str:
     try:
-        driver = str((discover_drm_cards().get("discrete") or {}).get("driver") or "")
+        drm = discover_drm_cards()
+        want = Path(base).resolve()
+        for key in ("discrete", "igpu"):
+            card = drm.get(key) or {}
+            path = card.get("device_path")
+            if path and Path(path).resolve() == want:
+                return str(card.get("driver") or "")
+        return str((drm.get("discrete") or {}).get("driver") or "")
     except Exception:
-        driver = ""
+        return ""
+
+
+def _intel_gt_mhz(base: Path) -> int | None:
+    for rel in (
+        "gt_act_freq_mhz",
+        "gt_cur_freq_mhz",
+        "gt/gt0/freq_act_mhz",
+        "gt/gt0/freqency_act_mhz",
+        "tile0/gt0/freq_act_mhz",
+    ):
+        val = read_int(base / rel)
+        if val:
+            return val
+    return None
+
+
+def _intel_engine_busy_pct(base: Path) -> float | None:
+    """i915/xe: gpu_busy_percent, or rcs0 busy-ns converted to %."""
+    direct = sanitize_pct(read_int(base / "gpu_busy_percent"))
+    if direct is not None:
+        return direct
+    now = time.time()
+    for rel in (
+        "engine/rcs0/busy",
+        "gt/gt0/engines/rcs0/busy",
+        "tile0/gt0/engines/rcs0/busy",
+    ):
+        path = base / rel
+        raw = read_int(path)
+        if raw is None:
+            continue
+        key = str(path)
+        prev = _intel_busy_prev.get(key)
+        _intel_busy_prev[key] = (raw, now)
+        if not prev:
+            return None
+        dt = now - prev[1]
+        if dt <= 0.05:
+            return None
+        pct = (raw - prev[0]) / (dt * 1e9) * 100.0
+        return sanitize_pct(pct)
+    return None
+
+
+def _gpu_stats_intel(base: Path, label: str) -> dict:
+    """Arc (discrete VRAM) and UHD/Iris (shared) via i915 / xe sysfs."""
+    hw = gpu_hwmon(base)
+    busy = _intel_engine_busy_pct(base)
+    vram_used = read_int(base / "mem_info_vram_used", 1024**2)
+    vram_total = read_int(base / "mem_info_vram_total", 1024**2)
+    temp = read_int(hw / "temp1_input", 1000) if hw else None
+    power_w = None
+    if hw:
+        for fname in ("power1_average", "energy1_input", "power1_input"):
+            raw = read_float(hw / fname)
+            if raw is None or raw <= 0:
+                continue
+            w = raw / 1_000_000 if raw > 1000 else raw
+            if 0.5 <= w <= 400:
+                power_w = round(w, 1)
+                break
+    gfx_mhz = _intel_gt_mhz(base)
+    peak = vram_peak_gbps()
+    vram_pct = (
+        round(100 * vram_used / vram_total, 1) if vram_used and vram_total else None
+    )
+    engines = [
+        {"id": "gfx", "label": "Shaders", "pct": busy},
+        {"id": "vram", "label": "Memory bus", "pct": None},
+        {"id": "mm", "label": "Video", "pct": None},
+    ]
+    return {
+        "label": label,
+        "busy_pct": busy,
+        "gfx_pct": busy,
+        "mem_busy_pct": None,
+        "engines": engines,
+        "vram_used_mb": vram_used,
+        "vram_total_mb": vram_total,
+        "vram_pct": vram_pct,
+        "temp_c": temp,
+        "junction_c": temp,
+        "mem_temp_c": None,
+        "power_w": power_w,
+        "fan_rpm": read_int(hw / "fan1_input") if hw else None,
+        "gfx_mhz": gfx_mhz,
+        "mclk_mhz": None,
+        "pcie_active": None,
+        "pcie_link": "?",
+        "vram_est_gbps": round((busy or 0) * peak / 100, 1) if busy is not None else None,
+        "vram_busy_pct": busy,
+        "vram_peak_gbps": peak,
+        "pcie_est_gbps": None,
+        "pcie_peak_gbps": PCIE_PEAK_GBPS,
+        "gtt": {},
+        "driver": _drm_driver_for_base(base) or "i915",
+    }
+
+
+def gpu_stats(base: Path, label: str, sensor_prefix: str, *, track_gtt: bool = True) -> dict:
+    driver = _drm_driver_for_base(base)
     if driver == "nvidia":
         return _gpu_stats_nvidia(label)
+    if driver in ("i915", "xe"):
+        return _gpu_stats_intel(base, label)
     hw = gpu_hwmon(base)
     sens = parse_sensors()
     vram_used = read_int(base / "mem_info_vram_used", 1024**2)

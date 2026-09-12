@@ -112,6 +112,60 @@ GPU_FAMILIES: dict[str, dict[str, Any]] = {
         ),
         "default_vram_gbps": 360.0,
     },
+    "rdna4": {
+        "id": "rdna4",
+        "label": "RDNA4",
+        "vendor": "amd",
+        "primary_temp": "junction",
+        "warm_c": None,
+        "info_high_c": 95,
+        "hot_c": 110,
+        "throttle_c": 110,
+        "fan_curve_helpful": False,
+        "fix_tools": ("corectrl",),
+        "design_note": (
+            "RDNA4 (RX 9000) uses junction as the throttle sensor. High 90s under load are typical."
+        ),
+        "fan_curve_note": (
+            "Fan-curve tuning is optional on RDNA4 unless you are hitting the throttle."
+        ),
+        "default_vram_gbps": 640.0,
+    },
+    "intel_arc": {
+        "id": "intel_arc",
+        "label": "Intel Arc",
+        "vendor": "intel",
+        "primary_temp": "junction",
+        "warm_c": 80,
+        "hot_c": 90,
+        "throttle_c": 95,
+        "fan_curve_helpful": True,
+        "fix_tools": ("coolercontrol",),
+        "design_note": (
+            "Arc Battlemage / Alchemist discrete GPUs report hotspot via i915/xe hwmon. "
+            "Above ~80°C under load, a fan curve or more case airflow usually helps."
+        ),
+        "fan_curve_note": (
+            "Use CoolerControl for Arc board fans. Mesa + a current kernel matters more than clocks."
+        ),
+        "default_vram_gbps": 456.0,
+    },
+    "intel_igpu": {
+        "id": "intel_igpu",
+        "label": "Intel Graphics",
+        "vendor": "intel",
+        "primary_temp": "edge",
+        "warm_c": 85,
+        "hot_c": 95,
+        "throttle_c": 100,
+        "fan_curve_helpful": False,
+        "fix_tools": (),
+        "design_note": (
+            "UHD / Iris Xe share the CPU package. Thermals follow CPU cooling, not a GPU fan curve."
+        ),
+        "fan_curve_note": None,
+        "default_vram_gbps": 64.0,
+    },
     "default": {
         "id": "default",
         "label": "GPU",
@@ -398,22 +452,194 @@ GPU_SKUS: list[dict[str, Any]] = [
         "class": "entry",
         "patterns": ("GTX 1080", "1080 TI", "1080TI"),
     },
+    {
+        "name": "RTX 5080",
+        "family": "nvidia",
+        "score": 77,
+        "vram_gbps": 960,
+        "class": "enthusiast",
+        "patterns": ("RTX 5080", "5080"),
+    },
+    {
+        "name": "RTX 5070 Ti",
+        "family": "nvidia",
+        "score": 70,
+        "vram_gbps": 896,
+        "class": "enthusiast",
+        "patterns": ("RTX 5070 TI", "5070 TI", "5070TI"),
+    },
+    {
+        "name": "RTX 5070",
+        "family": "nvidia",
+        "score": 58,
+        "vram_gbps": 672,
+        "class": "upper",
+        "patterns": ("RTX 5070",),
+    },
+    {
+        "name": "RTX 5060 Ti 16GB",
+        "family": "nvidia",
+        "score": 44,
+        "vram_gbps": 448,
+        "class": "mid",
+        "patterns": ("5060 TI 16", "RTX 5060 TI", "5060 TI", "5060TI"),
+    },
+    {
+        "name": "RTX 5060",
+        "family": "nvidia",
+        "score": 36,
+        "vram_gbps": 384,
+        "class": "mid",
+        "patterns": ("RTX 5060",),
+    },
+    {
+        "name": "RTX 4080",
+        "family": "nvidia",
+        "score": 68,
+        "vram_gbps": 717,
+        "class": "enthusiast",
+        "patterns": ("RTX 4080",),
+    },
+    {
+        "name": "RTX 4070 Super",
+        "family": "nvidia",
+        "score": 54,
+        "vram_gbps": 504,
+        "class": "upper",
+        "patterns": ("4070 SUPER", "RTX 4070 SUPER"),
+    },
+    {
+        "name": "RTX 3060 Ti",
+        "family": "nvidia",
+        "score": 32,
+        "vram_gbps": 448,
+        "class": "mid",
+        "patterns": ("3060 TI", "RTX 3060 TI"),
+    },
+    {
+        "name": "RX 9070 XT",
+        "family": "rdna4",
+        "score": 70,
+        "vram_gbps": 640,
+        "class": "enthusiast",
+        "patterns": ("9070 XT", "9070XT"),
+    },
+    {
+        "name": "RX 9070",
+        "family": "rdna4",
+        "score": 62,
+        "vram_gbps": 640,
+        "class": "upper",
+        "patterns": ("RX 9070", "9070 GRE"),
+    },
+    {
+        "name": "RX 9060 XT 16GB",
+        "family": "rdna4",
+        "score": 40,
+        "vram_gbps": 320,
+        "class": "mid",
+        "patterns": ("9060 XT 16", "9060 XT", "9060XT"),
+    },
+    {
+        "name": "RX 7900 GRE",
+        "family": "rdna3",
+        "score": 58,
+        "vram_gbps": 576,
+        "class": "upper",
+        "patterns": ("7900 GRE", "7900GRE"),
+    },
+    {
+        "name": "Arc B580",
+        "family": "intel_arc",
+        "score": 30,
+        "vram_gbps": 456,
+        "class": "mid",
+        "patterns": ("ARC B580", "B580", "INTEL B580"),
+    },
+    {
+        "name": "Arc B570",
+        "family": "intel_arc",
+        "score": 26,
+        "vram_gbps": 380,
+        "class": "mid",
+        "patterns": ("ARC B570", "B570"),
+    },
+    {
+        "name": "Arc A770 16GB",
+        "family": "intel_arc",
+        "score": 24,
+        "vram_gbps": 560,
+        "class": "mid",
+        "patterns": ("ARC A770", "A770 16", "A770"),
+    },
+    {
+        "name": "Arc A750",
+        "family": "intel_arc",
+        "score": 20,
+        "vram_gbps": 512,
+        "class": "entry",
+        "patterns": ("ARC A750", "A750"),
+    },
+    {
+        "name": "Arc A580",
+        "family": "intel_arc",
+        "score": 16,
+        "vram_gbps": 256,
+        "class": "entry",
+        "patterns": ("ARC A580", "A580"),
+    },
+    {
+        "name": "Iris Xe",
+        "family": "intel_igpu",
+        "score": 5,
+        "vram_gbps": 68,
+        "class": "entry",
+        "patterns": ("IRIS XE", "IRIS(R) XE", "INTEL IRIS"),
+    },
+    {
+        "name": "UHD 770",
+        "family": "intel_igpu",
+        "score": 4,
+        "vram_gbps": 64,
+        "class": "entry",
+        "patterns": ("UHD 770", "UHD GRAPHICS 770", "UHD GRAPHICS"),
+    },
 ]
 apply_gpu_sku_scores(GPU_SKUS)
 
 GPU_ALIASES: dict[str, str] = {
     "7900 xtx": "RX 7900 XTX",
     "7900 xt": "RX 7900 XT",
+    "7900 gre": "RX 7900 GRE",
     "7800 xt": "RX 7800 XT",
     "7700 xt": "RX 7700 XT",
+    "9070 xt": "RX 9070 XT",
+    "9070": "RX 9070",
+    "9060 xt": "RX 9060 XT 16GB",
     "4070 ti": "RTX 4070 Ti Super",
+    "4070 super": "RTX 4070 Super",
+    "4080 super": "RTX 4080 Super",
     "4080": "RTX 4080 Super",
     "4090": "RTX 4090",
     "5090": "RTX 5090",
+    "5080": "RTX 5080",
+    "5070 ti": "RTX 5070 Ti",
+    "5070": "RTX 5070",
+    "5060 ti": "RTX 5060 Ti 16GB",
+    "5060": "RTX 5060",
+    "3060 ti": "RTX 3060 Ti",
     "3060": "RTX 3060 12GB",
     "5700 xt": "RX 5700 XT",
     "6800 xt": "RX 6800 XT",
     "6900 xt": "RX 6900 XT",
+    "arc b580": "Arc B580",
+    "b580": "Arc B580",
+    "arc b570": "Arc B570",
+    "arc a770": "Arc A770 16GB",
+    "arc a750": "Arc A750",
+    "arc a580": "Arc A580",
+    "uhd 770": "UHD 770",
+    "iris xe": "Iris Xe",
 }
 
 _PATTERN_INDEX: list[tuple[str, dict[str, Any]]] | None = None
@@ -466,6 +692,8 @@ def iter_fix_tools(profile: dict[str, Any]) -> tuple[str, ...]:
         return ("coolercontrol", "afterburner")
     if vendor == "amd":
         return ("corectrl",)
+    if vendor == "intel":
+        return ("coolercontrol",)
     return ("corectrl", "coolercontrol")
 
 
@@ -498,6 +726,16 @@ def _infer_vendor(text: str) -> str | None:
     norm = _normalize(text)
     if "NVIDIA" in norm or "GEFORCE" in norm or "10DE:" in norm:
         return "nvidia"
+    if (
+        "8086:" in norm
+        or "INTEL" in norm
+        or "ARC " in norm
+        or "ARC B" in norm
+        or "ARC A" in norm
+        or "UHD" in norm
+        or "IRIS" in norm
+    ):
+        return "intel"
     if "RADEON" in norm or "AMD" in norm or "1002:" in norm or "RX " in norm:
         return "amd"
     return None
@@ -510,6 +748,12 @@ def _infer_family_from_text(text: str, sku: dict[str, Any] | None) -> str:
     vendor = _infer_vendor(text)
     if vendor == "nvidia" or "RTX" in norm or "GTX" in norm:
         return "nvidia"
+    if vendor == "intel" or "ARC" in norm or "UHD" in norm or "IRIS" in norm:
+        if "ARC" in norm or "B580" in norm or "B570" in norm or "A770" in norm or "A750" in norm:
+            return "intel_arc"
+        return "intel_igpu"
+    if any(p in norm for p in ("9070", "9060", "RX 9")):
+        return "rdna4"
     if any(p in norm for p in ("7900", "7800", "7700", "7600", "RX 7")):
         return "rdna3"
     if any(p in norm for p in ("6900", "6800", "6700", "6650", "6600", "6500", "RX 6")):
@@ -640,17 +884,28 @@ def junction_ui_class(junction: float | int | None, profile: dict[str, Any] | No
 
 
 def discrete_gpu_pci() -> str:
-    """PCI BDF for the discrete GPU (skip Raphael iGPU)."""
+    """PCI BDF for the discrete GPU (skip Raphael / Intel UHD iGPU when a dGPU exists)."""
     try:
         out = subprocess.check_output(["lspci", "-D"], text=True, timeout=3)
+        vga: list[str] = []
         for line in out.splitlines():
-            if "VGA" not in line:
-                continue
             low = line.lower()
-            if "1002:" in low and ("164e" in low or "raphael" in low):
+            if "vga" not in low and "3d controller" not in low:
                 continue
-            if "1002:" in low or "10de:" in low:
+            vga.append(line)
+        for line in vga:
+            if "10de:" in line.lower():
                 return line.split()[0]
+        for line in vga:
+            low = line.lower()
+            if "1002:" in low and "164e" not in low and "raphael" not in low:
+                return line.split()[0]
+        for line in vga:
+            low = line.lower()
+            if "8086:" in low and ("arc" in low or "battlemage" in low or "alchemist" in low):
+                return line.split()[0]
+        if vga:
+            return vga[0].split()[0]
     except (subprocess.SubprocessError, OSError, ValueError):
         pass
     return "0000:03:00.0"
@@ -673,6 +928,11 @@ def _gpu_relevant_text(text: str) -> str:
                 "amd/ati",
                 "1002:",
                 "10de:",
+                "8086:",
+                "intel",
+                "arc",
+                "iris",
+                "uhd",
                 "subsystem",
             )
         ):
@@ -716,8 +976,13 @@ def detect_gpu_spec(pci: str | None = None) -> dict[str, Any]:
 
     combined = "\n".join(c for c in probe_chunks if c)
     gpu_text = _gpu_relevant_text(combined) or combined
-    if _infer_vendor(gpu_text) == "nvidia":
+    vendor = _infer_vendor(gpu_text)
+    if vendor == "nvidia":
         brand = "NVIDIA"
+    elif vendor == "intel":
+        brand = "Intel"
+    elif vendor == "amd":
+        brand = "AMD"
 
     profile = resolve_gpu(gpu_text)
     model = profile["model"]

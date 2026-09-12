@@ -51,6 +51,31 @@ def test_memory_score_vs_ddr5_6000() -> None:
     assert memory_tier_score(0) == 0.0
 
 
+def test_intel_arc_b580_is_indexed() -> None:
+    sku = match_gpu_sku("Intel Arc B580 Limited Edition")
+    assert sku is not None
+    assert sku["name"] == "Arc B580"
+    assert sku["family"] == "intel_arc"
+    assert abs(float(sku["score"]) - 30.3) < 0.1
+    assert sku.get("score_estimated") is False
+
+
+def test_intel_cpu_ultra_285k_below_14900k() -> None:
+    u = _match_tier("Intel Core Ultra 9 285K", CPU_TIERS, CPU_ALIASES)
+    k = _match_tier("Intel Core i9-14900K", CPU_TIERS, CPU_ALIASES)
+    assert abs(float(u["score"]) - 71.8) < 0.1
+    assert abs(float(k["score"]) - 78.2) < 0.1
+    assert u["score"] < k["score"]
+
+
+def test_nvidia_5080_and_amd_9070xt() -> None:
+    n = match_gpu_sku("GeForce RTX 5080")
+    a = match_gpu_sku("Radeon RX 9070 XT")
+    assert n and a
+    assert abs(float(n["score"]) - 76.7) < 0.1
+    assert abs(float(a["score"]) - 69.7) < 0.1
+
+
 def test_this_kit_composite_not_inflated() -> None:
     cmp = hardware_comparison(
         "AMD Ryzen 9 7900X 12-Core Processor",
@@ -73,6 +98,9 @@ def run_all() -> None:
     test_4090_below_5090()
     test_7900x_below_7800x3d_for_gaming()
     test_memory_score_vs_ddr5_6000()
+    test_intel_arc_b580_is_indexed()
+    test_intel_cpu_ultra_285k_below_14900k()
+    test_nvidia_5080_and_amd_9070xt()
     test_this_kit_composite_not_inflated()
     print("test_league_index: ok")
 

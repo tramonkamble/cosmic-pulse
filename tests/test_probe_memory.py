@@ -9,7 +9,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from cosmic_pulse.probe_memory import apply_part_db, parse_dmidecode
+from cosmic_pulse.probe_memory import (
+    apply_part_db,
+    lookup_part_prefix,
+    normalize_manufacturer,
+    parse_dmidecode,
+)
 
 
 DMI = """
@@ -98,6 +103,36 @@ def test_enrich_from_existing_cache_shape():
     assert out["configured_mts"] == 4800
 
 
+def test_memory_makers_beyond_gskill() -> None:
+    assert normalize_manufacturer("Corsair") == "Corsair"
+    assert normalize_manufacturer("Kingston") == "Kingston"
+    assert normalize_manufacturer("Crucial Technology") == "Crucial"
+    assert normalize_manufacturer("Patriot Memory") == "Patriot"
+    assert normalize_manufacturer("TeamGroup") == "TeamGroup"
+    assert normalize_manufacturer("ADATA") == "ADATA"
+    assert lookup_part_prefix("CMK32GX5M2B6000C30")["manufacturer"] == "Corsair"
+    assert lookup_part_prefix("KF560C36-16")["kit"] == "Fury Beast"
+    assert lookup_part_prefix("CT16G48C40U5.C8FF")["manufacturer"] == "Crucial"
+    assert lookup_part_prefix("PVVR532G600C30")["manufacturer"] == "Patriot"
+    corsair = apply_part_db(
+        parse_dmidecode(
+            """
+Handle 0x003A, DMI type 17, 92 bytes
+Memory Device
+	Size: 16 GB
+	Type: DDR5
+	Speed: 4800 MT/s
+	Manufacturer: Unknown
+	Part Number: CMK32GX5M2B6000C30
+	Configured Memory Speed: 4800 MT/s
+"""
+        )
+    )
+    assert corsair["manufacturer"] == "Corsair"
+    assert corsair["kit"] == "Vengeance"
+    assert corsair["rated_mts"] == 6000
+
+
 def test_cache_path_matches_collectors() -> None:
     from cosmic_pulse.collectors import MEMORY_CACHE
     from cosmic_pulse.paths import data_dir
@@ -126,6 +161,7 @@ def run_all() -> None:
     test_blank_manufacturer_not_unknown()
     test_enrich_from_existing_cache_shape()
     test_cache_path_matches_collectors()
+    test_memory_makers_beyond_gskill()
     test_http_api_probes_package_script()
     print("test_probe_memory: ok")
 

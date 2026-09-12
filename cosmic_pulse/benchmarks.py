@@ -7,25 +7,17 @@ from __future__ import annotations
 import re
 
 from .hardware_profiles import GPU_ALIASES, gpu_tier_list
-from .league_index import apply_cpu_scores, league_meta, memory_tier_score
+from .league_index import apply_cpu_scores, league_meta, load_league_index, memory_tier_score
 
-# Scores overwritten from cosmic_pulse/data/league_index.json (Tom's Hardware).
+# Scores from cosmic_pulse/data/league_index.json (Tom's Hardware).
 CPU_TIERS: list[dict] = apply_cpu_scores(
     [
-        {"name": "Ryzen 5 5600X", "score": 54, "class": "mid"},
-        {"name": "Ryzen 5 7600X", "score": 66, "class": "mid"},
-        {"name": "Ryzen 9 7900X", "score": 69, "class": "mid"},
-        {"name": "Ryzen 9 7900X3D", "score": 77, "class": "upper"},
-        {"name": "Ryzen 7 5800X3D", "score": 70, "class": "upper"},
-        {"name": "Ryzen 7 7700X", "score": 71, "class": "upper"},
-        {"name": "Ryzen 9 7950X", "score": 71, "class": "upper"},
-        {"name": "Core i7-13700K", "score": 76, "class": "upper"},
-        {"name": "Core i9-14900K", "score": 78, "class": "upper"},
-        {"name": "Ryzen 5 7600X3D", "score": 81, "class": "upper"},
-        {"name": "Ryzen 7 7800X3D", "score": 86, "class": "enthusiast"},
-        {"name": "Ryzen 7 9800X3D", "score": 97, "class": "flagship"},
-        {"name": "Ryzen 7 9850X3D", "score": 100, "class": "flagship"},
-        {"name": "Threadripper 9970X", "score": 72, "class": "workstation"},
+        {
+            "name": name,
+            "score": row.get("score") or 50,
+            "class": row.get("class") or "mid",
+        }
+        for name, row in (load_league_index().get("cpu") or {}).items()
     ]
 )
 
@@ -51,6 +43,41 @@ MEM_TIERS: list[dict] = [
         "class": "enthusiast",
     },
     {
+        "name": "Corsair Vengeance 6000",
+        "mts": 6000,
+        "channels": 2,
+        "peak_gbps": 96.0,
+        "class": "enthusiast",
+    },
+    {
+        "name": "Kingston Fury Beast 6000",
+        "mts": 6000,
+        "channels": 2,
+        "peak_gbps": 96.0,
+        "class": "enthusiast",
+    },
+    {
+        "name": "Crucial Pro 5600",
+        "mts": 5600,
+        "channels": 2,
+        "peak_gbps": 89.6,
+        "class": "upper",
+    },
+    {
+        "name": "Patriot Viper 6000",
+        "mts": 6000,
+        "channels": 2,
+        "peak_gbps": 96.0,
+        "class": "enthusiast",
+    },
+    {
+        "name": "TeamGroup T-Create 6000",
+        "mts": 6000,
+        "channels": 2,
+        "peak_gbps": 96.0,
+        "class": "enthusiast",
+    },
+    {
         "name": "DDR5-6400 dual",
         "mts": 6400,
         "channels": 2,
@@ -70,15 +97,36 @@ REFERENCE_BUILDS = {
 CPU_ALIASES = {
     "9850x3d": "Ryzen 7 9850X3D",
     "9800x3d": "Ryzen 7 9800X3D",
+    "9950x3d": "Ryzen 9 9950X3D",
+    "9900x3d": "Ryzen 9 9900X3D",
     "7900x3d": "Ryzen 9 7900X3D",
     "7900x": "Ryzen 9 7900X",
+    "7950x3d": "Ryzen 9 7950X3D",
     "7950x": "Ryzen 9 7950X",
     "7700x": "Ryzen 7 7700X",
     "7600x3d": "Ryzen 5 7600X3D",
     "7600x": "Ryzen 5 7600X",
     "7800x3d": "Ryzen 7 7800X3D",
+    "9900x": "Ryzen 9 9900X",
+    "9950x": "Ryzen 9 9950X",
+    "9600x": "Ryzen 5 9600X",
+    "270k plus": "Core Ultra 7 270K Plus",
+    "250k plus": "Core Ultra 5 250K Plus",
+    "285k": "Core Ultra 9 285K",
+    "265k": "Core Ultra 7 265K",
+    "270k": "Core Ultra 7 270K Plus",
+    "250k": "Core Ultra 5 250K Plus",
     "14900k": "Core i9-14900K",
+    "14700k": "Core i7-14700K",
+    "14600k": "Core i5-14600K",
+    "14400f": "Core i5-14400F",
+    "13900k": "Core i9-13900K",
     "13700k": "Core i7-13700K",
+    "13600k": "Core i5-13600K",
+    "12900k": "Core i9-12900K",
+    "12700k": "Core i7-12700K",
+    "12600k": "Core i5-12600K",
+    "12400f": "Core i5-12400F",
 }
 
 
