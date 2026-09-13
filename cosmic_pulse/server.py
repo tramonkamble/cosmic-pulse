@@ -1472,7 +1472,7 @@ def init_probe_state(*, for_child: bool = False) -> float:
     set_host_identity(cpu_model=cpu_model, storage=storage_drives)
     machine = f"{product} ({product_ver})" if product_ver else product
     host_platform = platform_identity()
-    # Prefer chassis OEM (sys_vendor) so System76 Thelio is recognized reliably
+    # Prefer chassis OEM (sys_vendor) so System76 / Dell / Lenovo DMI is used
     s76_vendor = sys_vendor or board_vendor or (host_platform.get("vendor") or {}).get("name") or ""
     platform_last_refresh = time.time()
     backlog: list = []

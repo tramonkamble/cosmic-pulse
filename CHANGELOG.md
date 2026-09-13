@@ -12,6 +12,7 @@ Dates use the machine local timezone (EDT unless noted).
 - **RAM brands** — Corsair, Kingston Fury, Crucial, Patriot, TeamGroup, ADATA XPG (and other DMI aliases) in addition to G.Skill Flare X5.
 
 ### Changed
+- **No host PCI leftovers** — GPU probe no longer falls back to this machine’s `0000:03:00.0` / `amdgpu-pci-0300` slot. Missing sysfs uses the DRM driver name.
 - **GitHub landing** — README is the product page (what Pulse is, Windows analogs, install). Agent/layout notes, source map, and API live in contributor files, not the front page.
 - **Sampler yield** — the sample worker runs at nice 10 so the game keeps the cores. Process/thread tiles read `/proc/loadavg` instead of opening every PID. Per-core MHz is cached ~2s. A missing `nvidia-smi` is cached so NVIDIA-less boxes do not walk `PATH` every tick.
 - **GPU meters** — NVIDIA (`nvidia-smi`), AMD (`amdgpu` sysfs), and Intel Arc/UHD (`i915` / `xe` clocks, busy, VRAM, hwmon). Hybrid laptops use the DRM node that matches each card.

@@ -318,12 +318,27 @@ def igpu_device_path() -> Path:
     return Path(get_drm_paths()["igpu"]["device_path"])
 
 
+def _sensor_match_token(card: dict) -> str:
+    """Substring used to pick hwmon keys for this GPU.
+
+    Prefer the PCI suffix (``0300`` from ``03:00.0``) when sysfs has it.
+    Otherwise the DRM driver name — never a slot from some other machine.
+    """
+    suf = str((card or {}).get("sensor_suffix") or "").strip()
+    if suf:
+        return suf
+    driver = str((card or {}).get("driver") or "").strip().lower()
+    if driver in ("amdgpu", "nvidia", "i915", "xe", "nouveau"):
+        return driver
+    return "gpu"
+
+
 def gpu_sensor_prefix() -> str:
-    return get_drm_paths()["discrete"].get("sensor_suffix") or "0300"
+    return _sensor_match_token(get_drm_paths().get("discrete") or {})
 
 
 def igpu_sensor_prefix() -> str:
-    return get_drm_paths()["igpu"].get("sensor_suffix") or "1a00"
+    return _sensor_match_token(get_drm_paths().get("igpu") or {})
 
 
 def igpu_label(cpu_model: str = "") -> str:

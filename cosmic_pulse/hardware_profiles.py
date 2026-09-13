@@ -908,7 +908,15 @@ def discrete_gpu_pci() -> str:
             return vga[0].split()[0]
     except (subprocess.SubprocessError, OSError, ValueError):
         pass
-    return "0000:03:00.0"
+    try:
+        from .hardware_probe import discover_drm_cards
+
+        bdf = (discover_drm_cards().get("discrete") or {}).get("pci_bdf") or ""
+        if bdf:
+            return bdf
+    except Exception:
+        pass
+    return ""
 
 
 def _gpu_relevant_text(text: str) -> str:
@@ -955,7 +963,7 @@ def detect_gpu_spec(pci: str | None = None) -> dict[str, Any]:
     board: str | None = None
     brand = "AMD"
 
-    detail = _run_probe(["lspci", "-v", "-s", pci])
+    detail = _run_probe(["lspci", "-v", "-s", pci]) if pci else ""
     if detail:
         probe_chunks.append(detail)
         for line in detail.splitlines():

@@ -14,9 +14,11 @@ from cosmic_pulse.hardware_probe import (
     _FIRST_CLASS_DESKTOPS,
     _is_igpu,
     _normalize_de_id,
+    _sensor_match_token,
     parse_nvidia_smi_csv,
     platform_identity,
 )
+from cosmic_pulse.hardware_profiles import discrete_gpu_pci
 from cosmic_pulse.probe_memory import apply_part_db, normalize_manufacturer, parse_dmidecode
 from cosmic_pulse.rule_packs import _platform_flags
 
@@ -62,6 +64,25 @@ def test_nvidia_smi_na_fields():
     assert row["mem_busy_pct"] is None
     assert row["power_w"] is None
     assert row["fan_pct"] is None
+
+
+def test_sensor_prefix_not_this_machines_slot():
+    assert _sensor_match_token({}) == "gpu"
+    assert _sensor_match_token({"driver": "amdgpu"}) == "amdgpu"
+    assert _sensor_match_token({"driver": "i915"}) == "i915"
+    assert _sensor_match_token({"sensor_suffix": "0b00", "driver": "amdgpu"}) == "0b00"
+
+
+def test_discrete_pci_no_hardcoded_slot():
+    with patch(
+        "cosmic_pulse.hardware_profiles.subprocess.check_output",
+        side_effect=OSError("no lspci"),
+    ), patch(
+        "cosmic_pulse.hardware_probe.discover_drm_cards",
+        return_value={"discrete": {"pci_bdf": ""}},
+    ):
+        assert discrete_gpu_pci() == ""
+        assert discrete_gpu_pci() != "0000:03:00.0"
 
 
 def test_intel_igpu_vs_arc():
@@ -171,6 +192,8 @@ def run_all() -> None:
     test_top_seven_gaming_desktops()
     test_generic_de_still_surfaces()
     test_nvidia_smi_csv_parses()
+    test_sensor_prefix_not_this_machines_slot()
+    test_discrete_pci_no_hardcoded_slot()
     test_nvidia_smi_na_fields()
     test_intel_igpu_vs_arc()
     test_corsair_dmi_brand_and_ddr4_label()

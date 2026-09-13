@@ -4505,7 +4505,7 @@
         let chassisType = 'Desktop';
         if (s76) chassisType = 'System76';
         else if (r.chassis.brand) chassisType = r.chassis.brand;
-        const thelioLove = s76
+        const s76Note = s76
           ? ` · ${chassisName} — built for Linux${plat.is_pop ? ' · Pop!_OS' : ''}`
           : '';
         tiles.push({
@@ -4514,7 +4514,7 @@
           brand: rigTopBrand('chassis', r.chassis),
           tooltip: anyHwFocus()
             ? `${r.chassis.label} · Click to reset filters (full rig)`
-            : `${r.chassis.label} · Full rig view${thelioLove}`,
+            : `${r.chassis.label} · Full rig view${s76Note}`,
           active: !anyHwFocus(),
         });
       }
