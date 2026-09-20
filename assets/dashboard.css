@@ -5857,21 +5857,22 @@
       flex-direction: row;
       align-items: center;
       justify-content: flex-start;
-      gap: 0.65rem;
+      gap: 0.5rem;
       min-width: 0;
-      padding: 0.1rem 0.2rem 0.1rem 0.05rem;
+      padding: 0.1rem 0.15rem 0.1rem 0.05rem;
     }
+    /* Compact square — the tall 600×900 capsule was crowding the title. */
     body.dash-dedupe #sumGameCell:not(.tall) .sum-game-art.is-loaded {
       display: block !important;
-      width: 3.05rem;
-      height: 4.55rem;
+      width: 2.15rem;
+      height: 2.15rem;
       flex-shrink: 0;
-      border-radius: 7px;
+      border-radius: 6px;
       border-color: color-mix(in srgb, var(--m-game) 28%, var(--line));
     }
     body.dash-dedupe #sumGameCell .sum-game-info {
-      flex: 0 1 auto;
-      max-width: 11.5rem;
+      flex: 1 1 auto;
+      max-width: none;
       gap: 0.1rem;
       min-width: 0;
     }
@@ -5879,6 +5880,10 @@
       font-size: 0.95rem;
       font-weight: 650;
       letter-spacing: -0.01em;
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
     body.dash-dedupe #sumGameCell:not(.tall) .sum-game-context {
       font-size: 0.7rem;
@@ -5954,7 +5959,7 @@
         "game game";
     }
     body.dash-dedupe.ui-wrap-wide #sumHealthCell .health-sev-row { max-width: 24rem; }
-    body.dash-dedupe.ui-wrap-wide #sumGameCell .sum-game-info { max-width: 16rem; }
+    body.dash-dedupe.ui-wrap-wide #sumGameCell .sum-game-info { max-width: none; }
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel { min-height: 0; }
     /* Windowed 1600-class widths wrap the scoreboard, not the lab — keep one stage height. */
     body.dash-dedupe.ui-wrap-tight #pageDashboard #vizPanel .stutter-layout,
