@@ -5179,8 +5179,19 @@
       flex: 1 1 auto;
       height: 100%;
     }
+    @property --dial-p {
+      syntax: "<number>";
+      inherits: true;
+      initial-value: 0;
+    }
+    @property --dial-glow {
+      syntax: "<number>";
+      inherits: true;
+      initial-value: 0;
+    }
     .pulse-dial {
       --dial-p: 0;
+      --dial-glow: 0;
       --dial-color: var(--m-cpu);
       min-width: 0;
       min-height: 0;
@@ -5195,6 +5206,11 @@
       place-items: center;
       padding: 0;
       overflow: visible;
+      transition: --dial-p 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                  --dial-glow 0.7s ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pulse-dial { transition: none; }
     }
     /* Circular well the same size as the ring — not a wide tile around it. */
     .pulse-dial::before {
@@ -5289,6 +5305,19 @@
     .pulse-dial.is-warn .pulse-dial-v { color: var(--sev-warn); }
     .pulse-dial.is-missing .pulse-dial-v { opacity: 0.45; }
     .pulse-dial.is-active .pulse-dial-k {
+      color: var(--dial-color);
+    }
+    /* Pressure / hitch / disk: a lamp that rises fast and fades, not a twitching meter. */
+    .pulse-dial.is-lamp::before {
+      background: color-mix(in srgb, var(--dial-color) calc(var(--dial-glow) * 26%), var(--well));
+      box-shadow:
+        0 0 calc(0.25rem + var(--dial-glow) * 1.15rem)
+          color-mix(in srgb, var(--dial-color) calc(var(--dial-glow) * 58%), transparent);
+    }
+    .pulse-dial.is-lamp .pulse-dial-ring {
+      opacity: calc(0.28 + var(--dial-glow) * 0.72);
+    }
+    .pulse-dial.is-lamp.is-lit .pulse-dial-k {
       color: var(--dial-color);
     }
 

@@ -1681,16 +1681,42 @@
       { id: 'disk-busy', label: 'Busy', icon: 'storage', cls: 'disk-busy', hw: 'storage' },
     ];
 
+    /** Wait / hitch / disk busy spike then vanish — treat as lamps, not meters. */
+    const DIAL_LAMP_IDS = new Set(['dram-psi', 'hitch', 'busy']);
+    const dialRingSmooth = new Map();
+    const DIAL_STEADY_ALPHA = 0.22;
+    const DIAL_LAMP_ATTACK = 0.62;
+    const DIAL_LAMP_RELEASE = 0.16;
+
+    function smoothDialRing(key, raw, lamp) {
+      const v = clampPct(raw);
+      if (prefersReducedMotion) {
+        dialRingSmooth.set(key, v);
+        return v;
+      }
+      const prev = dialRingSmooth.has(key) ? dialRingSmooth.get(key) : v;
+      const a = lamp ? (v > prev ? DIAL_LAMP_ATTACK : DIAL_LAMP_RELEASE) : DIAL_STEADY_ALPHA;
+      const next = prev + a * (v - prev);
+      dialRingSmooth.set(key, next);
+      return next;
+    }
+
     /** Unified pulse dial updater — same API for temps / bus / storage / power. */
     function setPulseDial(rootId, dialId, pct, text, { hot = false, warn = false, missing = false } = {}) {
       const root = document.getElementById(rootId);
       if (!root || !root.classList.contains('pulse-dials')) return;
       const el = root.querySelector(`[data-dial="${dialId}"]`);
       if (!el) return;
-      const p = missing ? 0 : Math.max(0, Math.min(100, Number(pct) || 0));
+      const raw = missing ? 0 : Math.max(0, Math.min(100, Number(pct) || 0));
+      const lamp = DIAL_LAMP_IDS.has(dialId);
+      const p = smoothDialRing(`${rootId}:${dialId}`, raw, lamp);
+      const glow = Math.min(1, p / 100);
       el.style.setProperty('--dial-p', p.toFixed(1));
+      el.style.setProperty('--dial-glow', glow.toFixed(3));
       const val = el.querySelector('[data-val]');
       if (val) val.textContent = text;
+      el.classList.toggle('is-lamp', lamp);
+      el.classList.toggle('is-lit', lamp && p >= 6);
       el.classList.toggle('is-hot', !!hot);
       el.classList.toggle('is-warn', !!warn && !hot);
       el.classList.toggle('is-active', p >= 4);

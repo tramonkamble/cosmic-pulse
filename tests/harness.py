@@ -222,6 +222,7 @@ def check_dashboard_html() -> None:
             "autostart_log=1" in js and "alpha=0.0" in js,
         )
         check("js session chart names games", "function sessionChartTick" in js)
+        check("js dial lamp smoothing", "DIAL_LAMP_IDS" in js and "smoothDialRing" in js)
 
 
 def check_sampler_and_metrics() -> dict:

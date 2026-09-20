@@ -10,6 +10,7 @@ Dates use the machine local timezone (EDT unless noted).
 ### Changed
 - **MangoHud logging steps** — Guidance writes `~/.config/MangoHud/MangoHud.conf` with a copy-paste `printf | tee` (small HUD + `~/mangohud-logs`). A second command writes a silent overlay (`alpha=0`, not `no_display`, which skips logging on several builds). Same Steam launch option either way.
 - **Past session ratings** — each bar is labeled with the game name plus date (tooltip has the full title). Rating-tier colors stay.
+- **Live lab dials** — rings ease between 1 Hz samples. Wait / Hitch / Disk are lamps (fast rise, slow fade) so pressure blips glow instead of snapping the arc.
 
 ## [0.2.3] - 2026-09-19
 
