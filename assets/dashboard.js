@@ -718,6 +718,10 @@
         } catch (_) { /* ignore */ }
       }
       if (name === 'fixes') {
+        if (typeof scrollTo === 'string' && scrollTo.startsWith('insight-')) {
+          lastSelectedGuidanceId = scrollTo.slice(8);
+          guidanceIndexFilter = 'all';
+        }
         try {
           renderFixes(lastLatest?.tuning || lastWarningsHints);
         } catch (_) { /* ignore */ }
@@ -755,6 +759,25 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
+
+    function openGuidanceInsight(insightId, ev) {
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      const id = String(insightId || '').trim();
+      if (!id) {
+        setTab('fixes', 'insightsSection');
+        return;
+      }
+      setTab('fixes', `insight-${id}`);
+    }
+
+    document.addEventListener('click', (e) => {
+      const t = e.target.closest?.('[data-guidance-insight]');
+      if (!t) return;
+      openGuidanceInsight(t.dataset.guidanceInsight, e);
+    });
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.onclick = () => setTab(btn.dataset.tab, null, true);
@@ -1250,8 +1273,6 @@
 
     const STEAM_ART_CDN = 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps';
     const STEAM_ART_LEGACY_CDN = 'https://cdn.cloudflare.steamstatic.com/steam/apps';
-    const gameArtResolved = new Map();
-    let gameArtProbeAppid = null;
 
     function steamArtCandidates(appid, catalog, kind) {
       const local = `/api/game-art?appid=${encodeURIComponent(appid)}&kind=${encodeURIComponent(kind || 'any')}`;
@@ -1275,33 +1296,6 @@
               `${STEAM_ART_LEGACY_CDN}/${appid}/header.jpg`,
             ]);
       return [local, ...cdn];
-    }
-
-    function setGameSummaryArtVisible(wrap, show) {
-      if (!wrap) return;
-      wrap.hidden = !show;
-      wrap.classList.toggle('is-loaded', show);
-      document.getElementById('sumGameCell')?.classList.toggle('has-art', !!show);
-    }
-
-    function bindGameArtImg(img) {
-      if (img.dataset.artBound === '1') return;
-      img.dataset.artBound = '1';
-      img.referrerPolicy = 'no-referrer';
-      img.decoding = 'async';
-    }
-
-    function showGameArtUrl(wrap, img, appid, url) {
-      const reveal = () => setGameSummaryArtVisible(wrap, true);
-      img.onload = reveal;
-      img.onerror = () => {
-        gameArtResolved.delete(appid);
-        gameArtProbeAppid = null;
-        applyGameSummaryArt(appid, img.alt.replace(/ artwork$/, ''));
-      };
-      if (img.getAttribute('src') !== url) img.src = url;
-      else if (img.complete && img.naturalWidth > 0) reveal();
-      else setGameSummaryArtVisible(wrap, false);
     }
 
     const gameHeroArtResolved = new Map();
@@ -1354,70 +1348,6 @@
         };
         probe.onerror = tryNext;
         probe.src = url;
-      };
-      tryNext();
-    }
-
-    function applyGameSummaryArt(gameId, label) {
-      const wrap = document.getElementById('sumGameArt');
-      const img = document.getElementById('sumGameArtImg');
-      if (!wrap || !img) return;
-      bindGameArtImg(img);
-
-      const catalog = lastStatic?.games_catalog || {};
-      const appid = gameAppId(gameId, catalog);
-      img.alt = label ? `${label} artwork` : 'Game artwork';
-
-      if (!appid) {
-        gameArtProbeAppid = null;
-        setGameSummaryArtVisible(wrap, false);
-        img.removeAttribute('src');
-        return;
-      }
-
-      if (gameArtResolved.has(appid)) {
-        const resolved = gameArtResolved.get(appid);
-        if (!resolved) {
-          setGameSummaryArtVisible(wrap, false);
-          img.removeAttribute('src');
-          return;
-        }
-        if (img.getAttribute('src') === resolved && img.complete && img.naturalWidth > 0) {
-          setGameSummaryArtVisible(wrap, true);
-          return;
-        }
-        showGameArtUrl(wrap, img, appid, resolved);
-        return;
-      }
-
-      if (gameArtProbeAppid === appid) return;
-
-      gameArtProbeAppid = appid;
-      setGameSummaryArtVisible(wrap, false);
-      const candidates = steamArtCandidates(appid, catalog, 'capsule');
-      let idx = 0;
-
-      const tryNext = () => {
-        if (gameArtProbeAppid !== appid) return;
-        if (idx >= candidates.length) {
-          gameArtResolved.set(appid, null);
-          gameArtProbeAppid = null;
-          setGameSummaryArtVisible(wrap, false);
-          img.removeAttribute('src');
-          return;
-        }
-        const url = candidates[idx++];
-        img.onload = () => {
-          if (gameArtProbeAppid !== appid) return;
-          gameArtResolved.set(appid, url);
-          gameArtProbeAppid = null;
-          setGameSummaryArtVisible(wrap, true);
-        };
-        img.onerror = () => {
-          if (gameArtProbeAppid !== appid) return;
-          tryNext();
-        };
-        img.src = url;
       };
       tryNext();
     }
@@ -1484,7 +1414,6 @@
       setMeterWidth(meterEl, gs.meter);
       setRatingTierBadge(document.getElementById('sumGameBadge'), gs.tier);
       renderGameSummaryStats(document.getElementById('sumGameStats'), gs.stats);
-      applyGameSummaryArt(gs.gameId, gs.label);
       document.getElementById('drillGameSum').textContent = gs.drillRollup;
     }
 
@@ -4712,6 +4641,42 @@
     let lastGuidanceSummaryHints = [];
     let lastSelectedGuidanceId = null;
     let guidanceIndexFilter = 'all';
+    const MANGOHUD_GUIDANCE_ID = 'mangohud-recommended';
+    const MANGOHUD_ENABLE_HINT = 'enable MangoHud log';
+    const MANGOHUD_GUIDANCE_FALLBACK = {
+      insight_id: MANGOHUD_GUIDANCE_ID,
+      catalog_only: true,
+      level: 'info',
+      title: 'Recommended: MangoHud for real FPS / frametime',
+      text: 'Optional overlay for true in-game FPS and frametime. With logging on (sample conf → ~/mangohud-logs), Pulse attaches FPS avg / 1% lows to finished sessions. Kernel stutter stays as proxy when no log is present. Not required — skip if you prefer a clean HUD.',
+      bucket: 'tools',
+      games: ['all'],
+      actions: [
+        {
+          label: 'Install MangoHud',
+          kind: 'cmd',
+          cmd: 'sudo apt install mangohud',
+          note: 'One-time; Pop!_OS package',
+        },
+        {
+          label: 'Steam launch option',
+          kind: 'steam',
+          cmd: 'mangohud %command%',
+          note: 'Steam → game → Properties → Launch Options (per game)',
+        },
+        {
+          label: 'Enable logging',
+          kind: 'note',
+          cmd: 'Add output_folder=~/mangohud-logs to ~/.config/MangoHud/MangoHud.conf',
+          note: 'Pulse reads those CSVs after you quit. Overlay-only (no log) still works; FPS stays empty.',
+        },
+      ],
+    };
+
+    function guidanceCatalogFallback(insightId) {
+      if (insightId === MANGOHUD_GUIDANCE_ID) return MANGOHUD_GUIDANCE_FALLBACK;
+      return null;
+    }
     let guidanceGameFilter = null;
     let guidancePickableHints = [];
 
@@ -5076,7 +5041,8 @@
       const fullPool = lastGuidanceIndexGroups.flatMap(g => g.hints).concat(lastGuidanceFixedHints);
       const h = hintById(guidancePickableHints, insightId)
         || hintById(fullPool, insightId)
-        || hintById(lastGuidanceFixedHints, insightId);
+        || hintById(lastGuidanceFixedHints, insightId)
+        || guidanceCatalogFallback(insightId);
       renderGuidanceDetail(h);
       if (scroll && insightId) {
         document.getElementById(`guidance-pick-${insightId}`)
@@ -5312,19 +5278,22 @@
     function recCardHtml(h, idPrefix = '', rank = 0) {
       const isDetail = idPrefix === 'detail-';
       const lv = h.level || 'info';
+      const catalogOnly = !!h.catalog_only;
       const status = hintUserStatus(h);
       const resolved = status === 'resolved';
-      const outstanding = status === 'outstanding';
+      const outstanding = status === 'outstanding' && !catalogOnly;
       const sid = h.insight_id || 'insight';
       const domId = `${idPrefix}insight-${sid}`;
       const suppressed = isInsightSuppressed(sid);
       const rankBadge = rank ? `<span class="rec-rank">#${rank}</span>` : '';
       const when = h.last_seen ? `Last seen ${fmtAgo(h.last_seen)}` : '';
-      const statusBadge = resolved
-        ? '<span class="rec-status resolved">Fixed</span>'
-        : h.condition_live
-          ? '<span class="rec-status live">Live now</span>'
-          : '<span class="rec-status outstanding">Outstanding</span>';
+      const statusBadge = catalogOnly
+        ? '<span class="rec-status outstanding">How to</span>'
+        : resolved
+          ? '<span class="rec-status resolved">Fixed</span>'
+          : h.condition_live
+            ? '<span class="rec-status live">Live now</span>'
+            : '<span class="rec-status outstanding">Outstanding</span>';
       const markFixedBtn = outstanding
         ? `<button class="btn warn-hide" type="button" data-resolve-iid="${esc(sid)}" title="Mark as fixed">Mark fixed</button>`
         : '';
@@ -5613,7 +5582,8 @@
       ]);
       const stillSelected = lastSelectedGuidanceId?.startsWith('diag:')
         ? scanPickable.includes(lastSelectedGuidanceId)
-        : allKnownIds.has(lastSelectedGuidanceId);
+        : allKnownIds.has(lastSelectedGuidanceId)
+          || !!guidanceCatalogFallback(lastSelectedGuidanceId);
       if (!lastSelectedGuidanceId || !stillSelected) {
         lastSelectedGuidanceId = pickable[0]?.insight_id || scanPickable[0] || null;
       }
@@ -5991,6 +5961,10 @@
       if (lead) lead.textContent = title;
     }
 
+    function mangohudEnableHint() {
+      return { s: MANGOHUD_ENABLE_HINT, sLink: MANGOHUD_GUIDANCE_ID };
+    }
+
     /** Frametime: MangoHud only. Kernel stall proxy is not a frame time. */
     function gameFrametimeCard(src, mh) {
       if (mh && src?.fps_avg != null && src.fps_avg > 0) {
@@ -6006,7 +5980,7 @@
       return {
         k: 'Frametime',
         v: '—',
-        s: mh ? 'no samples yet' : 'needs MangoHud log',
+        ...(mh ? { s: 'no samples yet' } : mangohudEnableHint()),
         cls: 'muted',
         primary: true,
       };
@@ -6026,7 +6000,7 @@
       return {
         k: 'FPS',
         v: '—',
-        s: mh ? 'no samples yet' : 'enable MangoHud log',
+        ...(mh ? { s: 'no samples yet' } : mangohudEnableHint()),
         cls: 'muted',
         primary: true,
       };
@@ -6055,7 +6029,13 @@
           card: hot ? 'hero-warn' : 'hero-primary',
         };
       }
-      return { k: '1% lows', v: '—', s: mh ? 'waiting…' : 'no stall events', cls: 'muted', primary: true };
+      return {
+        k: '1% lows',
+        v: '—',
+        ...(mh ? { s: 'waiting…' } : mangohudEnableHint()),
+        cls: 'muted',
+        primary: true,
+      };
     }
 
     /**
@@ -6065,7 +6045,7 @@
     function patchGamePerfKpis(el, items) {
       if (!el) return;
       const keys = items.map((it, i) => it.id || `k${i}`);
-      const keySig = keys.join('|');
+      const keySig = items.map((it, i) => `${keys[i]}:${it.sLink ? '1' : '0'}`).join('|');
       if (el.dataset.kpiSig !== keySig) {
         el.dataset.kpiSig = keySig;
         el.innerHTML = items.map((it, i) => {
@@ -6076,7 +6056,10 @@
             it.card || '',
             it.mh ? 'mh-live' : '',
           ].filter(Boolean).join(' ');
-          return `<div class="${cardCls}" data-kpi="${esc(id)}"><span class="k"></span><span class="v"></span><span class="s"></span></div>`;
+          const sub = it.sLink
+            ? `<button type="button" class="s is-link" data-guidance-insight="${esc(it.sLink)}" title="Open Guidance — how to enable MangoHud"></button>`
+            : '<span class="s"></span>';
+          return `<div class="${cardCls}" data-kpi="${esc(id)}"><span class="k"></span><span class="v"></span>${sub}</div>`;
         }).join('');
       }
       items.forEach((it, i) => {
@@ -6091,7 +6074,6 @@
         ].filter(Boolean).join(' ');
         const kEl = card.querySelector('.k');
         const vEl = card.querySelector('.v');
-        const sEl = card.querySelector('.s');
         if (kEl && kEl.textContent !== String(it.k || '')) kEl.textContent = it.k || '';
         const vStr = it.v == null ? '—' : String(it.v);
         if (vEl) {
@@ -6100,8 +6082,36 @@
           if (vEl.className !== vCls) vEl.className = vCls;
         }
         const sStr = it.s == null ? '' : String(it.s);
+        const sEl = syncGamePerfKpiSub(card, it.sLink);
         if (sEl && sEl.textContent !== sStr) sEl.textContent = sStr;
       });
+    }
+
+    function syncGamePerfKpiSub(card, sLink) {
+      let sEl = card.querySelector('.s');
+      const wantBtn = !!sLink;
+      const isBtn = sEl && sEl.tagName === 'BUTTON';
+      if (!sEl || isBtn !== wantBtn) {
+        const next = document.createElement(wantBtn ? 'button' : 'span');
+        next.className = wantBtn ? 's is-link' : 's';
+        if (wantBtn) {
+          next.type = 'button';
+          next.dataset.guidanceInsight = sLink;
+          next.title = 'Open Guidance — how to enable MangoHud';
+        }
+        if (sEl) sEl.replaceWith(next);
+        else card.appendChild(next);
+        sEl = next;
+      } else if (wantBtn) {
+        sEl.classList.add('is-link');
+        sEl.dataset.guidanceInsight = sLink;
+        sEl.title = 'Open Guidance — how to enable MangoHud';
+      } else {
+        sEl.classList.remove('is-link');
+        delete sEl.dataset.guidanceInsight;
+        sEl.removeAttribute('title');
+      }
+      return sEl;
     }
 
     function viewedGameSession(gp, gt) {
@@ -6401,7 +6411,7 @@
             <td>${fmtDuration(s.duration_sec)}</td>
           </tr>`;
           }).join('')
-        : '<tr><td colspan="8" style="color:var(--muted)">No completed sessions yet — after the 45s load wait, play ~15s+; ratings save when you quit. Enable MangoHud logging for real FPS.</td></tr>';
+        : `<tr><td colspan="8" style="color:var(--muted)">No completed sessions yet — after the 45s load wait, play ~15s+; ratings save when you quit. <button type="button" class="inline-guidance-link" data-guidance-insight="${esc(MANGOHUD_GUIDANCE_ID)}">${esc(MANGOHUD_ENABLE_HINT)}</button> for real FPS.</td></tr>`;
       if (!body.dataset.pickWired) {
         body.dataset.pickWired = '1';
         body.addEventListener('click', (ev) => {

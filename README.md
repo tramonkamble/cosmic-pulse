@@ -29,7 +29,7 @@ Not a port of Afterburner, Adrenalin/Crimson, or the NVIDIA overlay. Same neighb
 - **Live lab** — Snapshot, Pulse Index, and Stutter (1 / 5 / 10 / 60 min)
 - **Stutter estimate** — hitch score from PSI, faults, swap, and disk (not frametime)
 - **Pulse Index** — this build vs published 1440p GPU / 1080p CPU relatives
-- **Game performance** — Steam title and library art, last-session rating, Smooth % / GPU / game CPU
+- **Game performance** — Steam title, library art on the session strip, last-session rating, Smooth % / GPU / game CPU. Empty FPS lines open Guidance for MangoHud.
 - **Guidance** — ranked issues, copy-paste steps, optional user-owned fixes
 - **Local history** — samples and settings stay on this machine (no account, no cloud)
 

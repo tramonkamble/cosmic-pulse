@@ -110,6 +110,10 @@ rules:
         kind: steam
         cmd: mangohud %command%
         note: Steam → game → Properties → Launch Options (per game)
+      - label: Enable logging
+        kind: note
+        cmd: Add output_folder=~/mangohud-logs to ~/.config/MangoHud/MangoHud.conf
+        note: Pulse reads those CSVs after you quit. Overlay-only (no log) still works; FPS stays empty.
 
   - id: gpu-thermal-ceiling-hot
     detect:

@@ -1784,7 +1784,7 @@
       min-width: 0;
       overflow: hidden;
     }
-    #sumGameCell:not(.tall):not(.has-art) .sum-game-art { display: none !important; }
+    #sumGameCell .sum-game-art { display: none !important; }
     #sumGameCell .sum-kicker {
       font-size: 0.64rem;
       font-weight: 700;
@@ -3594,6 +3594,30 @@
       font-size: 0.75rem;
       color: var(--muted);
       line-height: 1.25;
+    }
+    .game-perf-kpi .s.is-link,
+    button.inline-guidance-link {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: none;
+      font: inherit;
+      font-size: 0.75rem;
+      color: color-mix(in srgb, var(--m-game) 78%, var(--text));
+      text-decoration: underline;
+      text-underline-offset: 0.14em;
+      cursor: pointer;
+      text-align: left;
+      line-height: 1.25;
+    }
+    .game-perf-kpi button.s.is-link {
+      display: block;
+      width: 100%;
+      margin-top: 0.18rem;
+    }
+    .game-perf-kpi .s.is-link:hover,
+    button.inline-guidance-link:hover {
+      color: var(--m-game);
     }
     .game-perf-kpi.mh-live {
       box-shadow:
@@ -5861,14 +5885,9 @@
       min-width: 0;
       padding: 0.1rem 0.15rem 0.1rem 0.05rem;
     }
-    /* Compact square — the tall 600×900 capsule was crowding the title. */
-    body.dash-dedupe #sumGameCell:not(.tall) .sum-game-art.is-loaded {
-      display: block !important;
-      width: 2.15rem;
-      height: 2.15rem;
-      flex-shrink: 0;
-      border-radius: 6px;
-      border-color: color-mix(in srgb, var(--m-game) 28%, var(--line));
+    /* Glance is a scoreboard chip — library art lives on Game performance. */
+    body.dash-dedupe #sumGameCell .sum-game-art {
+      display: none !important;
     }
     body.dash-dedupe #sumGameCell .sum-game-info {
       flex: 1 1 auto;

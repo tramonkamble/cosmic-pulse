@@ -8,7 +8,8 @@ Dates use the machine local timezone (EDT unless noted).
 ## [Unreleased]
 
 ### Added
-- **Game art** — Steam library capsule on the glance chip and hero still on the Game performance strip. Prefers on-disk `appcache/librarycache` via `/api/game-art`; falls back to Steam CDN. Numeric AppIDs only.
+- **Game art** — Steam library still on the Game performance strip (hero/header wash). Glance is name + rating + Index only — no postage-stamp capsule. Prefers on-disk `appcache/librarycache` via `/api/game-art`; falls back to Steam CDN. Numeric AppIDs only.
+- **MangoHud links** — Game performance FPS / 1% lows / frametime empty copy is “enable MangoHud log” and opens the Guidance card (install, Steam launch option, logging).
 - **Pulse Index coverage** — Intel CPUs (14900K through 12400F, Core Ultra 200) and Intel Arc (B580/B570/A770/A750/A580, UHD/Iris). More NVIDIA 50-series and AMD RX 9000 SKUs. Scores still follow Tom's Hardware 2026 relatives; older parts stay flagged estimated.
 - **RAM brands** — Corsair, Kingston Fury, Crucial, Patriot, TeamGroup, ADATA XPG (and other DMI aliases) in addition to G.Skill Flare X5.
 

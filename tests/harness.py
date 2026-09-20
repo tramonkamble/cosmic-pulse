@@ -170,7 +170,7 @@ def check_dashboard_html() -> None:
         'data-viz-tab="rig"',
         'data-viz-tab="index"',
         'data-viz-tab="stutter"',
-        'id="sumGameArt"',
+        'id="gamePerformanceHero"',
         'data-view="60"',
         'data-view="300"',
         'data-view="600"',
@@ -207,6 +207,15 @@ def check_dashboard_html() -> None:
         st == 200 and isinstance(js, str) and "async function tick" in js,
         f"status={st}",
     )
+    if isinstance(js, str):
+        check(
+            "js mangohud kpi copy",
+            "enable MangoHud log" in js and "needs MangoHud log" not in js,
+        )
+        check(
+            "js mangohud guidance link",
+            'data-guidance-insight' in js and "mangohud-recommended" in js,
+        )
 
 
 def check_sampler_and_metrics() -> dict:
