@@ -94,10 +94,12 @@ rules:
       level: info
       title: "Recommended: MangoHud for real FPS / frametime"
       text: >-
-        Optional overlay for true in-game FPS and frametime. With logging on
-        (sample conf → ~/mangohud-logs), Pulse attaches FPS avg / 1% lows to
-        finished sessions. Kernel stutter stays as proxy when no log is present.
-        Not required — skip if you prefer a clean HUD.
+        Optional overlay for true in-game FPS and frametime. Logging to
+        ~/mangohud-logs lets Pulse attach FPS avg / 1% lows after you quit.
+        Kernel stutter stays as proxy when no log is present. The silent conf
+        keeps logging without the default giant HUD (do not use no_display —
+        several MangoHud builds then skip the log). Shift+F2 toggles logging.
+        Not required — skip if you prefer no HUD at all.
       bucket: tools
       condition_live: true
       games: [all]
@@ -106,14 +108,32 @@ rules:
         kind: cmd
         cmd: sudo apt install mangohud
         note: One-time; Pop!_OS package
+      - label: Write logging conf (small HUD)
+        kind: cmd
+        cmd: >-
+          mkdir -p "$HOME/.config/MangoHud" "$HOME/mangohud-logs" && printf '%s\n'
+          '# Pulse — small HUD + FPS log' 'legacy_layout=false' 'fps' 'frame_timing'
+          'cpu_stats=0' 'gpu_stats=0' 'position=top-left'
+          "output_folder=$HOME/mangohud-logs" 'autostart_log=1' 'log_interval=100'
+          'permit_upload=0' 'toggle_logging=Shift_L+F2'
+          | tee "$HOME/.config/MangoHud/MangoHud.conf"
+        note: Overwrites ~/.config/MangoHud/MangoHud.conf. tee prints the file so you can confirm.
       - label: Steam launch option
         kind: steam
         cmd: mangohud %command%
-        note: Steam → game → Properties → Launch Options (per game)
-      - label: Enable logging
-        kind: note
-        cmd: Add output_folder=~/mangohud-logs to ~/.config/MangoHud/MangoHud.conf
-        note: Pulse reads those CSVs after you quit. Overlay-only (no log) still works; FPS stays empty.
+        note: Steam → game → Properties → Launch Options (per game). Uses the conf from the step above.
+      - label: Silent overlay (log only)
+        kind: cmd
+        cmd: >-
+          mkdir -p "$HOME/.config/MangoHud" "$HOME/mangohud-logs" && printf '%s\n'
+          '# Pulse — log only, overlay fully transparent'
+          '# no_display skips logging in several MangoHud builds — use alpha=0 instead'
+          'legacy_layout=false' 'fps' 'frame_timing=0' 'cpu_stats=0' 'gpu_stats=0'
+          'alpha=0.0' 'background_alpha=0.0' "output_folder=$HOME/mangohud-logs"
+          'autostart_log=1' 'log_interval=100' 'permit_upload=0'
+          'toggle_hud=Shift_R+F12' 'toggle_logging=Shift_L+F2'
+          | tee "$HOME/.config/MangoHud/MangoHud.conf"
+        note: Same Steam launch option. Overlay is invisible; Shift+F12 shows it if you need it.
 
   - id: gpu-thermal-ceiling-hot
     detect:

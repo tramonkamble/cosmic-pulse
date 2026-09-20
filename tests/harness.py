@@ -217,6 +217,10 @@ def check_dashboard_html() -> None:
             "js mangohud guidance link",
             'data-guidance-insight' in js and "mangohud-recommended" in js,
         )
+        check(
+            "js mangohud conf writes autostart_log",
+            "autostart_log=1" in js and "alpha=0.0" in js,
+        )
 
 
 def check_sampler_and_metrics() -> dict:

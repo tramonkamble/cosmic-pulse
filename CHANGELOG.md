@@ -7,6 +7,9 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+### Changed
+- **MangoHud logging steps** — Guidance writes `~/.config/MangoHud/MangoHud.conf` with a copy-paste `printf | tee` (small HUD + `~/mangohud-logs`). A second command writes a silent overlay (`alpha=0`, not `no_display`, which skips logging on several builds). Same Steam launch option either way.
+
 ## [0.2.3] - 2026-09-19
 
 ### Added
