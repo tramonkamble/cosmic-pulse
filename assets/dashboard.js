@@ -6360,12 +6360,26 @@
       }
     }
 
+    function sessionGameName(s) {
+      if (!s) return 'Game';
+      const cat = lastStatic?.games_catalog?.[normalizeGameId(s.game_id)]
+        || lastStatic?.games_catalog?.[s.game_id];
+      return cat?.short || cat?.name || s.game_name || gameLabel(s.game_id) || 'Game';
+    }
+
+    function sessionChartTick(s) {
+      const name = sessionGameName(s);
+      const short = name.length > 16 ? `${name.slice(0, 15)}…` : name;
+      const d = new Date((s.started_ts || s.ended_ts || 0) * 1000);
+      const when = Number.isFinite(d.getTime())
+        ? d.toLocaleString([], { month: 'short', day: 'numeric' })
+        : '';
+      return when ? [short, when] : [short];
+    }
+
     function renderGamePerfSessionChart(sessions, markers) {
       const ordered = [...(sessions || [])].reverse().slice(-24);
-      const labels = ordered.map(s => {
-        const d = new Date((s.started_ts || 0) * 1000);
-        return d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      });
+      const labels = ordered.map(sessionChartTick);
       const ratings = ordered.map(s => s.rating ?? 0);
       const colors = ordered.map(s => {
         const t = s.rating_tier || 'fair';
@@ -6383,6 +6397,18 @@
         borderRadius: 6,
         sessionMeta: ordered,
       }];
+      const tt = gamePerfSessionsChart.options.plugins.tooltip;
+      tt.callbacks = tt.callbacks || {};
+      tt.callbacks.title = (items) => {
+        const s = items?.[0]?.dataset?.sessionMeta?.[items[0].dataIndex];
+        if (!s) return '';
+        const d = new Date((s.started_ts || s.ended_ts || 0) * 1000);
+        const when = Number.isFinite(d.getTime())
+          ? d.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '';
+        return when ? `${sessionGameName(s)} · ${when}` : sessionGameName(s);
+      };
+      tt.callbacks.label = (ctx) => `Rating ${ctx.parsed?.y ?? '—'}`;
       if (canvasVisible(gamePerfSessionsChart)) gamePerfSessionsChart.update('none');
 
       const markersEl = document.getElementById('gamePerfMarkers');

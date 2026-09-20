@@ -751,6 +751,12 @@
           tooltip: {
             backgroundColor: '#404349',
             callbacks: {
+              title(items) {
+                const s = items?.[0]?.dataset?.sessionMeta?.[items[0].dataIndex];
+                if (!s) return items?.[0]?.label || '';
+                const name = s.game_name || s.game_id || 'Game';
+                return String(name);
+              },
               afterLabel(ctx) {
                 const s = ctx.dataset.sessionMeta?.[ctx.dataIndex];
                 if (!s) return '';
@@ -768,7 +774,17 @@
           },
         },
         scales: {
-          x: { ticks: { color: tickColor, maxTicksLimit: 6, font: { size: 9 } }, grid: { color: gridColor } },
+          x: {
+            ticks: {
+              color: tickColor,
+              maxTicksLimit: 8,
+              maxRotation: 0,
+              minRotation: 0,
+              autoSkip: true,
+              font: { size: 9 },
+            },
+            grid: { color: gridColor },
+          },
           y: { min: 0, max: 100, ticks: { color: tickColor, font: { size: 9 } }, grid: { color: gridColor } },
         },
       },

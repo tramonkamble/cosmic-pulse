@@ -3691,8 +3691,8 @@
       box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 3%, transparent);
     }
     .game-perf-hero-charts .stutter-chart-box.game-viz-chart-sm {
-      min-height: 8.5rem;
-      height: 9.5rem;
+      min-height: 9.5rem;
+      height: 10.75rem;
     }
     @media (max-width: 900px) {
       .game-perf-hero-charts { grid-template-columns: 1fr; }
