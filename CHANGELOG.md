@@ -7,6 +7,8 @@ Dates use the machine local timezone (EDT unless noted).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-09-19
+
 ### Added
 - **Game art** — Steam library still on the Game performance strip (hero/header wash). Glance is name + rating + Index only — no postage-stamp capsule. Prefers on-disk `appcache/librarycache` via `/api/game-art`; falls back to Steam CDN. Numeric AppIDs only.
 - **MangoHud links** — Game performance FPS / 1% lows / frametime empty copy is “enable MangoHud log” and opens the Guidance card (install, Steam launch option, logging).
@@ -14,8 +16,10 @@ Dates use the machine local timezone (EDT unless noted).
 - **Pulse Index coverage** — Intel CPUs (14900K through 12400F, Core Ultra 200) and Intel Arc (B580/B570/A770/A750/A580, UHD/Iris). More NVIDIA 50-series and AMD RX 9000 SKUs. Scores still follow Tom's Hardware 2026 relatives; older parts stay flagged estimated.
 - **RAM brands** — Corsair, Kingston Fury, Crucial, Patriot, TeamGroup, ADATA XPG (and other DMI aliases) in addition to G.Skill Flare X5.
 
+### Fixed
+- **Browse sessions dropdown** — on dark themes the Game performance session picker sat in a translucent well over library art, so the label and list were unreadable. Opaque chip plus `color-scheme` so native options stay light-on-dark.
+
 ### Changed
-- **Browse sessions** — opaque chip + `color-scheme` so the Game performance dropdown stays readable on dark themes and library-art wash.
 - **No host PCI leftovers** — GPU probe no longer falls back to this machine’s `0000:03:00.0` / `amdgpu-pci-0300` slot. Missing sysfs uses the DRM driver name.
 - **GitHub landing** — README is the product page (what Pulse is, Windows analogs, install). Agent/layout notes, source map, and API live in contributor files, not the front page.
 - **Sampler yield** — the sample worker runs at nice 10 so the game keeps the cores. Process/thread tiles read `/proc/loadavg` instead of opening every PID. Per-core MHz is cached ~2s. A missing `nvidia-smi` is cached so NVIDIA-less boxes do not walk `PATH` every tick.

@@ -8,7 +8,7 @@ If you watched a Windows box with **MSI Afterburner** or **AMD Software: Adrenal
 
 ![Cosmic Pulse dashboard](docs/screenshots/dashboard.png)
 
-> **Status:** v0.2.2 (0.x prerelease) — community project, **not** an official System76 app. Issues and PRs welcome.
+> **Status:** v0.2.3 (0.x prerelease) — community project, **not** an official System76 app. Issues and PRs welcome.
 
 ## If you came from Windows
 
