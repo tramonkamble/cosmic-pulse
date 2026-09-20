@@ -171,6 +171,7 @@ def check_dashboard_html() -> None:
         'data-viz-tab="index"',
         'data-viz-tab="stutter"',
         'id="gamePerformanceHero"',
+        'id="sessionExitTrim"',
         'data-view="60"',
         'data-view="300"',
         'data-view="600"',
@@ -458,6 +459,7 @@ def main() -> int:
     run_unit_file("tests/test_chassis_identity.py")
     run_unit_file("tests/test_league_index.py")
     run_unit_file("tests/test_game_art.py")
+    run_unit_file("tests/test_game_performance.py")
     run_unit_file("tests/test_cli.py")
     run_unit_file("tests/test_version.py")
     run_unit_file("tests/test_rule_packs.py")

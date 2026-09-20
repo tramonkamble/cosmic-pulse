@@ -3,6 +3,7 @@
   "ui_scale": 1.0,
   "tuning_log_max": 48,
   "theme_mode": "cosmic",
+  "session_exit_trim_sec": 10,
   "disabled_packs": [],
   "rule_pack_paths": [],
   "suppressed_insights": [],

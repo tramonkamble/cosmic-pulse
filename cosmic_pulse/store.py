@@ -14,6 +14,7 @@ import time
 from .paths import data_dir
 from .pulse_config import (
     DEFAULT_RETENTION_DAYS,
+    DEFAULT_SESSION_EXIT_TRIM_SEC,
     DEFAULT_THEME_MODE,
     DEFAULT_TUNING_LOG_MAX,
     DEFAULT_UI_SCALE,
@@ -23,6 +24,9 @@ from .pulse_config import (
     RETENTION_MAX_DAYS,
     RETENTION_MIN_DAYS,
     RETENTION_PRESETS,
+    SESSION_EXIT_TRIM_MAX,
+    SESSION_EXIT_TRIM_MIN,
+    SESSION_EXIT_TRIM_PRESETS,
     THEME_MODES,
     TUNING_LOG_MAX_CAP,
     TUNING_LOG_MIN,
@@ -33,6 +37,7 @@ from .pulse_config import (
     estimate_max_mb,
     get_resolved_insights,
     get_retention_days,
+    get_session_exit_trim_sec,
     get_suppressed_insights,
     get_theme_mode,
     get_tuning_log_max,
@@ -719,6 +724,11 @@ def stats() -> dict:
         "theme_mode": theme_mode,
         "theme_mode_default": DEFAULT_THEME_MODE,
         "theme_modes": list(THEME_MODES),
+        "session_exit_trim_sec": get_session_exit_trim_sec(),
+        "session_exit_trim_default": DEFAULT_SESSION_EXIT_TRIM_SEC,
+        "session_exit_trim_min": SESSION_EXIT_TRIM_MIN,
+        "session_exit_trim_max": SESSION_EXIT_TRIM_MAX,
+        "session_exit_trim_presets": SESSION_EXIT_TRIM_PRESETS,
         "tuning_log_max": log_max,
         "tuning_log_default": DEFAULT_TUNING_LOG_MAX,
         "tuning_log_presets": TUNING_LOG_PRESETS,
@@ -766,6 +776,8 @@ def update_settings(body: dict) -> dict:
         updates["tuning_log_max"] = body["tuning_log_max"]
     if "theme_mode" in body:
         updates["theme_mode"] = body["theme_mode"]
+    if "session_exit_trim_sec" in body:
+        updates["session_exit_trim_sec"] = body["session_exit_trim_sec"]
     if "hw_scales" in body:
         updates["hw_scales"] = body["hw_scales"]
     if "suppressed_insights" in body:

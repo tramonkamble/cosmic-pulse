@@ -6216,7 +6216,9 @@
         const mh = sessionHasMangoHud(last);
         if (statusEl) {
           statusEl.className = 'game-perf-hero-status';
-          const msg = `Last session · ${fmtStoreSpan(last.ended_ts)} · ${last.rating ?? '—'}/100`;
+          const trim = last.exit_trim_sec;
+          const trimBit = (trim != null && Number(trim) > 0) ? ` · −${trim}s exit` : '';
+          const msg = `Last session · ${fmtStoreSpan(last.ended_ts)} · ${last.rating ?? '—'}/100${trimBit}`;
           if (statusEl.textContent !== msg) statusEl.textContent = msg;
         }
         patchGamePerfKpis(el, [
@@ -6732,6 +6734,59 @@
       applyUiScale(scale);
     }
 
+    function sessionExitTrimLabel(n) {
+      const v = Number(n);
+      if (!Number.isFinite(v) || v <= 0) return 'off';
+      return `${Math.round(v)}s`;
+    }
+
+    function renderSessionExitTrimControls(s) {
+      const sec = s?.session_exit_trim_sec
+        ?? s?.pulse_config?.session_exit_trim_sec
+        ?? 10;
+      const min = s?.session_exit_trim_min ?? 0;
+      const max = s?.session_exit_trim_max ?? 30;
+      const presets = s?.session_exit_trim_presets || [0, 5, 10, 15];
+      const range = document.getElementById('sessionExitTrim');
+      const lab = document.getElementById('sessionExitTrimVal');
+      if (range) {
+        range.min = String(min);
+        range.max = String(max);
+        if (document.activeElement !== range) range.value = String(sec);
+      }
+      if (lab) lab.textContent = sessionExitTrimLabel(sec);
+      const host = document.getElementById('sessionExitTrimPresets');
+      if (host) {
+        host.innerHTML = presets.map(n =>
+          `<button class="btn${n === sec ? ' active' : ''}" type="button" data-exit-trim="${n}">${n === 0 ? 'Off' : `${n}s`}</button>`
+        ).join('');
+        host.querySelectorAll('[data-exit-trim]').forEach(btn => {
+          btn.onclick = () => applySessionExitTrim(+btn.dataset.exitTrim, btn);
+        });
+      }
+    }
+
+    async function applySessionExitTrim(n, btn) {
+      const min = storeCache?.session_exit_trim_min ?? 0;
+      const max = storeCache?.session_exit_trim_max ?? 30;
+      n = Math.round(Number(n));
+      if (!Number.isFinite(n) || n < min || n > max) {
+        showOptionsMsg(`Enter ${min}–${max} seconds`, false);
+        return;
+      }
+      const data = await postStoreAction({ session_exit_trim_sec: n }, btn);
+      if (data) {
+        renderSessionExitTrimControls(data);
+        const label = sessionExitTrimLabel(data.session_exit_trim_sec ?? n);
+        showOptionsMsg(
+          label === 'off'
+            ? 'Exit trim off — quit hitching stays in the score'
+            : `Exit trim ${label} — quit/teardown dropped from the score`,
+          true,
+        );
+      }
+    }
+
     function renderTuningLogControls(s) {
       const maxCards = s.tuning_log_max ?? s.pulse_config?.tuning_log_max ?? 48;
       const presets = s.tuning_log_presets || [24, 48, 96, 200];
@@ -6948,6 +7003,7 @@
       }
       if (!optionsUiScaleLocked()) renderUiScaleControls(s);
       if (!optionsHwScaleLocked()) applyHwScalesFromStore(s);
+      renderSessionExitTrimControls(s);
       renderTuningLogControls(s);
       renderResetStats(s);
       renderGuidancePrefs(s);
@@ -7326,6 +7382,17 @@
       });
     });
     syncResetButtons();
+
+    const sessionExitTrimRange = document.getElementById('sessionExitTrim');
+    if (sessionExitTrimRange) {
+      sessionExitTrimRange.addEventListener('input', () => {
+        const lab = document.getElementById('sessionExitTrimVal');
+        if (lab) lab.textContent = sessionExitTrimLabel(sessionExitTrimRange.value);
+      });
+      sessionExitTrimRange.addEventListener('change', () => {
+        applySessionExitTrim(sessionExitTrimRange.value);
+      });
+    }
 
     document.querySelectorAll('[data-hw-scale]').forEach(el => {
       el.addEventListener('input', () => {

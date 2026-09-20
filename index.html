@@ -1043,6 +1043,32 @@
           </div>
         </section>
 
+        <section class="options-section" id="optionsSessions">
+          <h2>Game sessions</h2>
+          <p class="section-lead">
+            Scoring windows. Load grace already skips the first 45s (menus / boot).
+            Exit trim drops quit/teardown hitching from the rating.
+          </p>
+          <div class="options-subblock">
+            <h3>Exit trim</h3>
+            <div class="options-row">
+              <span class="options-label">Ignore last</span>
+              <div class="ctrl-group" id="sessionExitTrimPresets"></div>
+            </div>
+            <div class="options-row">
+              <span class="options-label">Custom</span>
+              <div class="options-scale-wrap">
+                <input type="range" id="sessionExitTrim" min="0" max="30" step="1" value="10"
+                  aria-label="Seconds to drop at the end of a game session" />
+                <span class="options-scale-val" id="sessionExitTrimVal">10s</span>
+              </div>
+            </div>
+            <p class="options-scale-hint" id="sessionExitTrimHint">
+              Default 10s. 0 keeps every sample through process exit.
+            </p>
+          </div>
+        </section>
+
         <section class="options-section" id="optionsData">
           <h2>Data &amp; logs</h2>
           <p class="section-lead">How long samples stay on disk and how large the Guidance history file can grow.</p>

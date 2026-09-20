@@ -18,6 +18,7 @@ DEFAULT_RETENTION_DAYS = 10
 DEFAULT_UI_SCALE = 1.0
 DEFAULT_TUNING_LOG_MAX = 48
 DEFAULT_THEME_MODE = "cosmic"
+DEFAULT_SESSION_EXIT_TRIM_SEC = 10
 
 # Guidance that must match live system state — reopens when detected again after "Fixed".
 STATE_VERIFIED_INSIGHTS = frozenset({"proton-wayland-launch-fix"})
@@ -30,6 +31,10 @@ UI_SCALE_STEP = 0.05
 TUNING_LOG_PRESETS = [24, 48, 96, 200]
 TUNING_LOG_MIN = 8
 TUNING_LOG_MAX_CAP = 500
+# Drop quit/teardown hitching from the scored window. 0 = keep everything.
+SESSION_EXIT_TRIM_MIN = 0
+SESSION_EXIT_TRIM_MAX = 30
+SESSION_EXIT_TRIM_PRESETS = [0, 5, 10, 15]
 # cosmic = follow desktop; cosmic-dark/light = COSMIC packs; dark/light = Pulse chrome
 THEME_MODES = ("cosmic", "cosmic-dark", "cosmic-light", "system", "dark", "light")
 BYTES_PER_SAMPLE_EST = 200
@@ -79,6 +84,14 @@ def _clamp_tuning_log_max(value: object) -> int:
     except (TypeError, ValueError):
         return DEFAULT_TUNING_LOG_MAX
     return max(TUNING_LOG_MIN, min(TUNING_LOG_MAX_CAP, n))
+
+
+def _clamp_session_exit_trim_sec(value: object) -> int:
+    try:
+        n = int(round(float(value)))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return DEFAULT_SESSION_EXIT_TRIM_SEC
+    return max(SESSION_EXIT_TRIM_MIN, min(SESSION_EXIT_TRIM_MAX, n))
 
 
 def _clamp_hw_number(key: str, value: object) -> int:
@@ -162,6 +175,7 @@ def _default_config() -> dict:
         "ui_scale": DEFAULT_UI_SCALE,
         "tuning_log_max": DEFAULT_TUNING_LOG_MAX,
         "theme_mode": DEFAULT_THEME_MODE,
+        "session_exit_trim_sec": DEFAULT_SESSION_EXIT_TRIM_SEC,
         "disabled_packs": [],
         "rule_pack_paths": [],
         "suppressed_insights": [],
@@ -196,6 +210,9 @@ def load_config() -> dict:
                     data.get("tuning_log_max", DEFAULT_TUNING_LOG_MAX)
                 ),
                 "theme_mode": _normalize_theme_mode(data.get("theme_mode", DEFAULT_THEME_MODE)),
+                "session_exit_trim_sec": _clamp_session_exit_trim_sec(
+                    data.get("session_exit_trim_sec", DEFAULT_SESSION_EXIT_TRIM_SEC)
+                ),
                 "disabled_packs": _normalize_str_list(data.get("disabled_packs", [])),
                 "rule_pack_paths": _normalize_str_list(data.get("rule_pack_paths", [])),
                 "suppressed_insights": _normalize_insight_ids(data.get("suppressed_insights", [])),
@@ -226,6 +243,10 @@ def get_theme_mode() -> str:
 
 def get_hw_scales() -> dict:
     return dict(load_config()["hw_scales"])
+
+
+def get_session_exit_trim_sec() -> int:
+    return load_config()["session_exit_trim_sec"]
 
 
 def get_disabled_packs() -> list[str]:
@@ -265,6 +286,10 @@ def _save_config_locked(**updates: object) -> dict:
         cfg["tuning_log_max"] = _clamp_tuning_log_max(updates["tuning_log_max"])
     if "theme_mode" in updates:
         cfg["theme_mode"] = _normalize_theme_mode(updates["theme_mode"])
+    if "session_exit_trim_sec" in updates:
+        cfg["session_exit_trim_sec"] = _clamp_session_exit_trim_sec(
+            updates["session_exit_trim_sec"]
+        )
     if "disabled_packs" in updates:
         cfg["disabled_packs"] = _normalize_str_list(updates["disabled_packs"])
     if "rule_pack_paths" in updates:

@@ -9,6 +9,7 @@ from typing import Any
 
 from .games import game_meta
 from .mangohud_logs import summarize_for_session
+from .pulse_config import get_session_exit_trim_sec
 from .stutter import _percentile
 
 MIN_SESSION_SAMPLES = 15  # ~15s at 1 Hz after load grace
@@ -60,6 +61,7 @@ def _new_accumulator(game_id: str, game_name: str | None, ts: float) -> dict[str
         "ram_pct_sum": 0.0,
         "sample_count": 0,
         "trend_points": [],
+        "hitch_log": [],
     }
 
 
@@ -97,7 +99,63 @@ def _aggregate(acc: dict[str, Any]) -> dict[str, Any]:
     agg["rating"] = compute_rating({**agg, "duration_sec": duration})
     agg["rating_tier"] = rating_tier(agg["rating"])
     agg["trend"] = _downsample_trend(acc.get("trend_points") or [])
+    trim = acc.get("exit_trim_sec")
+    if trim:
+        agg["exit_trim_sec"] = trim
     return agg
+
+
+def _apply_exit_trim(acc: dict[str, Any], trim_sec: float) -> dict[str, Any]:
+    """Drop quit/teardown samples from the scored window.
+
+    Live ticks stay untrimmed. Finalize only. Never eat a session below
+    ``MIN_SESSION_SAMPLES`` — short runs keep as much of the tail as needed.
+    """
+    try:
+        trim = float(trim_sec)
+    except (TypeError, ValueError):
+        return acc
+    if trim <= 0 or not acc:
+        return acc
+    points = list(acc.get("trend_points") or [])
+    if len(points) < MIN_SESSION_SAMPLES:
+        return acc
+    last_ts = float(acc.get("last_ts") or points[-1].get("ts") or 0)
+    cutoff = last_ts - trim
+    max_drop = len(points) - MIN_SESSION_SAMPLES
+    drop = 0
+    for p in reversed(points):
+        if drop >= max_drop:
+            break
+        if float(p.get("ts") or 0) > cutoff:
+            drop += 1
+        else:
+            break
+    if drop <= 0:
+        return acc
+    kept = points[: len(points) - drop]
+    cutoff_kept = float(kept[-1].get("ts") or last_ts)
+    hitch_log = [
+        h for h in (acc.get("hitch_log") or [])
+        if float(h.get("ts") or 0) <= cutoff_kept
+    ]
+    scores = [float(p.get("stutter_score") or 0) for p in kept]
+    hitch_ms = [float(h["ms"]) for h in hitch_log if h.get("ms") is not None]
+    if not hitch_ms:
+        hitch_ms = [float(p["hitch_ms"]) for p in kept if p.get("hitch_ms") is not None]
+    out = dict(acc)
+    out["trend_points"] = kept
+    out["stutter_scores"] = scores
+    out["hitch_ms"] = hitch_ms
+    out["hitch_events"] = len(hitch_ms)
+    out["hitch_log"] = hitch_log
+    out["sample_count"] = len(kept)
+    out["last_ts"] = cutoff_kept
+    out["game_cpu_sum"] = sum(float(p.get("game_cpu") or 0) for p in kept)
+    out["gpu_busy_sum"] = sum(float(p.get("gpu_busy") or 0) for p in kept)
+    out["ram_pct_sum"] = sum(float(p.get("ram_pct") or 0) for p in kept)
+    out["exit_trim_sec"] = round(last_ts - cutoff_kept, 1)
+    return out
 
 
 def _downsample_trend(points: list[dict], max_n: int = MAX_TREND_POINTS) -> list[dict]:
@@ -127,8 +185,10 @@ class GameSessionTracker:
         score = float(st.get("score") or 0)
         acc["stutter_scores"].append(score)
         if st.get("event"):
-            acc["hitch_ms"].append(float(st.get("est_ms") or 0))
+            ms = float(st.get("est_ms") or 0)
+            acc["hitch_ms"].append(ms)
             acc["hitch_events"] += 1
+            acc.setdefault("hitch_log", []).append({"ts": ts, "ms": ms})
 
         gt = snap.get("game_totals") or {}
         acc["game_cpu_sum"] += float(gt.get("cpu_pct") or 0)
@@ -136,15 +196,17 @@ class GameSessionTracker:
         acc["gpu_busy_sum"] += float(dgpu.get("busy_pct") or 0)
         mem = snap.get("memory") or {}
         acc["ram_pct_sum"] += float(mem.get("pct") or 0)
-        acc.setdefault("trend_points", []).append(
-            {
-                "ts": ts,
-                "smoothness": st.get("smoothness"),
-                "stutter_score": st.get("score"),
-                "game_cpu": gt.get("cpu_pct"),
-                "gpu_busy": dgpu.get("busy_pct"),
-            }
-        )
+        point: dict[str, Any] = {
+            "ts": ts,
+            "smoothness": st.get("smoothness"),
+            "stutter_score": st.get("score"),
+            "game_cpu": gt.get("cpu_pct"),
+            "gpu_busy": dgpu.get("busy_pct"),
+            "ram_pct": mem.get("pct"),
+        }
+        if st.get("event"):
+            point["hitch_ms"] = float(st.get("est_ms") or 0)
+        acc.setdefault("trend_points", []).append(point)
 
     def _store_finished(self, row: dict[str, Any]) -> None:
         self._last_session = row
@@ -189,7 +251,11 @@ class GameSessionTracker:
         if not self._active or self._active["sample_count"] < MIN_SESSION_SAMPLES:
             self._active = None
             return None
-        row = _aggregate(self._active)
+        acc = _apply_exit_trim(self._active, get_session_exit_trim_sec())
+        if acc["sample_count"] < MIN_SESSION_SAMPLES:
+            self._active = None
+            return None
+        row = _aggregate(acc)
         self._active = None
         return self._attach_mangohud(row)
 

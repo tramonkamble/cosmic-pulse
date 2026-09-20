@@ -446,6 +446,15 @@ class Handler(BaseHTTPRequestHandler):
                         status=400,
                     )
                     return
+            if "session_exit_trim_sec" in body:
+                try:
+                    int(body["session_exit_trim_sec"])
+                except (TypeError, ValueError):
+                    self._json(
+                        {"ok": False, "error": "session_exit_trim_sec must be an integer"},
+                        status=400,
+                    )
+                    return
             if "hw_scales" in body and not isinstance(body["hw_scales"], dict):
                 self._json(
                     {"ok": False, "error": "hw_scales must be an object"},
