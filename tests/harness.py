@@ -170,6 +170,7 @@ def check_dashboard_html() -> None:
         'data-viz-tab="rig"',
         'data-viz-tab="index"',
         'data-viz-tab="stutter"',
+        'id="sumGameArt"',
         'data-view="60"',
         'data-view="300"',
         'data-view="600"',
@@ -365,6 +366,8 @@ def check_guidance(boot: dict, live: dict) -> None:
 
 
 def check_game_and_store() -> None:
+    status, data = _get("/api/game-art?appid=not-an-id")
+    check("GET /api/game-art rejects junk appid", status == 404, str(status))
     status, data = _get("/api/game-sessions?days=30")
     if check("GET /api/game-sessions", status == 200 and isinstance(data, dict), str(status)):
         check("sessions list", isinstance(data.get("sessions"), list))
@@ -445,6 +448,7 @@ def main() -> int:
     run_unit_file("tests/test_platform_identity.py")
     run_unit_file("tests/test_chassis_identity.py")
     run_unit_file("tests/test_league_index.py")
+    run_unit_file("tests/test_game_art.py")
     run_unit_file("tests/test_cli.py")
     run_unit_file("tests/test_version.py")
     run_unit_file("tests/test_rule_packs.py")

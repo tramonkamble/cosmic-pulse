@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 from . import collectors as col
 from . import server as srv
 from .collectors import load_memory_spec
+from .games import game_art_file
 from .probe_memory import probe_script_path
 from .cosmic_theme import get_cosmic_theme, get_cosmic_theme_pack
 from .diagnostics import (
@@ -98,6 +99,30 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", cache)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        elif path == "/api/game-art":
+            appid = (qs.get("appid") or [""])[0]
+            kind = (qs.get("kind") or ["any"])[0]
+            if kind not in ("capsule", "hero", "any"):
+                kind = "any"
+            hit = game_art_file(appid, kind=kind)
+            if not hit:
+                self.send_response(404)
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return
+            fp, ctype = hit
+            try:
+                data = fp.read_bytes()
+            except OSError:
+                self.send_response(404)
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "public, max-age=86400")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)

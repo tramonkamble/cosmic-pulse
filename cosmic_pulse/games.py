@@ -618,20 +618,107 @@ def game_meta(appid: str) -> dict:
 
 _STEAM_ASSET_CDN = "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps"
 _STEAM_LEGACY_CDN = "https://cdn.cloudflare.steamstatic.com/steam/apps"
+_APPID_RE = re.compile(r"^[0-9]{1,12}$")
+_ART_CAPSULE_NAMES = (
+    "library_600x900.jpg",
+    "library_600x900.png",
+    "library_capsule.jpg",
+    "logo.png",
+)
+_ART_HERO_NAMES = (
+    "library_hero.jpg",
+    "library_hero.png",
+    "header.jpg",
+    "header.png",
+    "library_hero_blur.jpg",
+)
 
 
-def steam_art_urls(appid: str) -> list[str]:
-    """Steam CDN art candidates — newer titles often lack header.jpg (use library_hero)."""
-    appid = normalize_game_id(appid) or appid
-    if not appid or not str(appid).isdigit():
+def _valid_steam_appid(appid: str | None) -> str | None:
+    raw = normalize_game_id(appid) or appid or ""
+    raw = str(raw).strip()
+    return raw if _APPID_RE.fullmatch(raw) else None
+
+
+def steam_art_urls(appid: str, *, kind: str = "any") -> list[str]:
+    """Steam CDN art — local library cache is tried first via ``/api/game-art``."""
+    appid = _valid_steam_appid(appid) or ""
+    if not appid:
         return []
     base = f"{_STEAM_ASSET_CDN}/{appid}"
-    return [
+    legacy = f"{_STEAM_LEGACY_CDN}/{appid}"
+    capsule = [
+        f"{base}/library_600x900.jpg",
+        f"{legacy}/library_600x900.jpg",
+        f"{base}/library_capsule.jpg",
+    ]
+    hero = [
         f"{base}/library_hero.jpg",
         f"{base}/header.jpg",
         f"{base}/capsule_616x353.jpg",
-        f"{_STEAM_LEGACY_CDN}/{appid}/header.jpg",
+        f"{legacy}/header.jpg",
+        f"{legacy}/library_hero.jpg",
     ]
+    if kind == "capsule":
+        return capsule
+    if kind == "hero":
+        return hero
+    return capsule + hero
+
+
+def _librarycache_dirs() -> list[Path]:
+    seen: set[str] = set()
+    out: list[Path] = []
+    for root in steam_library_roots():
+        for rel in (
+            Path("appcache") / "librarycache",
+            Path("steam") / "appcache" / "librarycache",
+        ):
+            cache = root / rel
+            try:
+                key = str(cache.resolve()) if cache.is_dir() else ""
+            except OSError:
+                key = ""
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(cache)
+    return out
+
+
+def local_steam_art_path(appid: str, *, kind: str = "any") -> Path | None:
+    """Portrait capsule or wide hero from Steam's on-disk library cache."""
+    appid = _valid_steam_appid(appid)
+    if not appid:
+        return None
+    if kind == "capsule":
+        names = _ART_CAPSULE_NAMES
+    elif kind == "hero":
+        names = _ART_HERO_NAMES
+    else:
+        names = _ART_CAPSULE_NAMES + _ART_HERO_NAMES
+    for cache in _librarycache_dirs():
+        folder = cache / appid
+        for name in names:
+            path = folder / name
+            if path.is_file():
+                return path
+        for name in names:
+            path = cache / f"{appid}_{name}"
+            if path.is_file():
+                return path
+    return None
+
+
+def game_art_file(appid: str, *, kind: str = "any") -> tuple[Path, str] | None:
+    path = local_steam_art_path(appid, kind=kind)
+    if path is None:
+        path = local_steam_art_path(appid, kind="any")
+    if path is None or not path.is_file():
+        return None
+    suf = path.suffix.lower()
+    ctype = "image/png" if suf == ".png" else "image/jpeg"
+    return path, ctype
 
 
 def build_games_catalog() -> dict[str, dict]:

@@ -1784,7 +1784,7 @@
       min-width: 0;
       overflow: hidden;
     }
-    #sumGameCell:not(.tall) .sum-game-art { display: none !important; }
+    #sumGameCell:not(.tall):not(.has-art) .sum-game-art { display: none !important; }
     #sumGameCell .sum-kicker {
       font-size: 0.64rem;
       font-weight: 700;
@@ -3334,6 +3334,31 @@
       background: var(--panel);
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-game) 12%, transparent);
       transition: padding 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .game-perf-hero.has-art::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(
+          105deg,
+          color-mix(in srgb, var(--panel) 94%, transparent) 8%,
+          color-mix(in srgb, var(--panel) 78%, transparent) 48%,
+          color-mix(in srgb, var(--panel) 58%, transparent) 100%
+        ),
+        var(--game-hero-art) center 28% / cover no-repeat;
+      opacity: 0.72;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .game-perf-hero.has-art > * {
+      position: relative;
+      z-index: 1;
+    }
+    .game-perf-hero.is-minimized.has-art::before {
+      opacity: 0.28;
     }
     body.cosmic-frosted .game-perf-hero {
       background: color-mix(in srgb, var(--panel) 88%, transparent);
@@ -5835,6 +5860,14 @@
       gap: 0.65rem;
       min-width: 0;
       padding: 0.1rem 0.2rem 0.1rem 0.05rem;
+    }
+    body.dash-dedupe #sumGameCell:not(.tall) .sum-game-art.is-loaded {
+      display: block !important;
+      width: 3.05rem;
+      height: 4.55rem;
+      flex-shrink: 0;
+      border-radius: 7px;
+      border-color: color-mix(in srgb, var(--m-game) 28%, var(--line));
     }
     body.dash-dedupe #sumGameCell .sum-game-info {
       flex: 0 1 auto;

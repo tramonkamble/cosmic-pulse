@@ -1253,21 +1253,35 @@
     const gameArtResolved = new Map();
     let gameArtProbeAppid = null;
 
-    function steamArtCandidates(appid, catalog) {
+    function steamArtCandidates(appid, catalog, kind) {
+      const local = `/api/game-art?appid=${encodeURIComponent(appid)}&kind=${encodeURIComponent(kind || 'any')}`;
       const cat = catalog?.[appid];
-      if (cat?.art_urls?.length) return cat.art_urls;
-      return [
-        `${STEAM_ART_CDN}/${appid}/library_hero.jpg`,
-        `${STEAM_ART_CDN}/${appid}/header.jpg`,
-        `${STEAM_ART_CDN}/${appid}/capsule_616x353.jpg`,
-        `${STEAM_ART_LEGACY_CDN}/${appid}/header.jpg`,
-      ];
+      const cdn = kind === 'capsule'
+        ? [
+            `${STEAM_ART_CDN}/${appid}/library_600x900.jpg`,
+            `${STEAM_ART_LEGACY_CDN}/${appid}/library_600x900.jpg`,
+          ]
+        : kind === 'hero'
+          ? [
+              `${STEAM_ART_CDN}/${appid}/library_hero.jpg`,
+              `${STEAM_ART_CDN}/${appid}/header.jpg`,
+              `${STEAM_ART_CDN}/${appid}/capsule_616x353.jpg`,
+              `${STEAM_ART_LEGACY_CDN}/${appid}/header.jpg`,
+            ]
+          : (cat?.art_urls?.length ? cat.art_urls : [
+              `${STEAM_ART_CDN}/${appid}/library_600x900.jpg`,
+              `${STEAM_ART_CDN}/${appid}/library_hero.jpg`,
+              `${STEAM_ART_CDN}/${appid}/header.jpg`,
+              `${STEAM_ART_LEGACY_CDN}/${appid}/header.jpg`,
+            ]);
+      return [local, ...cdn];
     }
 
     function setGameSummaryArtVisible(wrap, show) {
       if (!wrap) return;
       wrap.hidden = !show;
       wrap.classList.toggle('is-loaded', show);
+      document.getElementById('sumGameCell')?.classList.toggle('has-art', !!show);
     }
 
     function bindGameArtImg(img) {
@@ -1288,6 +1302,60 @@
       if (img.getAttribute('src') !== url) img.src = url;
       else if (img.complete && img.naturalWidth > 0) reveal();
       else setGameSummaryArtVisible(wrap, false);
+    }
+
+    const gameHeroArtResolved = new Map();
+    let gameHeroArtProbe = null;
+
+    function setGameHeroArt(gameId) {
+      const hero = document.getElementById('gamePerformanceHero');
+      if (!hero) return;
+      const catalog = lastStatic?.games_catalog || {};
+      const appid = gameAppId(gameId, catalog);
+      const clear = () => {
+        hero.classList.remove('has-art');
+        hero.style.removeProperty('--game-hero-art');
+      };
+      if (!appid || hero.classList.contains('is-minimized')) {
+        gameHeroArtProbe = null;
+        clear();
+        return;
+      }
+      const applyUrl = (url) => {
+        hero.style.setProperty('--game-hero-art', `url("${url}")`);
+        hero.classList.add('has-art');
+      };
+      if (gameHeroArtResolved.has(appid)) {
+        const url = gameHeroArtResolved.get(appid);
+        if (url) applyUrl(url);
+        else clear();
+        return;
+      }
+      if (gameHeroArtProbe === appid) return;
+      gameHeroArtProbe = appid;
+      const candidates = steamArtCandidates(appid, catalog, 'hero');
+      let idx = 0;
+      const probe = new Image();
+      probe.referrerPolicy = 'no-referrer';
+      const tryNext = () => {
+        if (gameHeroArtProbe !== appid) return;
+        if (idx >= candidates.length) {
+          gameHeroArtResolved.set(appid, null);
+          gameHeroArtProbe = null;
+          clear();
+          return;
+        }
+        const url = candidates[idx++];
+        probe.onload = () => {
+          if (gameHeroArtProbe !== appid) return;
+          gameHeroArtResolved.set(appid, url);
+          gameHeroArtProbe = null;
+          applyUrl(url);
+        };
+        probe.onerror = tryNext;
+        probe.src = url;
+      };
+      tryNext();
     }
 
     function applyGameSummaryArt(gameId, label) {
@@ -1326,7 +1394,7 @@
 
       gameArtProbeAppid = appid;
       setGameSummaryArtVisible(wrap, false);
-      const candidates = steamArtCandidates(appid, catalog);
+      const candidates = steamArtCandidates(appid, catalog, 'capsule');
       let idx = 0;
 
       const tryNext = () => {
@@ -6111,6 +6179,7 @@
       }
 
       if (!activeGame && !recap) {
+        setGameHeroArt(null);
         if (nameEl && nameEl.textContent) nameEl.textContent = '';
         if (statusEl) {
           statusEl.className = 'game-perf-hero-status is-listening';
@@ -6129,6 +6198,7 @@
       }
 
       if (recap) {
+        setGameHeroArt(last.game_id);
         const gname = last.game_name || gameLabel(last.game_id) || 'Game';
         if (nameEl && nameEl.textContent !== gname) nameEl.textContent = gname;
         if (idleBadge) idleBadge.textContent = 'Last session';
@@ -6162,6 +6232,7 @@
       }
 
       const gname = gp.game_name || gt?.game_name || 'Game';
+      setGameHeroArt(gp.game_id || gt?.game_id);
       if (nameEl && nameEl.textContent !== gname) nameEl.textContent = gname;
 
       if (!gp.recording) {
